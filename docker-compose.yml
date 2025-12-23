@@ -1,7 +1,6 @@
 version: "3.9"
 
 services:
-  # -- postgres --
   postgres:
     image: postgres:16-alpine
     container_name: dev-postgres
@@ -19,9 +18,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-  # // postgres //
 
-  # -- pgadmin --
   pgadmin:
     image: dpage/pgadmin4:9
     container_name: dev-pgadmin
@@ -43,9 +40,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-  # // pgadmin //
 
-  # -- mailpit --
   mailpit:
     image: axllent/mailpit:latest
     container_name: dev-mailpit
@@ -61,9 +56,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-  # // mailpit //
 
-  # -- minio --
   minio:
     image: minio/minio:latest
     container_name: dev-minio
@@ -95,9 +88,7 @@ services:
       mc policy set public local/dev-bucket || true
       "
     restart: "no"
-  # // minio //
 
-  # -- redis --
   redis:
     image: redis
     ports:
@@ -110,7 +101,6 @@ services:
       SRH_MODE: env
       SRH_TOKEN: dev_token
       SRH_CONNECTION_STRING: "redis://redis:6379"
-  # // redis //
 
 networks:
   default:

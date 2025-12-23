@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "@acme/ui/lib/utils";
+import { cn } from "@redux/ui/lib/utils";
 
 function Input({
   className,

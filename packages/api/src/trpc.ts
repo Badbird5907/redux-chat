@@ -10,9 +10,9 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z, ZodError } from "zod/v4";
 
-import type { Auth, Session } from "@acme/auth";
-import { db } from "@acme/db/client";
-import { redis } from "@acme/redis";
+import type { Auth, Session } from "@redux/auth";
+import { db } from "@redux/db/client";
+import { redis } from "@redux/redis";
 import type { Redis } from "@upstash/redis";
 
 /**

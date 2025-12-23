@@ -4,8 +4,8 @@ import { ExternalLink } from "lucide-react";
 import { HydrateClient, prefetch, trpc } from "@/trpc/server";
 import { CreatePostForm, PostCardSkeleton, PostList } from "@/components/posts";
 import Link from "next/link";
-import { Button } from "@acme/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/components/card";
+import { Button } from "@redux/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@redux/ui/components/card";
 
 
 export default function HomePage() {

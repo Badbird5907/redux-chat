@@ -11,10 +11,10 @@
   },
   "aliases": {
     "ui": "src/components",
-    "components": "@acme/ui/components",
-    "utils": "@acme/ui/lib/utils",
-    "lib": "@acme/ui/lib",
-    "hooks": "@acme/ui/hooks"
+    "components": "@redux/ui/components",
+    "utils": "@redux/ui/lib/utils",
+    "lib": "@redux/ui/lib",
+    "hooks": "@redux/ui/hooks"
   },
   "iconLibrary": "lucide"
 }

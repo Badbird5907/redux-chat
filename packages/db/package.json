@@ -1,5 +1,5 @@
 {
-  "name": "@acme/db",
+  "name": "@redux/db",
   "private": true,
   "type": "module",
   "exports": {
@@ -27,14 +27,14 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
-    "@acme/prettier-config": "workspace:*",
-    "@acme/tsconfig": "workspace:*",
+    "@redux/eslint-config": "workspace:*",
+    "@redux/prettier-config": "workspace:*",
+    "@redux/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "drizzle-kit": "^0.31.5",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@acme/prettier-config"
+  "prettier": "@redux/prettier-config"
 }

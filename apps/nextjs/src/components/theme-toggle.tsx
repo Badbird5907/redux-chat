@@ -4,7 +4,7 @@ import * as React from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
-import { Button } from "@acme/ui/components/button";
+import { Button } from "@redux/ui/components/button";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();

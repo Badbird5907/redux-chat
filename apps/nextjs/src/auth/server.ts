@@ -4,7 +4,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { nextCookies } from "better-auth/next-js";
 
-import { initAuth } from "@acme/auth";
+import { initAuth } from "@redux/auth";
 
 import { env } from "@/env";
 

@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { Toaster } from "@acme/ui/components/sonner";
-import { cn } from "@acme/ui/lib/utils";
+import { Toaster } from "@redux/ui/components/sonner";
+import { cn } from "@redux/ui/lib/utils";
 
 import { AuthMenu } from "@/components/auth-menu";
 import { ThemeProvider } from "@/components/theme-provider";

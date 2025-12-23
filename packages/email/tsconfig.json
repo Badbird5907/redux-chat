@@ -1,5 +1,5 @@
 {
-  "extends": "@acme/tsconfig/compiled-package.json",
+  "extends": "@redux/tsconfig/compiled-package.json",
   "include": ["."],
 	"exclude": ["dist", "build", "node_modules"],
 	"compilerOptions": {

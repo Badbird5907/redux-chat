@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@acme/ui/components/button";
-import { Input } from "@acme/ui/components/input";
-import { Label } from "@acme/ui/components/label";
-import { Separator } from "@acme/ui/components/separator";
+import { Button } from "@redux/ui/components/button";
+import { Input } from "@redux/ui/components/input";
+import { Label } from "@redux/ui/components/label";
+import { Separator } from "@redux/ui/components/separator";
 
 import { authClient } from "@/auth/client";
 

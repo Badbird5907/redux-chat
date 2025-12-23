@@ -112,12 +112,12 @@ export const posts = pgTable("posts", (t) => ({
 
 #### Querying the Database
 
-The database client is exported from `@acme/db/client`. Here are some example queries:
+The database client is exported from `@redux/db/client`. Here are some example queries:
 
 ```typescript
-import { db } from "@acme/db/client";
-import { posts } from "@acme/db/schema";
-import { eq, desc } from "@acme/db";
+import { db } from "@redux/db/client";
+import { posts } from "@redux/db/schema";
+import { eq, desc } from "@redux/db";
 
 // Find all posts
 const allPosts = await db.query.posts.findMany({
@@ -170,9 +170,9 @@ Here's an example of a simple tRPC router:
 ```typescript
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
-import { desc, eq } from "@acme/db";
-import { posts } from "@acme/db/schema";
-import { CreatePostSchema } from "@acme/types";
+import { desc, eq } from "@redux/db";
+import { posts } from "@redux/db/schema";
+import { CreatePostSchema } from "@redux/types";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 export const postRouter = {
@@ -233,7 +233,7 @@ However, if you make any changes to the auth configuration (e.g., adding new pro
 
 ```bash
 # Generate the Better Auth schema
-pnpm --filter @acme/auth generate
+pnpm --filter @redux/auth generate
 ```
 
 This command runs the Better Auth CLI with the following configuration:
@@ -245,7 +245,7 @@ The generation process:
 
 1. Reads the Better Auth configuration from `packages/auth/script/auth-cli.ts`
 2. Generates the appropriate database schema based on your auth setup
-3. Outputs a Drizzle-compatible schema file to the `@acme/db` package
+3. Outputs a Drizzle-compatible schema file to the `@redux/db` package
 
 > **Note**: The `auth-cli.ts` file is placed in the `script/` directory (instead of `src/`) to prevent accidental imports from other parts of the codebase. This file is exclusively for CLI schema generation and should **not** be used directly in your application. For runtime authentication, use the configuration from `packages/auth/src/index.ts`.
 

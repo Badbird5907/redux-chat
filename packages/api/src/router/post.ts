@@ -1,9 +1,9 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { desc, eq } from "@acme/db";
-import { posts } from "@acme/db/schema";
-import { CreatePostSchema } from "@acme/types";
+import { desc, eq } from "@redux/db";
+import { posts } from "@redux/db/schema";
+import { CreatePostSchema } from "@redux/types";
 
 import { protectedProcedure, publicProcedure } from "../trpc";
 

@@ -1,5 +1,5 @@
 {
-  "name": "@acme/api",
+  "name": "@redux/api",
   "private": true,
   "type": "module",
   "exports": {
@@ -18,26 +18,26 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@acme/auth": "workspace:*",
-    "@acme/db": "workspace:*",
-    "@acme/email": "workspace:*",
-    "@acme/redis": "workspace:*",
-    "@acme/types": "workspace:*",
-    "@acme/validators": "workspace:*",
     "@react-email/components": "^1.0.2",
+    "@redux/auth": "workspace:*",
+    "@redux/db": "workspace:*",
+    "@redux/email": "workspace:*",
+    "@redux/redis": "workspace:*",
+    "@redux/types": "workspace:*",
+    "@redux/validators": "workspace:*",
     "@trpc/server": "catalog:",
     "@upstash/redis": "^1.35.8",
     "superjson": "2.2.3",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
-    "@acme/prettier-config": "workspace:*",
-    "@acme/tsconfig": "workspace:*",
+    "@redux/eslint-config": "workspace:*",
+    "@redux/prettier-config": "workspace:*",
+    "@redux/tsconfig": "workspace:*",
     "@types/react": "catalog:react19",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@acme/prettier-config"
+  "prettier": "@redux/prettier-config"
 }

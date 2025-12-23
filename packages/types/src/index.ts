@@ -1,4 +1,4 @@
-import * as schema from "@acme/db/schema";
+import * as schema from "@redux/db/schema";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 

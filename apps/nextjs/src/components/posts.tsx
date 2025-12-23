@@ -7,24 +7,24 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 
-import type { RouterOutputs } from "@acme/api";
-import { CreatePostSchema } from "@acme/types";
-import { cn } from "@acme/ui/lib/utils";
-import { Button } from "@acme/ui/components/button";
+import type { RouterOutputs } from "@redux/api";
+import { CreatePostSchema } from "@redux/types";
+import { cn } from "@redux/ui/lib/utils";
+import { Button } from "@redux/ui/components/button";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@acme/ui/components/card";
+} from "@redux/ui/components/card";
 import {
   Field,
   FieldContent,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from "@acme/ui/components/field";
-import { Input } from "@acme/ui/components/input";
+} from "@redux/ui/components/field";
+import { Input } from "@redux/ui/components/input";
 import { toast } from "sonner";
 
 import { useTRPC } from "../trpc/react";
