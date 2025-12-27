@@ -1,0 +1,57 @@
+{
+  "name": "@redux/backend",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./convex/_generated/server": {
+      "types": "./convex/_generated/server.d.ts",
+      "default": "./convex/_generated/server.js"
+    },
+    "./convex/_generated/dataModel": {
+      "types": "./convex/_generated/dataModel.d.ts",
+      "default": "./convex/_generated/dataModel.js"
+    },
+    "./convex/_generated/api": {
+      "types": "./convex/_generated/api.d.ts",
+      "default": "./convex/_generated/api.js"
+    },
+    "./convex/auth": {
+      "types": "./convex/auth.ts",
+      "default": "./convex/auth.ts"
+    },
+    "./convex/auth.config": {
+      "types": "./convex/auth.config.ts",
+      "default": "./convex/auth.config.ts"
+    },
+    "./env": {
+      "types": "./convex/env.ts",
+      "default": "./convex/env.ts"
+    }
+  },
+  "license": "MIT",
+  "scripts": {
+    "dev": "convex dev",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint --flag unstable_native_nodejs_ts_config",
+    "generate": "dotenv -e ../../.env -- pnpx @better-auth/cli generate --config script/auth-cli.ts --output ../db/src/schema/auth.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@convex-dev/better-auth": "^0.10.9",
+    "@t3-oss/env-core": "^0.13.8",
+    "better-auth": "catalog:",
+    "convex": "^1.31.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@redux/eslint-config": "workspace:*",
+    "@redux/prettier-config": "workspace:*",
+    "@redux/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:"
+  },
+  "prettier": "@redux/prettier-config"
+}

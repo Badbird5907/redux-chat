@@ -4,13 +4,13 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@redux/ui/components/sonner";
 import { cn } from "@redux/ui/lib/utils";
 
-import { AuthMenu } from "@/components/auth-menu";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { env } from "@/env";
 import { TRPCReactProvider } from "@/trpc/react";
 
 import "@/app/styles.css";
+import { ConvexClientProvider } from "@/providers/convex";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -65,12 +65,11 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
-          <div className="absolute top-4 right-4 z-50 flex items-center gap-4">
-            <AuthMenu />
-          </div>
-          <TRPCReactProvider>{props.children}</TRPCReactProvider>
-          <Toaster />
-          <ThemeToggle />
+          <ConvexClientProvider>
+            <TRPCReactProvider>{props.children}</TRPCReactProvider>
+            <Toaster />
+            <ThemeToggle />
+          </ConvexClientProvider>
         </ThemeProvider>
       </body>
     </html>
