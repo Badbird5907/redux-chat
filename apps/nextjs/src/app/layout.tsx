@@ -7,9 +7,9 @@ import { cn } from "@redux/ui/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { env } from "@/env";
-import { TRPCReactProvider } from "@/trpc/react";
 
 import "@/app/styles.css";
+
 import { ConvexClientProvider } from "@/providers/convex";
 
 export const metadata: Metadata = {
@@ -22,10 +22,12 @@ export const metadata: Metadata = {
     template: "%s | Redux Chat",
     default: "Redux Chat",
   },
-  description: "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
+  description:
+    "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
   openGraph: {
     title: "Turbo Kit",
-    description: "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
+    description:
+      "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
     url: "https://turbo-kit.vercel.app",
     siteName: "Turbo Kit",
   },
@@ -69,7 +71,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           disableTransitionOnChange
         >
           <ConvexClientProvider>
-            <TRPCReactProvider>{props.children}</TRPCReactProvider>
+            {props.children}
             <Toaster />
             <ThemeToggle />
           </ConvexClientProvider>

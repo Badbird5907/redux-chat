@@ -12,7 +12,7 @@
     "clean": "git clean -xdf node_modules",
     "clean:workspaces": "turbo run clean",
     "auth:generate": "pnpm -F @redux/backend auth:generate",
-    "dev": "docker compose up -d && turbo watch dev --continue",
+    "dev": "turbo watch dev --continue",
     "dev:next": "turbo watch dev -F @redux/nextjs...",
     "format": "turbo run format --continue -- --cache --cache-location .cache/.prettiercache",
     "format:fix": "turbo run format --continue -- --write --cache --cache-location .cache/.prettiercache",

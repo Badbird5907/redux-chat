@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/auth/client";
@@ -8,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import * as z from "zod";
 
+import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import {
   Card,
@@ -23,32 +25,38 @@ import {
   FieldLabel,
 } from "@redux/ui/components/field";
 import { Input } from "@redux/ui/components/input";
+import { Separator } from "@redux/ui/components/separator";
+import GithubIcon from "@redux/ui/icons/github";
 
-const signUpSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+const signInSchema = z.object({
   email: z.email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(1, "Password is required"),
 });
 
-export default function SignUpPage() {
+export default function SignInPage() {
   const router = useRouter();
+  const [lastUsed, setLastUsed] = React.useState<string | null>(null);
+  const [isGitHubLoading, setIsGitHubLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    setLastUsed(localStorage.getItem("last-used-provider"));
+  }, []);
 
   const form = useForm({
     defaultValues: {
-      name: "",
       email: "",
       password: "",
     },
     validators: {
-      onSubmit: signUpSchema,
+      onSubmit: signInSchema,
     },
     onSubmit: async ({ value }) => {
-      await authClient.signUp.email({
+      await authClient.signIn.email({
         email: value.email,
         password: value.password,
-        name: value.name,
         fetchOptions: {
           onSuccess: () => {
+             localStorage.setItem("last-used-provider", "email");
              router.push("/");
              router.refresh();
           },
@@ -60,15 +68,62 @@ export default function SignUpPage() {
     },
   });
 
+  const handleGitHubSignIn = async () => {
+    setIsGitHubLoading(true);
+    await authClient.signIn.social({
+      provider: "github",
+      callbackURL: "/",
+      fetchOptions: {
+        onSuccess: () => {
+          localStorage.setItem("last-used-provider", "github");
+        },
+        onError: (ctx) => {
+          toast.error(ctx.error.message);
+          setIsGitHubLoading(false);
+        },
+      },
+    });
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Sign Up</CardTitle>
+        <CardTitle>Sign In</CardTitle>
         <CardDescription>
-          Create an account to get started.
+          Welcome back! Please sign in to continue.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <div className="relative">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleGitHubSignIn}
+            disabled={isGitHubLoading}
+          >
+            {isGitHubLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <GithubIcon width={24} height={24} />
+            )}
+            Sign in with GitHub
+          </Button>
+          {lastUsed === "github" && (
+            <Badge
+              variant="outline"
+              className="absolute -right-2 -top-2 bg-muted"
+            >
+              Last Used
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Separator className="flex-1" />
+          <span className="text-muted-foreground text-xs">OR</span>
+          <Separator className="flex-1" />
+        </div>
+
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -77,24 +132,6 @@ export default function SignUpPage() {
           }}
           className="space-y-4"
         >
-            <form.Field
-              name="name"
-              children={(field) => (
-                <Field>
-                  <FieldLabel>Name</FieldLabel>
-                  <Input
-                    name={field.name}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="John Doe"
-                  />
-                  {field.state.meta.errors.length > 0 && (
-                    <FieldError errors={field.state.meta.errors} />
-                  )}
-                </Field>
-              )}
-            />
             <form.Field
               name="email"
               children={(field) => (
@@ -117,7 +154,15 @@ export default function SignUpPage() {
               name="password"
               children={(field) => (
                 <Field>
-                  <FieldLabel>Password</FieldLabel>
+                  <div className="flex items-center justify-between">
+                    <FieldLabel>Password</FieldLabel>
+                    <Link
+                        href="/auth/forgot-password"
+                        className="text-sm text-muted-foreground hover:underline"
+                    >
+                        Forgot password?
+                    </Link>
+                  </div>
                   <Input
                     name={field.name}
                     value={field.state.value}
@@ -136,15 +181,15 @@ export default function SignUpPage() {
              {form.state.isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}
-            Sign Up
+            Sign In
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-muted-foreground text-sm">
-          Already have an account?{" "}
-          <Link href="/sign-in" className="text-primary hover:underline">
-            Sign in
+          Don&apos;t have an account?{" "}
+          <Link href="/auth/sign-up" className="text-primary hover:underline">
+            Sign up
           </Link>
         </p>
       </CardFooter>

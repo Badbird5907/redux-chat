@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/auth/client";
 import { useForm } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
@@ -24,28 +24,33 @@ import {
 } from "@redux/ui/components/field";
 import { Input } from "@redux/ui/components/input";
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+const signUpSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-export default function ForgotPasswordPage() {
-  const [isSubmitted, setIsSubmitted] = React.useState(false);
+export default function SignUpPage() {
+  const router = useRouter();
 
   const form = useForm({
     defaultValues: {
+      name: "",
       email: "",
+      password: "",
     },
     validators: {
-      onSubmit: forgotPasswordSchema,
+      onSubmit: signUpSchema,
     },
     onSubmit: async ({ value }) => {
-      await authClient.requestPasswordReset({
+      await authClient.signUp.email({
         email: value.email,
-        redirectTo: "/reset-password",
+        password: value.password,
+        name: value.name,
         fetchOptions: {
           onSuccess: () => {
-             setIsSubmitted(true);
-             toast.success("Password reset email sent!");
+             router.push("/");
+             router.refresh();
           },
           onError: (ctx) => {
              toast.error(ctx.error.message);
@@ -55,30 +60,12 @@ export default function ForgotPasswordPage() {
     },
   });
 
-  if (isSubmitted) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Check your email</CardTitle>
-          <CardDescription>
-            We have sent a password reset link to your email.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="justify-center">
-          <Link href="/sign-in">
-            <Button variant="outline">Back to Sign In</Button>
-          </Link>
-        </CardFooter>
-      </Card>
-    );
-  }
-
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Forgot Password</CardTitle>
+        <CardTitle>Sign Up</CardTitle>
         <CardDescription>
-          Enter your email address and we will send you a link to reset your password.
+          Create an account to get started.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -90,6 +77,24 @@ export default function ForgotPasswordPage() {
           }}
           className="space-y-4"
         >
+            <form.Field
+              name="name"
+              children={(field) => (
+                <Field>
+                  <FieldLabel>Name</FieldLabel>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="John Doe"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <FieldError errors={field.state.meta.errors} />
+                  )}
+                </Field>
+              )}
+            />
             <form.Field
               name="email"
               children={(field) => (
@@ -108,18 +113,40 @@ export default function ForgotPasswordPage() {
                 </Field>
               )}
             />
+            <form.Field
+              name="password"
+              children={(field) => (
+                <Field>
+                  <FieldLabel>Password</FieldLabel>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    type="password"
+                    placeholder="••••••••"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <FieldError errors={field.state.meta.errors} />
+                  )}
+                </Field>
+              )}
+            />
           <Button className="w-full" type="submit" disabled={form.state.isSubmitting}>
              {form.state.isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}
-            Send Reset Link
+            Sign Up
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
-        <Link href="/sign-in" className="text-muted-foreground text-sm hover:underline">
-          Back to Sign In
-        </Link>
+        <p className="text-muted-foreground text-sm">
+          Already have an account?{" "}
+          <Link href="/auth/sign-in" className="text-primary hover:underline">
+            Sign in
+          </Link>
+        </p>
       </CardFooter>
     </Card>
   );
