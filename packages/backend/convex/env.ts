@@ -2,6 +2,13 @@ import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
 export function backendEnv() {
+  // Skip validation if environment variables aren't available
+  // This happens during Convex deployment/analysis
+  const shouldSkipValidation =
+    !!process.env.CI ||
+    process.env.npm_lifecycle_event === "lint" ||
+    (!process.env.SITE_URL && !process.env.AUTH_SECRET); // If SITE_URL and AUTH_SECRET is missing, we're likely in module analysis
+
   return createEnv({
     server: {
       AUTH_GITHUB_ID: z.string().min(1),
@@ -11,11 +18,9 @@ export function backendEnv() {
           ? z.string().min(1)
           : z.string().min(1).optional(),
       NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+      SITE_URL: z.string().min(1),
     },
     runtimeEnv: process.env,
-    skipValidation:
-      !!process.env.CI || process.env.npm_lifecycle_event === "lint",
+    skipValidation: shouldSkipValidation,
   });
 }
-
-export const env = backendEnv();

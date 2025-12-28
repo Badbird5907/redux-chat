@@ -18,7 +18,10 @@ export const metadata: Metadata = {
       ? "https://turbo.t3.gg"
       : "http://localhost:3000",
   ),
-  title: "Turbo Kit",
+  title: {
+    template: "%s | Redux Chat",
+    default: "Redux Chat",
+  },
   description: "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
   openGraph: {
     title: "Turbo Kit",

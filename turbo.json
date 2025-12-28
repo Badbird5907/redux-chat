@@ -46,11 +46,12 @@
       }
     },
     "globalEnv": [
-      "POSTGRES_URL",
-      "AUTH_DISCORD_ID",
-      "AUTH_DISCORD_SECRET",
-      "AUTH_REDIRECT_PROXY_URL",
+      "UPSTASH_REDIS_REST_URL",
+      "UPSTASH_REDIS_REST_TOKEN",
       "AUTH_SECRET",
+      "SITE_URL",
+      "AUTH_GITHUB_ID",
+      "AUTH_GITHUB_SECRET",
       "PORT"
     ],
     "globalPassThroughEnv": [

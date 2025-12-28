@@ -1,9 +1,9 @@
-import { createJiti } from "jiti";
-
-const jiti = createJiti(import.meta.url);
-
-// Import env files to validate at build time. Use jiti so we can load .ts files in here.
-await jiti.import("./src/env");
+// Validate env at build time only (not on every HMR reload)
+if (process.env.npm_lifecycle_event === "build") {
+  const { createJiti } = await import("jiti");
+  const jiti = createJiti(import.meta.url);
+  await jiti.import("./src/env");
+}
 
 /** @type {import("next").NextConfig} */
 const config = {
