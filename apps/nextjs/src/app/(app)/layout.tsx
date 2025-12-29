@@ -1,10 +1,17 @@
+import { cookies } from "next/headers";
 import { SidebarProvider, SidebarTrigger } from "@redux/ui/components/sidebar";
 import AppSidebar from "@/components/sidebar";
 import ThreadList from "@/components/sidebar/chat/thread-list";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const sidebarConfig = cookieStore.get("sidebar:config")?.value;
+  const [openState, savedWidth] = sidebarConfig?.split(":") ?? [];
+  const defaultOpen = openState !== undefined ? openState === "true" : undefined;
+  const defaultWidth = savedWidth;
+
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
       <AppSidebar>
         <ThreadList />
       </AppSidebar>

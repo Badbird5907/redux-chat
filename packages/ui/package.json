@@ -79,6 +79,7 @@
     "./components/spinner": "./src/components/spinner.tsx",
     "./components/tooltip": "./src/components/tooltip.tsx",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
+    "./hooks/use-sidebar-resize": "./src/hooks/use-sidebar-resize.ts",
     "./icons/github": "./src/icons/github.tsx",
     "./lib/utils": "./src/lib/utils.ts"
   }

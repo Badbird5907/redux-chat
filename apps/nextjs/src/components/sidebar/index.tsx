@@ -13,6 +13,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarRail,
 } from "@redux/ui/components/sidebar";
 import { Skeleton } from "@redux/ui/components/skeleton";
 
@@ -81,7 +82,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
           </DropdownMenu>
         ) : null}
       </SidebarFooter>
-      {/* <SidebarRail /> */}
+      <SidebarRail />
     </Sidebar>
   );
 }
