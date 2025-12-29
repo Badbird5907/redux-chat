@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "@redux/ui/components/button";
 import { Badge } from "@redux/ui/components/badge";

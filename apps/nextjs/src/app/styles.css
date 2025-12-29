@@ -1,12 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@redux/tailwind-config/theme";
+@import "../../../../tooling/tailwind/theme.css";
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
-
-@custom-variant dark (&:where(.dark, .dark *));
-@custom-variant light (&:where(.light, .light *));
-@custom-variant auto (&:where(.auto, .auto *));
 
 @utility container {
   margin-inline: auto;
@@ -16,15 +12,6 @@
   }
   @media (width >= 1400px) {
     max-width: 1400px;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    letter-spacing: var(--tracking-normal);
   }
 }
 
