@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Ellipsis, Pencil, Trash } from "lucide-react";
 
-import { Button } from "@redux/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
