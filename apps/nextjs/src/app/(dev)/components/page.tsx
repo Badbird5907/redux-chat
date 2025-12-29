@@ -33,6 +33,7 @@ import {
   FieldLabel,
 } from "@redux/ui/components/field";
 import GithubIcon from "@redux/ui/icons/github";
+import Spinner from "@redux/ui/components/spinner";
 
 export default function ComponentsPage() {
   return (
@@ -212,6 +213,13 @@ export default function ComponentsPage() {
           >
             Show Toast
         </Button>
+      </section>
+
+      <Separator />
+
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold tracking-tight">Spinner</h2>
+        <Spinner />
       </section>
     </div>
   );

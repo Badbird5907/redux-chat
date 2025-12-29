@@ -19,6 +19,7 @@ export function backendEnv() {
           : z.string().min(1).optional(),
       NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
       SITE_URL: z.string().min(1),
+      NEXT_PUBLIC_S3_AVATARS_URL: z.url(),
     },
     runtimeEnv: process.env,
     skipValidation: shouldSkipValidation,

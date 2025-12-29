@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Audiowide, Geist, Geist_Mono } from "next/font/google";
 
 import { Toaster } from "@redux/ui/components/sonner";
 import { cn } from "@redux/ui/lib/utils";
 
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { env } from "@/env";
 
 import "@/app/styles.css";
@@ -53,6 +52,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-geist-mono",
 });
+const audiowide = Audiowide({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-audiowide",
+});
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
@@ -62,6 +66,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           "bg-background text-foreground min-h-screen font-sans antialiased",
           geistSans.variable,
           geistMono.variable,
+          audiowide.variable,
         )}
       >
         <ThemeProvider
@@ -73,7 +78,6 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           <ConvexClientProvider>
             {props.children}
             <Toaster />
-            <ThemeToggle />
           </ConvexClientProvider>
         </ThemeProvider>
       </body>

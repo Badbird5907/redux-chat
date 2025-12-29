@@ -10,8 +10,9 @@
 
 import type * as auth from "../auth.js";
 import type * as env from "../env.js";
-import type * as functions from "../functions.js";
 import type * as functions_test from "../functions/test.js";
+import type * as functions_threads from "../functions/threads.js";
+import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
 
 import type {
@@ -23,8 +24,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   env: typeof env;
-  functions: typeof functions;
   "functions/test": typeof functions_test;
+  "functions/threads": typeof functions_threads;
+  "functions/user": typeof functions_user;
   http: typeof http;
 }>;
 

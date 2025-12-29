@@ -1,2 +1,2 @@
 // export * from "./functions/auth";
-export * from "./functions/test";
+// export * from "./functions/user";
