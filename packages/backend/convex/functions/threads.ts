@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server";
-import { query } from "../_generated/server";
+import { query } from "./index";
 
 // Deterministic fake thread generation using a seeded approach
 function generateFakeThread(index: number) {
@@ -66,7 +66,7 @@ function generateFakeThread(index: number) {
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, args) => {
+  handler: (ctx, args) => {
     // Generate fake threads for testing
     const TOTAL_THREADS = 500; // Total fake threads available
     const { numItems, cursor } = args.paginationOpts;

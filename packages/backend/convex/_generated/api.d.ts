@@ -10,10 +10,12 @@
 
 import type * as auth from "../auth.js";
 import type * as env from "../env.js";
-import type * as functions_test from "../functions/test.js";
+import type * as functions_index from "../functions/index.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
+import type * as schema_index from "../schema/index.js";
+import type * as schema_zod from "../schema/zod.js";
 
 import type {
   ApiFromModules,
@@ -24,10 +26,12 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   env: typeof env;
-  "functions/test": typeof functions_test;
+  "functions/index": typeof functions_index;
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;
   http: typeof http;
+  "schema/index": typeof schema_index;
+  "schema/zod": typeof schema_zod;
 }>;
 
 /**

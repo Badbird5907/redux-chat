@@ -66,6 +66,7 @@
     "./components/dialog": "./src/components/dialog.tsx",
     "./components/dropdown-menu": "./src/components/dropdown-menu.tsx",
     "./components/field": "./src/components/field.tsx",
+    "./components/form": "./src/components/form.tsx",
     "./components/input": "./src/components/input.tsx",
     "./components/kbd": "./src/components/kbd.tsx",
     "./components/label": "./src/components/label.tsx",
@@ -81,6 +82,7 @@
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./hooks/use-sidebar-resize": "./src/hooks/use-sidebar-resize.ts",
     "./icons/github": "./src/icons/github.tsx",
+    "./lib/merge-button-refs": "./src/lib/merge-button-refs.ts",
     "./lib/utils": "./src/lib/utils.ts"
   }
 }

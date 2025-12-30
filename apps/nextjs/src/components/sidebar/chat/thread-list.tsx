@@ -65,7 +65,8 @@ function groupThreads(threads: Thread[]): GroupedItem[] {
 
 const INITIAL_ITEMS = 75;
 const LOAD_MORE_ITEMS = 20;
-const ITEM_HEIGHT = 32; // Height of each thread item
+const ITEM_GAP = 4; // Vertical spacing between thread items
+const ITEM_HEIGHT = 32 + ITEM_GAP; // Height of each thread item including gap
 const HEADER_HEIGHT = 28; // Height of group headers
 
 export default function ThreadList() {
@@ -224,6 +225,8 @@ export default function ThreadList() {
                     width: "100%",
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
+                    paddingTop: `${ITEM_GAP / 2}px`,
+                    paddingBottom: `${ITEM_GAP / 2}px`,
                   }}
                   className="px-1"
                 >

@@ -26,6 +26,10 @@
     "./env": {
       "types": "./convex/env.ts",
       "default": "./convex/env.ts"
+    },
+    "./convex/functions": {
+      "types": "./convex/functions/index.ts",
+      "default": "./convex/functions/index.ts"
     }
   },
   "license": "MIT",
@@ -42,12 +46,14 @@
     "@t3-oss/env-core": "^0.13.8",
     "better-auth": "catalog:",
     "convex": "^1.31.2",
+    "convex-helpers": "^0.1.108",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@redux/eslint-config": "workspace:*",
     "@redux/prettier-config": "workspace:*",
     "@redux/tsconfig": "workspace:*",
+    "@redux/types": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",

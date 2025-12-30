@@ -212,6 +212,9 @@ importers:
       convex:
         specifier: ^1.31.2
         version: 1.31.2(react@19.2.3)
+      convex-helpers:
+        specifier: ^0.1.108
+        version: 0.1.108(@standard-schema/spec@1.1.0)(convex@1.31.2(react@19.2.3))(react@19.2.3)(typescript@5.9.3)(zod@4.2.1)
       zod:
         specifier: 'catalog:'
         version: 4.2.1
@@ -225,6 +228,9 @@ importers:
       '@redux/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@redux/types':
+        specifier: workspace:*
+        version: link:../types
       '@types/node':
         specifier: 'catalog:'
         version: 22.19.2
@@ -317,6 +323,9 @@ importers:
 
   packages/types:
     dependencies:
+      convex-helpers:
+        specifier: ^0.1.108
+        version: 0.1.108(@standard-schema/spec@1.1.0)(convex@1.31.2(react@19.2.3))(react@19.2.3)(typescript@5.9.3)(zod@4.2.1)
       zod:
         specifier: 'catalog:'
         version: 4.2.1

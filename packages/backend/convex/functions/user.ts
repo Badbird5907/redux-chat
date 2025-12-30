@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "../_generated/server";
+import { query } from "./index";
 import { authComponent } from "../auth";
 import { backendEnv } from "../env";
 

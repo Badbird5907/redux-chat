@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./zod/threads": "./src/zod/threads.ts"
   },
   "autoexport": true,
   "license": "MIT",
@@ -16,6 +17,7 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
+    "convex-helpers": "^0.1.108",
     "zod": "catalog:"
   },
   "devDependencies": {
