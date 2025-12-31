@@ -18,8 +18,10 @@ export function backendEnv() {
           ? z.string().min(1)
           : z.string().min(1).optional(),
       NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+      INTERNAL_CONVEX_SECRET: z.string().min(1),
       SITE_URL: z.string().min(1),
       NEXT_PUBLIC_S3_AVATARS_URL: z.url(),
+      OPENAI_API_KEY: z.string().min(1),
     },
     runtimeEnv: process.env,
     skipValidation: shouldSkipValidation,

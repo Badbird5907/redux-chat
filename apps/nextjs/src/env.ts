@@ -16,6 +16,8 @@ export const env = createEnv({
    * This way you can ensure the app isn't built with invalid env vars.
    */
   server: {
+    INTERNAL_CONVEX_SECRET: z.string().min(1),
+    OPENAI_API_KEY: z.string().min(1),
   },
 
   /**

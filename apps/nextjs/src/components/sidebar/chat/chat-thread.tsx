@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Ellipsis, Pencil, Trash } from "lucide-react";
 
 import {
@@ -27,6 +29,8 @@ export default function ChatThreadSidebarItem({
   threadName,
   style,
 }: ChatThreadSidebarItemProps) {
+  const pathname = usePathname();
+  const isActive = pathname === `/chat/${threadId}`;
 
   const handleDelete = () => {
     // TODO: Implement delete functionality
@@ -35,8 +39,10 @@ export default function ChatThreadSidebarItem({
 
   return (
     <SidebarMenuItem style={style}>
-      <SidebarMenuButton className="w-full">
-        <span className="flex-1 truncate">{threadName}</span>
+      <SidebarMenuButton asChild isActive={isActive} className="w-full">
+        <Link href={`/chat/${threadId}`}>
+          <span className="flex-1 truncate">{threadName}</span>
+        </Link>
       </SidebarMenuButton>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

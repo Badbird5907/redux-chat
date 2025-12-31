@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./api/chat": "./src/api/chat.ts",
     "./zod/threads": "./src/zod/threads.ts"
   },
   "autoexport": true,

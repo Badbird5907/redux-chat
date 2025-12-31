@@ -52,7 +52,8 @@
       "SITE_URL",
       "AUTH_GITHUB_ID",
       "AUTH_GITHUB_SECRET",
-      "PORT"
+      "PORT",
+      "OPENAI_API_KEY"
     ],
     "globalPassThroughEnv": [
       "NODE_ENV",

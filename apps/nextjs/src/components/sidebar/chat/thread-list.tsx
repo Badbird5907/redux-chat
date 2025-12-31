@@ -4,7 +4,8 @@
 import { useRef, useMemo, useState, useEffect } from "react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { usePaginatedQuery } from "convex/react";
+import { useConvexAuth,
+usePaginatedQuery } from "convex/react";
 import { api } from "@redux/backend/convex/_generated/api";
 import { SidebarGroup, SidebarGroupContent } from "@redux/ui/components/sidebar";
 import { Skeleton } from "@redux/ui/components/skeleton";
@@ -70,9 +71,10 @@ const ITEM_HEIGHT = 32 + ITEM_GAP; // Height of each thread item including gap
 const HEADER_HEIGHT = 28; // Height of group headers
 
 export default function ThreadList() {
+  const { isAuthenticated } = useConvexAuth();
   const { results, status, loadMore } = usePaginatedQuery(
     api.functions.threads.getThreads,
-    {},
+    isAuthenticated ? {} : "skip",
     { initialNumItems: INITIAL_ITEMS }
   );
 
@@ -168,6 +170,12 @@ export default function ThreadList() {
               position: "relative",
             }}
           >
+            {groupedItems.length === 0 && (
+              // no threads found
+              <div className="flex items-center justify-center px-2">
+                <p className="text-sm text-muted-foreground">No threads found. Start a new chat!</p>
+              </div>
+            )}
             {items.map((virtualRow) => {
               const isLoaderRow = virtualRow.index >= groupedItems.length;
 

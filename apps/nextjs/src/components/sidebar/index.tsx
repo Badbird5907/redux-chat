@@ -1,7 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LogOut, Settings } from "lucide-react";
 
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@redux/ui/components/drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,15 +26,32 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@redux/ui/components/sidebar";
+import { Button } from "@redux/ui/components/button";
 import { Skeleton } from "@redux/ui/components/skeleton";
+import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 
 import { authClient } from "@/auth/client";
-import { UserAvatar } from "@/components/user-avatar";
-import { LogOut, Settings } from "lucide-react";
+import { UserInfo } from "@/components/user-info";
 
-export default function AppSidebar({ children }: { children: React.ReactNode }) {
+export default function AppSidebar({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { data: session, isPending } = authClient.useSession();
+  const isMobile = useIsMobile();
+  const router = useRouter();
 
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/");
+          router.refresh();
+        },
+      },
+    });
+  };
   return (
     <Sidebar className="">
       <SidebarHeader className="pt-4">
@@ -32,7 +60,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
             <span className="font-audiowide">Redux.chat</span>
           </h1>
         </Link>
-        <div className="border-t mt-2" />
+        <div className="mt-2 border-t" />
       </SidebarHeader>
       <SidebarContent
         className="scrollbar-none"
@@ -51,35 +79,62 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         ) : session?.user ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="w-full text-left">
-              <div className="flex items-center gap-2 px-2 py-2">
-                <UserAvatar
-                  size="lg"
+          isMobile ? (
+            <Drawer>
+              <DrawerTrigger className="w-full text-left">
+                <UserInfo
                   userId={session.session.userId}
                   name={session.user.name}
+                  email={session.user.email}
                 />
-                <div className="flex min-w-0 flex-1 flex-col text-left">
-                  <span className="truncate text-sm font-medium">
-                    {session.user.name}
-                  </span>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {session.user.email}
-                  </span>
+              </DrawerTrigger>
+              <DrawerContent>
+                <DrawerHeader>
+                  <DrawerTitle>Settings</DrawerTitle>
+                </DrawerHeader>
+                <div className="flex flex-col gap-2 px-4">
+                  <DrawerClose asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                    >
+                      <Settings className="size-4" />
+                      <span>Settings</span>
+                    </Button>
+                  </DrawerClose>
+                  <Button
+                    variant="destructive"
+                    className="w-full justify-start"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="size-4" />
+                    <span>Logout</span>
+                  </Button>
                 </div>
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-68 md:w-54 ml-2" align="start">
-              <DropdownMenuItem>
-                <Settings className="size-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive">
-                <LogOut className="size-4" />
-                <span>Logout</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DrawerFooter />
+              </DrawerContent>
+            </Drawer>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="w-full text-left">
+                <UserInfo
+                  userId={session.session.userId}
+                  name={session.user.name}
+                  email={session.user.email}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="ml-2 w-68 md:w-54" align="start">
+                <DropdownMenuItem>
+                  <Settings className="size-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
+                  <LogOut className="size-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         ) : null}
       </SidebarFooter>
       <SidebarRail />

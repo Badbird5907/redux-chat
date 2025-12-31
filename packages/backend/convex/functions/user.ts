@@ -9,7 +9,7 @@ export const getUserImage = query({
     },
     handler: async (ctx, { userId }) => {
         let target = null;
-
+        
         if (userId && userId !== "me") {
             target = await authComponent.getAnyUserById(ctx, userId);
         } else {

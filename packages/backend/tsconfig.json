@@ -3,6 +3,7 @@
   "include": ["convex", "*.ts"],
   "exclude": ["node_modules", "./convex/_generated"],
   "compilerOptions": {
-    "lib": ["ES2022", "dom"]
+    "lib": ["ES2022", "dom"],
+    "exactOptionalPropertyTypes": false
   }
 }

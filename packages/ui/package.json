@@ -35,7 +35,8 @@
     "react-resizable-panels": "^4.0.16",
     "recharts": "2.15.4",
     "sonner": "catalog:",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@redux/eslint-config": "workspace:*",
@@ -64,6 +65,7 @@
     "./components/checkbox": "./src/components/checkbox.tsx",
     "./components/context-menu": "./src/components/context-menu.tsx",
     "./components/dialog": "./src/components/dialog.tsx",
+    "./components/drawer": "./src/components/drawer.tsx",
     "./components/dropdown-menu": "./src/components/dropdown-menu.tsx",
     "./components/field": "./src/components/field.tsx",
     "./components/form": "./src/components/form.tsx",

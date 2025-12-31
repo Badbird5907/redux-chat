@@ -23,10 +23,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@redux/ui/components/tooltip";
-import { useSidebarResize } from "@redux/ui/hooks/use-sidebar-resize";
 import { useIsMobile } from "@redux/ui/hooks/use-mobile";
-import { mergeButtonRefs } from "../lib/merge-button-refs";
+import { useSidebarResize } from "@redux/ui/hooks/use-sidebar-resize";
 import { cn } from "@redux/ui/lib/utils";
+
+import { mergeButtonRefs } from "../lib/merge-button-refs";
 
 const SIDEBAR_CONFIG_KEY = "sidebar:config";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -105,14 +106,11 @@ function SidebarProvider({
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
 
-  const persistConfig = React.useCallback(
-    (open: boolean, width: string) => {
-      const config = `${open}:${width}`;
-      document.cookie = `${SIDEBAR_CONFIG_KEY}=${config}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
-      localStorage.setItem(SIDEBAR_CONFIG_KEY, config);
-    },
-    [],
-  );
+  const persistConfig = React.useCallback((open: boolean, width: string) => {
+    const config = `${open}:${width}`;
+    document.cookie = `${SIDEBAR_CONFIG_KEY}=${config}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+    localStorage.setItem(SIDEBAR_CONFIG_KEY, config);
+  }, []);
 
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
@@ -301,7 +299,7 @@ function Sidebar({
             ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)",
           //* set duration to 0 for all elements when dragging
-          "group-data-[dragging=true]:duration-0! group-data-[dragging=true]_*:!duration-0",
+          "group-data-[dragging=true]_*:!duration-0 group-data-[dragging=true]:duration-0!",
         )}
       />
       <div
@@ -316,7 +314,7 @@ function Sidebar({
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)",
           //* set duration to 0 for all elements when dragging
-          "group-data-[dragging=true]:duration-0! group-data-[dragging=true]_*:!duration-0",
+          "group-data-[dragging=true]_*:!duration-0 group-data-[dragging=true]:duration-0!",
           className,
         )}
         {...props}
@@ -384,7 +382,10 @@ function SidebarRail({
 
   //* Merge external ref with our dragRef
   // @ts-ignore
-  const combinedRef = React.useMemo(() => mergeButtonRefs([dragRef]), [dragRef]);
+  const combinedRef = React.useMemo(
+    () => mergeButtonRefs([dragRef]),
+    [dragRef],
+  );
 
   return (
     <button
@@ -475,7 +476,11 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, style, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({
+  className,
+  style,
+  ...props
+}: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sidebar-content"

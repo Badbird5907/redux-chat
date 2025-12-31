@@ -14,8 +14,7 @@ import type * as functions_index from "../functions/index.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
-import type * as schema_index from "../schema/index.js";
-import type * as schema_zod from "../schema/zod.js";
+import type * as zod from "../zod.js";
 
 import type {
   ApiFromModules,
@@ -30,8 +29,7 @@ declare const fullApi: ApiFromModules<{
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;
   http: typeof http;
-  "schema/index": typeof schema_index;
-  "schema/zod": typeof schema_zod;
+  zod: typeof zod;
 }>;
 
 /**
