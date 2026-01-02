@@ -1,9 +1,10 @@
 import { paginationOptsValidator } from "convex/server";
 import { backendMutation, mutation,
-query } from "./index";
+query, backendQuery } from "./index";
 import { ConvexError,
 v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
+import { threadSettings } from "../schema";
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -34,17 +35,24 @@ export const getThread = query({
   args: { threadId: v.id("threads") },
   handler: async (ctx, args) => {
     const thread = await ctx.db.get("threads", args.threadId);
-    if (!thread) {
+    if (!thread || thread.userId != ctx.user._id  ) {
       throw new ConvexError("Thread not found");
     }
-
     return thread;
   },
 });
 
-export const internal_cancelStream = backendMutation({
+export const abortStream = mutation({
   args: { threadId: v.id("threads"), messageId: v.id("messages") },
   handler: async (ctx, args) => {
+    const existingThread = await ctx.db.get("threads", args.threadId);
+    if (!existingThread || existingThread.userId != ctx.user._id) {
+      throw new ConvexError("Thread not found");
+    }
+    const existingMessage = await ctx.db.get("messages", args.messageId);
+    if (!existingMessage || existingMessage.threadId != args.threadId) {
+      throw new ConvexError("Message not found");
+    }
     await ctx.db.patch("messages", args.messageId, {
       canceledAt: Date.now(),
       status: "completed" // not failed
@@ -55,142 +63,6 @@ export const internal_cancelStream = backendMutation({
     });
 
     return { success: true };
-  },
-});
-
-// Create a new thread with the initial user message and a placeholder assistant message
-export const createThread = mutation({
-  args: {
-    message: v.string(),
-    model: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    const model = args.model ?? "gpt-4o-mini";
-
-    // Create the thread
-    const threadId = await ctx.db.insert("threads", {
-      userId: ctx.user._id,
-      name: args.message.slice(0, 50) + (args.message.length > 50 ? "..." : ""),
-      status: "generating",
-      settings: {
-        model,
-        temperature: 0.7,
-        tools: [],
-      },
-      updatedAt: now,
-    });
-
-    // Create the user message
-    const userMessageId = await ctx.db.insert("messages", {
-      threadId,
-      role: "user",
-      content: args.message,
-      status: "completed",
-      depth: 0,
-      siblingIndex: 0,
-      mutation: { type: "original" },
-    });
-
-    // Create placeholder assistant message
-    const assistantMessageId = await ctx.db.insert("messages", {
-      threadId,
-      parentId: userMessageId,
-      role: "assistant",
-      content: "",
-      status: "generating",
-      depth: 1,
-      siblingIndex: 0,
-      mutation: { type: "original" },
-      model,
-    });
-
-    // Update thread with current leaf message
-    await ctx.db.patch(threadId, {
-      currentLeafMessageId: assistantMessageId,
-    });
-
-    return {
-      threadId,
-      userMessageId,
-      assistantMessageId,
-    };
-  },
-});
-
-// Add a new message to an existing thread
-export const addMessage = mutation({
-  args: {
-    threadId: v.id("threads"),
-    message: v.string(),
-    model: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const thread = await ctx.db.get(args.threadId);
-    if (!thread) {
-      throw new ConvexError("Thread not found");
-    }
-
-    if (thread.userId !== ctx.user._id) {
-      throw new ConvexError("Unauthorized");
-    }
-
-    const model = args.model ?? thread.settings.model;
-
-    // Get current depth from the leaf message
-    let depth = 0;
-    let parentId: Id<"messages"> | undefined;
-    
-    if (thread.currentLeafMessageId) {
-      const leafMessage = await ctx.db.get(thread.currentLeafMessageId);
-      if (leafMessage) {
-        depth = leafMessage.depth + 1;
-        parentId = thread.currentLeafMessageId;
-      }
-    }
-
-    // Count siblings at this depth for siblingIndex
-    const siblings = await ctx.db
-      .query("messages")
-      .withIndex("by_parent", (q) => q.eq("parentId", parentId))
-      .collect();
-
-    // Create the user message
-    const userMessageId = await ctx.db.insert("messages", {
-      threadId: args.threadId,
-      parentId,
-      role: "user",
-      content: args.message,
-      status: "completed",
-      depth,
-      siblingIndex: siblings.length,
-      mutation: { type: "original" },
-    });
-
-    // Create placeholder assistant message
-    const assistantMessageId = await ctx.db.insert("messages", {
-      threadId: args.threadId,
-      parentId: userMessageId,
-      role: "assistant",
-      content: "",
-      status: "generating",
-      depth: depth + 1,
-      siblingIndex: 0,
-      mutation: { type: "original" },
-      model,
-    });
-
-    // Update thread
-    await ctx.db.patch(args.threadId, {
-      currentLeafMessageId: assistantMessageId,
-      status: "generating",
-      updatedAt: Date.now(),
-    });
-
-    return {
-      userMessageId,
-      assistantMessageId,
-    };
   },
 });
 
@@ -243,7 +115,7 @@ export const getThreadMessages = query({
 });
 
 // Complete the stream - update assistant message with final content
-export const completeStream = backendMutation({
+export const internal_completeStream = backendMutation({
   args: {
     threadId: v.id("threads"),
     assistantMessageId: v.id("messages"),
@@ -276,7 +148,7 @@ export const completeStream = backendMutation({
 });
 
 // Set the active stream ID for resumable streams
-export const setActiveStreamId = backendMutation({
+export const internal_setActiveStreamId = backendMutation({
   args: {
     threadId: v.id("threads"),
     streamId: v.string(),
@@ -288,3 +160,75 @@ export const setActiveStreamId = backendMutation({
     return { success: true };
   },
 })
+
+export const internal_checkMessageAbort = backendQuery({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new ConvexError("Message not found");
+    }
+    return message.canceledAt;
+  },
+});
+
+const sendMessageSchema = v.object({
+  content: v.string(),
+
+  // in the future, we can add tools like web search, and attachments
+})
+
+export const beginThread = mutation({
+  args: {
+    name: v.optional(v.string()),
+    settings: threadSettings,
+    message: sendMessageSchema,
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db.insert("threads", {
+      userId: ctx.user._id,
+      name: args.name ?? "New Thread",
+      settings: args.settings,
+      status: "generating",
+      updatedAt: Date.now(),
+    });
+
+    const message = await ctx.db.insert("messages", {
+      threadId: thread,
+      mutation: { type: "original" },
+      role: "user",
+      content: args.message.content,
+      status: "generating",
+      depth: 0,
+      siblingIndex: 0,
+    });
+
+    return { threadId: thread, messageId: message };
+  }
+})
+
+export const createMessage = mutation({
+  args: {
+    threadId: v.id("threads"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db.get("threads", args.threadId);
+    if (!thread) {
+      throw new ConvexError("Thread not found");
+    }
+    if (thread.userId !== ctx.user._id) {
+      throw new ConvexError("Unauthorized");
+    }
+    const message = await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      content: args.content,
+      depth: 0,
+      siblingIndex: 0,
+      role: "user",
+      status: "generating",
+      mutation: { type: "original" },
+    });
+    return { messageId: message };
+  }
+});

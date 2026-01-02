@@ -22,16 +22,18 @@ const mutationInfo = v.union(
   v.object({ type: v.literal("regeneration"), fromMessageId: v.id("messages") })
 );
 
+export const threadSettings = v.object({
+  model: v.string(),
+  temperature: v.number(),
+  tools: v.array(v.string()),
+});
+
 export default defineSchema({
   threads: defineTable({
     userId: v.string(),
     name: v.string(),
     status: threadStatus,
-    settings: v.object({
-      model: v.string(),
-      temperature: v.number(),
-      tools: v.array(v.string()),
-    }),
+    settings: threadSettings,
     currentLeafMessageId: v.optional(v.id("messages")),
     activeStreamId: v.optional(v.string()),
     updatedAt: v.number(),

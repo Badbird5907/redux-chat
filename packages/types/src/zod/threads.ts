@@ -23,7 +23,7 @@ export const messageSchema = z.object({ // messages should be immutable
   // Mutation tracking (for UI badges like "edited" / "regenerated")
   mutation: mutationInfo,
 
-  // Generation metadata (assistant messages only)
+  // metadata (assistant messages only)
   model: z.string().optional(),
   usage: z
     .object({

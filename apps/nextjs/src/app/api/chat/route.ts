@@ -5,9 +5,9 @@ import { createResumableStreamContext } from "resumable-stream/generic";
 
 import { fetchAuthMutation, fetchAuthQuery } from "@/auth/server";
 import { api } from "@redux/backend/convex/_generated/api";
-import type { Id } from "@redux/backend/convex/_generated/dataModel";
 import { env } from "@/env";
 import { createPubSub } from "./stream";
+import { throttle } from "@/lib/utils/throttle";
 
 interface RequestBody {
   message: { text: string };
@@ -17,44 +17,8 @@ interface RequestBody {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as RequestBody;
-  const { message, threadId: existingThreadId, trigger } = body;
 
-  let threadId: Id<"threads">;
-  let assistantMessageId: Id<"messages">;
-
-  // Create new thread or add message to existing one
-  if (!existingThreadId) {
-    // New chat - create thread with initial message
-    const result = await fetchAuthMutation(api.functions.threads.createThread, {
-      message: message.text,
-    });
-    threadId = result.threadId;
-    assistantMessageId = result.assistantMessageId;
-  } else {
-    // Existing chat - add message
-    threadId = existingThreadId as Id<"threads">;
-
-    if (trigger === "submit-message") {
-      const result = await fetchAuthMutation(api.functions.threads.addMessage, {
-        threadId,
-        message: message.text,
-      });
-      assistantMessageId = result.assistantMessageId;
-    } else {
-      // For regeneration, we'd need different logic - for now treat as submit
-      const result = await fetchAuthMutation(api.functions.threads.addMessage, {
-        threadId,
-        message: message.text,
-      });
-      assistantMessageId = result.assistantMessageId;
-    }
-  }
-
-  // Fetch the full message history for context
-  const messagesData = await fetchAuthQuery(
-    api.functions.threads.getThreadMessages,
-    { threadId }
-  );
+  
 
   // Convert to model messages format (exclude the placeholder assistant message)
   const modelMessages = await convertToModelMessages(
@@ -62,15 +26,17 @@ export async function POST(request: Request) {
       .filter((m) => m.content)
       .map((m) => ({
         id: m.id,
-        role: m.role,
+        role: m.role as "user" | "assistant" | "system",
         parts: [{ type: "text" as const, text: m.content }],
       }))
   );
 
+  const abortController = new AbortController();
   // Stream the response
   const result = streamText({
     model: openai("gpt-4o-mini"),
     messages: modelMessages,
+    abortSignal: abortController.signal,
     onFinish: async ({ text, usage }) => {
       // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
       const usageData =
@@ -85,7 +51,7 @@ export async function POST(request: Request) {
           : undefined;
 
       // Save the completed response to Convex
-      await fetchAuthMutation(api.functions.threads.completeStream, {
+      await fetchAuthMutation(api.functions.threads.internal_completeStream, {
         secret: env.INTERNAL_CONVEX_SECRET,
         threadId,
         assistantMessageId,
@@ -93,10 +59,24 @@ export async function POST(request: Request) {
         usage: usageData,
       });
     },
+    onChunk: throttle(async () => {
+      const canceledAt = await fetchAuthQuery(api.functions.threads.internal_checkMessageAbort, {
+        secret: env.INTERNAL_CONVEX_SECRET,
+        messageId: assistantMessageId,
+      });
+      if (canceledAt) {
+        abortController.abort();
+        return;
+      }
+    }, 1000),
   });
 
-  // Convert to UI message stream
-  const uiStream = result.toUIMessageStreamResponse({
+  return result.toUIMessageStreamResponse({
+    originalMessages: messagesData.map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant" | "system",
+      parts: [{ type: "text" as const, text: m.content }],
+    })),
     headers: !existingThreadId ? { "X-Thread-Id": threadId } : undefined,
     messageMetadata: ({ part }) => {
       if (part.type === "start") {
@@ -112,13 +92,11 @@ export async function POST(request: Request) {
       });
       await streamContext.createNewResumableStream(streamId, () => stream)
       
-      await fetchAuthMutation(api.functions.threads.setActiveStreamId, {
+      await fetchAuthMutation(api.functions.threads.internal_setActiveStreamId, {
         secret: env.INTERNAL_CONVEX_SECRET,
         threadId,
         streamId,
       });
     },
   });
-
-  return uiStream;
 }

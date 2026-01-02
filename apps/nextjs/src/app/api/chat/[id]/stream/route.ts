@@ -2,10 +2,9 @@
 import { UI_MESSAGE_STREAM_HEADERS } from 'ai';
 import { after } from 'next/server';
 import { createResumableStreamContext } from 'resumable-stream/generic';
-import { fetchAuthMutation, fetchAuthQuery } from "@/auth/server"
+import { fetchAuthQuery } from "@/auth/server"
 import { api } from '@redux/backend/convex/_generated/api';
 import type { Id } from '@redux/backend/convex/_generated/dataModel';
-import { env } from '@/env';
 import { createPubSub } from '../../stream';
 
 export async function GET(
@@ -30,24 +29,4 @@ export async function GET(
     await streamContext.resumeExistingStream(thread.activeStreamId),
     { headers: UI_MESSAGE_STREAM_HEADERS },
   );
-}
-
-// DELETE route to stop the stream
-export async function DELETE(
-  _: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id } = await params;
-
-  const thread = await fetchAuthQuery(api.functions.threads.getThread, { threadId: id as Id<"threads"> });
-
-  console.log('canceling stream for chat', id);
-
-  await fetchAuthMutation(api.functions.threads.internal_cancelStream, {
-    secret: env.INTERNAL_CONVEX_SECRET,
-    threadId: thread._id,
-    messageId: thread.currentLeafMessageId as Id<"messages">
-  })
-
-  return new Response(null, { status: 200 });
 }
