@@ -20,6 +20,7 @@ export const getThreads = query({
       _id: thread._id,
       name: thread.name,
       timestamp: thread.updatedAt,
+      status: thread.status,
       _creationTime: thread._creationTime,
     }));
 

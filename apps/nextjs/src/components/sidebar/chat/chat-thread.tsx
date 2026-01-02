@@ -16,10 +16,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@redux/ui/components/sidebar";
+import Spinner from "@redux/ui/components/spinner";
 
 interface ChatThreadSidebarItemProps {
   threadId: string;
   threadName: string;
+  status: "generating" | "completed";
   timestamp?: number;
   style?: React.CSSProperties;
 }
@@ -27,6 +29,7 @@ interface ChatThreadSidebarItemProps {
 export default function ChatThreadSidebarItem({
   threadId,
   threadName,
+  status,
   style,
 }: ChatThreadSidebarItemProps) {
   const pathname = usePathname();
@@ -40,13 +43,27 @@ export default function ChatThreadSidebarItem({
   return (
     <SidebarMenuItem style={style}>
       <SidebarMenuButton asChild isActive={isActive} className="w-full">
-        <Link href={`/chat/${threadId}`}>
+        <Link href={`/chat/${threadId}`} prefetch>
           <span className="flex-1 truncate">{threadName}</span>
         </Link>
       </SidebarMenuButton>
+      {status === "generating" && (
+        <div
+          className="text-sidebar-foreground ring-sidebar-ring absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-opacity group-hover/menu-item:opacity-0 peer-data-[size=sm]/menu-button:top-1 peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 md:after:hidden"
+        >
+          <Spinner />
+        </div>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SidebarMenuAction showOnHover>
+          <SidebarMenuAction
+            showOnHover={status === "completed"}
+            className={
+              status === "generating"
+                ? "group-hover/menu-item:opacity-100 md:opacity-0"
+                : undefined
+            }
+          >
             <Ellipsis />
             <span className="sr-only">Settings</span>
           </SidebarMenuAction>

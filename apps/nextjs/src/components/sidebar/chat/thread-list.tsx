@@ -16,6 +16,7 @@ type Thread = {
   _id: string;
   name: string;
   timestamp: number;
+  status: "generating" | "completed";
   _creationTime: number;
 };
 
@@ -242,6 +243,7 @@ export default function ThreadList() {
                     threadId={item.thread._id}
                     threadName={item.thread.name}
                     timestamp={item.thread.timestamp}
+                    status={item.thread.status}
                   />
                 </div>
               );

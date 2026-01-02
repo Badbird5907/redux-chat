@@ -593,13 +593,13 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button ring-sidebar-ring hover:bg-sidebar-accent/15 hover:text-sidebar-foreground active:bg-sidebar-accent/20 active:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent/15 data-[state=open]:hover:text-sidebar-foreground flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button ring-sidebar-ring group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground active:bg-sidebar-accent/20 active:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent/15 data-[state=open]:hover:text-sidebar-foreground flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "hover:bg-sidebar-accent/15 hover:text-sidebar-foreground",
+        default: "group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground",
         outline:
-          "bg-background hover:bg-sidebar-accent/15 hover:text-sidebar-foreground shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
+          "bg-background group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground shadow-[0_0_0_1px_hsl(var(--sidebar-border))] group-hover/menu-item:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },
       size: {
         default: "h-8 text-sm",
