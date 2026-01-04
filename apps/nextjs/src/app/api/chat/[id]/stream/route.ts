@@ -25,8 +25,5 @@ export async function GET(
     ...createPubSub(),
   });
 
-  return new Response(
-    await streamContext.resumeExistingStream(thread.activeStreamId),
-    { headers: UI_MESSAGE_STREAM_HEADERS },
-  );
+  return new Response(await streamContext.resumeExistingStream(thread.activeStreamId), { headers: UI_MESSAGE_STREAM_HEADERS });
 }

@@ -39,7 +39,7 @@ export const createPubSub = () => {
           const msg = typeof message.message === 'string' 
             ? message.message 
             : JSON.stringify(message.message);
-          callback(msg);
+          callback(msg + "\n\n"); // the \n\n IS CRITICAL. The resumable-stream library does not do this for us and the SSE will not work without it.
         });
         return Promise.resolve();
       },

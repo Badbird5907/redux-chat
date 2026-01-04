@@ -61,7 +61,7 @@ export default defineSchema({
       })
     ),
     error: v.optional(v.string()),
-    aiSdkId: v.optional(v.string()), // this is the id 
+    // aiSdkId: v.optional(v.string()),
   })
     .index("by_thread", ["threadId"])
     .index("by_parent", ["parentId", "siblingIndex"])
