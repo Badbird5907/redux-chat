@@ -3,8 +3,9 @@ import { backendMutation, mutation,
 query, backendQuery } from "./index";
 import { ConvexError,
 v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { threadSettings } from "../schema";
+import { authComponent } from "../auth";
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -108,7 +109,7 @@ export const getThreadMessages = query({
     return path.map((m) => ({
       id: m._id,
       role: m.role,
-      content: m.content,
+      content: m.content as unknown,
       status: m.status,
       createdAt: m._creationTime,
     }));
@@ -120,7 +121,7 @@ export const internal_completeStream = backendMutation({
   args: {
     threadId: v.id("threads"),
     assistantMessageId: v.id("messages"),
-    content: v.string(),
+    content: v.any(), // accepted as string or array
     usage: v.optional(
       v.object({
         promptTokens: v.number(),
@@ -132,7 +133,7 @@ export const internal_completeStream = backendMutation({
   handler: async (ctx, args) => {
     // Update the assistant message
     await ctx.db.patch(args.assistantMessageId, {
-      content: args.content,
+      content: args.content as unknown,
       status: "completed",
       usage: args.usage,
     });
@@ -174,7 +175,7 @@ export const internal_checkMessageAbort = backendQuery({
 });
 
 const sendMessageSchema = v.object({
-  content: v.string(),
+  content: v.any(),
 
   // in the future, we can add tools like web search, and attachments
 })
@@ -198,20 +199,34 @@ export const beginThread = mutation({
       threadId: thread,
       mutation: { type: "original" },
       role: "user",
-      content: args.message.content,
+      content: args.message.content as unknown,
+      status: "completed", // user message is always completed
+      depth: 0,
+      siblingIndex: 0,
+    });
+
+    const assistantMessage = await ctx.db.insert("messages", {
+      threadId: thread,
+      mutation: { type: "original" },
+      role: "assistant",
+      content: "",
       status: "generating",
       depth: 0,
       siblingIndex: 0,
     });
 
-    return { threadId: thread, messageId: message };
+    await ctx.db.patch(thread, {
+      currentLeafMessageId: assistantMessage,
+    });
+
+    return { threadId: thread, messageId: message, assistantMessageId: assistantMessage };
   }
 })
 
 export const createMessage = mutation({
   args: {
     threadId: v.id("threads"),
-    content: v.string(),
+    content: v.any(),
   },
   handler: async (ctx, args) => {
     const thread = await ctx.db.get("threads", args.threadId);
@@ -223,13 +238,96 @@ export const createMessage = mutation({
     }
     const message = await ctx.db.insert("messages", {
       threadId: args.threadId,
-      content: args.content,
+      content: args.content as unknown ,
       depth: 0,
       siblingIndex: 0,
       role: "user",
+      status: "completed", // user message is always completed
+      mutation: { type: "original" },
+    });
+    const assistantMessage = await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      parentId: message,
+      content: "",
+      depth: 0,
+      siblingIndex: 0,
+      role: "assistant",
       status: "generating",
       mutation: { type: "original" },
     });
-    return { messageId: message };
+    await ctx.db.patch(args.threadId, {
+      currentLeafMessageId: assistantMessage,
+    });
+    return { messageId: message, assistantMessageId: assistantMessage };
   }
 });
+
+export const internal_prepareStream = backendQuery({ // this function returns all the data needed to stream
+  args: {
+    threadId: v.id("threads"),
+    userMessageId: v.id("messages"),
+    assistantMessageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    // we send auth over bearer token too, so we need to validate it
+    const user = await authComponent.getAuthUser(ctx);
+    console.log("Authenticated user:", user);
+
+    const [thread, userMessage, assistantMessage] = await Promise.all([
+      ctx.db.get("threads", args.threadId),
+      ctx.db.get("messages", args.userMessageId),
+      ctx.db.get("messages", args.assistantMessageId),
+    ]);
+    if (!thread) {
+      throw new ConvexError("Thread not found");
+    }
+    if (!userMessage || !assistantMessage) {
+      throw new ConvexError("User message or assistant message not found");
+    }
+    if (userMessage.threadId !== thread._id || assistantMessage.threadId !== thread._id) {
+      throw new ConvexError("Message does not belong to thread");
+    }
+    if (userMessage.role !== "user" || assistantMessage.role !== "assistant") {
+      throw new ConvexError("Message is not a user or assistant message");
+    }
+    
+    // Walk up the message tree to get conversation history
+    // Start from the given message and traverse up via parentId
+    const conversationHistory: {
+      id: Id<"messages">;
+      role: "user" | "assistant" | "system";
+      content: unknown;
+    }[] = [
+      {
+        id: userMessage._id,
+        role: userMessage.role,
+        content: userMessage.content,
+      },
+    ];
+    
+    let currentId: Id<"messages"> | undefined = userMessage.parentId;
+    
+    // Collect messages from leaf to root
+    while (currentId) {
+      const currentMessage: Doc<"messages"> | null = await ctx.db
+        .get("messages", currentId);
+      if (!currentMessage) break;
+      
+      conversationHistory.unshift({
+        id: currentMessage._id,
+        role: currentMessage.role,
+        content: currentMessage.content,
+      });
+      
+      currentId = currentMessage.parentId;
+    }
+    
+    return {
+      thread,
+      userMessage,
+      assistantMessage,
+      conversationHistory,
+      settings: thread.settings,
+    };
+  }
+})

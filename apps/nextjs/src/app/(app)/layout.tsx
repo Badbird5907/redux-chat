@@ -26,8 +26,8 @@ export default async function AppLayout({
         <AppSidebar>
           <ThreadList />
         </AppSidebar>
-        <div className="h-screen w-screen p-2">
-          <div className="bg-card/80 h-full w-full rounded-4xl p-4">
+        <div className="h-screen w-screen flex flex-col p-2">
+          <div className="bg-card/80 flex-1 w-full rounded-4xl p-4 overflow-hidden">
             <div className="bg-card/80 flex w-fit items-center justify-between rounded-md p-1">
               <SidebarTrigger />
             </div>

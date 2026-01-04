@@ -29,7 +29,7 @@ triggers.register("threads", async (ctx, change) => {
 export const query = customQuery(
   rawQuery,
   customCtx(async (ctx: GenericQueryCtx<DataModel>) => {
-    return { user: await authComponent.getAuthUser(ctx), auth: ctx.auth }; // merged into ctx
+    return { user: await authComponent.getAuthUser(ctx), auth: undefined }; // merged into ctx
   }),
 );
 

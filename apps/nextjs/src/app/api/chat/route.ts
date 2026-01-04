@@ -8,36 +8,66 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { env } from "@/env";
 import { createPubSub } from "./stream";
 import { throttle } from "@/lib/utils/throttle";
+import { z } from "zod";
+import type { Id } from "@redux/backend/convex/_generated/dataModel";
 
-interface RequestBody {
-  message: { text: string };
-  threadId?: string;
-  trigger: "submit-message" | "regenerate-message";
-}
-
+const requestBody= z.object({
+  fileIds: z.array(z.string()),
+  threadId: z.string(), // this is a generated id by the client. Ignore
+  model: z.string(),
+  assistantMessageId: z.string(),
+  userMessageId: z.string(),
+  trigger: z.enum(["submit-message", "regenerate-message"]),
+})
 export async function POST(request: Request) {
-  const body = (await request.json()) as RequestBody;
+  const parsedBody = requestBody.parse(await request.json());
 
-  
+  const { threadId, userMessageId, assistantMessageId } = parsedBody;
+  const messagesData = await fetchAuthQuery(
+    api.functions.threads.internal_prepareStream,
+    {
+      threadId: threadId as Id<"threads">,
+      userMessageId: userMessageId as Id<"messages">,
+      assistantMessageId: assistantMessageId as Id<"messages">,
+      secret: env.INTERNAL_CONVEX_SECRET,
+    }
+  ); // returns the chat history up to the assistant message
+
+  console.log("===== got messages data =====", messagesData);
 
   // Convert to model messages format (exclude the placeholder assistant message)
+  // Convert to model messages format (exclude the placeholder assistant message)
   const modelMessages = await convertToModelMessages(
-    messagesData
-      .filter((m) => m.content)
-      .map((m) => ({
-        id: m.id,
-        role: m.role as "user" | "assistant" | "system",
-        parts: [{ type: "text" as const, text: m.content }],
-      }))
+    messagesData.conversationHistory
+      .filter((m) => m.content) // Filter out empty messages (like the placeholder assistant message)
+      .map((m) => {
+        let parts;
+        if (typeof m.content === 'string') {
+          parts = [{ type: "text" as const, text: m.content }];
+        } else if (Array.isArray(m.content)) {
+          parts = m.content;
+        } else {
+          parts = [{ type: "text" as const, text: "" }]; // Fallback/Error case
+        }
+        return {
+          id: m.id,
+          role: m.role,
+          parts: parts,
+        };
+      })
   );
+  console.log("modelMessages")
+  console.dir(modelMessages, { depth: Infinity })
+  console.log("------------")
 
   const abortController = new AbortController();
-  // Stream the response
+  // Stream the response using the model from thread settings
   const result = streamText({
-    model: openai("gpt-4o-mini"),
+    model: openai(messagesData.settings.model),
     messages: modelMessages,
+    temperature: messagesData.settings.temperature,
     abortSignal: abortController.signal,
-    onFinish: async ({ text, usage }) => {
+    onFinish: async ({ response, usage }) => {
       // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
       const usageData =
         usage.inputTokens !== undefined &&
@@ -51,33 +81,47 @@ export async function POST(request: Request) {
           : undefined;
 
       // Save the completed response to Convex
+      // We use response.messages to get the actual messages generated, which includes reasoning parts etc.
       await fetchAuthMutation(api.functions.threads.internal_completeStream, {
         secret: env.INTERNAL_CONVEX_SECRET,
-        threadId,
-        assistantMessageId,
-        content: text,
+        threadId: threadId as Id<"threads">,
+        assistantMessageId: assistantMessageId as Id<"messages">,
+        content: response.messages.length > 0 ? response.messages[response.messages.length - 1]?.content ?? "" : "", // Get the last message content which is the assistant response
         usage: usageData,
       });
     },
-    onChunk: throttle(async () => {
-      const canceledAt = await fetchAuthQuery(api.functions.threads.internal_checkMessageAbort, {
-        secret: env.INTERNAL_CONVEX_SECRET,
-        messageId: assistantMessageId,
-      });
-      if (canceledAt) {
-        abortController.abort();
-        return;
-      }
-    }, 1000),
+    onChunk: () => {
+      throttle(() => {
+        // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
+        void (fetchAuthQuery(api.functions.threads.internal_checkMessageAbort, {
+          secret: env.INTERNAL_CONVEX_SECRET,
+          messageId: assistantMessageId as Id<"messages">,
+        })).then(res => {
+          if (res) {
+            abortController.abort();
+            return;
+          }
+        });
+      }, 1000)
+    },
   });
 
   return result.toUIMessageStreamResponse({
-    originalMessages: messagesData.map((m) => ({
-      id: m.id,
-      role: m.role as "user" | "assistant" | "system",
-      parts: [{ type: "text" as const, text: m.content }],
-    })),
-    headers: !existingThreadId ? { "X-Thread-Id": threadId } : undefined,
+    originalMessages: messagesData.conversationHistory.map((m) => {
+      let parts;
+      if (typeof m.content === 'string') {
+        parts = [{ type: "text" as const, text: m.content }];
+      } else if (Array.isArray(m.content)) {
+        parts = m.content;
+      } else {
+        parts = [{ type: "text" as const, text: "" }];
+      }
+      return {
+        id: m.id,
+        role: m.role,
+        parts: parts,
+      };
+    }),
     messageMetadata: ({ part }) => {
       if (part.type === "start") {
         return { createdAt: Date.now() };
@@ -90,11 +134,11 @@ export async function POST(request: Request) {
         waitUntil: after,
         ...createPubSub(),
       });
-      await streamContext.createNewResumableStream(streamId, () => stream)
+      await streamContext.createNewResumableStream(streamId, () => stream);
       
       await fetchAuthMutation(api.functions.threads.internal_setActiveStreamId, {
         secret: env.INTERNAL_CONVEX_SECRET,
-        threadId,
+        threadId: threadId as Id<"threads">,
         streamId,
       });
     },

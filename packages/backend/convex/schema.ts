@@ -46,7 +46,7 @@ export default defineSchema({
     threadId: v.id("threads"),
     parentId: v.optional(v.id("messages")),
     role: messageRole,
-    content: v.string(),
+    content: v.any(),
     status: messageStatus,
     depth: v.number(),
     siblingIndex: v.number(),
@@ -61,6 +61,7 @@ export default defineSchema({
       })
     ),
     error: v.optional(v.string()),
+    aiSdkId: v.optional(v.string()), // this is the id 
   })
     .index("by_thread", ["threadId"])
     .index("by_parent", ["parentId", "siblingIndex"])

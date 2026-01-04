@@ -37,6 +37,7 @@
     "react-resizable-panels": "^4.0.16",
     "resumable-stream": "^2.2.10",
     "sonner": "catalog:",
+    "streamdown": "^1.6.10",
     "superjson": "2.2.3",
     "tokenx": "^1.2.1",
     "zod": "catalog:",

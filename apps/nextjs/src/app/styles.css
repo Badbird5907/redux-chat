@@ -3,6 +3,7 @@
 @import "../../../../tooling/tailwind/theme.css";
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../../node_modules/streamdown/dist/*.js";
 
 @utility container {
   margin-inline: auto;

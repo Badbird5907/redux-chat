@@ -1,8 +1,8 @@
-import { ChatInput } from "@/components/chat/input";
+import { Chat } from "@/components/chat";
 
 export default function HomePage() {
   
   return (
-    <ChatInput />
+    <Chat threadId={undefined} />
   );
 }

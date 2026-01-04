@@ -3,8 +3,6 @@
 import type React from "react"
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
-import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
 import { Plus, Search, ArrowUp, X, FileText, Loader2, Maximize2, Minimize2 } from "lucide-react"
 import { Button } from "@redux/ui/components/button"
 import { cn } from "@redux/ui/lib/utils"
@@ -27,9 +25,12 @@ interface UploadedFile {
 
 interface ChatInputProps {
   threadId?: string
+  setThreadId: (threadId: string) => void
+  sendMessage: (message: { text: string, id?: string }, options?: { body?: object }) => void
+  status: "ready" | "streaming" | "submitted" | "error"
 }
 
-export function ChatInput({ threadId }: ChatInputProps) {
+export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatInputProps) {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
   const [selectedModel, setSelectedModel] = useState(MODELS[0]?.id ?? "gpt-4o")
@@ -46,10 +47,6 @@ export function ChatInput({ threadId }: ChatInputProps) {
 
   const createMessage = useMutation(api.functions.threads.createMessage)
   const beginThread = useMutation(api.functions.threads.beginThread)
-
-  const { sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
-  })
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -190,12 +187,12 @@ export function ChatInput({ threadId }: ChatInputProps) {
       setIsExpanded(false)
     }
 
-    let threadInfo: { threadId: string; messageId: string }
+    let threadInfo: { threadId: string; messageId: string; assistantMessageId: string }
 
     try {
       if (threadId) {
         const result = await createMessage({ threadId: threadId as Id<"threads">, content: input })
-        threadInfo = { threadId, messageId: result.messageId }
+        threadInfo = { threadId, messageId: result.messageId, assistantMessageId: result.assistantMessageId }
       } else {
         const result = await beginThread({
           message: { content: input },
@@ -205,21 +202,26 @@ export function ChatInput({ threadId }: ChatInputProps) {
             tools: [],
           },
         })
-        threadInfo = { threadId: result.threadId, messageId: result.messageId }
+        threadInfo = { threadId: result.threadId, messageId: result.messageId, assistantMessageId: result.assistantMessageId }
+        setThreadId(result.threadId)
       }
     } catch (error) {
       console.error("Failed to create message or thread:", error)
       return
     }
+    console.log("===== threadInfo =====", threadInfo);
 
     const fileIds = attachments.map((f) => f.id)
     const body = {
       threadId: threadInfo.threadId,
-      messageId: threadInfo.messageId,
+      userMessageId: threadInfo.messageId,
+      assistantMessageId: threadInfo.assistantMessageId,
       fileIds,
       model: selectedModel,
+      id: threadInfo.threadId,
     };
     void sendMessage({
+      id: threadInfo.messageId,
       text: input,
     }, {
       body
@@ -231,7 +233,7 @@ export function ChatInput({ threadId }: ChatInputProps) {
 
     setInput("")
     setAttachments([])
-  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, createMessage, beginThread])
+  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, createMessage, beginThread, setThreadId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
