@@ -141,7 +141,15 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
 
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}` // TODO
 
-        const url = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined
+        const url = (
+          file.type.startsWith("image/") ||
+          file.type.startsWith("video/") ||
+          file.type.startsWith("audio/") ||
+          file.type === "application/pdf" ||
+          file.name.toLowerCase().endsWith(".pdf")
+        )
+          ? URL.createObjectURL(file)
+          : undefined
 
         setAttachments((prev) => [...prev, { id: tempId, name: file.name, type: file.type, uploading: true, url }])
 
@@ -169,9 +177,15 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
     })
   }, [])
 
+  // Cleanup object URLs on unmount
+  const attachmentsRef = useRef(attachments)
+  useEffect(() => {
+    attachmentsRef.current = attachments
+  }, [attachments])
+
   useEffect(() => {
     return () => {
-      attachments.forEach((file) => {
+      attachmentsRef.current.forEach((file) => {
         if (file.url) URL.revokeObjectURL(file.url)
       })
     }
