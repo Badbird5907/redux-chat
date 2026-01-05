@@ -12,16 +12,20 @@ import type { Id } from "@redux/backend/convex/_generated/dataModel";
 
 const requestBody= z.object({
   fileIds: z.array(z.string()),
-  threadId: z.string(), // this is a generated id by the client. Ignore
+  threadId: z.string(),
+  id: z.string(), // this is a generated id by the client
   model: z.string(),
   assistantMessageId: z.string(),
   userMessageId: z.string(),
   trigger: z.enum(["submit-message", "regenerate-message"]),
 })
 export async function POST(request: Request) {
-  const parsedBody = requestBody.parse(await request.json());
+  const json = await request.json();
+  console.log("===== got json =====", json);
+  const parsedBody = requestBody.parse(json);
 
-  const { threadId, userMessageId, assistantMessageId } = parsedBody;
+  const { threadId, userMessageId, assistantMessageId, id } = parsedBody;
+  console.log("client generated id", id);
   const messagesData = await fetchAuthQuery(
     api.functions.threads.internal_prepareStream,
     {
@@ -65,6 +69,12 @@ export async function POST(request: Request) {
     messages: modelMessages,
     temperature: messagesData.settings.temperature,
     abortSignal: abortController.signal,
+    // _internal: {
+    //   generateId: () => {
+    //     console.log("generateId called")
+    //     return assistantMessageId
+    //   },
+    // },
     onFinish: async ({ response, usage }) => {
       // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
       const usageData =
@@ -120,6 +130,7 @@ export async function POST(request: Request) {
         parts: parts,
       };
     }),
+    generateMessageId: () => assistantMessageId,
     messageMetadata: ({ part }) => {
       if (part.type === "start") {
         return { createdAt: Date.now() };

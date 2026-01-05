@@ -133,6 +133,7 @@ export function Chat({
 
   const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: threadId as Id<"threads"> }, { skip: !threadId });
   const lastStreamId = useRef<string | null>(null);
+  const prevStatus = useRef(status);
 
   useEffect(() => {
     if (status === "streaming" && streamId) {
@@ -176,10 +177,26 @@ export function Chat({
 
   // Sync convex messages to chat state when not streaming
   useEffect(() => {
+    const isJustFinishedStreaming =
+      prevStatus.current === "streaming" && status !== "streaming";
+
     if (status !== "streaming" && convexUIMessages.length > 0) {
+      if (
+        isJustFinishedStreaming &&
+        messages.length > convexUIMessages.length
+      ) {
+        return;
+      }
+      console.log("Syncing messages", convexUIMessages, messages);
       setMessages(convexUIMessages);
     }
+  // we are mutating messages, so it cant be a dep
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convexUIMessages, status, setMessages]);
+
+  useEffect(() => {
+    prevStatus.current = status;
+  }, [status]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -195,7 +212,10 @@ export function Chat({
             messages.map((message) => {
               const textParts = message.parts.filter(isTextPart);
               const textContent = textParts.map((part) => part.text).join("");
-
+              // console.log("rendering message", message.id)
+              // if (message.role === "assistant") {
+              //   console.log(message.id, textContent)
+              // }
               return (
                 <div
                   key={message.id}
@@ -213,6 +233,7 @@ export function Chat({
                     )}
                   >
                     <Streamdown>{textContent}</Streamdown>
+                    <span className="text-xs text-gray-500">{message.id}</span>
                   </div>
                 </div>
               );
