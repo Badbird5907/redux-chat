@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports
 import { useQuery as useOriginalQuery } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import type { FunctionReference } from "convex/server";

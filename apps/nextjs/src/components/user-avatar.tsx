@@ -10,7 +10,7 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import { api } from "@redux/backend/convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useQuery } from "@/lib/hooks/convex";
 
 interface UserAvatarProps {
   userId?: string;

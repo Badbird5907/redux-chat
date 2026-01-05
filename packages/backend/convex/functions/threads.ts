@@ -215,7 +215,7 @@ export const beginThread = mutation({
       siblingIndex: 0,
     });
 
-    await ctx.db.patch(thread, {
+    await ctx.db.patch("threads", thread, {
       currentLeafMessageId: assistantMessage,
     });
 

@@ -12,4 +12,20 @@ export default defineConfig(
   reactConfig,
   nextjsConfig,
   restrictEnvAccess,
+  {
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "convex/react",
+              importNames: ["useQuery"],
+              message: "Please use useQuery from @/lib/hooks/convex instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
