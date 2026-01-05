@@ -11,6 +11,11 @@ export function useQuery<Query extends FunctionReference<"query">>(
   const { isAuthenticated } = useConvexAuth();
 
   const shouldSkip = options?.skip ?? !isAuthenticated;
-  const result = useOriginalQuery(query, ...(shouldSkip ? ["skip"] : [args]));
+  const result = useOriginalQuery(
+    query,
+    ...(shouldSkip ? ["skip"] : [args]),
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return result ?? options?.default;
 }
