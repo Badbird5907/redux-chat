@@ -6,7 +6,6 @@ import { createResumableStreamContext } from "resumable-stream";
 import { fetchAuthMutation, fetchAuthQuery } from "@/auth/server";
 import { api } from "@redux/backend/convex/_generated/api";
 import { env } from "@/env";
-import { createPubSub } from "./stream";
 import { throttle } from "@/lib/utils/throttle";
 import { z } from "zod";
 import type { Id } from "@redux/backend/convex/_generated/dataModel";
@@ -61,7 +60,6 @@ export async function POST(request: Request) {
   console.log("------------")
 
   const abortController = new AbortController();
-  // Stream the response using the model from thread settings
   const result = streamText({
     model: openai(messagesData.settings.model),
     messages: modelMessages,

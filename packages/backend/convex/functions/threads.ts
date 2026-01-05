@@ -259,8 +259,10 @@ export const createMessage = mutation({
       status: "generating",
       mutation: { type: "original" },
     });
-    await ctx.db.patch(args.threadId, {
+    await ctx.db.patch("threads", args.threadId, {
       currentLeafMessageId: assistantMessage,
+      activeStreamId: undefined,
+      status: "generating"  
     });
     return { messageId: message, assistantMessageId: assistantMessage };
   }
@@ -333,5 +335,16 @@ export const internal_prepareStream = backendQuery({ // this function returns al
       conversationHistory,
       settings: thread.settings,
     };
+  }
+})
+
+export const getThreadStreamId = query({
+  args: { threadId: v.id("threads") },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db.get("threads", args.threadId);
+    if (!thread) {
+      throw new ConvexError("Thread not found");
+    }
+    return thread.activeStreamId;
   }
 })

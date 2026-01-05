@@ -1,0 +1,44 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index f3e132cec9fc233117178ba7d427dc604d2f4b77..ccaecd118c87c6f6325a09afdf6f53abd8ca3191 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -11631,8 +11631,9 @@ var AbstractChat = class {
+     let isAbort = false;
+     let isDisconnect = false;
+     let isError = false;
++    let activeResponse;
+     try {
+-      const activeResponse = {
++      activeResponse = {
+         state: createStreamingUIMessageState({
+           lastMessage: this.state.snapshot(lastMessage),
+           messageId: this.generateId()
+@@ -11722,14 +11723,20 @@ var AbstractChat = class {
+       this.setStatus({ status: "error", error: err });
+     } finally {
+       try {
+-        (_b = this.onFinish) == null ? void 0 : _b.call(this, {
+-          message: this.activeResponse.state.message,
+-          messages: this.state.messages,
+-          isAbort,
+-          isDisconnect,
+-          isError,
+-          finishReason: (_a16 = this.activeResponse) == null ? void 0 : _a16.state.finishReason
+-        });
++        // PATCH: Use local `activeResponse` instead of `this.activeResponse` in finally block.
++        // `this.activeResponse` can be undefined if an error is thrown before assignment,
++        // or overwritten by concurrent `makeRequest` calls. Local var is safe.
++        // See: https://github.com/vercel/ai/issues/8477
++        if (activeResponse) {
++          (_b = this.onFinish) == null ? void 0 : _b.call(this, {
++            message: activeResponse.state.message,
++            messages: this.state.messages,
++            isAbort,
++            isDisconnect,
++            isError,
++            finishReason: (_a16 = activeResponse) == null ? void 0 : _a16.state.finishReason
++          });
++        }
+       } catch (err) {
+         console.error(err);
+       }
