@@ -12,6 +12,7 @@
     "ui-add": "pnpm dlx shadcn@latest add && prettier src --write --list-different && tsx ../../auto-export.ts ui"
   },
   "dependencies": {
+    "@base-ui/react": "^1.0.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -60,6 +61,7 @@
     "./components/accordion": "./src/components/accordion.tsx",
     "./components/avatar": "./src/components/avatar.tsx",
     "./components/badge": "./src/components/badge.tsx",
+    "./components/button-group": "./src/components/button-group.tsx",
     "./components/button": "./src/components/button.tsx",
     "./components/card": "./src/components/card.tsx",
     "./components/checkbox": "./src/components/checkbox.tsx",

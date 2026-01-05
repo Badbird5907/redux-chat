@@ -1,7 +1,8 @@
 "use client"
 
 import { X, FileText } from "lucide-react"
-import { Dialog, DialogContent } from "@redux/ui/components/dialog"
+import { Dialog, DialogContent, DialogHeader } from "@redux/ui/components/dialog"
+import { Button } from "@redux/ui/components/button"
 
 interface FilePreviewDialogProps {
   file: {
@@ -23,20 +24,19 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
 
   return (
     <Dialog open={!!file} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2 min-w-0">
-            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden" showCloseButton={false}>
+        <DialogHeader className="px-4 py-3 border-b border-border flex flex-row items-center">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-sm font-medium text-foreground truncate">{file.name}</span>
           </div>
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+          <div className="ml-auto">
+            <Button variant="ghost" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogHeader>
+        {/* Header */}
 
         {/* Content */}
         <div className="p-4 overflow-auto max-h-[calc(90vh-60px)]">

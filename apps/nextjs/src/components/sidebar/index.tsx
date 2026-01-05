@@ -53,7 +53,7 @@ export default function AppSidebar({
     });
   };
   return (
-    <Sidebar className="">
+    <Sidebar className="border-none">
       <SidebarHeader className="pt-4">
         <Link href="/" className="self-center text-2xl font-bold" prefetch>
           <h1>

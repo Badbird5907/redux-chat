@@ -26,15 +26,17 @@ export function ModelSelector({ models, selectedModel, onModelChange }: ModelSel
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md gap-1"
-        >
-          <span className="font-medium">{currentModel?.name}</span>
-          <ChevronDown className="h-3 w-3" />
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md gap-1"
+          />
+        }
+      >
+        <span className="font-medium">{currentModel?.name}</span>
+        <ChevronDown className="h-3 w-3" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-56">
         {models.map((model) => (

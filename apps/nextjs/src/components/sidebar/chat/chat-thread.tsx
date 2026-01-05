@@ -42,10 +42,14 @@ export default function ChatThreadSidebarItem({
 
   return (
     <SidebarMenuItem style={style}>
-      <SidebarMenuButton asChild isActive={isActive} className="w-full">
-        <Link href={`/chat/${threadId}`} prefetch>
-          <span className="flex-1 truncate">{threadName}</span>
-        </Link>
+      <SidebarMenuButton
+        isActive={isActive}
+        className="w-full"
+        render={
+          <Link href={`/chat/${threadId}`} prefetch />
+        }
+      >
+        <span className="flex-1 truncate">{threadName}</span>
       </SidebarMenuButton>
       {status === "generating" && (
         <div
@@ -55,18 +59,20 @@ export default function ChatThreadSidebarItem({
         </div>
       )}
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <SidebarMenuAction
-            showOnHover={status === "completed"}
-            className={
-              status === "generating"
-                ? "group-hover/menu-item:opacity-100 md:opacity-0"
-                : undefined
-            }
-          >
-            <Ellipsis />
-            <span className="sr-only">Settings</span>
-          </SidebarMenuAction>
+        <DropdownMenuTrigger
+          render={
+            <SidebarMenuAction
+              showOnHover={status === "completed"}
+              className={
+                status === "generating"
+                  ? "group-hover/menu-item:opacity-100 md:opacity-0"
+                  : undefined
+              }
+            />
+          }
+        >
+          <Ellipsis />
+          <span className="sr-only">Settings</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem>

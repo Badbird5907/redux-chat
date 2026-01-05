@@ -10,7 +10,7 @@ import {
   useFormContext,
   useFormState,
 } from "react-hook-form";
-import { Label } from "src/components/label";
+import { Label } from "@redux/ui/components/label";
 
 import { cn } from "@redux/ui/lib/utils";
 
@@ -47,6 +47,7 @@ const useFormField = () => {
   const formState = useFormState({ name: fieldContext.name });
   const fieldState = getFieldState(fieldContext.name, formState);
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>");
   }
@@ -136,7 +137,7 @@ function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
 
 function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
   const { error, formMessageId } = useFormField();
-  const body = error ? String(error?.message ?? "") : props.children;
+  const body = error ? String(error.message ?? "") : props.children;
 
   if (!body) {
     return null;

@@ -1,12 +1,10 @@
-import * as React from "react";
+import type * as React from "react";
 
 export function mergeButtonRefs(
-  refs: Array<
-    | React.MutableRefObject<HTMLButtonElement | null>
+  refs: (| React.MutableRefObject<HTMLButtonElement | null>
     | React.LegacyRef<HTMLButtonElement>
     | undefined
-    | null
-  >,
+    | null)[],
 ) {
   return (value: HTMLButtonElement | null) => {
     refs.forEach((ref) => {
