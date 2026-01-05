@@ -1,7 +1,7 @@
 import { generateId, streamText, convertToModelMessages } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { after } from "next/server";
-import { createResumableStreamContext } from "resumable-stream/generic";
+import { createResumableStreamContext } from "resumable-stream";
 
 import { fetchAuthMutation, fetchAuthQuery } from "@/auth/server";
 import { api } from "@redux/backend/convex/_generated/api";
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       // Create a resumable stream context
       const streamContext = createResumableStreamContext({
         waitUntil: after,
-        ...createPubSub(),
+        // ...createPubSub(),
       });
       await streamContext.createNewResumableStream(streamId, () => stream);
       

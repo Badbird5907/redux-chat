@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect,useRef } from "react";
 import { useQuery } from "@/lib/hooks/convex";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -68,6 +68,28 @@ export function EmptyChat() {
   );
 }
 
+const convexMessageToUIMessage = (m: ConvexMessage): UIMessage => {
+  if (typeof m.content === "string") {
+    return {
+      ...m,
+      parts: [{ type: "text" as const, text: m.content }],
+      content: undefined,
+    };
+  } else if (Array.isArray(m.content)) {
+    return {
+      ...m,
+      parts: m.content,
+      content: undefined,
+    };
+  } else {
+    return {
+      ...m,
+      parts: [{ type: "text" as const, text: "" }],
+      content: undefined,
+    };
+  }
+};
+
 export function Chat({
   threadId,
   setThreadId,
@@ -77,40 +99,10 @@ export function Chat({
   setThreadId: (threadId: string | undefined) => void;
   convexMessages: ConvexMessage[] | undefined;
 }) {
-  const previousConvexMessagesRef = useRef<ConvexMessage[] | undefined>(undefined);
-
-  const existingMessages: UIMessage[] = useMemo(() => {
-    return (
-      convexMessages
-        ?.filter((m) => m.status !== "generating")
-        .map((m) => {
-          if (typeof m.content === "string") {
-            return {
-              ...m,
-              parts: [{ type: "text" as const, text: m.content }],
-              content: undefined,
-            };
-          } else if (Array.isArray(m.content)) {
-            return {
-              ...m,
-              parts: m.content,
-              content: undefined,
-            };
-          } else {
-            return {
-              ...m,
-              parts: [{ type: "text" as const, text: "" }],
-              content: undefined,
-            };
-          }
-        }) ?? []
-    );
-  }, [convexMessages]);
-
-  const { messages: streamingMessages, status, sendMessage, resumeStream, setMessages } = useChat({
-    messages: existingMessages,
+  const oldConvexMessages = useRef<ConvexMessage[] | undefined>(undefined);
+  const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
     id: threadId,
-    // resume: true,
+    messages: convexMessages?.map(convexMessageToUIMessage) ?? [],
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
@@ -125,43 +117,49 @@ export function Chat({
     },
   });
 
-  // Combine existing and streaming messages, avoiding duplicates
-  const allMessages = useMemo(() => {
-    const streamingOnly = streamingMessages.filter(
-      (m) => !existingMessages.some((em) => em.id === m.id)
-    );
-    return [...existingMessages, ...streamingOnly];
-  }, [existingMessages, streamingMessages]);
-
-  // Handle resuming stream when new messages arrive from other clients
   useEffect(() => {
-    if (convexMessages !== previousConvexMessagesRef.current) {
+    if (convexMessages !== oldConvexMessages.current) {
       const newMessages = convexMessages?.filter(
-        (m) => !previousConvexMessagesRef.current?.some((cm) => cm.id === m.id)
+        (m) => !oldConvexMessages.current?.some((cm) => cm.id === m.id)
       );
-      if (newMessages && previousConvexMessagesRef.current && status !== "streaming") {
-        console.log("New messages:", newMessages);
+      if (newMessages && oldConvexMessages.current && status !== "streaming") {
         setTimeout(() => {
+          console.log("Resuming stream");
           void resumeStream();
-          console.log("Resumed stream");
-        }, 500);
+        }, 750);
       }
-      previousConvexMessagesRef.current = convexMessages;
+      oldConvexMessages.current = convexMessages;
     }
-  }, [convexMessages, resumeStream, status]);
+  }, [convexMessages, status, resumeStream])
+
+  // Convert convex messages to UI messages
+  const convexUIMessages: UIMessage[] = useMemo(() => {
+    return (
+      convexMessages
+        ?.filter((m) => m.status !== "generating")
+        .map(convexMessageToUIMessage) ?? []
+    );
+  }, [convexMessages]);
+
+  // Sync convex messages to chat state when not streaming
+  useEffect(() => {
+    if (status !== "streaming" && convexUIMessages.length > 0) {
+      setMessages(convexUIMessages);
+    }
+  }, [convexUIMessages, status, setMessages]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <Conversation className="relative size-full">
-        <ConversationContent>
-          {allMessages.length === 0 ? (
+        <ConversationContent className="pb-36">
+          {messages.length === 0 ? (
             <ConversationEmptyState
               description="Messages will appear here as the conversation progresses."
               icon={<MessageSquareIcon className="size-6" />}
               title="Start a conversation"
             />
           ) : (
-            allMessages.map((message) => {
+            messages.map((message) => {
               const textParts = message.parts.filter(isTextPart);
               const textContent = textParts.map((part) => part.text).join("");
 

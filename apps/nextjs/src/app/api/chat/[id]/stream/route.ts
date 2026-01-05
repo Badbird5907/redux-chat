@@ -1,11 +1,10 @@
 
 import { UI_MESSAGE_STREAM_HEADERS } from 'ai';
 import { after } from 'next/server';
-import { createResumableStreamContext } from 'resumable-stream/generic';
+import { createResumableStreamContext } from 'resumable-stream';
 import { fetchAuthQuery } from "@/auth/server"
 import { api } from '@redux/backend/convex/_generated/api';
 import type { Id } from '@redux/backend/convex/_generated/dataModel';
-import { createPubSub } from '../../stream';
 
 export async function GET(
   _: Request,
@@ -22,7 +21,7 @@ export async function GET(
 
   const streamContext = createResumableStreamContext({
     waitUntil: after,
-    ...createPubSub(),
+    // ...createPubSub(),
   });
 
   return new Response(await streamContext.resumeExistingStream(thread.activeStreamId), { headers: UI_MESSAGE_STREAM_HEADERS });
