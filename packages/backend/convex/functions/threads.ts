@@ -236,11 +236,15 @@ export const createMessage = mutation({
     if (thread.userId !== ctx.user._id) {
       throw new ConvexError("Unauthorized");
     }
+    const lastMessage = await ctx.db.query("messages")
+      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+      .order("desc")
+      .first();
     const message = await ctx.db.insert("messages", {
       threadId: args.threadId,
       content: args.content as unknown ,
-      depth: 0,
-      siblingIndex: 0,
+      depth: lastMessage ? lastMessage.depth + 1 : 0,
+      siblingIndex: lastMessage ? lastMessage.siblingIndex + 1 : 0,
       role: "user",
       status: "completed", // user message is always completed
       mutation: { type: "original" },
