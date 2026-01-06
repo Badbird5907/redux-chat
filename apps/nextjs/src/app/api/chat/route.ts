@@ -20,9 +20,7 @@ const requestBody= z.object({
   trigger: z.enum(["submit-message", "regenerate-message"]),
 })
 export async function POST(request: Request) {
-  const json = await request.json();
-  console.log("===== got json =====", json);
-  const parsedBody = requestBody.parse(json);
+  const parsedBody = requestBody.parse(await request.json());
 
   const { threadId, userMessageId, assistantMessageId, id } = parsedBody;
   console.log("client generated id", id);
