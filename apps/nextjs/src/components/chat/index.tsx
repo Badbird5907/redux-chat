@@ -13,7 +13,7 @@ import { DefaultChatTransport } from "ai";
 import { MessageSquareIcon } from "lucide-react";
 import { Streamdown } from "streamdown";
 
-import type { Id } from "@redux/backend/convex/_generated/dataModel";
+
 import { api } from "@redux/backend/convex/_generated/api";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -72,13 +72,13 @@ export function Chat({
   preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
 }) {  
   const router = useRouter();
-  const convexMessages = useQuery(
-    api.functions.threads.getThreadMessages,
-    { threadId: initialThreadId as Id<"threads"> },
-    { default: preload, skip: !initialThreadId },
-  );
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId
+  );
+  const convexMessages = useQuery(
+    api.functions.threads.getThreadMessages,
+    { threadId: currentThreadId ?? "" },
+    { default: preload, skip: !currentThreadId },
   );
 
   // const oldConvexMessages = useRef<ConvexMessage[] | undefined>(undefined);
@@ -99,7 +99,7 @@ export function Chat({
     },
   });
 
-  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId as Id<"threads"> }, { skip: !currentThreadId });
+  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId ?? "" }, { skip: !currentThreadId });
   const lastStreamId = useRef<string | null>(null);
   const prevStatus = useRef(status);
 
@@ -218,7 +218,6 @@ export function Chat({
           // replace the other states too
           lastStreamId.current = null;
           prevStatus.current = "ready";
-          setMessages([]);
           setCurrentThreadId(id);
           void router.replace(`/chat/${id}`);
 

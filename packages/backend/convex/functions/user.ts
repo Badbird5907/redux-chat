@@ -11,6 +11,7 @@ export const getUserImage = query({
         let target = null;
         
         if (userId && userId !== "me") {
+            // @ts-expect-error works fine
             target = await authComponent.getAnyUserById(ctx, userId);
         } else {
             target = ctx.user;

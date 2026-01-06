@@ -150,6 +150,9 @@ importers:
       motion:
         specifier: ^12.23.26
         version: 12.23.26(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      nanoid:
+        specifier: ^5.1.6
+        version: 5.1.6
       next:
         specifier: 16.1.1
         version: 16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -244,12 +247,18 @@ importers:
       better-auth:
         specifier: 'catalog:'
         version: 1.4.9(@prisma/client@5.22.0(prisma@5.22.0))(better-sqlite3@12.5.0)(next@16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(prisma@5.22.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
       convex:
         specifier: ^1.31.2
         version: 1.31.2(react@19.2.3)
       convex-helpers:
         specifier: ^0.1.108
         version: 0.1.108(@standard-schema/spec@1.1.0)(convex@1.31.2(react@19.2.3))(react@19.2.3)(typescript@5.9.3)(zod@4.2.1)
+      nanoid:
+        specifier: ^5.1.6
+        version: 5.1.6
       zod:
         specifier: 'catalog:'
         version: 4.2.1
@@ -3467,6 +3476,9 @@ packages:
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
 
+  buffer@6.0.3:
+    resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
+
   bufferutil@4.1.0:
     resolution: {integrity: sha512-ZMANVnAixE6AWWnPzlW2KpUrxhm9woycYvPOo67jWHyFowASTEd9s+QN1EIMsSDtwhIxN4sWE1jotpuDUIgyIw==}
     engines: {node: '>=6.14.2'}
@@ -5389,6 +5401,11 @@ packages:
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
+  nanoid@5.1.6:
+    resolution: {integrity: sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==}
+    engines: {node: ^18 || >=20}
     hasBin: true
 
   nanostores@1.1.0:
@@ -9554,6 +9571,11 @@ snapshots:
       base64-js: 1.5.1
       ieee754: 1.2.1
 
+  buffer@6.0.3:
+    dependencies:
+      base64-js: 1.5.1
+      ieee754: 1.2.1
+
   bufferutil@4.1.0:
     dependencies:
       node-gyp-build: 4.8.4
@@ -11989,6 +12011,8 @@ snapshots:
   mute-stream@0.0.8: {}
 
   nanoid@3.3.11: {}
+
+  nanoid@5.1.6: {}
 
   nanostores@1.1.0: {}
 

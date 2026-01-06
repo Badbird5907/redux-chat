@@ -18,8 +18,8 @@ const messageRole = v.union(
 
 const mutationInfo = v.union(
   v.object({ type: v.literal("original") }),
-  v.object({ type: v.literal("edit"), fromMessageId: v.id("messages") }),
-  v.object({ type: v.literal("regeneration"), fromMessageId: v.id("messages") })
+  v.object({ type: v.literal("edit"), fromMessageId: v.string() }),
+  v.object({ type: v.literal("regeneration"), fromMessageId: v.string() })
 );
 
 export const threadSettings = v.object({
@@ -30,11 +30,12 @@ export const threadSettings = v.object({
 
 export default defineSchema({
   threads: defineTable({
+    threadId: v.string(),
     userId: v.string(),
     name: v.string(),
     status: threadStatus,
     settings: threadSettings,
-    currentLeafMessageId: v.optional(v.id("messages")),
+    currentLeafMessageId: v.optional(v.string()),
     activeStreamId: v.optional(v.string()),
     updatedAt: v.number(),
   })
@@ -43,8 +44,9 @@ export default defineSchema({
     .index("by_user", ["userId"]),
 
   messages: defineTable({
-    threadId: v.id("threads"),
-    parentId: v.optional(v.id("messages")),
+    threadId: v.string(),
+    messageId: v.string(),
+    parentId: v.optional(v.string()),
     role: messageRole,
     content: v.any(),
     status: messageStatus,
@@ -61,7 +63,6 @@ export default defineSchema({
       })
     ),
     error: v.optional(v.string()),
-    // aiSdkId: v.optional(v.string()),
   })
     .index("by_thread", ["threadId"])
     .index("by_parent", ["parentId", "siblingIndex"])

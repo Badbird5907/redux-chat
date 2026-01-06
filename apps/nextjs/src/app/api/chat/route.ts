@@ -8,7 +8,6 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { env } from "@/env";
 import { throttle } from "@/lib/utils/throttle";
 import { z } from "zod";
-import type { Id } from "@redux/backend/convex/_generated/dataModel";
 
 const requestBody= z.object({
   fileIds: z.array(z.string()),
@@ -27,9 +26,9 @@ export async function POST(request: Request) {
   const messagesData = await fetchAuthQuery(
     api.functions.threads.internal_prepareStream,
     {
-      threadId: threadId as Id<"threads">,
-      userMessageId: userMessageId as Id<"messages">,
-      assistantMessageId: assistantMessageId as Id<"messages">,
+      threadId: threadId,
+      userMessageId: userMessageId,
+      assistantMessageId: assistantMessageId,
       secret: env.INTERNAL_CONVEX_SECRET,
     }
   ); // returns the chat history up to the assistant message
@@ -90,8 +89,8 @@ export async function POST(request: Request) {
       // We use response.messages to get the actual messages generated, which includes reasoning parts etc.
       await fetchAuthMutation(api.functions.threads.internal_completeStream, {
         secret: env.INTERNAL_CONVEX_SECRET,
-        threadId: threadId as Id<"threads">,
-        assistantMessageId: assistantMessageId as Id<"messages">,
+        threadId: threadId,
+        assistantMessageId: assistantMessageId,
         content: response.messages.length > 0 ? response.messages[response.messages.length - 1]?.content ?? "" : "", // Get the last message content which is the assistant response
         usage: usageData,
       });
@@ -101,7 +100,7 @@ export async function POST(request: Request) {
         // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
         void (fetchAuthQuery(api.functions.threads.internal_checkMessageAbort, {
           secret: env.INTERNAL_CONVEX_SECRET,
-          messageId: assistantMessageId as Id<"messages">,
+          messageId: assistantMessageId,
         })).then(res => {
           if (res) {
             abortController.abort();
@@ -145,7 +144,7 @@ export async function POST(request: Request) {
       
       await fetchAuthMutation(api.functions.threads.internal_setActiveStreamId, {
         secret: env.INTERNAL_CONVEX_SECRET,
-        threadId: threadId as Id<"threads">,
+        threadId: threadId,
         streamId,
       });
     },

@@ -4,7 +4,6 @@ import { after } from 'next/server';
 import { createResumableStreamContext } from 'resumable-stream';
 import { fetchAuthQuery } from "@/auth/server"
 import { api } from '@redux/backend/convex/_generated/api';
-import type { Id } from '@redux/backend/convex/_generated/dataModel';
 
 export async function GET(
   _: Request,
@@ -12,7 +11,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const thread = await fetchAuthQuery(api.functions.threads.getThread, { threadId: id as Id<"threads"> });
+  const thread = await fetchAuthQuery(api.functions.threads.getThread, { threadId: id });
 
   if (!thread.activeStreamId) {
     // no content response when there is no active stream

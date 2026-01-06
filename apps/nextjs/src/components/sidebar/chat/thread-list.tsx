@@ -13,7 +13,7 @@ import Spinner from "@redux/ui/components/spinner";
 import ChatThreadSidebarItem from "./chat-thread";
 
 type Thread = {
-  _id: string;
+  threadId: string;
   name: string;
   timestamp: number;
   status: "generating" | "completed";
@@ -59,7 +59,7 @@ function groupThreads(threads: Thread[]): GroupedItem[] {
       currentGroup = group;
       items.push({ type: "header", label: group, key: `header-${group}` });
     }
-    items.push({ type: "thread", thread, key: thread._id });
+    items.push({ type: "thread", thread, key: thread.threadId });
   }
 
   return items;
@@ -240,7 +240,7 @@ export default function ThreadList() {
                   className="px-1"
                 >
                   <ChatThreadSidebarItem
-                    threadId={item.thread._id}
+                    threadId={item.thread.threadId}
                     threadName={item.thread.name}
                     timestamp={item.thread.timestamp}
                     status={item.thread.status}

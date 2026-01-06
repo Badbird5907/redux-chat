@@ -12,8 +12,10 @@ import { MODELS, getModelConfig } from "@/lib/model-config"
 import { uploadFile } from "@/components/chat/dummy"
 import { api } from "@redux/backend/convex/_generated/api";
 import { useMutation } from "convex/react";
-import type { Id } from "@redux/backend/convex/_generated/dataModel";
+
 import { estimateTokenCount, splitByTokens } from "tokenx";
+import type { SignedId} from "@/components/chat/client-id";
+import { useSignedCid } from "@/components/chat/client-id"
 
 interface UploadedFile {
   id: string
@@ -44,6 +46,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
   const fileInputRef = useRef<HTMLInputElement>(null)
   const visualizationRef = useRef<HTMLDivElement>(null)
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const { safeGetSignedThreadId, safeGetSignedMessageIds } = useSignedCid();
 
   const createMessage = useMutation(api.functions.threads.createMessage)
   const beginThread = useMutation(api.functions.threads.beginThread)
@@ -196,33 +199,56 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
 
     if (attachments.some((f) => f.uploading)) return
 
-
     if (isExpanded) {
       setIsExpanded(false)
     }
 
-    let threadInfo: { threadId: string; messageId: string; assistantMessageId: string }
+    const currentThreadId = threadId;
+    let newThreadId: (SignedId & { str: string }) | undefined;
+    if (!currentThreadId) {
+      newThreadId = await safeGetSignedThreadId();
+      setThreadId(newThreadId.id);
+    }
+
+    let threadInfo: { threadId: string; messageId: string; assistantMessageId: string };
 
     try {
-      console.log("threadId", threadId)
-      if (threadId) {
-        const result = await createMessage({ threadId: threadId as Id<"threads">, content: input })
-        threadInfo = { threadId, messageId: result.messageId, assistantMessageId: result.assistantMessageId }
-      } else {
+      console.log("threadId", currentThreadId ?? newThreadId?.id);
+      if (newThreadId) {
         const result = await beginThread({
+          threadId: newThreadId.str,
           message: { content: input },
           settings: {
             model: selectedModel,
             temperature: 0.7,
             tools: [],
           },
-        })
-        threadInfo = { threadId: result.threadId, messageId: result.messageId, assistantMessageId: result.assistantMessageId }
-        setThreadId(result.threadId)
+        });
+        threadInfo = {
+          threadId: result.threadId,
+          messageId: result.messageId,
+          assistantMessageId: result.assistantMessageId,
+        };
+      } else if (currentThreadId) {
+        const idPair = (await safeGetSignedMessageIds()).str;
+        const result = await createMessage({
+          threadId: currentThreadId,
+          content: input,
+          idPair,
+        });
+        threadInfo = {
+          threadId: currentThreadId,
+          messageId: result.messageId,
+          assistantMessageId: result.assistantMessageId,
+        };
+      } else {
+        // This case should ideally not be hit given the logic above, but it's good for safety
+        console.error("Neither threadId nor newThreadId is available. This case should never be hit!");
+        return;
       }
     } catch (error) {
-      console.error("Failed to create message or thread:", error)
-      return
+      console.error("Failed to create message or thread:", error);
+      return;
     }
     console.log("===== threadInfo =====", threadInfo);
 
@@ -248,7 +274,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
 
     setInput("")
     setAttachments([])
-  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, createMessage, beginThread, setThreadId])
+  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, safeGetSignedMessageIds, createMessage, safeGetSignedThreadId, beginThread, setThreadId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
