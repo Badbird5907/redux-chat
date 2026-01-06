@@ -42,8 +42,13 @@ export const getThread = query({
       .filter((q) => q.eq(q.field("threadId"), args.threadId))
       .first();
 
-    if (!thread || thread.userId != ctx.user._id) {
-      throw new ConvexError("Thread not found");
+    if (!thread) {
+      // Return null for optimistic UI - thread may not exist yet
+      return null;
+    }
+
+    if (thread.userId != ctx.user._id) {
+      throw new ConvexError("Unauthorized");
     }
     return thread;
   },
@@ -93,7 +98,8 @@ export const getThreadMessages = query({
       .first();
 
     if (!thread) {
-      throw new ConvexError("Thread not found");
+      // Return empty array for optimistic UI - thread may not exist yet
+      return [];
     }
 
     if (thread.userId !== ctx.user._id) {
@@ -490,7 +496,8 @@ export const getThreadStreamId = query({
         .first();
 
     if (!thread) {
-      throw new ConvexError("Thread not found");
+      // Return undefined for optimistic UI - thread may not exist yet
+      return undefined;
     }
     return thread.activeStreamId;
   },

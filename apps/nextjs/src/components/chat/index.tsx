@@ -218,9 +218,15 @@ export function Chat({
           // replace the other states too
           lastStreamId.current = null;
           prevStatus.current = "ready";
-          // Don't update state before navigation - let the new page handle the state
-          void router.replace(`/chat/${id}`);
-
+          
+          if (!currentThreadId) {
+            // Creating new thread - update URL without full navigation to preserve optimistic UI
+            window.history.replaceState(null, '', `/chat/${id}`);
+            setCurrentThreadId(id);
+          } else {
+            // Switching between existing threads - do full navigation
+            void router.replace(`/chat/${id}`);
+          }
         }}
         sendMessage={sendMessage}
         status={status}

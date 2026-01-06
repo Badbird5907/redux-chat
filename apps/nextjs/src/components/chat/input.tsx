@@ -207,7 +207,8 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
     let newThreadId: (SignedId & { str: string }) | undefined;
     if (!currentThreadId) {
       newThreadId = await safeGetSignedThreadId();
-      // Don't call setThreadId yet - wait until after thread is created
+      // Optimistically set thread ID and trigger navigation immediately
+      setThreadId(newThreadId.id);
     }
 
     let threadInfo: { threadId: string; messageId: string; assistantMessageId: string };
@@ -229,8 +230,6 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
           messageId: result.messageId,
           assistantMessageId: result.assistantMessageId,
         };
-        // Call setThreadId after thread is created in database
-        setThreadId(result.threadId);
       } else if (currentThreadId) {
         const idPair = (await safeGetSignedMessageIds()).str;
         const result = await createMessage({
