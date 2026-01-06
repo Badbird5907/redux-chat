@@ -13,7 +13,7 @@ export async function GET(
 
   const thread = await fetchAuthQuery(api.functions.threads.getThread, { threadId: id });
 
-  if (!thread.activeStreamId) {
+  if (!thread?.activeStreamId) {
     // no content response when there is no active stream
     return new Response(null, { status: 204 });
   }

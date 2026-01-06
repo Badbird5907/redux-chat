@@ -75,6 +75,8 @@ export function Chat({
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId
   );
+  const [isOptimisticallyRouted, setIsOptimisticallyRouted] = useState(false);
+
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
     { threadId: currentThreadId ?? "" },
@@ -96,6 +98,8 @@ export function Chat({
     },
     onFinish: (message) => {
       console.log("Finish:", message);
+
+      setIsOptimisticallyRouted(false); // allow streaming now
     },
   });
 
@@ -110,7 +114,7 @@ export function Chat({
   }, [status, streamId]);
 
   useEffect(() => {
-    if (streamId && status !== "streaming" && status !== "submitted") {
+    if (streamId && status !== "streaming" && status !== "submitted" && !isOptimisticallyRouted) {
       if (lastStreamId.current === streamId) {
         return;
       }
@@ -214,11 +218,12 @@ export function Chat({
       {/* Input area */}
       <ChatInput
         threadId={currentThreadId}
-        setThreadId={(id) => {
+        setThreadId={(id, optimistic) => {
           // replace the other states too
           lastStreamId.current = null;
           prevStatus.current = "ready";
-          
+          setIsOptimisticallyRouted(optimistic);
+
           if (!currentThreadId) {
             // Creating new thread - update URL without full navigation to preserve optimistic UI
             window.history.replaceState(null, '', `/chat/${id}`);

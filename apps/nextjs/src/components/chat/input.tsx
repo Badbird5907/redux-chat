@@ -27,7 +27,7 @@ interface UploadedFile {
 
 interface ChatInputProps {
   threadId?: string
-  setThreadId: (threadId: string) => void
+  setThreadId: (threadId: string, optimistic: boolean) => void
   sendMessage: (message: { text: string, id?: string }, options?: { body?: object }) => void
   status: "ready" | "streaming" | "submitted" | "error"
 }
@@ -208,7 +208,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
     if (!currentThreadId) {
       newThreadId = await safeGetSignedThreadId();
       // Optimistically set thread ID and trigger navigation immediately
-      setThreadId(newThreadId.id);
+      setThreadId(newThreadId.id, true);
     }
 
     let threadInfo: { threadId: string; messageId: string; assistantMessageId: string };
