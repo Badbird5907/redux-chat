@@ -204,6 +204,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
     let threadInfo: { threadId: string; messageId: string; assistantMessageId: string }
 
     try {
+      console.log("threadId", threadId)
       if (threadId) {
         const result = await createMessage({ threadId: threadId as Id<"threads">, content: input })
         threadInfo = { threadId, messageId: result.messageId, assistantMessageId: result.assistantMessageId }

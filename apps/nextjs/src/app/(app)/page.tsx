@@ -1,8 +1,8 @@
-import { EmptyChat } from "@/components/chat";
+import { Chat } from "@/components/chat";
 
 export default function HomePage() {
   
   return (
-    <EmptyChat />
+    <Chat initialThreadId={undefined} preload={undefined} />
   );
 }

@@ -213,6 +213,7 @@ export const beginThread = mutation({
       status: "generating",
       depth: 0,
       siblingIndex: 0,
+      parentId: message,
     });
 
     await ctx.db.patch("threads", thread, {

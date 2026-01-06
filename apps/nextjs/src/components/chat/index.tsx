@@ -25,6 +25,7 @@ import {
 } from "@/components/ai/conversation";
 import { useQuery } from "@/lib/hooks/convex";
 import { ChatInput } from "./input";
+import { useRouter } from "next/navigation";
 
 // Type guard to narrow part types to TextUIPart
 const isTextPart = (part: { type: string }): part is TextUIPart =>
@@ -37,47 +38,6 @@ type ConvexMessage = {
   status: "generating" | "completed" | "failed";
   createdAt: number;
 };
-
-export function PreloadedChat({
-  preload,
-  threadId,
-}: {
-  preload: (typeof api.functions.threads.getThreadMessages)["_returnType"];
-  threadId: string;
-}) {
-  const convexMessages = useQuery(
-    api.functions.threads.getThreadMessages,
-    { threadId: threadId as Id<"threads"> },
-    { default: preload, skip: false },
-  );
-  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
-    threadId,
-  );
-
-  return (
-    <Chat
-      threadId={currentThreadId}
-      setThreadId={(id) => setCurrentThreadId(id)}
-      convexMessages={convexMessages}
-    />
-  );
-}
-
-export function EmptyChat() {
-  const [threadId, setThreadId] = useState<string | undefined>(undefined);
-  const convexMessages = useQuery(
-    api.functions.threads.getThreadMessages,
-    { threadId: threadId as Id<"threads"> },
-    { default: undefined, skip: !threadId },
-  );
-  return (
-    <Chat
-      threadId={threadId}
-      setThreadId={(id) => setThreadId(id)}
-      convexMessages={convexMessages}
-    />
-  );
-}
 
 const convexMessageToUIMessage = (m: ConvexMessage): UIMessage => {
   if (typeof m.content === "string") {
@@ -105,17 +65,25 @@ const convexMessageToUIMessage = (m: ConvexMessage): UIMessage => {
 };
 
 export function Chat({
-  threadId,
-  setThreadId,
-  convexMessages,
+  initialThreadId,
+  preload,
 }: {
-  threadId: string | undefined;
-  setThreadId: (threadId: string | undefined) => void;
-  convexMessages: ConvexMessage[] | undefined;
-}) {
+  initialThreadId: string | undefined;
+  preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
+}) {  
+  const router = useRouter();
+  const convexMessages = useQuery(
+    api.functions.threads.getThreadMessages,
+    { threadId: initialThreadId as Id<"threads"> },
+    { default: preload, skip: !initialThreadId },
+  );
+  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
+    initialThreadId
+  );
+
   // const oldConvexMessages = useRef<ConvexMessage[] | undefined>(undefined);
   const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
-    id: threadId,
+    id: currentThreadId,
     messages: convexMessages?.map(convexMessageToUIMessage) ?? [],
     transport: new DefaultChatTransport({
       api: "/api/chat",
@@ -131,7 +99,7 @@ export function Chat({
     },
   });
 
-  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: threadId as Id<"threads"> }, { skip: !threadId });
+  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId as Id<"threads"> }, { skip: !currentThreadId });
   const lastStreamId = useRef<string | null>(null);
   const prevStatus = useRef(status);
 
@@ -245,10 +213,15 @@ export function Chat({
 
       {/* Input area */}
       <ChatInput
-        threadId={threadId}
+        threadId={currentThreadId}
         setThreadId={(id) => {
-          setThreadId(id);
-          window.history.pushState({}, "", `/chat/${id}`);
+          // replace the other states too
+          lastStreamId.current = null;
+          prevStatus.current = "ready";
+          setMessages([]);
+          setCurrentThreadId(id);
+          void router.replace(`/chat/${id}`);
+
         }}
         sendMessage={sendMessage}
         status={status}
