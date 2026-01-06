@@ -218,7 +218,7 @@ export function Chat({
           // replace the other states too
           lastStreamId.current = null;
           prevStatus.current = "ready";
-          setCurrentThreadId(id);
+          // Don't update state before navigation - let the new page handle the state
           void router.replace(`/chat/${id}`);
 
         }}
