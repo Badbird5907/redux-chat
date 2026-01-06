@@ -1,11 +1,13 @@
 import { paginationOptsValidator } from "convex/server";
-import { backendMutation, mutation,
-query, backendQuery } from "./index";
-import { ConvexError,
-v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+
 import type { Doc, Id } from "../_generated/dataModel";
-import { threadSettings } from "../schema";
 import { authComponent } from "../auth";
+import { threadSettings } from "../schema";
+import { backendMutation, backendQuery, mutation, query } from "./index";
+import { internal } from "../_generated/api";
+// eslint-disable-next-line
+import { internalMutation } from "../_generated/server";
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -14,6 +16,7 @@ export const getThreads = query({
     const results = await ctx.db
       .query("threads")
       .filter((q) => q.eq(q.field("userId"), ctx.user._id))
+      .filter((q) => q.eq(q.field("pregenerated"), false))
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -37,7 +40,7 @@ export const getThread = query({
   args: { threadId: v.id("threads") },
   handler: async (ctx, args) => {
     const thread = await ctx.db.get("threads", args.threadId);
-    if (!thread || thread.userId != ctx.user._id  ) {
+    if (!thread || thread.userId != ctx.user._id) {
       throw new ConvexError("Thread not found");
     }
     return thread;
@@ -57,11 +60,11 @@ export const abortStream = mutation({
     }
     await ctx.db.patch("messages", args.messageId, {
       canceledAt: Date.now(),
-      status: "completed" // not failed
+      status: "completed", // not failed
     });
     await ctx.db.patch("threads", args.threadId, {
       activeStreamId: undefined,
-      status: "completed"
+      status: "completed",
     });
 
     return { success: true };
@@ -122,12 +125,13 @@ export const internal_completeStream = backendMutation({
     threadId: v.id("threads"),
     assistantMessageId: v.id("messages"),
     content: v.any(), // accepted as string or array
+    userId: v.string(),
     usage: v.optional(
       v.object({
         promptTokens: v.number(),
         responseTokens: v.number(),
         totalTokens: v.number(),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -145,6 +149,8 @@ export const internal_completeStream = backendMutation({
       updatedAt: Date.now(),
     });
 
+    await ctx.scheduler.runAfter(0, internal.functions.threads.createPregeneratedThread, { userId: args.userId })
+
     return { success: true };
   },
 });
@@ -161,7 +167,7 @@ export const internal_setActiveStreamId = backendMutation({
     });
     return { success: true };
   },
-})
+});
 
 export const internal_checkMessageAbort = backendQuery({
   args: { messageId: v.id("messages") },
@@ -175,10 +181,10 @@ export const internal_checkMessageAbort = backendQuery({
 });
 
 const sendMessageSchema = v.object({
-  content: v.any(),
+  content: v.string(),
 
   // in the future, we can add tools like web search, and attachments
-})
+});
 
 export const beginThread = mutation({
   args: {
@@ -193,6 +199,7 @@ export const beginThread = mutation({
       settings: args.settings,
       status: "generating",
       updatedAt: Date.now(),
+      pregenerated: false,
     });
 
     const message = await ctx.db.insert("messages", {
@@ -220,14 +227,181 @@ export const beginThread = mutation({
       currentLeafMessageId: assistantMessage,
     });
 
-    return { threadId: thread, messageId: message, assistantMessageId: assistantMessage };
+    return {
+      threadId: thread,
+      messageId: message,
+      assistantMessageId: assistantMessage,
+    };
+  },
+});
+
+export const getPregeneratedThreadInfo = query({
+  handler: async (ctx) => {
+    const thread = await ctx.db
+        .query("threads")
+        .withIndex("by_pregenerated", (q) =>
+          q.eq("pregenerated", true).eq("userId", ctx.user._id),
+        )
+        .first();
+    if (!thread) return { none: true }
+    const [userMessage, assistantMessage] = await Promise.all([
+      ctx.db
+        .query("messages")
+        .withIndex("by_pregenerated", (q) => q.eq("pregenerated", ctx.user._id).eq("threadId", thread._id).eq("role", "user"))
+        .first(),
+      ctx.db
+        .query("messages")
+        .withIndex("by_pregenerated", (q) => q.eq("pregenerated", ctx.user._id).eq("threadId", thread._id).eq("role", "assistant"))
+        .first(),
+    ]);
+
+    return {
+      threadId: thread._id,
+      userMessage: userMessage?._id,
+      assistantMessage: assistantMessage?._id,
+    };
+  },
+});
+
+export const createPregeneratedThread = internalMutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const existingThreads = await ctx.db
+      .query("threads")
+      .withIndex("by_pregenerated", (q) =>
+        q.eq("pregenerated", true).eq("userId", args.userId),
+      )
+      .collect();
+
+    if (existingThreads.length > 1) {
+      existingThreads.sort((a, b) => b.updatedAt - a.updatedAt);
+      const threadsToDelete = existingThreads.slice(1);
+      await Promise.all(threadsToDelete.map((t) => ctx.db.delete(t._id)));
+    }
+
+    let threadId = existingThreads[0]?._id;
+    let userMessageId: Id<"messages"> | undefined;
+    let assistantMessageId: Id<"messages"> | undefined;
+
+    if (threadId) {
+      const tId = threadId; 
+      const messages = await ctx.db
+        .query("messages")
+        .withIndex("by_pregenerated", (q) =>
+          q.eq("pregenerated", args.userId).eq("threadId", tId),
+        )
+        .collect();
+
+      const userMessage = messages.find((m) => m.role === "user");
+      const assistantMessage = messages.find((m) => m.role === "assistant");
+
+      if (userMessage && assistantMessage) {
+        userMessageId = userMessage._id;
+        assistantMessageId = assistantMessage._id;
+      } else {
+        await ctx.db.delete(threadId);
+        await Promise.all(messages.map((m) => ctx.db.delete(m._id)));
+        threadId = undefined;
+      }
+    }
+
+    if (!threadId) {
+      const thread = await ctx.db.insert("threads", {
+        userId: args.userId,
+        name: "New Thread",
+        status: "completed",
+        updatedAt: Date.now(),
+        pregenerated: true,
+        settings: {
+          model: "gpt-4o",
+          temperature: 0.7,
+          tools: [],
+        },
+      });
+
+      const message = await ctx.db.insert("messages", {
+        threadId: thread,
+        mutation: { type: "original" },
+        role: "user",
+        content: "",
+        status: "completed",
+        depth: 0,
+        siblingIndex: 0,
+        pregenerated: args.userId,
+      });
+
+      const assistant = await ctx.db.insert("messages", {
+        threadId: thread,
+        mutation: { type: "original" },
+        role: "assistant",
+        content: "",
+        status: "completed",
+        depth: 0,
+        siblingIndex: 0,
+        parentId: message,
+        pregenerated: args.userId,
+      });
+
+      await ctx.db.patch(thread, {
+        currentLeafMessageId: assistant,
+      });
+
+      threadId = thread;
+      userMessageId = message;
+      assistantMessageId = assistant;
+    }
+
+    if (!threadId || !userMessageId || !assistantMessageId) {
+      throw new ConvexError("Failed to create or retrieve pregenerated thread");
+    }
+
+    return {
+      threadId,
+      userMessageId,
+      assistantMessageId,
+    };
+  },
+})
+
+export const pregeneratedThreadUse = mutation({
+  args: { threadId: v.id("threads"), messageId: v.id("messages"), assistantMessageId: v.id("messages"), message: sendMessageSchema },
+  handler: async (ctx, args) => {
+    const [thread, message, assistantMessage] = await Promise.all([
+      ctx.db.get("threads", args.threadId),
+      ctx.db.get("messages", args.messageId),
+      ctx.db.get("messages", args.assistantMessageId),
+    ])
+    // a shitload of sanity checks
+    if (!thread || thread.userId !== ctx.user._id ||
+        !thread.pregenerated || message?.pregenerated !== ctx.user._id ||
+        assistantMessage?.pregenerated !== ctx.user._id) {
+      throw new ConvexError("Pregenerated thread or messages not found");
+    }
+    
+    // all is good, we can use this thread
+    await ctx.db.patch("threads", thread._id, {
+      pregenerated: false
+    })
+    await ctx.db.patch("messages", message._id, {
+      pregenerated: undefined,
+      content: args.message.content,
+    })
+    await ctx.db.patch("messages", assistantMessage._id, {
+      pregenerated: undefined,
+    })
+    await ctx.scheduler.runAfter(0, internal.functions.threads.createPregeneratedThread, { userId: ctx.user._id })
+    return {
+      threadId: thread._id,
+      userMessageId: message._id,
+      assistantMessageId: assistantMessage._id,
+    }
   }
 })
 
 export const createMessage = mutation({
   args: {
     threadId: v.id("threads"),
-    content: v.any(),
+    message: sendMessageSchema,
   },
   handler: async (ctx, args) => {
     const thread = await ctx.db.get("threads", args.threadId);
@@ -237,13 +411,13 @@ export const createMessage = mutation({
     if (thread.userId !== ctx.user._id) {
       throw new ConvexError("Unauthorized");
     }
-    const lastMessage = thread.currentLeafMessageId 
+    const lastMessage = thread.currentLeafMessageId
       ? await ctx.db.get("messages", thread.currentLeafMessageId)
       : null;
     const message = await ctx.db.insert("messages", {
       threadId: args.threadId,
       parentId: thread.currentLeafMessageId,
-      content: args.content as unknown ,
+      content: args.message.content,
       depth: lastMessage ? lastMessage.depth + 1 : 0,
       siblingIndex: lastMessage ? lastMessage.siblingIndex + 1 : 0,
       role: "user",
@@ -263,23 +437,20 @@ export const createMessage = mutation({
     await ctx.db.patch("threads", args.threadId, {
       currentLeafMessageId: assistantMessage,
       activeStreamId: undefined,
-      status: "generating"  
+      status: "generating",
     });
     return { messageId: message, assistantMessageId: assistantMessage };
-  }
+  },
 });
 
-export const internal_prepareStream = backendQuery({ // this function returns all the data needed to stream
+export const internal_prepareStream = backendQuery({
+  // this function returns all the data needed to stream
   args: {
     threadId: v.id("threads"),
     userMessageId: v.id("messages"),
     assistantMessageId: v.id("messages"),
   },
   handler: async (ctx, args) => {
-    // we send auth over bearer token too, so we need to validate it
-    const user = await authComponent.getAuthUser(ctx);
-    console.log("Authenticated user:", user);
-
     const [thread, userMessage, assistantMessage] = await Promise.all([
       ctx.db.get("threads", args.threadId),
       ctx.db.get("messages", args.userMessageId),
@@ -291,13 +462,18 @@ export const internal_prepareStream = backendQuery({ // this function returns al
     if (!userMessage || !assistantMessage) {
       throw new ConvexError("User message or assistant message not found");
     }
-    if (userMessage.threadId !== thread._id || assistantMessage.threadId !== thread._id) {
+    if (
+      userMessage.threadId !== thread._id ||
+      assistantMessage.threadId !== thread._id
+    ) {
       throw new ConvexError("Message does not belong to thread");
     }
+    console.log(userMessage)
+    console.log(assistantMessage)
     if (userMessage.role !== "user" || assistantMessage.role !== "assistant") {
       throw new ConvexError("Message is not a user or assistant message");
     }
-    
+
     // Walk up the message tree to get conversation history
     // Start from the given message and traverse up via parentId
     const conversationHistory: {
@@ -311,24 +487,26 @@ export const internal_prepareStream = backendQuery({ // this function returns al
         content: userMessage.content,
       },
     ];
-    
+
     let currentId: Id<"messages"> | undefined = userMessage.parentId;
-    
+
     // Collect messages from leaf to root
     while (currentId) {
-      const currentMessage: Doc<"messages"> | null = await ctx.db
-        .get("messages", currentId);
+      const currentMessage: Doc<"messages"> | null = await ctx.db.get(
+        "messages",
+        currentId,
+      );
       if (!currentMessage) break;
-      
+
       conversationHistory.unshift({
         id: currentMessage._id,
         role: currentMessage.role,
         content: currentMessage.content,
       });
-      
+
       currentId = currentMessage.parentId;
     }
-    
+
     return {
       thread,
       userMessage,
@@ -336,8 +514,8 @@ export const internal_prepareStream = backendQuery({ // this function returns al
       conversationHistory,
       settings: thread.settings,
     };
-  }
-})
+  },
+});
 
 export const getThreadStreamId = query({
   args: { threadId: v.id("threads") },
@@ -347,5 +525,5 @@ export const getThreadStreamId = query({
       throw new ConvexError("Thread not found");
     }
     return thread.activeStreamId;
-  }
-})
+  },
+});

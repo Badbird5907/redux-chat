@@ -14,6 +14,7 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { useMutation } from "convex/react";
 import type { Id } from "@redux/backend/convex/_generated/dataModel";
 import { estimateTokenCount, splitByTokens } from "tokenx";
+import { useQuery } from "@/lib/hooks/convex"
 
 interface UploadedFile {
   id: string
@@ -46,6 +47,8 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const createMessage = useMutation(api.functions.threads.createMessage)
+  const pregeneratedThread = useQuery(api.functions.threads.getPregeneratedThreadInfo)
+  const pregeneratedThreadUse = useMutation(api.functions.threads.pregeneratedThreadUse)
   const beginThread = useMutation(api.functions.threads.beginThread)
 
   useEffect(() => {
@@ -196,18 +199,36 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
 
     if (attachments.some((f) => f.uploading)) return
 
-
     if (isExpanded) {
       setIsExpanded(false)
     }
+    const pre = pregeneratedThread && pregeneratedThread.userMessage && pregeneratedThread.assistantMessage;
 
-    let threadInfo: { threadId: string; messageId: string; assistantMessageId: string }
+    if (pre) {
+      setThreadId(pregeneratedThread.threadId)
+    }
+
+    let threadInfo: { threadId: string; messageId: string; assistantMessageId: string } | undefined = undefined
 
     try {
-      console.log("threadId", threadId)
+      const start = performance.now()
       if (threadId) {
-        const result = await createMessage({ threadId: threadId as Id<"threads">, content: input })
+        console.log("Thread exists, creating message")
+        const result = await createMessage({ threadId: threadId as Id<"threads">, message: { content: input } })
         threadInfo = { threadId, messageId: result.messageId, assistantMessageId: result.assistantMessageId }
+      } else if (pre) {
+        console.log(`Using pregenerated thread: ${pregeneratedThread.threadId} u:${pregeneratedThread.userMessage} a:${pregeneratedThread.assistantMessage}`)
+        const result = await pregeneratedThreadUse({
+          threadId: pregeneratedThread.threadId as Id<"threads">,
+          messageId: pregeneratedThread.userMessage as Id<"messages">,
+          assistantMessageId: pregeneratedThread.assistantMessage as Id<"messages">,
+          message: { content: input },
+        })
+        threadInfo = {
+          threadId: result.threadId,
+          messageId: result.userMessageId,
+          assistantMessageId: result.assistantMessageId
+        }
       } else {
         const result = await beginThread({
           message: { content: input },
@@ -220,6 +241,8 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
         threadInfo = { threadId: result.threadId, messageId: result.messageId, assistantMessageId: result.assistantMessageId }
         setThreadId(result.threadId)
       }
+      const end = performance.now()
+      console.log("===== time =====", end - start);
     } catch (error) {
       console.error("Failed to create message or thread:", error)
       return
@@ -231,10 +254,10 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
       threadId: threadInfo.threadId,
       userMessageId: threadInfo.messageId,
       assistantMessageId: threadInfo.assistantMessageId,
+      id: threadInfo.threadId,
       fileIds,
       model: selectedModel,
-      id: threadInfo.threadId,
-    };
+    }
     void sendMessage({
       id: threadInfo.messageId,
       text: input,
@@ -248,7 +271,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
 
     setInput("")
     setAttachments([])
-  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, createMessage, beginThread, setThreadId])
+  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, pregeneratedThread, createMessage, pregeneratedThreadUse, beginThread, setThreadId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

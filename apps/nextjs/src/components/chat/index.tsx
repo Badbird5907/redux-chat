@@ -221,7 +221,6 @@ export function Chat({
           setMessages([]);
           setCurrentThreadId(id);
           void router.replace(`/chat/${id}`);
-
         }}
         sendMessage={sendMessage}
         status={status}

@@ -94,6 +94,7 @@ export async function POST(request: Request) {
         assistantMessageId: assistantMessageId as Id<"messages">,
         content: response.messages.length > 0 ? response.messages[response.messages.length - 1]?.content ?? "" : "", // Get the last message content which is the assistant response
         usage: usageData,
+        userId: messagesData.thread.userId,
       });
     },
     onChunk: () => {
