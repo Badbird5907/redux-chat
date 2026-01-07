@@ -176,6 +176,13 @@ export function Chat({
       ) {
         return;
       }
+      
+      // Don't sync if we're about to start streaming (submitted status)
+      // This prevents the flicker when transitioning from submitted to streaming
+      if (status === "submitted") {
+        return;
+      }
+      
       console.log("Syncing messages", convexUIMessages, messages);
       setMessages(convexUIMessages);
       // Reset optimistic mode once we have confirmed data from convex
