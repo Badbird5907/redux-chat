@@ -4,7 +4,6 @@ import type {
   TextUIPart,
   UIDataTypes,
   UIMessage,
-  UIMessagePart,
   UITools,
 } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -12,7 +11,6 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { MessageSquareIcon } from "lucide-react";
 import { Streamdown } from "streamdown";
-
 
 import { api } from "@redux/backend/convex/_generated/api";
 import { cn } from "@redux/ui/lib/utils";
@@ -25,44 +23,10 @@ import {
 } from "@/components/ai/conversation";
 import { useQuery } from "@/lib/hooks/convex";
 import { ChatInput } from "./input";
-import { useRouter } from "next/navigation";
 
 // Type guard to narrow part types to TextUIPart
 const isTextPart = (part: { type: string }): part is TextUIPart =>
   part.type === "text";
-
-type ConvexMessage = {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: unknown;
-  status: "generating" | "completed" | "failed";
-  createdAt: number;
-};
-
-const convexMessageToUIMessage = (m: ConvexMessage): UIMessage => {
-  if (typeof m.content === "string") {
-    return {
-      ...m,
-      parts: [{ type: "text" as const, text: m.content }],
-      // @ts-expect-error - content is part of convex message
-      content: undefined,
-    };
-  } else if (Array.isArray(m.content)) {
-    return {
-      ...m,
-      parts: m.content as unknown as UIMessagePart<UIDataTypes, UITools>[],
-      // @ts-expect-error - content is part of convex message
-      content: undefined,
-    };
-  } else {
-    return {
-      ...m,
-      parts: [{ type: "text" as const, text: "" }],
-      // @ts-expect-error - content is part of convex message
-      content: undefined,
-    };
-  }
-};
 
 export function Chat({
   initialThreadId,
@@ -71,22 +35,34 @@ export function Chat({
   initialThreadId: string | undefined;
   preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
 }) {  
-  const router = useRouter();
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId
   );
+  const [optimisticMessage, setOptimisticMessage] = useState<UIMessage | undefined>(undefined);
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
     { threadId: currentThreadId ?? "" },
-    { default: preload, skip: !currentThreadId },
+    { default: preload, skip: !currentThreadId || !!optimisticMessage },
   );
 
-  // const oldConvexMessages = useRef<ConvexMessage[] | undefined>(undefined);
+  // Use a STABLE session ID for useChat - never changes during component lifetime
+  // This prevents stale closure issues when sendMessage is called after setThreadId
+  const [chatSessionId] = useState(() => crypto.randomUUID());
+  
+  // Initial messages from preload (stable, set once on mount)
+  const [initialMessages] = useState(() => preload ?? []);
+  
   const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
-    id: currentThreadId,
-    messages: convexMessages?.map(convexMessageToUIMessage) ?? [],
+    id: chatSessionId, // Stable ID - doesn't change when currentThreadId changes
+    messages: initialMessages as UIMessage<unknown, UIDataTypes, UITools>[],
     transport: new DefaultChatTransport({
       api: "/api/chat",
+      prepareReconnectToStreamRequest: () => {
+        console.log("prepareReconnectToStreamRequest", currentThreadId)
+        return {
+          api: `/api/chat/${currentThreadId}/stream`,
+        };
+      }
     }),
     onError: (error) => {
       console.error("Chat error:", error);
@@ -98,8 +74,19 @@ export function Chat({
       console.log("Finish:", message);
     },
   });
+  
+  // Keep a ref to always have the latest sendMessage (avoids stale closures)
+  const sendMessageRef = useRef(sendMessage);
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
+  
+  // Stable wrapper that always calls the latest sendMessage
+  const stableSendMessage = useMemo(() => {
+    return (...args: Parameters<typeof sendMessage>) => sendMessageRef.current(...args);
+  }, []);
 
-  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId ?? "" }, { skip: !currentThreadId });
+  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId ?? "" }, { skip: !currentThreadId || !!optimisticMessage });
   const lastStreamId = useRef<string | null>(null);
   const prevStatus = useRef(status);
 
@@ -110,7 +97,14 @@ export function Chat({
   }, [status, streamId]);
 
   useEffect(() => {
-    if (streamId && status !== "streaming" && status !== "submitted") {
+    if (status === "streaming" && optimisticMessage) {
+      setOptimisticMessage(undefined);
+    }
+  }, [status, optimisticMessage])
+
+  useEffect(() => {
+    console.log("sid",streamId)
+    if (streamId && status !== "streaming" && status !== "submitted" && !optimisticMessage) {
       if (lastStreamId.current === streamId) {
         return;
       }
@@ -118,7 +112,7 @@ export function Chat({
       lastStreamId.current = streamId;
       void resumeStream();
     }
-  }, [streamId, resumeStream, status]);
+  }, [streamId, resumeStream, status, optimisticMessage]);
 
   // useEffect(() => {
   //   if (convexMessages !== oldConvexMessages.current) {
@@ -135,11 +129,10 @@ export function Chat({
   // }, [convexMessages, status, resumeStream]);
 
   // Convert convex messages to UI messages
-  const convexUIMessages: UIMessage[] = useMemo(() => {
+  const convexUIMessages = useMemo(() => {
     return (
       convexMessages
-        ?.filter((m) => m.status !== "generating")
-        .map(convexMessageToUIMessage) ?? []
+        ?.filter((m) => m.status !== "generating") ?? []
     );
   }, [convexMessages]);
 
@@ -148,7 +141,8 @@ export function Chat({
     const isJustFinishedStreaming =
       prevStatus.current === "streaming" && status !== "streaming";
 
-    if (status !== "streaming" && convexUIMessages.length > 0) {
+    // Don't sync from Convex while showing optimistic message
+    if (status !== "streaming" && convexUIMessages.length > 0 && !optimisticMessage) {
       if (
         isJustFinishedStreaming &&
         messages.length > convexUIMessages.length
@@ -160,7 +154,7 @@ export function Chat({
     }
   // we are mutating messages, so it cant be a dep
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [convexUIMessages, status, setMessages]);
+  }, [convexUIMessages, status, setMessages, optimisticMessage]);
 
   useEffect(() => {
     prevStatus.current = status;
@@ -170,20 +164,17 @@ export function Chat({
     <div className="flex h-full flex-col overflow-hidden">
       <Conversation className="relative size-full">
         <ConversationContent className="pb-36">
-          {messages.length === 0 ? (
+          {!currentThreadId ? (
             <ConversationEmptyState
               description="Messages will appear here as the conversation progresses."
               icon={<MessageSquareIcon className="size-6" />}
               title="Start a conversation"
             />
           ) : (
-            messages.map((message) => {
+            messages.map((message, i) => {
               const textParts = message.parts.filter(isTextPart);
               const textContent = textParts.map((part) => part.text).join("");
-              // console.log("rendering message", message.id)
-              // if (message.role === "assistant") {
-              //   console.log(message.id, textContent)
-              // }
+              const isStreamingAssistant = status === "streaming" && message.role === "assistant" && i === messages.length - 1;
               return (
                 <div
                   key={message.id}
@@ -197,11 +188,10 @@ export function Chat({
                       "max-w-[80%] rounded-lg px-4 py-2",
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted",
+                        : "",
                     )}
                   >
-                    <Streamdown>{textContent}</Streamdown>
-                    <span className="text-xs text-gray-500">{message.id}</span>
+                    <Streamdown mode={isStreamingAssistant ? "streaming" : "static"}>{textContent}</Streamdown>
                   </div>
                 </div>
               );
@@ -214,16 +204,18 @@ export function Chat({
       {/* Input area */}
       <ChatInput
         threadId={currentThreadId}
+        setOptimisticMessage={setOptimisticMessage}
         setThreadId={(id) => {
-          // replace the other states too
           lastStreamId.current = null;
           prevStatus.current = "ready";
+          window.history.replaceState({}, "", `/chat/${id}`);
           setCurrentThreadId(id);
-          void router.replace(`/chat/${id}`);
-
+          // void router.replace(`/chat/${id}`);
         }}
-        sendMessage={sendMessage}
+        sendMessage={stableSendMessage}
+        messages={messages}
         status={status}
+        currentLeafMessageId={convexMessages?.at(-1)?.messageId}
       />
     </div>
   );

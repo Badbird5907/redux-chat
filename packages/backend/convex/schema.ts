@@ -39,16 +39,15 @@ export default defineSchema({
     activeStreamId: v.optional(v.string()),
     updatedAt: v.number(),
   })
-    .index("by_updated", ["updatedAt"])
-    .index("by_status", ["status"])
-    .index("by_user", ["userId"]),
+    .index("by_threadId", ["threadId"])
+    .index("by_userId", ["userId", "updatedAt"]),
 
   messages: defineTable({
     threadId: v.string(),
     messageId: v.string(),
     parentId: v.optional(v.string()),
     role: messageRole,
-    content: v.any(),
+    parts: v.array(v.any()),
     status: messageStatus,
     depth: v.number(),
     siblingIndex: v.number(),
@@ -64,8 +63,8 @@ export default defineSchema({
     ),
     error: v.optional(v.string()),
   })
-    .index("by_thread", ["threadId"])
-    .index("by_parent", ["parentId", "siblingIndex"])
-    .index("by_thread_depth", ["threadId", "depth"]),
+    .index("by_threadId", ["threadId"])
+    .index("by_threadId_messageId", ["threadId", "messageId"])
+    .index("by_parentId", ["parentId", "siblingIndex"]), 
 });
 

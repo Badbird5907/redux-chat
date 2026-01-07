@@ -12,6 +12,8 @@ export function TestClient() {
     useEffect(() => console.log(testQuery), [testQuery]);
 
     return (
-        <button onClick={async () => console.log(await testMutation())}>Test</button>
+        <button onClick={async () => {
+            console.log(await testMutation())
+        }}>Test</button>
     );
 }

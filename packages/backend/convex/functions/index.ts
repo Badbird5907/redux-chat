@@ -4,7 +4,6 @@ import { Triggers } from "convex-helpers/server/triggers";
 import { customCtx, customMutation, customQuery } from "convex-helpers/server/customFunctions";
 import { query as rawQuery, mutation as rawMutation } from "../_generated/server";
 
-import { authComponent } from "../auth";
 import type { GenericMutationCtx,GenericQueryCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { backendEnv } from "../env";
@@ -29,7 +28,11 @@ triggers.register("threads", async (ctx, change) => {
 export const query = customQuery(
   rawQuery,
   customCtx(async (ctx: GenericQueryCtx<DataModel>) => {
-    return { user: await authComponent.getAuthUser(ctx), auth: undefined }; // merged into ctx
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new ConvexError("Unauthorized");
+    }
+    return { user, userId: user.subject }; // merged into ctx
   }),
 );
 
@@ -37,7 +40,11 @@ export const query = customQuery(
 export const mutation = customMutation(
   rawMutation,
   customCtx(async (ctx: GenericMutationCtx<DataModel>) => {
-    return { user: await authComponent.getAuthUser(ctx), auth: undefined }; // merged into ctx
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new ConvexError("Unauthorized");
+    }
+    return { user, userId: user.subject }; // merged into ctx
   }),
 );
 

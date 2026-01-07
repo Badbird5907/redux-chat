@@ -244,6 +244,9 @@ importers:
       '@t3-oss/env-core':
         specifier: ^0.13.8
         version: 0.13.10(typescript@5.9.3)(zod@4.2.1)
+      ai:
+        specifier: ^6.0.5
+        version: 6.0.5(patch_hash=7de09c8a5b12c53ac900d49f9d6d95350188bb293c532cdc0467ccb2ed7d0740)(zod@4.2.1)
       better-auth:
         specifier: 'catalog:'
         version: 1.4.9(@prisma/client@5.22.0(prisma@5.22.0))(better-sqlite3@12.5.0)(next@16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(prisma@5.22.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)

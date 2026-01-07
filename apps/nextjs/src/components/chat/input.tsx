@@ -12,9 +12,10 @@ import { MODELS, getModelConfig } from "@/lib/model-config"
 import { uploadFile } from "@/components/chat/dummy"
 import { api } from "@redux/backend/convex/_generated/api";
 import { useMutation } from "convex/react";
+import type { TextPart,
+UIMessage } from "ai";
 
 import { estimateTokenCount, splitByTokens } from "tokenx";
-import type { SignedId} from "@/components/chat/client-id";
 import { useSignedCid } from "@/components/chat/client-id"
 
 interface UploadedFile {
@@ -29,10 +30,13 @@ interface ChatInputProps {
   threadId?: string
   setThreadId: (threadId: string) => void
   sendMessage: (message: { text: string, id?: string }, options?: { body?: object }) => void
+  setOptimisticMessage: (message: UIMessage | undefined) => void
+  messages: UIMessage[]
   status: "ready" | "streaming" | "submitted" | "error"
+  currentLeafMessageId?: string
 }
 
-export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatInputProps) {
+export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMessage, messages: _messages, status, currentLeafMessageId }: ChatInputProps) {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
   const [selectedModel, setSelectedModel] = useState(MODELS[0]?.id ?? "gpt-4o")
@@ -46,10 +50,9 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
   const fileInputRef = useRef<HTMLInputElement>(null)
   const visualizationRef = useRef<HTMLDivElement>(null)
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const { safeGetSignedThreadId, safeGetSignedMessageIds } = useSignedCid();
+  const { safeGetSignedId } = useSignedCid();
 
-  const createMessage = useMutation(api.functions.threads.createMessage)
-  const beginThread = useMutation(api.functions.threads.beginThread)
+  const createMessage = useMutation(api.functions.threads.sendMessage)
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -203,78 +206,78 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
       setIsExpanded(false)
     }
 
-    const currentThreadId = threadId;
-    let newThreadId: (SignedId & { str: string }) | undefined;
-    if (!currentThreadId) {
-      newThreadId = await safeGetSignedThreadId();
-      setThreadId(newThreadId.id);
+    const start = performance.now();
+    // Capture input before clearing
+    const messageContent = input
+    const currentAttachments = [...attachments]
+
+    // Clear input immediately - user feels the responsiveness
+    setInput("")
+    setAttachments([])
+    currentAttachments.forEach((file) => {
+      if (file.url) URL.revokeObjectURL(file.url)
+    })
+
+    const messagePart: { parts: TextPart[] } = {
+      parts: [
+        {
+          type: "text",
+          text: messageContent,
+        }
+      ]
+    };
+    let threadInfo: { threadId: string; messageId: string } | undefined;
+    if (threadId) {
+      const [messageId] = await safeGetSignedId(1);
+      if (!messageId) throw new Error("Failed to get messageId");
+      threadInfo = await createMessage({
+        threadId: threadId,
+        message: messagePart,
+        messageId: messageId.str,
+        currentLeafMessageId
+      })
+    } else { // new thread
+      const [messageId, threadId] = await safeGetSignedId(2);
+      console.log("new thread", messageId, threadId);
+      if (!messageId || !threadId) throw new Error("Failed to get messageId or threadId");
+      setThreadId(threadId.id);
+      threadInfo = await createMessage({
+        threadId: threadId.str, // tell the backend to generate a new thread using the signed message
+        message: messagePart,
+        messageId: messageId.str,
+      })
     }
+    setOptimisticMessage({
+      id: threadInfo.messageId,
+      role: "user",
+      parts: [
+        {
+          type: "text",
+          text: messageContent,
+        }
+      ]
+    })
 
-    let threadInfo: { threadId: string; messageId: string; assistantMessageId: string };
-
-    try {
-      console.log("threadId", currentThreadId ?? newThreadId?.id);
-      if (newThreadId) {
-        const result = await beginThread({
-          threadId: newThreadId.str,
-          message: { content: input },
-          settings: {
-            model: selectedModel,
-            temperature: 0.7,
-            tools: [],
-          },
-        });
-        threadInfo = {
-          threadId: result.threadId,
-          messageId: result.messageId,
-          assistantMessageId: result.assistantMessageId,
-        };
-      } else if (currentThreadId) {
-        const idPair = (await safeGetSignedMessageIds()).str;
-        const result = await createMessage({
-          threadId: currentThreadId,
-          content: input,
-          idPair,
-        });
-        threadInfo = {
-          threadId: currentThreadId,
-          messageId: result.messageId,
-          assistantMessageId: result.assistantMessageId,
-        };
-      } else {
-        // This case should ideally not be hit given the logic above, but it's good for safety
-        console.error("Neither threadId nor newThreadId is available. This case should never be hit!");
-        return;
-      }
-    } catch (error) {
-      console.error("Failed to create message or thread:", error);
-      return;
-    }
-    console.log("===== threadInfo =====", threadInfo);
-
-    const fileIds = attachments.map((f) => f.id)
+    const fileIds = currentAttachments.map((f) => f.id)
     const body = {
       threadId: threadInfo.threadId,
       userMessageId: threadInfo.messageId,
-      assistantMessageId: threadInfo.assistantMessageId,
       fileIds,
       model: selectedModel,
       id: threadInfo.threadId,
     };
+    console.log("Starting stream now");
+    
+    // sendMessage adds user message and handles streaming
     void sendMessage({
       id: threadInfo.messageId,
-      text: input,
+      text: messageContent,
     }, {
       body
     })
-
-    attachments.forEach((file) => {
-      if (file.url) URL.revokeObjectURL(file.url)
-    })
-
-    setInput("")
-    setAttachments([])
-  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, safeGetSignedMessageIds, createMessage, safeGetSignedThreadId, beginThread, setThreadId])
+    const end = performance.now();
+    console.log("Time taken to send message", end - start);
+  }, [input, attachments, status, isExpanded, threadId, setOptimisticMessage, selectedModel, sendMessage, safeGetSignedId, createMessage, currentLeafMessageId, setThreadId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

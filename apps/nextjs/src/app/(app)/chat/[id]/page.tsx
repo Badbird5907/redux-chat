@@ -1,8 +1,8 @@
 import { fetchAuthQuery } from "@/auth/server";
 import { api } from "@redux/backend/convex/_generated/api";
-import type { Id } from "@redux/backend/convex/_generated/dataModel";
 import { Chat } from "@/components/chat";
 import { SignedCidProvider } from "@/components/chat/client-id";
+import { Authenticated } from "../../authenticated";
 
 export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,7 +11,9 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
 
   return (
     <SignedCidProvider>
-      <Chat preload={thread} initialThreadId={id} />
+      <Authenticated>
+        <Chat preload={thread} initialThreadId={id} />
+      </Authenticated>
     </SignedCidProvider>
   );
 }

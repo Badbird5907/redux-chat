@@ -1,28 +1,45 @@
 "use client"
 import { generateSignedIdsAction } from "@/app/(app)/signed-id";
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
 
 export type SignedId = { id: string; sig: string; }
-const SignedCidContext = createContext<{ refresh: () => Promise<void>, thread?: SignedId; message?: { user: SignedId, assistant: SignedId } } | undefined>(undefined)
+const SignedCidContext = createContext<{ fetchNew: (n: number) => Promise<void>, signedMessageIds?: SignedId[], removeIds: (n: number) => SignedId[] } | undefined>(undefined)
+
+const DEFAULT_CACHE_SIZE = 3;
 
 export const SignedCidProvider = ({ children }: { children: React.ReactNode }) => {
-    const [signedThread, setSignedThread] = useState<SignedId | undefined>(undefined)
-    const [signedMessage, setSignedMessage] = useState<{ user: SignedId, assistant: SignedId } | undefined>(undefined)
+    const [signedMessageIds, setSignedMessageIds] = useState<SignedId[]>([])
+    const isFetchingRef = useRef(false);
 
-    const refresh = useCallback(async () => {
-        const { thread, user, assistant } = await generateSignedIdsAction();
-        setSignedThread(thread)
-        setSignedMessage({ user, assistant })
-    }, [])
+    const fetchNew = useCallback(async (n: number) => {
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
+        
+        try {
+            const newIds = await generateSignedIdsAction(n);
+            setSignedMessageIds(prev => [...prev, ...newIds]);
+        } finally {
+            isFetchingRef.current = false;
+        }
+    }, []);
 
+    const removeIds = useCallback((n: number): SignedId[] => {
+        const removed: SignedId[] = [];
+        setSignedMessageIds(prev => {
+            const toRemove = prev.slice(0, n);
+            removed.push(...toRemove);
+            return prev.slice(n);
+        });
+        return removed;
+    }, []);
+
+    // Pre-load 3 IDs on mount
     useEffect(() => {
-        const init = async () => {
-            await refresh();
-        };
-        void init();
-    }, [refresh])
+        void fetchNew(DEFAULT_CACHE_SIZE);
+    }, [fetchNew]);
+
     return (
-        <SignedCidContext.Provider value={{ refresh, thread: signedThread, message: signedMessage }}>
+        <SignedCidContext.Provider value={{ fetchNew, signedMessageIds, removeIds }}>
             {children}
         </SignedCidContext.Provider>
     )
@@ -31,23 +48,34 @@ export const SignedCidProvider = ({ children }: { children: React.ReactNode }) =
 export const useSignedCid = () => {
     const ctx = useContext(SignedCidContext);
     if (!ctx) throw new Error("Must be used in SignedCidContext")
+    
     return {
-        refresh: ctx.refresh,
-        thread: ctx.thread,
-        message: ctx.message,
-        safeGetSignedThreadId: async () => {
-            const id = ctx.thread ?? (await generateSignedIdsAction()).thread;
-            void ctx.refresh();
-            return { id: id.id, sig: id.sig, str: `${id.id}:${id.sig}` }
-        },
-        safeGetSignedMessageIds: async () => {
-            const id = ctx.message ?? await generateSignedIdsAction();
-            void ctx.refresh();
-            return {
-                user: { id: id.user.id, sig: id.user.sig, str: `${id.user.id}:${id.user.sig}` },
-                assistant: { id: id.assistant.id, sig: id.assistant.sig, str: `${id.assistant.id}:${id.assistant.sig}` },
-                str: `${id.user.id}.${id.user.sig}:${id.assistant.id}.${id.assistant.sig}`
+        fetchNew: ctx.fetchNew,
+        signedMessageIds: ctx.signedMessageIds,
+        safeGetSignedId: async (n = 1) => {
+            // Check if we have enough IDs in cache
+            const currentCount = ctx.signedMessageIds?.length ?? 0;
+            
+            if (currentCount < n) {
+                // Not enough IDs, block and fetch
+                await ctx.fetchNew(n - currentCount);
             }
+            
+            // Remove the requested IDs from cache
+            const ids: SignedId[] = ctx.removeIds(n);
+            
+            // Non-blocking: replenish the cache back to default size
+            const remainingCount = (ctx.signedMessageIds?.length ?? 0);
+            if (remainingCount < DEFAULT_CACHE_SIZE) {
+                ctx.fetchNew(DEFAULT_CACHE_SIZE - remainingCount).catch(err => {
+                    console.error("Failed to replenish ID cache:", err);
+                });
+            }
+            
+            return ids.map(sid => ({
+                ...sid,
+                str: `${sid.id}:${sid.sig}`
+            }));
         }
     }
 }

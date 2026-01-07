@@ -14,21 +14,20 @@ const requestBody= z.object({
   threadId: z.string(),
   id: z.string(), // this is a generated id by the client
   model: z.string(),
-  assistantMessageId: z.string(),
   userMessageId: z.string(),
   trigger: z.enum(["submit-message", "regenerate-message"]),
 })
 export async function POST(request: Request) {
   const parsedBody = requestBody.parse(await request.json());
 
-  const { threadId, userMessageId, assistantMessageId, id } = parsedBody;
+  const { threadId, userMessageId, id } = parsedBody;
   console.log("client generated id", id);
-  const messagesData = await fetchAuthQuery(
+  console.log({ threadId, userMessageId })
+  const messagesData = await fetchAuthMutation(
     api.functions.threads.internal_prepareStream,
     {
       threadId: threadId,
       userMessageId: userMessageId,
-      assistantMessageId: assistantMessageId,
       secret: env.INTERNAL_CONVEX_SECRET,
     }
   ); // returns the chat history up to the assistant message
@@ -39,22 +38,6 @@ export async function POST(request: Request) {
   // Convert to model messages format (exclude the placeholder assistant message)
   const modelMessages = await convertToModelMessages(
     messagesData.conversationHistory
-      .filter((m) => m.content) // Filter out empty messages (like the placeholder assistant message)
-      .map((m) => {
-        let parts;
-        if (typeof m.content === 'string') {
-          parts = [{ type: "text" as const, text: m.content }];
-        } else if (Array.isArray(m.content)) {
-          parts = m.content;
-        } else {
-          parts = [{ type: "text" as const, text: "" }]; // Fallback/Error case
-        }
-        return {
-          id: m.id,
-          role: m.role,
-          parts: parts,
-        };
-      })
   );
   console.log("modelMessages")
   console.dir(modelMessages, { depth: Infinity })
@@ -72,7 +55,7 @@ export async function POST(request: Request) {
     //     return assistantMessageId
     //   },
     // },
-    onFinish: async ({ response, usage }) => {
+    onFinish: async ({ usage }) => {
       // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
       const usageData =
         usage.inputTokens !== undefined &&
@@ -87,12 +70,14 @@ export async function POST(request: Request) {
 
       // Save the completed response to Convex
       // We use response.messages to get the actual messages generated, which includes reasoning parts etc.
-      await fetchAuthMutation(api.functions.threads.internal_completeStream, {
+      await fetchAuthMutation(api.functions.threads.internal_updateMessageUsage, {
         secret: env.INTERNAL_CONVEX_SECRET,
-        threadId: threadId,
-        assistantMessageId: assistantMessageId,
-        content: response.messages.length > 0 ? response.messages[response.messages.length - 1]?.content ?? "" : "", // Get the last message content which is the assistant response
-        usage: usageData,
+        messageId: messagesData.assistantMessage.messageId,
+        usage: usageData ?? {
+          promptTokens: 0,
+          responseTokens: 0,
+          totalTokens: 0,
+        },
       });
     },
     onChunk: () => {
@@ -100,7 +85,7 @@ export async function POST(request: Request) {
         // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
         void (fetchAuthQuery(api.functions.threads.internal_checkMessageAbort, {
           secret: env.INTERNAL_CONVEX_SECRET,
-          messageId: assistantMessageId,
+          messageId: messagesData.assistantMessage.messageId,
         })).then(res => {
           if (res) {
             abortController.abort();
@@ -112,26 +97,22 @@ export async function POST(request: Request) {
   });
 
   return result.toUIMessageStreamResponse({
-    originalMessages: messagesData.conversationHistory.map((m) => {
-      let parts;
-      if (typeof m.content === 'string') {
-        parts = [{ type: "text" as const, text: m.content }];
-      } else if (Array.isArray(m.content)) {
-        parts = m.content;
-      } else {
-        parts = [{ type: "text" as const, text: "" }];
-      }
-      return {
-        id: m.id,
-        role: m.role,
-        parts: parts,
-      };
-    }),
-    generateMessageId: () => assistantMessageId,
+    originalMessages: messagesData.conversationHistory,
+    generateMessageId: () => messagesData.assistantMessage.messageId,
     messageMetadata: ({ part }) => {
       if (part.type === "start") {
         return { createdAt: Date.now() };
       }
+    },
+    onFinish: async ({ messages }) => {
+      const last = messages[messages.length - 1];
+      const parts = last?.parts ?? [];
+      await fetchAuthMutation(api.functions.threads.internal_completeStream, {
+        secret: env.INTERNAL_CONVEX_SECRET,
+        threadId: threadId,
+        assistantMessageId: messagesData.assistantMessage.messageId,
+        parts,
+      });
     },
     consumeSseStream: async ({ stream }) => {
       const streamId = generateId();
