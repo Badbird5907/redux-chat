@@ -71,11 +71,15 @@ export const AppSidebarFooter = () => {
         </DrawerTrigger>
         <DrawerContent>
           <DrawerHeader>
-            <DrawerTitle>Settings</DrawerTitle>
+            <DrawerTitle>Account</DrawerTitle>
           </DrawerHeader>
           <div className="flex flex-col gap-2 px-4">
             <DrawerClose asChild>
-              <Button variant="ghost" className="w-full justify-start">
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => router.push("/settings")}
+              >
                 <Settings className="size-4" />
                 <span>Settings</span>
               </Button>
@@ -104,7 +108,7 @@ export const AppSidebarFooter = () => {
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="ml-2 w-68 md:w-54" align="start">
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/settings")}>
           <Settings className="size-4" />
           <span>Settings</span>
         </DropdownMenuItem>
