@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut, Settings } from "lucide-react";
 
@@ -75,9 +76,11 @@ export const AppSidebarFooter = () => {
           </DrawerHeader>
           <div className="flex flex-col gap-2 px-4">
             <DrawerClose asChild>
-              <Button variant="ghost" className="w-full justify-start">
-                <Settings className="size-4" />
-                <span>Settings</span>
+              <Button variant="ghost" className="w-full justify-start" asChild>
+                <Link href="/settings/general">
+                  <Settings className="size-4" />
+                  <span>Settings</span>
+                </Link>
               </Button>
             </DrawerClose>
             <Button
@@ -104,9 +107,11 @@ export const AppSidebarFooter = () => {
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="ml-2 w-68 md:w-54" align="start">
-        <DropdownMenuItem>
-          <Settings className="size-4" />
-          <span>Settings</span>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/general" className="w-full flex items-center gap-2">
+            <Settings className="size-4" />
+            <span>Settings</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
           <LogOut className="size-4" />
