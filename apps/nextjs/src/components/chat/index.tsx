@@ -10,9 +10,8 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { MessageSquareIcon } from "lucide-react";
+import { Loader2, MessageSquareIcon } from "lucide-react";
 import { Streamdown } from "streamdown";
-
 
 import { api } from "@redux/backend/convex/_generated/api";
 import { cn } from "@redux/ui/lib/utils";
@@ -75,16 +74,23 @@ export function Chat({
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId
   );
+  const [isOptimistic, setIsOptimistic] = useState(false);
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
     { threadId: currentThreadId ?? "" },
-    { default: preload, skip: !currentThreadId },
+    { default: preload, skip: !currentThreadId || isOptimistic },
   );
 
-  // const oldConvexMessages = useRef<ConvexMessage[] | undefined>(undefined);
+  // Use a STABLE session ID for useChat - never changes during component lifetime
+  // This prevents stale closure issues when sendMessage is called after setThreadId
+  const [chatSessionId] = useState(() => initialThreadId ?? `pending-${crypto.randomUUID()}`);
+  
+  // Initial messages from preload (stable, set once on mount)
+  const [initialMessages] = useState(() => preload?.map(convexMessageToUIMessage) ?? []);
+  
   const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
-    id: currentThreadId,
-    messages: convexMessages?.map(convexMessageToUIMessage) ?? [],
+    id: chatSessionId, // Stable ID - doesn't change when currentThreadId changes
+    messages: initialMessages,
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
@@ -98,8 +104,23 @@ export function Chat({
       console.log("Finish:", message);
     },
   });
+  
+  // Keep a ref to always have the latest sendMessage (avoids stale closures)
+  const sendMessageRef = useRef(sendMessage);
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
+  
+  // Stable wrapper that always calls the latest sendMessage
+  const stableSendMessage = useMemo(() => {
+    return (...args: Parameters<typeof sendMessage>) => sendMessageRef.current(...args);
+  }, []);
 
-  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId ?? "" }, { skip: !currentThreadId });
+  useEffect(() => {
+    console.log("messages", messages);
+  }, [messages]);
+
+  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId ?? "" }, { skip: !currentThreadId || isOptimistic });
   const lastStreamId = useRef<string | null>(null);
   const prevStatus = useRef(status);
 
@@ -110,7 +131,7 @@ export function Chat({
   }, [status, streamId]);
 
   useEffect(() => {
-    if (streamId && status !== "streaming" && status !== "submitted") {
+    if (streamId && status !== "streaming" && status !== "submitted" && !isOptimistic) {
       if (lastStreamId.current === streamId) {
         return;
       }
@@ -118,7 +139,7 @@ export function Chat({
       lastStreamId.current = streamId;
       void resumeStream();
     }
-  }, [streamId, resumeStream, status]);
+  }, [streamId, resumeStream, status, isOptimistic]);
 
   // useEffect(() => {
   //   if (convexMessages !== oldConvexMessages.current) {
@@ -157,10 +178,14 @@ export function Chat({
       }
       console.log("Syncing messages", convexUIMessages, messages);
       setMessages(convexUIMessages);
+      // Reset optimistic mode once we have confirmed data from convex
+      if (isOptimistic) {
+        setIsOptimistic(false);
+      }
     }
   // we are mutating messages, so it cant be a dep
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [convexUIMessages, status, setMessages]);
+  }, [convexUIMessages, status, setMessages, isOptimistic]);
 
   useEffect(() => {
     prevStatus.current = status;
@@ -170,7 +195,7 @@ export function Chat({
     <div className="flex h-full flex-col overflow-hidden">
       <Conversation className="relative size-full">
         <ConversationContent className="pb-36">
-          {messages.length === 0 ? (
+          {!currentThreadId ? (
             <ConversationEmptyState
               description="Messages will appear here as the conversation progresses."
               icon={<MessageSquareIcon className="size-6" />}
@@ -180,10 +205,8 @@ export function Chat({
             messages.map((message) => {
               const textParts = message.parts.filter(isTextPart);
               const textContent = textParts.map((part) => part.text).join("");
-              // console.log("rendering message", message.id)
-              // if (message.role === "assistant") {
-              //   console.log(message.id, textContent)
-              // }
+              const isThinking = message.role === "assistant" && !textContent;
+              
               return (
                 <div
                   key={message.id}
@@ -200,7 +223,11 @@ export function Chat({
                         : "bg-muted",
                     )}
                   >
-                    <Streamdown>{textContent}</Streamdown>
+                    {isThinking ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Streamdown>{textContent}</Streamdown>
+                    )}
                     <span className="text-xs text-gray-500">{message.id}</span>
                   </div>
                 </div>
@@ -215,14 +242,18 @@ export function Chat({
       <ChatInput
         threadId={currentThreadId}
         setThreadId={(id) => {
+          console.log("setThreadId", id);
           // replace the other states too
+          setIsOptimistic(true);
           lastStreamId.current = null;
           prevStatus.current = "ready";
+          window.history.replaceState({}, "", `/chat/${id}`);
           setCurrentThreadId(id);
-          void router.replace(`/chat/${id}`);
-
+          // void router.replace(`/chat/${id}`);
         }}
-        sendMessage={sendMessage}
+        sendMessage={stableSendMessage}
+        setMessages={setMessages}
+        messages={messages}
         status={status}
       />
     </div>

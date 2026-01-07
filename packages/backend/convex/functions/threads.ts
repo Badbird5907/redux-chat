@@ -7,6 +7,8 @@ import { authComponent } from "../auth";
 import { backendEnv } from "../env";
 import { nanoid } from "nanoid";
 import { Buffer } from "buffer/";
+import { internalMutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -93,7 +95,7 @@ export const getThreadMessages = query({
       .first();
 
     if (!thread) {
-      throw new ConvexError("Thread not found");
+      return [];
     }
 
     if (thread.userId !== ctx.user._id) {
@@ -256,6 +258,55 @@ export const verifySignature = async (
   return crypto.subtle.verify("HMAC", key, signatureBuffer, messageData);
 };
 
+export const internal_postBeginThread = internalMutation({
+  args: {
+    threadId: v.string(),
+    assistantMessageId: v.string(),
+    userMessageId: v.string(),
+    name: v.optional(v.string()),
+    settings: threadSettings,
+    message: sendMessageSchema,
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const threadInternalId = await ctx.db.insert("threads", {
+      threadId: args.threadId,
+      userId: args.userId,
+      name: args.name ?? "New Thread",
+      settings: args.settings,
+      status: "generating",
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      messageId: args.userMessageId,
+      mutation: { type: "original" },
+      role: "user",
+      content: args.message.content as unknown,
+      status: "completed", // user message is always completed
+      depth: 0,
+      siblingIndex: 0,
+    });
+
+    await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      messageId: args.assistantMessageId,
+      mutation: { type: "original" },
+      role: "assistant",
+      content: "",
+      status: "generating",
+      depth: 0,
+      siblingIndex: 0,
+      parentId: args.userMessageId,
+    });
+
+    await ctx.db.patch(threadInternalId, {
+      currentLeafMessageId: args.assistantMessageId,
+    });
+  }
+})
+
 export const beginThread = mutation({
   args: {
     threadId: v.string(),
@@ -268,6 +319,7 @@ export const beginThread = mutation({
     if (!id || !signature || !(await verifySignature(id, signature, new TextEncoder()))) {
       throw new ConvexError("Invalid id/sig");
     }
+    
     
     // Insert thread
     const threadIdStr = id;
@@ -308,7 +360,6 @@ export const beginThread = mutation({
     await ctx.db.patch(threadInternalId, {
       currentLeafMessageId: assistantMessageId,
     });
-
     return {
       threadId: threadIdStr,
       messageId: userMessageId,

@@ -12,6 +12,7 @@ import { MODELS, getModelConfig } from "@/lib/model-config"
 import { uploadFile } from "@/components/chat/dummy"
 import { api } from "@redux/backend/convex/_generated/api";
 import { useMutation } from "convex/react";
+import type { UIMessage } from "ai";
 
 import { estimateTokenCount, splitByTokens } from "tokenx";
 import type { SignedId} from "@/components/chat/client-id";
@@ -29,10 +30,12 @@ interface ChatInputProps {
   threadId?: string
   setThreadId: (threadId: string) => void
   sendMessage: (message: { text: string, id?: string }, options?: { body?: object }) => void
+  setMessages: (messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[])) => void
+  messages: UIMessage[]
   status: "ready" | "streaming" | "submitted" | "error"
 }
 
-export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatInputProps) {
+export function ChatInput({ threadId, setThreadId, sendMessage, setMessages, messages: _messages, status }: ChatInputProps) {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
   const [selectedModel, setSelectedModel] = useState(MODELS[0]?.id ?? "gpt-4o")
@@ -203,21 +206,72 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
       setIsExpanded(false)
     }
 
+    // Capture input before clearing
+    const messageContent = input
+    const currentAttachments = [...attachments]
+    
+    // Get IDs immediately (this is fast, ~5ms)
     const currentThreadId = threadId;
     let newThreadId: (SignedId & { str: string }) | undefined;
+    let messageIds: { userMessageId: string; assistantMessageId: string; idPairStr: string } | undefined;
+    
+    const begin = performance.now();
     if (!currentThreadId) {
-      newThreadId = await safeGetSignedThreadId();
+      // New thread - get thread ID and message IDs
+      const [threadIdResult, messageIdResult] = await Promise.all([
+        safeGetSignedThreadId(),
+        safeGetSignedMessageIds(),
+      ]);
+      newThreadId = threadIdResult;
+      messageIds = {
+        userMessageId: messageIdResult.user.id,
+        assistantMessageId: messageIdResult.assistant.id,
+        idPairStr: messageIdResult.str,
+      };
       setThreadId(newThreadId.id);
+      console.log("ID generation took ", performance.now() - begin);
+    } else {
+      // Existing thread - get message IDs
+      const messageIdResult = await safeGetSignedMessageIds();
+      messageIds = {
+        userMessageId: messageIdResult.user.id,
+        assistantMessageId: messageIdResult.assistant.id,
+        idPairStr: messageIdResult.str,
+      };
+      console.log("ID generation took ", performance.now() - begin);
     }
 
+    // OPTIMISTIC UPDATE: Add user message and placeholder assistant immediately
+    const optimisticUserMessage = {
+      id: messageIds.userMessageId,
+      role: "user" as const,
+      parts: [{ type: "text" as const, text: messageContent }],
+    };
+    const optimisticAssistantMessage = {
+      id: messageIds.assistantMessageId,
+      role: "assistant" as const,
+      parts: [{ type: "text" as const, text: "" }], // Empty - will show loading state
+    };
+    
+    setMessages((prev) => [...prev, optimisticUserMessage, optimisticAssistantMessage] as UIMessage[]);
+    
+    // Clear input immediately - user feels the responsiveness
+    setInput("")
+    setAttachments([])
+    currentAttachments.forEach((file) => {
+      if (file.url) URL.revokeObjectURL(file.url)
+    })
+
+    // Now run the slow mutation in background
     let threadInfo: { threadId: string; messageId: string; assistantMessageId: string };
 
     try {
+      const mutationBegin = performance.now();
       console.log("threadId", currentThreadId ?? newThreadId?.id);
       if (newThreadId) {
         const result = await beginThread({
           threadId: newThreadId.str,
-          message: { content: input },
+          message: { content: messageContent },
           settings: {
             model: selectedModel,
             temperature: 0.7,
@@ -230,11 +284,10 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
           assistantMessageId: result.assistantMessageId,
         };
       } else if (currentThreadId) {
-        const idPair = (await safeGetSignedMessageIds()).str;
         const result = await createMessage({
           threadId: currentThreadId,
-          content: input,
-          idPair,
+          content: messageContent,
+          idPair: messageIds.idPairStr,
         });
         threadInfo = {
           threadId: currentThreadId,
@@ -242,17 +295,30 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
           assistantMessageId: result.assistantMessageId,
         };
       } else {
-        // This case should ideally not be hit given the logic above, but it's good for safety
         console.error("Neither threadId nor newThreadId is available. This case should never be hit!");
         return;
       }
+      console.log("createMessage or beginThread took ", performance.now() - mutationBegin);
     } catch (error) {
       console.error("Failed to create message or thread:", error);
+      // Remove optimistic messages on error
+      setMessages((prev) => prev.filter(
+        (m) => m.id !== messageIds.userMessageId && m.id !== messageIds.assistantMessageId
+      ));
+      // Restore input
+      setInput(messageContent);
       return;
     }
     console.log("===== threadInfo =====", threadInfo);
 
-    const fileIds = attachments.map((f) => f.id)
+    // Remove optimistic messages before calling sendMessage
+    // sendMessage will add its own user message and handle streaming
+    // We keep the optimistic phase for instant feedback, then let sendMessage take over
+    setMessages((prev) => prev.filter(
+      (m) => m.id !== messageIds.userMessageId && m.id !== messageIds.assistantMessageId
+    ));
+
+    const fileIds = currentAttachments.map((f) => f.id)
     const body = {
       threadId: threadInfo.threadId,
       userMessageId: threadInfo.messageId,
@@ -261,20 +327,16 @@ export function ChatInput({ threadId, setThreadId, sendMessage, status }: ChatIn
       model: selectedModel,
       id: threadInfo.threadId,
     };
+    console.log("Starting stream now");
+    
+    // sendMessage adds user message and handles streaming
     void sendMessage({
       id: threadInfo.messageId,
-      text: input,
+      text: messageContent,
     }, {
       body
     })
-
-    attachments.forEach((file) => {
-      if (file.url) URL.revokeObjectURL(file.url)
-    })
-
-    setInput("")
-    setAttachments([])
-  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, threadId, safeGetSignedMessageIds, createMessage, safeGetSignedThreadId, beginThread, setThreadId])
+  }, [input, attachments, status, isExpanded, selectedModel, sendMessage, setMessages, threadId, safeGetSignedMessageIds, createMessage, safeGetSignedThreadId, beginThread, setThreadId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
