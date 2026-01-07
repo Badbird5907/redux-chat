@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { MessageSquareIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Streamdown } from "streamdown";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -34,11 +35,15 @@ export function Chat({
 }: {
   initialThreadId: string | undefined;
   preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
-}) {  
+}) {
+  const router = useRouter();
+
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
-    initialThreadId
+    initialThreadId,
   );
-  const [optimisticMessage, setOptimisticMessage] = useState<UIMessage | undefined>(undefined);
+  const [optimisticMessage, setOptimisticMessage] = useState<
+    UIMessage | undefined
+  >(undefined);
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
     { threadId: currentThreadId ?? "" },
@@ -86,9 +91,23 @@ export function Chat({
     return (...args: Parameters<typeof sendMessage>) => sendMessageRef.current(...args);
   }, []);
 
-  const streamId = useQuery(api.functions.threads.getThreadStreamId, { threadId: currentThreadId ?? "" }, { skip: !currentThreadId || !!optimisticMessage });
+  const streamId = useQuery(
+    api.functions.threads.getThreadStreamId,
+    { threadId: currentThreadId ?? "" },
+    { skip: !currentThreadId || !!optimisticMessage },
+  );
   const lastStreamId = useRef<string | null>(null);
   const prevStatus = useRef(status);
+
+  useEffect(() => {
+    setCurrentThreadId(initialThreadId);
+    setOptimisticMessage(undefined);
+    lastStreamId.current = null;
+    prevStatus.current = "ready";
+
+    const nextMessages = (preload ?? []).filter((m) => m.status !== "generating");
+    setMessages(nextMessages);
+  }, [initialThreadId, preload, setMessages]);
 
   useEffect(() => {
     if (status === "streaming" && streamId) {
@@ -208,9 +227,15 @@ export function Chat({
         setThreadId={(id) => {
           lastStreamId.current = null;
           prevStatus.current = "ready";
-          window.history.replaceState({}, "", `/chat/${id}`);
+
+          const href = `/chat/${id}`;
+          try {
+            window.history.replaceState(window.history.state, "", href);
+          } catch {
+            router.replace(href);
+          }
+
           setCurrentThreadId(id);
-          // void router.replace(`/chat/${id}`);
         }}
         sendMessage={stableSendMessage}
         messages={messages}

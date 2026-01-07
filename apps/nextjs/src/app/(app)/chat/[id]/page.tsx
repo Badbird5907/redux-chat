@@ -12,8 +12,8 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   return (
     <SignedCidProvider>
       <Authenticated>
-        <Chat preload={thread} initialThreadId={id} />
+        <Chat key={id} preload={thread} initialThreadId={id} />
       </Authenticated>
-    </SignedCidProvider>
+
   );
 }
