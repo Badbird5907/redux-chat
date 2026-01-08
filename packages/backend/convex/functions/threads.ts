@@ -152,7 +152,7 @@ export const internal_completeStream = backendMutation({
 
     // Update the assistant message
     await ctx.db.patch(assistantMessage._id, {
-      parts: args.parts,
+      parts: args.parts as UIMessagePart<UIDataTypes, UITools>[],
       status: "completed",
     });
 
@@ -357,7 +357,7 @@ export const sendMessage = mutation({
       messageId,
       parentId,
       role: "user",
-      parts: args.message.parts,
+      parts: args.message.parts as UIMessagePart<UIDataTypes, UITools>[],
       status: "completed",
       depth,
       siblingIndex,
