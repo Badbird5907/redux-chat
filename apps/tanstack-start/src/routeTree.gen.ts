@@ -10,21 +10,35 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DevComponentsRouteImport } from './routes/dev.components'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as ApiChatRouteImport } from './routes/api.chat'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AppChatIdRouteImport } from './routes/_app.chat.$id'
+import { Route as ApiChatIdStreamRouteImport } from './routes/api.chat.$id.stream'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevComponentsRoute = DevComponentsRouteImport.update({
+  id: '/dev/components',
+  path: '/dev/components',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
@@ -47,73 +61,117 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => AuthRoute,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppChatIdRoute = AppChatIdRouteImport.update({
+  id: '/chat/$id',
+  path: '/chat/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const ApiChatIdStreamRoute = ApiChatIdStreamRouteImport.update({
+  id: '/$id/stream',
+  path: '/$id/stream',
+  getParentRoute: () => ApiChatRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/api/chat': typeof ApiChatRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/dev/components': typeof DevComponentsRoute
+  '/chat/$id': typeof AppChatIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/chat/$id/stream': typeof ApiChatIdStreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/api/chat': typeof ApiChatRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/dev/components': typeof DevComponentsRoute
+  '/chat/$id': typeof AppChatIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/chat/$id/stream': typeof ApiChatIdStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/api/chat': typeof ApiChatRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/dev/components': typeof DevComponentsRoute
+  '/_app/chat/$id': typeof AppChatIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/chat/$id/stream': typeof ApiChatIdStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/api/chat'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/dev/components'
+    | '/chat/$id'
     | '/api/auth/$'
+    | '/api/chat/$id/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/api/chat'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/dev/components'
+    | '/chat/$id'
     | '/api/auth/$'
+    | '/api/chat/$id/stream'
   id:
     | '__root__'
     | '/'
+    | '/_app'
     | '/auth'
+    | '/api/chat'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/dev/components'
+    | '/_app/chat/$id'
     | '/api/auth/$'
+    | '/api/chat/$id/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  ApiChatRoute: typeof ApiChatRouteWithChildren
+  DevComponentsRoute: typeof DevComponentsRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -126,11 +184,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/components': {
+      id: '/dev/components'
+      path: '/dev/components'
+      fullPath: '/dev/components'
+      preLoaderRoute: typeof DevComponentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/sign-up': {
@@ -161,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -168,8 +247,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/chat/$id': {
+      id: '/_app/chat/$id'
+      path: '/chat/$id'
+      fullPath: '/chat/$id'
+      preLoaderRoute: typeof AppChatIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/api/chat/$id/stream': {
+      id: '/api/chat/$id/stream'
+      path: '/$id/stream'
+      fullPath: '/api/chat/$id/stream'
+      preLoaderRoute: typeof ApiChatIdStreamRouteImport
+      parentRoute: typeof ApiChatRoute
+    }
   }
 }
+
+interface AppRouteChildren {
+  AppChatIdRoute: typeof AppChatIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppChatIdRoute: AppChatIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
@@ -187,9 +290,23 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface ApiChatRouteChildren {
+  ApiChatIdStreamRoute: typeof ApiChatIdStreamRoute
+}
+
+const ApiChatRouteChildren: ApiChatRouteChildren = {
+  ApiChatIdStreamRoute: ApiChatIdStreamRoute,
+}
+
+const ApiChatRouteWithChildren =
+  ApiChatRoute._addFileChildren(ApiChatRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  ApiChatRoute: ApiChatRouteWithChildren,
+  DevComponentsRoute: DevComponentsRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

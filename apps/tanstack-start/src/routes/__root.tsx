@@ -11,10 +11,12 @@ import { createServerFn } from '@tanstack/react-start'
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
 import type { ConvexQueryClient } from '@convex-dev/react-query'
 import { ThemeProvider, ThemeToggle } from "@redux/ui/components/theme";
+import { Toaster } from "@redux/ui/components/sonner";
 
 import appCss from "@/styles.css?url";
 import { authClient } from '@/lib/auth-client'
 import { getToken } from '@/lib/auth-server'
+import { env } from "@/env";
 
 const getAuth = createServerFn({ method: 'GET' }).handler(async () => {
   return await getToken()
@@ -25,6 +27,58 @@ export const Route = createRootRouteWithContext<{
   convexQueryClient: ConvexQueryClient
 }>()({
   head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
+      { title: "Redux Chat" },
+      {
+        name: "description",
+        content:
+          "Opinionated full-stack template for quickly bootstrapping a TanStack Start and turborepo app with Convex, Better Auth, and more.",
+      },
+      {
+        property: "og:title",
+        content: "Redux Chat",
+      },
+      {
+        property: "og:description",
+        content:
+          "Opinionated full-stack template for quickly bootstrapping a TanStack Start and turborepo app with Convex, Better Auth, and more.",
+      },
+      {
+        property: "og:url",
+        content: env.VITE_CONVEX_SITE_URL || "http://localhost:3000",
+      },
+      {
+        property: "og:site_name",
+        content: "Redux Chat",
+      },
+      {
+        name: "twitter:card",
+        content: "summary_large_image",
+      },
+      {
+        name: "twitter:site",
+        content: "@jullerino",
+      },
+      {
+        name: "twitter:creator",
+        content: "@jullerino",
+      },
+      {
+        name: "theme-color",
+        content: "white",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        name: "theme-color",
+        content: "black",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   beforeLoad: async (ctx) => {
@@ -68,6 +122,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="bg-background text-foreground min-h-screen font-sans antialiased">
         <ThemeProvider>
           {children}
+          <Toaster />
           <ThemeToggle />
         </ThemeProvider>
         <Scripts />

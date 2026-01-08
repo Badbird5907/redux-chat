@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Chat } from "@/components/chat";
+import { SignedCidProvider } from "@/components/chat/client-id";
 
 export const Route = createFileRoute("/")({
-  component: RouteComponent,
+  component: HomePage,
 });
 
-function RouteComponent() {
+function HomePage() {
   return (
-    <div className="flex h-screen items-center justify-center">
-      <h1 className="text-4xl font-bold">Hello World</h1>
-    </div>
+    <SignedCidProvider>
+      <Chat initialThreadId={undefined} preload={undefined} />
+    </SignedCidProvider>
   );
 }
