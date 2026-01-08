@@ -22,7 +22,8 @@ const getAuth = createServerFn({ method: 'GET' }).handler(async () => {
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
-  convexQueryClient: ConvexQueryClient
+  convexQueryClient: ConvexQueryClient;
+  authClient: typeof authClient;
 }>()({
   head: () => ({
     links: [{ rel: "stylesheet", href: appCss }],
@@ -39,6 +40,7 @@ export const Route = createRootRouteWithContext<{
     return {
       isAuthenticated: !!token,
       token,
+      authClient,
     }
   },
   component: RootComponent,
@@ -49,7 +51,7 @@ function RootComponent() {
   return (
     <ConvexBetterAuthProvider
       client={context.convexQueryClient.convexClient}
-      authClient={authClient}
+      authClient={context.authClient}
       initialToken={context.token}
     >
       <RootDocument>

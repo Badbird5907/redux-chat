@@ -4,6 +4,7 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 import { ConvexQueryClient } from "@convex-dev/react-query";
 import SuperJSON from "superjson";
 import { env } from "./env";
+import { authClient } from "./lib/auth-client";
 
 import { routeTree } from "./routeTree.gen";
 
@@ -34,7 +35,7 @@ export function getRouter() {
   const router = createRouter({
     routeTree,
     defaultPreload: "intent",
-    context: { queryClient, convexQueryClient },
+    context: { queryClient, convexQueryClient, authClient },
     scrollRestoration: true,
     defaultErrorComponent: ({ error }) => <p>{error.stack}</p>,
     defaultNotFoundComponent: () => <p>not found</p>,
