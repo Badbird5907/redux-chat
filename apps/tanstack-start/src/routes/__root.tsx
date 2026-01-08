@@ -10,11 +10,13 @@ import * as React from "react";
 import { createServerFn } from '@tanstack/react-start'
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
 import type { ConvexQueryClient } from '@convex-dev/react-query'
-import { ThemeProvider, ThemeToggle } from "@redux/ui/components/theme";
+import { Toaster } from "@redux/ui/components/sonner";
+import { cn } from "@redux/ui/lib/utils";
 
 import appCss from "@/styles.css?url";
 import { authClient } from '@/lib/auth-client'
 import { getToken } from '@/lib/auth-server'
+import { env } from '@/env'
 
 const getAuth = createServerFn({ method: 'GET' }).handler(async () => {
   return await getToken()
@@ -25,7 +27,31 @@ export const Route = createRootRouteWithContext<{
   convexQueryClient: ConvexQueryClient
 }>()({
   head: () => ({
-    links: [{ rel: "stylesheet", href: appCss }],
+    meta: [
+      { charSet: "utf-8" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
+      {
+        name: "description",
+        content: "Opinionated full-stack template for quickly bootstrapping a TanStack Start and turborepo app with Better Auth, Convex, and more.",
+      },
+      {
+        name: "theme-color",
+        media: "(prefers-color-scheme: light)",
+        content: "white",
+      },
+      {
+        name: "theme-color",
+        media: "(prefers-color-scheme: dark)",
+        content: "black",
+      },
+    ],
+    links: [
+      { rel: "stylesheet", href: appCss },
+    ],
+    title: "Redux Chat",
   }),
   beforeLoad: async (ctx) => {
     const token = await getAuth()
@@ -54,6 +80,7 @@ function RootComponent() {
     >
       <RootDocument>
         <Outlet />
+        <Toaster />
       </RootDocument>
     </ConvexBetterAuthProvider>
   )
@@ -66,10 +93,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-background text-foreground min-h-screen font-sans antialiased">
-        <ThemeProvider>
-          {children}
-          <ThemeToggle />
-        </ThemeProvider>
+        {children}
         <Scripts />
       </body>
     </html>

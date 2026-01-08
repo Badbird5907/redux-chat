@@ -1,13 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { getToken } from '@/lib/auth-server'
 
-export const Route = createFileRoute("/")({
-  component: RouteComponent,
-});
-
-function RouteComponent() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <h1 className="text-4xl font-bold">Hello World</h1>
-    </div>
-  );
-}
+export const Route = createFileRoute('/')({
+  loader: async () => {
+    const token = await getToken();
+    if (token) {
+      // Redirect to app if authenticated
+      return redirect('/app');
+    }
+    // Redirect to sign in if not authenticated
+    return redirect('/auth/sign-in');
+  },
+})
