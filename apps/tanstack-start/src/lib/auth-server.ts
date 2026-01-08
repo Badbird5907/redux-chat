@@ -11,3 +11,5 @@ export const {
   convexUrl: env.VITE_CONVEX_URL,
   convexSiteUrl: env.VITE_CONVEX_SITE_URL,
 })
+
+export const isAuthenticated = async () => !! (await getToken())

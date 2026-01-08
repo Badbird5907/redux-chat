@@ -3,7 +3,7 @@ import { getToken } from "@/lib/auth-server";
 import { generateSignedId } from "@/lib/signed-id";
 
 export const generateSignedIdsAction = createServerFn({ method: "POST" })
-  .validator((n: number) => n)
+  .inputValidator((n: number) => n)
   .handler(async ({ data: n }) => {
     const token = await getToken();
     if (!token) {
