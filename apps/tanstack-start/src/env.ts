@@ -1,22 +1,45 @@
-import { createEnv } from "@t3-oss/env-core";
-import { z } from "zod";
-import { vercel } from "@t3-oss/env-core/presets-zod";
+import { createEnv } from "@t3-oss/env-nextjs";
+import { vercel } from "@t3-oss/env-nextjs/presets-zod";
+import { z } from "zod/v4";
 
-const processEnv = !!process.env.INTERNAL_CONVEX_SECRET
+import { backendEnv } from "@redux/backend/env";
+
 export const env = createEnv({
-  clientPrefix: "VITE_",
-  extends: [vercel()],
+  extends: [vercel(), backendEnv()],
   shared: {
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
   },
+  /**
+   * Specify your server-side environment variables schema here.
+   * This way you can ensure the app isn't built with invalid env vars.
+   */
   server: {
+    INTERNAL_CONVEX_SECRET: z.string().min(1),
+    OPENAI_API_KEY: z.string().min(1),
   },
+
+  /**
+   * Specify your client-side environment variables schema here.
+   * For them to be exposed to the client, prefix them with `NEXT_PUBLIC_`.
+   */
   client: {
-    VITE_CONVEX_URL: z.string().min(1),
-    VITE_CONVEX_SITE_URL: z.string().min(1),
+    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_CONVEX_URL: z.url(),
+    NEXT_PUBLIC_CONVEX_SITE_URL: z.url(),
+    NEXT_PUBLIC_S3_AVATARS_URL: z.url(),
   },
-  runtimeEnv: processEnv ? process.env : import.meta.env,
-  skipValidation: true,
+  /**
+   * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.
+   */
+  experimental__runtimeEnv: {
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_S3_AVATARS_URL: process.env.NEXT_PUBLIC_S3_AVATARS_URL,
+    // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
+    NEXT_PUBLIC_CONVEX_SITE_URL: process.env.NEXT_PUBLIC_CONVEX_SITE_URL,
+  },
+  skipValidation:
+    !!process.env.CI || process.env.npm_lifecycle_event === "lint",
 });
