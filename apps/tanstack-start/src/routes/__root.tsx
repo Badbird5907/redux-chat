@@ -10,11 +10,14 @@ import * as React from "react";
 import { createServerFn } from '@tanstack/react-start'
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
 import type { ConvexQueryClient } from '@convex-dev/react-query'
-import { ThemeProvider, ThemeToggle } from "@redux/ui/components/theme";
+import { Toaster } from "@redux/ui/components/sonner";
+import { ThemeProvider } from "@redux/ui/components/theme";
+import { env } from "../env";
 
 import appCss from "@/styles.css?url";
 import { authClient } from '@/lib/auth-client'
 import { getToken } from '@/lib/auth-server'
+import { ConvexClientProvider } from "@/providers/convex";
 
 const getAuth = createServerFn({ method: 'GET' }).handler(async () => {
   return await getToken()
@@ -25,7 +28,24 @@ export const Route = createRootRouteWithContext<{
   convexQueryClient: ConvexQueryClient
 }>()({
   head: () => ({
-    links: [{ rel: "stylesheet", href: appCss }],
+    meta: [
+      { charSet: "utf-8" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
+      {
+        name: "theme-color",
+        content: [
+          { media: "(prefers-color-scheme: light)", color: "white" },
+          { media: "(prefers-color-scheme: dark)", color: "black" },
+        ],
+      },
+    ],
+    links: [
+      { rel: "stylesheet", href: appCss },
+    ],
+    title: "Redux Chat",
   }),
   beforeLoad: async (ctx) => {
     const token = await getAuth()
@@ -53,7 +73,10 @@ function RootComponent() {
       initialToken={context.token}
     >
       <RootDocument>
-        <Outlet />
+        <ConvexClientProvider initialToken={context.token}>
+          <Outlet />
+          <Toaster />
+        </ConvexClientProvider>
       </RootDocument>
     </ConvexBetterAuthProvider>
   )
@@ -66,9 +89,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-background text-foreground min-h-screen font-sans antialiased">
-        <ThemeProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
           {children}
-          <ThemeToggle />
         </ThemeProvider>
         <Scripts />
       </body>
