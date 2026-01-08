@@ -26,7 +26,7 @@ export const getUserImage = query({
                 return { image: target.image };
             }
             const env = backendEnv();
-            return { image: `${env.NEXT_PUBLIC_S3_AVATARS_URL}/${target._id}/avatar/${target.image}` };
+            return { image: `${env.VITE_S3_AVATARS_URL}/${target._id}/avatar/${target.image}` };
         }
         return { image: null };
     }

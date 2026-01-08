@@ -15,7 +15,7 @@ export const env = createEnv({
   },
   /**
    * Specify your client-side environment variables schema here.
-   * For them to be exposed to th`e client, prefix them with `NEXT_PUBLIC_`.
+   * For them to be exposed to th`e client, prefix them with `VITE_`.
    */
   client: {},
   /**
@@ -30,7 +30,7 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   },
-  clientPrefix: "NEXT_PUBLIC_",
+  clientPrefix: "VITE_",
   skipValidation:
     !!process.env.CI || process.env.npm_lifecycle_event === "lint",
 });
