@@ -15,7 +15,7 @@ function SignOutPage() {
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {
-            void navigate({ to: '/' })
+            void navigate({ to: '/', reloadDocument: true })
           },
         },
       })
