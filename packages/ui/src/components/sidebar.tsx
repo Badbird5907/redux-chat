@@ -87,6 +87,12 @@ function SidebarProvider({
   //* new state for sidebar width
   const [width, setWidth] = React.useState(defaultWidth);
 
+
+  // This is the internal state of the sidebar.
+  // We use openProp and setOpenProp for control from outside the component.
+  const [_open, _setOpen] = React.useState(defaultOpen);
+  const open = openProp ?? _open;
+
   // Load state and width from localStorage on mount
   React.useEffect(() => {
     const savedConfig = localStorage.getItem(SIDEBAR_CONFIG_KEY);
@@ -99,11 +105,6 @@ function SidebarProvider({
 
   //* new state for tracking is dragging rail
   const [isDraggingRail, setIsDraggingRail] = React.useState(false);
-
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen);
-  const open = openProp ?? _open;
 
   const persistConfig = React.useCallback((open: boolean, width: string) => {
     const config = `${open}:${width}`;
@@ -174,17 +175,7 @@ function SidebarProvider({
       isDraggingRail,
       setIsDraggingRail,
     }),
-    [
-      state,
-      open,
-      setOpen,
-      isMobile,
-      openMobile,
-      setOpenMobile,
-      toggleSidebar,
-      width,
-      isDraggingRail,
-    ],
+    [state, open, setOpen, isMobile, openMobile, toggleSidebar, width, setWidthAndPersist, isDraggingRail],
   );
 
   return (
@@ -371,7 +362,6 @@ function SidebarRail({
   });
 
   //* Merge external ref with our dragRef
-  // @ts-ignore
   const combinedRef = React.useMemo(
     () => mergeButtonRefs([dragRef]),
     [dragRef],

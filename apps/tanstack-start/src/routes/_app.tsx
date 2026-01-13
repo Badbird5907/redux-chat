@@ -1,0 +1,52 @@
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { SidebarProvider, SidebarTrigger } from "@redux/ui/components/sidebar";
+// import { getToken } from "@/auth/server";
+import AppSidebar from "@/components/sidebar";
+import ThreadList from "@/components/sidebar/chat/thread-list";
+
+import { createServerFn } from "@tanstack/react-start";
+import { getCookie } from "@tanstack/react-start/server";
+
+export const getSidebarConfig = createServerFn().handler(() => {
+  return getCookie("sidebar:config") ?? null;
+});
+
+export const Route = createFileRoute("/_app")({
+  beforeLoad: () => {
+    // const token = await getToken();
+    // const sidebarConfig = await getSidebarConfig();
+    // const [openState, savedWidth] = sidebarConfig?.split(":") ?? [];
+    // const defaultOpen =
+    //   openState !== undefined ? openState === "true" : undefined;
+    // const defaultWidth = savedWidth;
+
+    return {
+      // token,
+      // defaultOpen,
+      // defaultWidth,
+      defaultOpen: true,
+      defaultWidth: "16rem",
+    };
+  },
+  component: AppLayout,
+});
+
+function AppLayout() {
+  const { defaultOpen, defaultWidth } = Route.useRouteContext();
+
+  return (
+    <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+      <AppSidebar>
+        <ThreadList />
+      </AppSidebar>
+      <div className="h-screen w-screen flex flex-col p-2">
+        <div className="bg-card/80 flex-1 w-full rounded-4xl p-4 overflow-hidden">
+          <div className="bg-card/80 flex w-fit items-center justify-between rounded-md p-1">
+            <SidebarTrigger />
+          </div>
+          <Outlet />
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
