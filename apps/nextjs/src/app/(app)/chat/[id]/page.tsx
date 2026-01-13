@@ -1,4 +1,4 @@
-import { fetchAuthQuery } from "@/auth/server";
+import { fetchAuthQuery } from "@/lib/auth/server";
 import { api } from "@redux/backend/convex/_generated/api";
 import { Chat } from "@/components/chat";
 import { SignedCidProvider } from "@/components/chat/client-id";

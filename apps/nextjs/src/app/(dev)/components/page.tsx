@@ -171,9 +171,9 @@ export default function ComponentsPage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold tracking-tight">Dropdown Menu</h2>
         <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" />}>
-          Open Menu
-        </DropdownMenuTrigger>
+          <DropdownMenuTrigger render={<Button variant="outline" />}>
+            Open Menu
+          </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />

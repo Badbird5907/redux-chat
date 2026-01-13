@@ -12,6 +12,7 @@ export const env = createEnv({
       .default("development"),
   },
   server: {
+    INTERNAL_CONVEX_SECRET: z.string().min(1),
   },
   client: {
     VITE_CONVEX_URL: z.string().min(1),

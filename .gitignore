@@ -48,3 +48,4 @@ dist/
 docker/*/data
 
 .react-email/
+.tanstack/

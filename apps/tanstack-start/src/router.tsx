@@ -3,7 +3,7 @@ import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { ConvexQueryClient } from "@convex-dev/react-query";
 import SuperJSON from "superjson";
-import { env } from "./env";
+// import { env } from "./env";
 
 import { routeTree } from "./routeTree.gen";
 
@@ -11,7 +11,7 @@ export function getRouter() {
   if (typeof document !== "undefined") {
     notifyManager.setScheduler(window.requestAnimationFrame);
   }
-  const convexUrl = env.VITE_CONVEX_URL;
+  const convexUrl = import.meta.env.VITE_CONVEX_URL as string;
   if (!convexUrl) {
     throw new Error("VITE_CONVEX_URL is not set");
   }

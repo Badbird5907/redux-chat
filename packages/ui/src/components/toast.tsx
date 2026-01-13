@@ -1,5 +1,3 @@
-"use client";
-
 import type { ToasterProps } from "sonner";
 import { Toaster as Sonner, toast } from "sonner";
 

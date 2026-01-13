@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { authClient } from '@/lib/auth-client'
+import { authClient } from '@/lib/auth/client'
 import { Loader2 } from 'lucide-react'
 
 export const Route = createFileRoute('/auth/sign-out')({

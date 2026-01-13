@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, redirect } from '@tanstack/react-router'
-import { authClient } from '@/lib/auth-client'
+import { authClient } from '@/lib/auth/client'
 import { useForm } from '@tanstack/react-form'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
