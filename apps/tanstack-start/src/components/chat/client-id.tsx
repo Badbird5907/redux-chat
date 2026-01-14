@@ -5,33 +5,45 @@ import { generateSignedIds } from "@/server/signed-id";
 export type SignedId = { id: string; sig: string; }
 const SignedCidContext = createContext<{ fetchNew: (n: number) => Promise<void>, signedMessageIds?: SignedId[], removeIds: (n: number) => SignedId[] } | undefined>(undefined)
 
-const DEFAULT_CACHE_SIZE = 3;
+const DEFAULT_CACHE_SIZE = 4;
 
 export const SignedCidProvider = ({ children }: { children: React.ReactNode }) => {
     const [signedMessageIds, setSignedMessageIds] = useState<SignedId[]>([])
+    const idsRef = useRef<SignedId[]>([]);
     const isFetchingRef = useRef(false);
+    const fetchPromiseRef = useRef<Promise<void> | null>(null);
 
     const generateSignedIdsFn = useServerFn(generateSignedIds)
     const fetchNew = useCallback(async (n: number) => {
+        // If already fetching, wait for that fetch to complete
+        if (fetchPromiseRef.current) {
+            await fetchPromiseRef.current;
+            return;
+        }
+        
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
         
-        try {
-            const newIds = await generateSignedIdsFn({ data: n });
-            setSignedMessageIds(prev => [...prev, ...newIds]);
-        } finally {
-            isFetchingRef.current = false;
-        }
+        const promise = (async () => {
+            try {
+                const newIds = await generateSignedIdsFn({ data: n });
+                idsRef.current = [...idsRef.current, ...newIds];
+                setSignedMessageIds(idsRef.current);
+            } finally {
+                isFetchingRef.current = false;
+                fetchPromiseRef.current = null;
+            }
+        })();
+        
+        fetchPromiseRef.current = promise;
+        await promise;
     }, [generateSignedIdsFn]);
 
     const removeIds = useCallback((n: number): SignedId[] => {
-        const removed: SignedId[] = [];
-        setSignedMessageIds(prev => {
-            const toRemove = prev.slice(0, n);
-            removed.push(...toRemove);
-            return prev.slice(n);
-        });
-        return removed;
+        const toRemove = idsRef.current.slice(0, n);
+        idsRef.current = idsRef.current.slice(n);
+        setSignedMessageIds(idsRef.current);
+        return toRemove;
     }, []);
 
     // Pre-load 3 IDs on mount
@@ -55,15 +67,35 @@ export const useSignedCid = () => {
         signedMessageIds: ctx.signedMessageIds,
         safeGetSignedId: async (n = 1) => {
             // Check if we have enough IDs in cache
-            const currentCount = ctx.signedMessageIds?.length ?? 0;
+            let currentCount = ctx.signedMessageIds?.length ?? 0;
             
             if (currentCount < n) {
                 // Not enough IDs, block and fetch
-                await ctx.fetchNew(n - currentCount);
+                const needed = n - currentCount;
+                await ctx.fetchNew(needed);
+                
+                // After fetch, check if we have enough now
+                currentCount = ctx.signedMessageIds?.length ?? 0;
+                if (currentCount < n) {
+                    console.error("Failed to get enough IDs after fetch", {
+                        requested: n,
+                        available: currentCount,
+                        needed
+                    });
+                    throw new Error(`Failed to get enough IDs. Requested ${n}, available ${currentCount}`);
+                }
             }
             
             // Remove the requested IDs from cache
             const ids: SignedId[] = ctx.removeIds(n);
+            
+            if (ids.length < n) {
+                console.error("removeIds returned fewer IDs than requested", {
+                    requested: n,
+                    received: ids.length
+                });
+                throw new Error(`Failed to remove enough IDs. Requested ${n}, got ${ids.length}`);
+            }
             
             // Non-blocking: replenish the cache back to default size
             const remainingCount = (ctx.signedMessageIds?.length ?? 0);

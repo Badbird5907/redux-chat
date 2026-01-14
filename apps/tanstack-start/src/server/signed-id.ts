@@ -10,7 +10,7 @@ const generateSignedId = createServerOnlyFn(()=> {
   return { id, sig };
 });
 
-export const generateSignedIds = createServerFn({ method: "POST" }).inputValidator(z.number().min(1).max(3))
+export const generateSignedIds = createServerFn({ method: "POST" }).inputValidator(z.number().min(1).max(4))
   .handler(({ data }) => {
     return Array.from({ length: data }, generateSignedId);
   });

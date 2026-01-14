@@ -39,7 +39,7 @@ export const AppSidebarFooter = () => {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          router.navigate({ to: "/auth/sign-in" });
+          void router.navigate({ to: "/auth/sign-in", reloadDocument: true });
         },
       },
     });
