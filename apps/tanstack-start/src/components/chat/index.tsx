@@ -1,3 +1,5 @@
+"use client";
+
 import type {
   TextUIPart,
   UIDataTypes,
@@ -37,6 +39,16 @@ export function Chat({
     initialThreadId
   );
   const [optimisticMessage, setOptimisticMessage] = useState<UIMessage | undefined>(undefined);
+
+  // Update currentThreadId when initialThreadId changes (e.g., navigation to different thread)
+  useEffect(() => {
+    if (initialThreadId !== currentThreadId) {
+      setCurrentThreadId(initialThreadId);
+      // Reset stream tracking when switching threads
+      lastStreamId.current = null;
+      prevStatus.current = "ready";
+    }
+  }, [initialThreadId, currentThreadId]);
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
     { threadId: currentThreadId ?? "" },

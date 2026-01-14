@@ -32,6 +32,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     database: authComponent.adapter(ctx),
     baseURL: env.SITE_URL,
     secret: env.AUTH_SECRET,
+    
     plugins: [
       // oAuthProxy({
       //   productionURL: env.BASE_URL,

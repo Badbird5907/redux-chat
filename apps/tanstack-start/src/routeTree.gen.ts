@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WhoamiRouteImport } from './routes/whoami'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
@@ -23,11 +22,6 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
 import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
 
-const WhoamiRoute = WhoamiRouteImport.update({
-  id: '/whoami',
-  path: '/whoami',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ComponentsRoute = ComponentsRouteImport.update({
   id: '/components',
   path: '/components',
@@ -91,7 +85,6 @@ const ApiChatIdStreamIndexRoute = ApiChatIdStreamIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
-  '/whoami': typeof WhoamiRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -105,7 +98,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
-  '/whoami': typeof WhoamiRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -121,7 +113,6 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
-  '/whoami': typeof WhoamiRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -137,7 +128,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/auth'
     | '/components'
-    | '/whoami'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -151,7 +141,6 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/components'
-    | '/whoami'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -166,7 +155,6 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth'
     | '/components'
-    | '/whoami'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -182,7 +170,6 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
-  WhoamiRoute: typeof WhoamiRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
@@ -190,13 +177,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/whoami': {
-      id: '/whoami'
-      path: '/whoami'
-      fullPath: '/whoami'
-      preLoaderRoute: typeof WhoamiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/components': {
       id: '/components'
       path: '/components'
@@ -316,7 +296,6 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
-  WhoamiRoute: WhoamiRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,

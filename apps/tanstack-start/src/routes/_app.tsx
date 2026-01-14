@@ -1,10 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger } from "@redux/ui/components/sidebar";
 // import { getToken } from "@/lib/auth/server";
-import { getSidebarConfig } from "@/server/cookie";
 import AppSidebar from "@/components/sidebar";
 import ThreadList from "@/components/sidebar/chat/thread-list";
-
+import { getSidebarConfig } from "@/server/cookie";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
@@ -14,7 +13,6 @@ export const Route = createFileRoute("/_app")({
     const defaultOpen =
       openState !== undefined ? openState === "true" : undefined;
     const defaultWidth = savedWidth;
-
     return {
       // token,
       defaultOpen,
