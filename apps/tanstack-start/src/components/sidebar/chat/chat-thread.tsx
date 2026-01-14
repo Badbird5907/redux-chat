@@ -43,7 +43,7 @@ export default function ChatThreadSidebarItem({
         isActive={isActive}
         className="w-full"
         render={
-          <Link to={`/chat/${threadId}`} />
+          <Link to={`/chat/${threadId}`} preload="intent" />
         }
       >
         <span className="flex-1 truncate">{threadName}</span>
