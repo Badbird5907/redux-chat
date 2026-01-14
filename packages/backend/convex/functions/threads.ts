@@ -75,6 +75,7 @@ export const abortStream = mutation({
     });
     await ctx.db.patch(thread._id, {
       activeStreamId: undefined,
+      activeStreamClientId: undefined,
       status: "completed",
     });
 
@@ -170,6 +171,7 @@ export const internal_completeStream = backendMutation({
     await ctx.db.patch(thread._id, {
       status: "completed",
       activeStreamId: undefined,
+      activeStreamClientId: undefined,
       updatedAt: Date.now(),
     });
 
@@ -205,6 +207,7 @@ export const internal_setActiveStreamId = backendMutation({
   args: {
     threadId: v.string(),
     streamId: v.string(),
+    clientId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const thread = await ctx.db
@@ -218,6 +221,7 @@ export const internal_setActiveStreamId = backendMutation({
 
     await ctx.db.patch(thread._id, {
       activeStreamId: args.streamId,
+      activeStreamClientId: args.clientId,
     });
     return { success: true };
   },
@@ -473,6 +477,12 @@ export const getThreadStreamId = query({
     if (!thread || thread.userId !== ctx.userId) {
       return undefined;
     }
-    return thread.activeStreamId;
+    if (!thread.activeStreamId) {
+      return undefined;
+    }
+    return {
+      streamId: thread.activeStreamId,
+      clientId: thread.activeStreamClientId,
+    };
   },
 });

@@ -32,9 +32,10 @@ interface ChatInputProps {
   messages: UIMessage[]
   status: "ready" | "streaming" | "submitted" | "error"
   currentLeafMessageId?: string
+  clientId: string // Client session ID to identify the initiating client
 }
 
-export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMessage, messages: _messages, status, currentLeafMessageId }: ChatInputProps) {
+export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMessage, messages: _messages, status, currentLeafMessageId, clientId }: ChatInputProps) {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
   const [selectedModel, setSelectedModel] = useState(MODELS[0]?.id ?? "gpt-4o")
@@ -228,6 +229,16 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
     if (threadId) {
       const [messageId] = await safeGetSignedId(1);
       if (!messageId) throw new Error("Failed to get messageId");
+      setOptimisticMessage({
+        id: messageId.id,
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: messageContent,
+          }
+        ]
+      })
       threadInfo = await createMessage({
         threadId: threadId,
         message: messagePart,
@@ -236,6 +247,16 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       })
     } else { // new thread
       const [messageId, threadId] = await safeGetSignedId(2);
+      setOptimisticMessage({
+        id: messageId.id,
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: messageContent,
+          }
+        ]
+      })
       console.log("new thread", messageId, threadId);
       if (!messageId || !threadId) throw new Error("Failed to get messageId or threadId");
       setThreadId(threadId.id);
@@ -245,16 +266,6 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
         messageId: messageId.str,
       })
     }
-    setOptimisticMessage({
-      id: threadInfo.messageId,
-      role: "user",
-      parts: [
-        {
-          type: "text",
-          text: messageContent,
-        }
-      ]
-    })
 
     const fileIds = currentAttachments.map((f) => f.id)
     const body = {
@@ -263,8 +274,10 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       fileIds,
       model: selectedModel,
       id: threadInfo.threadId,
+      clientId, // Client session ID to identify the initiating client
     };
     console.log("Starting stream now");
+    console.log("Sending clientId:", clientId);
     
     // sendMessage adds user message and handles streaming
     void sendMessage({
@@ -275,7 +288,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
     })
     const end = performance.now();
     console.log("Time taken to send message", end - start);
-  }, [input, attachments, status, isExpanded, threadId, setOptimisticMessage, selectedModel, sendMessage, safeGetSignedId, createMessage, currentLeafMessageId, setThreadId])
+  }, [input, attachments, status, isExpanded, threadId, setOptimisticMessage, selectedModel, sendMessage, safeGetSignedId, createMessage, currentLeafMessageId, setThreadId, clientId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

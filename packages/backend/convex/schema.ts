@@ -37,6 +37,7 @@ export default defineSchema({
     settings: threadSettings,
     currentLeafMessageId: v.optional(v.string()),
     activeStreamId: v.optional(v.string()),
+    activeStreamClientId: v.optional(v.string()), // Client session ID that initiated the active stream
     updatedAt: v.number(),
   })
     .index("by_threadId", ["threadId"])

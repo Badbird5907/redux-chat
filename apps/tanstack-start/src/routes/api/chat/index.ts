@@ -17,6 +17,7 @@ const requestBody = z.object({
   model: z.string(),
   userMessageId: z.string(),
   trigger: z.enum(["submit-message", "regenerate-message"]),
+  clientId: z.string().optional(), // client session ID to identify the initiating client
 })
 
 export const Route = createFileRoute('/api/chat/')({
@@ -25,9 +26,10 @@ export const Route = createFileRoute('/api/chat/')({
       POST: async ({ request }) => {
         const parsedBody = requestBody.parse(await request.json());
 
-        const { threadId, userMessageId, id } = parsedBody;
+        const { threadId, userMessageId, id, clientId } = parsedBody;
         console.log("client generated id", id);
-        console.log({ threadId, userMessageId })
+        console.log({ threadId, userMessageId });
+        console.log("Received clientId:", clientId);
         
         const messagesData = await fetchAuthMutation(
           api.functions.threads.internal_prepareStream,
@@ -120,10 +122,12 @@ export const Route = createFileRoute('/api/chat/')({
             });
             await streamContext.createNewResumableStream(streamId, () => stream);
             
+            console.log("Setting activeStreamId with clientId:", clientId);
             await fetchAuthMutation(api.functions.threads.internal_setActiveStreamId, {
               secret: env.INTERNAL_CONVEX_SECRET,
               threadId: threadId,
               streamId,
+              clientId,
             });
           },
         });
