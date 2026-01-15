@@ -10,11 +10,11 @@ import { MODELS, getModelConfig } from "@/lib/model-config"
 import { uploadFile } from "@/components/chat/dummy"
 import { api } from "@redux/backend/convex/_generated/api";
 import { useMutation } from "convex/react";
-import type { TextPart,
-UIMessage } from "ai";
+import type { UIMessage } from "ai";
 
 import { estimateTokenCount, splitByTokens } from "tokenx";
 import { useSignedCid } from "@/components/chat/client-id"
+import { submitMessage } from "@/components/chat/use-submit-message"
 
 interface UploadedFile {
   id: string
@@ -205,7 +205,6 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       setIsExpanded(false)
     }
 
-    const start = performance.now();
     // Capture input before clearing
     const messageContent = input
     const currentAttachments = [...attachments]
@@ -217,81 +216,21 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       if (file.url) URL.revokeObjectURL(file.url)
     })
 
-    const messagePart: { parts: TextPart[] } = {
-      parts: [
-        {
-          type: "text",
-          text: messageContent,
-        }
-      ]
-    };
-    let threadInfo: { threadId: string; messageId: string } | undefined;
-    if (threadId) {
-      const [messageId] = await safeGetSignedId(1);
-      if (!messageId) throw new Error("Failed to get messageId");
-      setOptimisticMessage({
-        id: messageId.id,
-        role: "user",
-        parts: [
-          {
-            type: "text",
-            text: messageContent,
-          }
-        ]
-      })
-      threadInfo = await createMessage({
-        threadId: threadId,
-        message: messagePart,
-        messageId: messageId.str,
-        currentLeafMessageId
-      })
-    } else { // new thread
-      const [messageId, threadId] = await safeGetSignedId(2);
-      if (!messageId || !threadId) throw new Error("Failed to get messageId or threadId");
-      setOptimisticMessage({
-        id: messageId.id,
-        role: "user",
-        parts: [
-          {
-            type: "text",
-            text: messageContent,
-          }
-        ]
-      })
-      console.log("new thread", messageId, threadId);
-      setThreadId(threadId.id);
-      threadInfo = await createMessage({
-        threadId: threadId.str, // tell the backend to generate a new thread using the signed message
-        message: messagePart,
-        messageId: messageId.str,
-      })
-    }
-
     const fileIds = currentAttachments.map((f) => f.id)
-    const body = {
-      threadId: threadInfo.threadId,
-      userMessageId: threadInfo.messageId,
+
+    await submitMessage({
+      messageContent,
+      threadId,
+      setThreadId,
+      currentLeafMessageId,
+      selectedModel,
+      clientId,
       fileIds,
-      model: selectedModel,
-      id: threadInfo.threadId,
-      clientId, // Client session ID to identify the initiating client
-      trigger: "submit-message" as const,
-    };
-    console.log("Starting stream now");
-    console.log("Sending clientId:", clientId);
-    
-    // sendMessage adds user message and handles streaming
-    void sendMessage({
-      id: threadInfo.messageId,
-      text: messageContent,
-      metadata: {
-        tempReduxMessageId: threadInfo.messageId,
-      }
-    }, {
-      body
+      safeGetSignedId,
+      createMessage,
+      setOptimisticMessage,
+      sendMessage,
     })
-    const end = performance.now();
-    console.log("Time taken to send message", end - start);
   }, [input, attachments, status, isExpanded, threadId, setOptimisticMessage, selectedModel, sendMessage, safeGetSignedId, createMessage, currentLeafMessageId, setThreadId, clientId])
 
   const handleKeyDown = useCallback(

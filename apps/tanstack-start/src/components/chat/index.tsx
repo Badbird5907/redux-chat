@@ -51,10 +51,12 @@ function MessageStatsBar({
   stats,
   isVisible,
   content,
+  isStreaming,
 }: {
   stats: MessageStats | undefined;
   isVisible: boolean;
   content?: string;
+  isStreaming: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -84,7 +86,7 @@ function MessageStatsBar({
       {/* Action buttons */}
       <div className="flex items-center gap-1">
         <button
-          className="hover:bg-muted rounded p-2 transition-colors"
+          className={cn("hover:bg-muted rounded p-2 transition-colors", isStreaming && "hidden")}
           title="Copy"
           onClick={handleCopy}
         >
@@ -98,7 +100,7 @@ function MessageStatsBar({
           <MousePointerClickIcon className="size-4" />
         </button> */}
         <button
-          className="hover:bg-muted rounded p-2 transition-colors"
+          className={cn("hover:bg-muted rounded p-2 transition-colors", isStreaming && "hidden")}
           title="Regenerate"
         >
           <RefreshCwIcon className="size-4" />
@@ -322,7 +324,18 @@ export function Chat({
         <ConversationContent className="pt-0 pb-36">
           <div className="mx-auto w-full max-w-3xl">
             {!currentThreadId && finalMessages.length === 0 ? (
-              <EmptyChat />
+              <EmptyChat 
+                threadId={currentThreadId}
+                setThreadId={(id: string) => {
+                  setCurrentThreadId(id);
+                  lastMessageCount.current = 0;
+                  window.history.replaceState({}, "", `/chat/${id}`);
+                }}
+                setOptimisticMessage={setOptimisticMessage}
+                sendMessage={sendMessage}
+                currentLeafMessageId={convexMessages?.at(-1)?.messageId}
+                clientId={chatSessionId}
+              />
             ) : (
               <div className="flex flex-col gap-8">
                 {finalMessages.map((message, i) => {
@@ -379,6 +392,7 @@ export function Chat({
                             stats={messageStats}
                             isVisible={isHovered}
                             content={textContent}
+                            isStreaming={isStreamingAssistant && isLastMessage}
                           />
                         )}
                       </div>

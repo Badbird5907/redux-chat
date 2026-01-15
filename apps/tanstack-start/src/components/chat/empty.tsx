@@ -1,4 +1,10 @@
 import { useMemo } from "react";
+import type { UIMessage } from "ai";
+import { api } from "@redux/backend/convex/_generated/api";
+import { useMutation } from "convex/react";
+import { MODELS } from "@/lib/model-config"
+import { useSignedCid } from "@/components/chat/client-id"
+import { submitMessage } from "@/components/chat/use-submit-message"
 
 interface SuggestionCardProps {
   text: string;
@@ -17,7 +23,12 @@ const SuggestionCard = ({ text, onClick }: SuggestionCardProps) => {
 };
 
 interface EmptyChatProps {
-  onSuggestionClick?: (text: string) => void;
+  threadId: string | undefined;
+  setThreadId: (id: string) => void;
+  sendMessage: (message: { text: string, id?: string, metadata?: Record<string, unknown> }, options?: { body?: object }) => void;
+  setOptimisticMessage: (message: UIMessage | undefined) => void;
+  currentLeafMessageId?: string;
+  clientId: string;
 }
 
 const SUGGESTIONS = [
@@ -29,7 +40,27 @@ const SUGGESTIONS = [
   "Write a professional email template",
 ];
 
-export const EmptyChat = ({ onSuggestionClick }: EmptyChatProps) => {
+export const EmptyChat = ({ threadId, setThreadId, sendMessage, setOptimisticMessage, currentLeafMessageId, clientId }: EmptyChatProps) => {
+  const { safeGetSignedId } = useSignedCid();
+  const createMessage = useMutation(api.functions.threads.sendMessage);
+  const selectedModel = MODELS[0]?.id ?? "gpt-4o";
+
+  const handleSuggestionClick = async (text: string) => {
+    await submitMessage({
+      messageContent: text,
+      threadId,
+      setThreadId,
+      currentLeafMessageId,
+      selectedModel,
+      clientId,
+      fileIds: [],
+      safeGetSignedId,
+      createMessage,
+      setOptimisticMessage,
+      sendMessage,
+    });
+  };
+
   const greeting = useMemo(() => {
     const now = new Date();
     const hours = now.getHours();
@@ -97,17 +128,19 @@ export const EmptyChat = ({ onSuggestionClick }: EmptyChatProps) => {
   }, []);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-4">
-      <h1 className="text-4xl font-bold mb-8">{greeting}</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-        {SUGGESTIONS.map((text) => (
-          <SuggestionCard
-            key={text}
-            text={text}
-            onClick={() => onSuggestionClick?.(text)}
-          />
-        ))}
+    <div className="flex h-full flex-col items-center px-4 pt-36 pb-36">
+      <div className="flex flex-col items-center justify-center flex-1">
+        <h1 className="text-4xl font-bold mb-8 text-center">{greeting}</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+          {SUGGESTIONS.map((text) => (
+            <SuggestionCard
+              key={text}
+              text={text}
+              onClick={() => void handleSuggestionClick(text)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
