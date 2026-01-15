@@ -41,7 +41,7 @@ export const getThread = query({
       .filter((q) => q.eq(q.field("threadId"), args.threadId))
       .first();
 
-    if (!thread || thread.userId != ctx.userId) {
+    if (thread?.userId != ctx.userId) {
       throw new ConvexError("Thread not found");
     }
     return thread;
@@ -56,7 +56,7 @@ export const abortStream = mutation({
       .filter((q) => q.eq(q.field("threadId"), args.threadId))
       .first();
 
-    if (!thread || thread.userId != ctx.userId) {
+    if (thread?.userId != ctx.userId) {
       throw new ConvexError("Thread not found");
     }
 
@@ -65,7 +65,7 @@ export const abortStream = mutation({
       .filter((q) => q.eq(q.field("messageId"), args.messageId))
       .first();
 
-    if (!message || message.threadId != args.threadId) {
+    if (message?.threadId != args.threadId) {
       throw new ConvexError("Message not found");
     }
 
@@ -328,7 +328,7 @@ export const sendMessage = mutation({
       })
     } else {
       const thread = await ctx.db.query("threads").withIndex("by_threadId", (q) => q.eq("threadId", args.threadId)).first();
-      if (!thread || thread.userId !== ctx.userId) {
+      if (thread?.userId !== ctx.userId) {
         throw new ConvexError("Thread not found");
       }
 
@@ -482,7 +482,7 @@ export const getThreadStreamId = query({
         .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
         .first();
 
-    if (!thread || thread.userId !== ctx.userId) {
+    if (thread?.userId !== ctx.userId) {
       return undefined;
     }
     if (!thread.activeStreamId) {

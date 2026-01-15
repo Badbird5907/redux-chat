@@ -247,6 +247,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       })
     } else { // new thread
       const [messageId, threadId] = await safeGetSignedId(2);
+      if (!messageId || !threadId) throw new Error("Failed to get messageId or threadId");
       setOptimisticMessage({
         id: messageId.id,
         role: "user",
@@ -258,7 +259,6 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
         ]
       })
       console.log("new thread", messageId, threadId);
-      if (!messageId || !threadId) throw new Error("Failed to get messageId or threadId");
       setThreadId(threadId.id);
       threadInfo = await createMessage({
         threadId: threadId.str, // tell the backend to generate a new thread using the signed message
@@ -275,6 +275,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       model: selectedModel,
       id: threadInfo.threadId,
       clientId, // Client session ID to identify the initiating client
+      trigger: "submit-message" as const,
     };
     console.log("Starting stream now");
     console.log("Sending clientId:", clientId);
