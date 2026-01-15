@@ -27,7 +27,7 @@ interface UploadedFile {
 interface ChatInputProps {
   threadId?: string
   setThreadId: (threadId: string) => void
-  sendMessage: (message: { text: string, id?: string }, options?: { body?: object }) => void
+  sendMessage: (message: { text: string, id?: string, metadata?: Record<string, unknown> }, options?: { body?: object }) => void
   setOptimisticMessage: (message: UIMessage | undefined) => void
   messages: UIMessage[]
   status: "ready" | "streaming" | "submitted" | "error"
@@ -284,6 +284,9 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
     void sendMessage({
       id: threadInfo.messageId,
       text: messageContent,
+      metadata: {
+        tempReduxMessageId: threadInfo.messageId,
+      }
     }, {
       body
     })
