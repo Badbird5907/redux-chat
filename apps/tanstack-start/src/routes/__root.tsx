@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import { createServerFn } from '@tanstack/react-start'
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
 import type { ConvexQueryClient } from '@convex-dev/react-query'
-import { ThemeProvider, ThemeToggle } from "@redux/ui/components/theme";
+import { ThemeProvider } from "@redux/ui/components/theme";
 import { Toaster } from "@redux/ui/components/sonner";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -134,7 +134,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       >
         <ThemeProvider>
           {children}
-          <ThemeToggle />
+          {/* <ThemeToggle /> */}
           <Toaster />
         </ThemeProvider>
         <Scripts />

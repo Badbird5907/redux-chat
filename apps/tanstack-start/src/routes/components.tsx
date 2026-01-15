@@ -225,6 +225,15 @@ function RouteComponent() {
         <h2 className="text-2xl font-semibold tracking-tight">Spinner</h2>
         <Spinner />
       </section>
+
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">h1</h1>
+        <h2 className="text-xl font-semibold tracking-tight">h2</h2>
+        <h3 className="text-lg font-semibold tracking-tight">h3</h3>
+        <h4 className="text-base font-semibold tracking-tight">h4</h4>
+        <h5 className="text-sm font-semibold tracking-tight">h5</h5>
+        <h6 className="text-xs font-semibold tracking-tight">h6</h6>
+        </div>
     </div>
   );
 }

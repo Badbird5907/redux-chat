@@ -187,6 +187,13 @@ export const internal_updateMessageUsage = backendMutation({
       responseTokens: v.number(),
       totalTokens: v.number(),
     }),
+    generationStats: v.optional(
+      v.object({
+        timeToFirstTokenMs: v.number(),
+        totalDurationMs: v.number(),
+        tokensPerSecond: v.number(),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const message = await ctx.db
@@ -198,6 +205,7 @@ export const internal_updateMessageUsage = backendMutation({
     }
     await ctx.db.patch(message._id, {
       usage: args.usage,
+      generationStats: args.generationStats,
     });
   },
 });

@@ -52,6 +52,11 @@ export const Route = createFileRoute('/api/chat/')({
 
         const abortController = new AbortController();
         console.log("abortController", abortController);
+        
+        // Track generation timing stats
+        const streamStartTime = Date.now();
+        let firstTokenTime: number | null = null;
+        
         const result = streamText({
           model: openai(messagesData.settings.model),
           messages: modelMessages,
@@ -70,6 +75,22 @@ export const Route = createFileRoute('/api/chat/')({
                   }
                 : undefined;
 
+            // Calculate generation stats
+            const totalDurationMs = Date.now() - streamStartTime;
+            const timeToFirstTokenMs = firstTokenTime 
+              ? firstTokenTime - streamStartTime 
+              : totalDurationMs;
+            const outputTokens = usage.outputTokens ?? 0;
+            const tokensPerSecond = totalDurationMs > 0 
+              ? (outputTokens / totalDurationMs) * 1000 
+              : 0;
+
+            const generationStats = {
+              timeToFirstTokenMs,
+              totalDurationMs,
+              tokensPerSecond,
+            };
+
             // Save the completed response to Convex
             await fetchAuthMutation(api.functions.threads.internal_updateMessageUsage, {
               secret: env.INTERNAL_CONVEX_SECRET,
@@ -79,9 +100,12 @@ export const Route = createFileRoute('/api/chat/')({
                 responseTokens: 0,
                 totalTokens: 0,
               },
+              generationStats,
             });
           },
           onChunk: () => {
+            // Track time to first token
+            firstTokenTime ??= Date.now();
             throttle(() => {
               // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
               void (fetchAuthQuery(api.functions.threads.internal_checkMessageAbort, {

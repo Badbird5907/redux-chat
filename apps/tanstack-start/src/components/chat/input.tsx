@@ -350,7 +350,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       >
         <div className={cn(
           "w-full transition-all duration-300",
-          isExpanded ? "h-full" : "max-w-2xl"
+          isExpanded ? "h-full" : "max-w-3xl"
         )}>
           <div
             className={cn(

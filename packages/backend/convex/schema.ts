@@ -62,6 +62,13 @@ export default defineSchema({
         totalTokens: v.number(),
       })
     ),
+    generationStats: v.optional(
+      v.object({
+        timeToFirstTokenMs: v.number(),
+        totalDurationMs: v.number(),
+        tokensPerSecond: v.number(),
+      })
+    ),
     error: v.optional(v.string()),
   })
     .index("by_threadId", ["threadId"])

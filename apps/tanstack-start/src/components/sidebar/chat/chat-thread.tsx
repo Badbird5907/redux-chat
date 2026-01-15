@@ -43,7 +43,7 @@ export default function ChatThreadSidebarItem({
         isActive={isActive}
         className="w-full"
         render={
-          <Link to={`/chat/${threadId}`} preload="intent" />
+          <Link to={`/chat/$id`} params={{ id: threadId }} preload="intent" />
         }
       >
         <span className="flex-1 truncate">{threadName}</span>
@@ -67,6 +67,7 @@ export default function ChatThreadSidebarItem({
               }
             />
           }
+          className="group-hover/menu-item:cursor-pointer"
         >
           <Ellipsis />
           <span className="sr-only">Settings</span>

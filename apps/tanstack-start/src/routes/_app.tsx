@@ -31,11 +31,13 @@ function AppLayout() {
         <ThreadList />
       </AppSidebar>
       <div className="h-screen w-screen flex flex-col p-2">
-        <div className="bg-card/80 flex-1 w-full rounded-4xl p-4 overflow-hidden">
-          <div className="bg-card/80 flex w-fit items-center justify-between rounded-md p-1">
+        <div className="bg-card/80 relative flex-1 w-full rounded-4xl p-4 overflow-hidden">
+          <div className="absolute top-4 left-4 z-10 bg-card/80 flex w-fit items-center justify-between rounded-md p-1">
             <SidebarTrigger />
           </div>
-          <Outlet />
+          <div className="h-full overflow-hidden">
+            <Outlet />
+          </div>
         </div>
       </div>
     </SidebarProvider>
