@@ -7,14 +7,21 @@ interface SubmitMessageParams {
   selectedModel: string;
   clientId: string;
   fileIds?: string[];
-  safeGetSignedId: (count: number) => Promise<({ id: string; str: string } | undefined)[]>;
+  parentMessageId?: string; // Last message in the current branch path
+  safeGetSignedId: (
+    count: number,
+  ) => Promise<({ id: string; str: string } | undefined)[]>;
   createMessage: (args: {
     threadId: string;
     message: { parts: TextPart[] };
     messageId: string;
+    parentMessageId?: string;
   }) => Promise<{ threadId: string; messageId: string }>;
   setOptimisticMessage: (message: UIMessage | undefined) => void;
-  sendMessage: (message: { text: string, id?: string, metadata?: Record<string, unknown> }, options?: { body?: object }) => void;
+  sendMessage: (
+    message: { text: string; id?: string; metadata?: Record<string, unknown> },
+    options?: { body?: object },
+  ) => void;
 }
 
 export async function submitMessage({
@@ -24,6 +31,7 @@ export async function submitMessage({
   selectedModel,
   clientId,
   fileIds = [],
+  parentMessageId,
   safeGetSignedId,
   createMessage,
   setOptimisticMessage,
@@ -36,8 +44,8 @@ export async function submitMessage({
       {
         type: "text",
         text: messageContent,
-      }
-    ]
+      },
+    ],
   };
 
   let threadInfo: { threadId: string; messageId: string } | undefined;
@@ -52,17 +60,20 @@ export async function submitMessage({
         {
           type: "text",
           text: messageContent,
-        }
-      ]
-    })
+        },
+      ],
+    });
     threadInfo = await createMessage({
       threadId: threadId,
       message: messagePart,
       messageId: messageId.str,
-    })
-  } else { // new thread
-    const [messageId, threadId] = await safeGetSignedId(2);
-    if (!messageId || !threadId) throw new Error("Failed to get messageId or threadId");
+      parentMessageId,
+    });
+  } else {
+    // new thread
+    const [messageId, newThreadId] = await safeGetSignedId(2);
+    if (!messageId || !newThreadId)
+      throw new Error("Failed to get messageId or threadId");
     setOptimisticMessage({
       id: messageId.id,
       role: "user",
@@ -70,16 +81,17 @@ export async function submitMessage({
         {
           type: "text",
           text: messageContent,
-        }
-      ]
-    })
-    console.log("new thread", messageId, threadId);
-    setThreadId(threadId.id);
+        },
+      ],
+    });
+    console.log("new thread", messageId, newThreadId);
+    setThreadId(newThreadId.id);
     threadInfo = await createMessage({
-      threadId: threadId.str, // tell the backend to generate a new thread using the signed message
+      threadId: newThreadId.str, // tell the backend to generate a new thread using the signed message
       message: messagePart,
       messageId: messageId.str,
-    })
+      // No parentMessageId for first message
+    });
   }
 
   const body = {
@@ -94,17 +106,20 @@ export async function submitMessage({
 
   console.log("Starting stream now");
   console.log("Sending clientId:", clientId);
-  
+
   // sendMessage adds user message and handles streaming
-  void sendMessage({
-    id: threadInfo.messageId,
-    text: messageContent,
-    metadata: {
-      tempReduxMessageId: threadInfo.messageId,
-    }
-  }, {
-    body
-  })
+  void sendMessage(
+    {
+      id: threadInfo.messageId,
+      text: messageContent,
+      metadata: {
+        tempReduxMessageId: threadInfo.messageId,
+      },
+    },
+    {
+      body,
+    },
+  );
 
   const end = performance.now();
   console.log("Time taken to send message", end - start);

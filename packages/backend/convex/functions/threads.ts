@@ -1,11 +1,12 @@
+import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
+import { Buffer } from "buffer/";
 import { paginationOptsValidator } from "convex/server";
-import { backendMutation, mutation, query, backendQuery } from "./index";
 import { ConvexError, v } from "convex/values";
+import { nanoid } from "nanoid";
+
 import type { Doc } from "../_generated/dataModel";
 import { backendEnv } from "../env";
-import { nanoid } from "nanoid";
-import { Buffer } from "buffer/";
-import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
+import { backendMutation, backendQuery, mutation, query } from "./index";
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -173,7 +174,7 @@ export const internal_updateMessageUsage = backendMutation({
         timeToFirstTokenMs: v.number(),
         totalDurationMs: v.number(),
         tokensPerSecond: v.number(),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -244,7 +245,7 @@ async function importKey(secret: string, enc: TextEncoder): Promise<CryptoKey> {
     keyData,
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign", "verify"]
+    ["sign", "verify"],
   );
 }
 
@@ -266,6 +267,7 @@ export const sendMessage = mutation({
     threadId: v.string(),
     message: sendMessageSchema,
     messageId: v.string(),
+    parentMessageId: v.optional(v.string()), // The last message in the current branch path
   },
   handler: async (ctx, args) => {
     const [messageId, sig] = args.messageId.split(":");
@@ -278,11 +280,36 @@ export const sendMessage = mutation({
     }
 
     let threadId = args.threadId;
-    const parentId: string | undefined = undefined;
-    const depth = 0;
-    const siblingIndex = 0;
+    let parentId: string | undefined = args.parentMessageId;
+    let depth = 0;
+    let siblingIndex = 0;
 
-    if (threadId.includes(":")) { // is a new thread
+    // Calculate depth and siblingIndex if we have a parent
+    if (parentId) {
+      const actualThreadId = threadId.includes(":")
+        ? threadId.split(":")[0]!
+        : threadId;
+      const parentMessage = await ctx.db
+        .query("messages")
+        .withIndex("by_threadId_messageId", (q) =>
+          q.eq("threadId", actualThreadId).eq("messageId", parentId!),
+        )
+        .first();
+
+      if (parentMessage) {
+        depth = parentMessage.depth + 1;
+
+        // Count existing siblings (messages with same parentId)
+        const siblings = await ctx.db
+          .query("messages")
+          .withIndex("by_parentId", (q) => q.eq("parentId", parentId))
+          .collect();
+        siblingIndex = siblings.length;
+      }
+    }
+
+    if (threadId.includes(":")) {
+      // is a new thread
       const [actualThreadId, tSig] = threadId.split(":");
       if (!actualThreadId || !tSig) {
         throw new ConvexError("Invalid threadId or messageId");
@@ -292,7 +319,7 @@ export const sendMessage = mutation({
         throw new ConvexError("Invalid signature");
       }
       threadId = actualThreadId;
-      
+
       await ctx.db.insert("threads", {
         threadId,
         userId: ctx.userId,
@@ -304,9 +331,12 @@ export const sendMessage = mutation({
           temperature: 0.7,
           tools: [],
         },
-      })
+      });
     } else {
-      const thread = await ctx.db.query("threads").withIndex("by_threadId", (q) => q.eq("threadId", args.threadId)).first();
+      const thread = await ctx.db
+        .query("threads")
+        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+        .first();
       if (thread?.userId !== ctx.userId) {
         throw new ConvexError("Thread not found");
       }
@@ -328,16 +358,227 @@ export const sendMessage = mutation({
       depth,
       siblingIndex,
       mutation: { type: "original" },
-    })
+    });
     return { threadId, messageId };
-  }
-})
+  },
+});
+
+// Edit a user message - creates a new message as a sibling to the original
+export const editMessage = mutation({
+  args: {
+    threadId: v.string(),
+    originalMessageId: v.string(), // The message being edited
+    newMessageId: v.string(), // Signed ID for new message
+    parts: v.array(v.any()),
+  },
+  handler: async (ctx, args) => {
+    // Verify signature
+    const [messageId, sig] = args.newMessageId.split(":");
+    if (!messageId || !sig) {
+      throw new ConvexError("Invalid messageId or signature");
+    }
+    const verified = await verifySignature(messageId, sig);
+    if (!verified) {
+      throw new ConvexError("Invalid signature");
+    }
+
+    // Verify thread ownership
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+    if (!thread || thread.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
+    }
+
+    // Get the original message
+    const originalMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q.eq("threadId", args.threadId).eq("messageId", args.originalMessageId),
+      )
+      .first();
+
+    if (!originalMessage) {
+      throw new ConvexError("Original message not found");
+    }
+    if (originalMessage.role !== "user") {
+      throw new ConvexError("Can only edit user messages");
+    }
+
+    // Count existing siblings to get the next siblingIndex
+    const siblings = await ctx.db
+      .query("messages")
+      .withIndex("by_parentId", (q) =>
+        q.eq("parentId", originalMessage.parentId),
+      )
+      .collect();
+
+    // Create new message as sibling (shares same parent)
+    await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      messageId,
+      parentId: originalMessage.parentId,
+      role: "user",
+      parts: args.parts as UIMessagePart<UIDataTypes, UITools>[],
+      status: "completed",
+      depth: originalMessage.depth,
+      siblingIndex: siblings.length,
+      mutation: { type: "edit", fromMessageId: args.originalMessageId },
+    });
+
+    // Update thread status
+    await ctx.db.patch(thread._id, {
+      status: "generating",
+      updatedAt: Date.now(),
+    });
+
+    return { threadId: args.threadId, messageId };
+  },
+});
+
+// Regenerate an assistant message - creates a new assistant message as a sibling
+export const regenerateMessage = mutation({
+  args: {
+    threadId: v.string(),
+    originalMessageId: v.string(), // The assistant message to regenerate
+  },
+  handler: async (ctx, args) => {
+    // Verify thread ownership
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+    if (!thread || thread.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
+    }
+
+    // Get the original assistant message
+    const originalMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q.eq("threadId", args.threadId).eq("messageId", args.originalMessageId),
+      )
+      .first();
+
+    if (!originalMessage) {
+      throw new ConvexError("Original message not found");
+    }
+    if (originalMessage.role !== "assistant") {
+      throw new ConvexError("Can only regenerate assistant messages");
+    }
+
+    // Count existing siblings to get the next siblingIndex
+    const siblings = await ctx.db
+      .query("messages")
+      .withIndex("by_parentId", (q) =>
+        q.eq("parentId", originalMessage.parentId),
+      )
+      .collect();
+
+    // Create new assistant message as sibling
+    const newMessageId = nanoid();
+    await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      messageId: newMessageId,
+      parentId: originalMessage.parentId, // Same parent (the user message)
+      role: "assistant",
+      parts: [],
+      status: "generating",
+      depth: originalMessage.depth,
+      siblingIndex: siblings.length,
+      mutation: { type: "regeneration", fromMessageId: args.originalMessageId },
+    });
+
+    // Update thread status
+    await ctx.db.patch(thread._id, {
+      status: "generating",
+      updatedAt: Date.now(),
+    });
+
+    return {
+      threadId: args.threadId,
+      assistantMessageId: newMessageId,
+      userMessageId: originalMessage.parentId!, // The user message that prompted it
+    };
+  },
+});
+
+// Internal mutation to create a regenerate sibling (called from API route)
+export const internal_createRegenerateSibling = backendMutation({
+  args: {
+    threadId: v.string(),
+    originalAssistantMessageId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get the original assistant message
+    const originalMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q
+          .eq("threadId", args.threadId)
+          .eq("messageId", args.originalAssistantMessageId),
+      )
+      .first();
+
+    if (!originalMessage) {
+      throw new ConvexError("Original message not found");
+    }
+    if (originalMessage.role !== "assistant") {
+      throw new ConvexError("Can only regenerate assistant messages");
+    }
+
+    // Count existing siblings to get the next siblingIndex
+    const siblings = await ctx.db
+      .query("messages")
+      .withIndex("by_parentId", (q) =>
+        q.eq("parentId", originalMessage.parentId),
+      )
+      .collect();
+
+    // Create new assistant message as sibling
+    const newMessageId = nanoid();
+    await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      messageId: newMessageId,
+      parentId: originalMessage.parentId,
+      role: "assistant",
+      parts: [],
+      status: "generating",
+      depth: originalMessage.depth,
+      siblingIndex: siblings.length,
+      mutation: {
+        type: "regeneration",
+        fromMessageId: args.originalAssistantMessageId,
+      },
+    });
+
+    // Update thread status
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+
+    if (thread) {
+      await ctx.db.patch(thread._id, {
+        status: "generating",
+        updatedAt: Date.now(),
+      });
+    }
+
+    return {
+      assistantMessageId: newMessageId,
+      userMessageId: originalMessage.parentId!, // The user message that prompted it
+    };
+  },
+});
 
 export const internal_prepareStream = backendMutation({
   // this function returns all the data needed to stream
   args: {
     threadId: v.string(),
     userMessageId: v.string(),
+    assistantMessageId: v.optional(v.string()), // For regeneration: use existing assistant message
   },
   handler: async (ctx, args) => {
     // we send auth over bearer token too, so we need to validate it
@@ -348,7 +589,9 @@ export const internal_prepareStream = backendMutation({
         .first(),
       ctx.db
         .query("messages")
-        .withIndex("by_threadId_messageId", (q) => q.eq("threadId", args.threadId).eq("messageId", args.userMessageId))
+        .withIndex("by_threadId_messageId", (q) =>
+          q.eq("threadId", args.threadId).eq("messageId", args.userMessageId),
+        )
         .first(),
     ]);
 
@@ -358,9 +601,7 @@ export const internal_prepareStream = backendMutation({
     if (!userMessage) {
       throw new ConvexError("User message not found");
     }
-    if (
-      userMessage.threadId !== thread.threadId
-    ) {
+    if (userMessage.threadId !== thread.threadId) {
       throw new ConvexError("Message does not belong to thread");
     }
     if (userMessage.role !== "user") {
@@ -383,7 +624,7 @@ export const internal_prepareStream = backendMutation({
     while (currentId) {
       const currentMessage: Doc<"messages"> | null = await ctx.db
         .query("messages")
-        .filter(q => q.eq(q.field("messageId"), currentId))
+        .filter((q) => q.eq(q.field("messageId"), currentId))
         .first();
 
       if (!currentMessage) break;
@@ -396,21 +637,65 @@ export const internal_prepareStream = backendMutation({
 
       currentId = currentMessage.parentId;
     }
-    
-    // insert a new assistant message
-    const assistantMessageId = nanoid();
-    const assistantMessage: Omit<Doc<"messages">, "_creationTime" | "_id"> = {
-      threadId: args.threadId,
-      messageId: assistantMessageId,
-      parentId: userMessage.messageId,
-      role: "assistant",
-      parts: [],
-      status: "generating",
-      depth: 0,
-      siblingIndex: 0,
-      mutation: { type: "original" },
+
+    let assistantMessage: Omit<Doc<"messages">, "_creationTime" | "_id">;
+
+    // For regeneration: use existing assistant message
+    if (args.assistantMessageId) {
+      const existingMessage = await ctx.db
+        .query("messages")
+        .withIndex("by_threadId_messageId", (q) =>
+          q
+            .eq("threadId", args.threadId)
+            .eq("messageId", args.assistantMessageId!),
+        )
+        .first();
+
+      if (!existingMessage) {
+        throw new ConvexError("Assistant message not found");
+      }
+      if (existingMessage.status !== "generating") {
+        throw new ConvexError("Assistant message is not in generating status");
+      }
+
+      assistantMessage = {
+        threadId: existingMessage.threadId,
+        messageId: existingMessage.messageId,
+        parentId: existingMessage.parentId,
+        role: existingMessage.role,
+        parts: existingMessage.parts as UIMessagePart<UIDataTypes, UITools>[],
+        status: existingMessage.status,
+        depth: existingMessage.depth,
+        siblingIndex: existingMessage.siblingIndex,
+        mutation: existingMessage.mutation,
+      };
+    } else {
+      // Create new assistant message
+      const assistantMessageId = nanoid();
+
+      // Calculate depth and siblingIndex
+      const depth = userMessage.depth + 1;
+      const siblings = await ctx.db
+        .query("messages")
+        .withIndex("by_parentId", (q) =>
+          q.eq("parentId", userMessage.messageId),
+        )
+        .collect();
+      const siblingIndex = siblings.length;
+
+      assistantMessage = {
+        threadId: args.threadId,
+        messageId: assistantMessageId,
+        parentId: userMessage.messageId,
+        role: "assistant",
+        parts: [],
+        status: "generating",
+        depth,
+        siblingIndex,
+        mutation: { type: "original" },
+      };
+      await ctx.db.insert("messages", assistantMessage);
     }
-    await ctx.db.insert("messages", assistantMessage);
 
     return {
       thread,
@@ -427,9 +712,9 @@ export const getThreadStreamId = query({
   handler: async (ctx, args) => {
     console.log("filtering by threadId", args.threadId);
     const thread = await ctx.db
-        .query("threads")
-        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-        .first();
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
 
     if (thread?.userId !== ctx.userId) {
       return undefined;

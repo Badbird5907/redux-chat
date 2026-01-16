@@ -1,13 +1,15 @@
 "use client";
 
-import type { TextUIPart, UIDataTypes, UIMessage, UITools } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { TextPart, TextUIPart, UIDataTypes, UIMessage, UITools } from "ai";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { useMutation } from "convex/react";
 import {
   CheckIcon,
   ClockIcon,
   CopyIcon,
+  PencilIcon,
   RefreshCwIcon,
   WholeWord,
   ZapIcon,
@@ -15,17 +17,23 @@ import {
 import { Streamdown } from "streamdown";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import { Button } from "@redux/ui/components/button";
 import Spinner from "@redux/ui/components/spinner";
 import { cn } from "@redux/ui/lib/utils";
 
+import type { TreeMessage } from "./use-message-tree";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai/conversation";
 import { useQuery } from "@/lib/hooks/convex";
+import { BranchSelector } from "./branch-selector";
+import { useSignedCid } from "./client-id";
 import { EmptyChat } from "./empty";
 import { ChatInput } from "./input";
+import { useBranchState } from "./use-branch-state";
+import { useMessageTree } from "./use-message-tree";
 
 // Type guard to narrow part types to TextUIPart
 const isTextPart = (part: { type: string }): part is TextUIPart =>
@@ -47,16 +55,70 @@ interface MessageStats {
   content?: string;
 }
 
+// User message action bar (copy + edit buttons)
+function UserMessageActions({
+  content,
+  onEdit,
+  isVisible,
+}: {
+  content: string;
+  onEdit: () => void;
+  isVisible: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "mt-2 flex items-center gap-1 transition-opacity duration-200",
+        isVisible ? "opacity-100" : "opacity-0",
+      )}
+    >
+      <button
+        className="hover:bg-primary-foreground/20 rounded p-2 transition-colors"
+        title="Copy"
+        onClick={handleCopy}
+      >
+        {copied ? (
+          <CheckIcon className="size-4" />
+        ) : (
+          <CopyIcon className="size-4" />
+        )}
+      </button>
+      <button
+        className="hover:bg-primary-foreground/20 rounded p-2 transition-colors"
+        title="Edit"
+        onClick={onEdit}
+      >
+        <PencilIcon className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 function MessageStatsBar({
   stats,
   isVisible,
   content,
   isStreaming,
+  onRegenerate,
 }: {
   stats: MessageStats | undefined;
   isVisible: boolean;
   content?: string;
   isStreaming: boolean;
+  onRegenerate?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -86,7 +148,10 @@ function MessageStatsBar({
       {/* Action buttons */}
       <div className="flex items-center gap-1">
         <button
-          className={cn("hover:bg-muted rounded p-2 transition-colors", isStreaming && "hidden")}
+          className={cn(
+            "hover:bg-muted rounded p-2 transition-colors",
+            isStreaming && "hidden",
+          )}
           title="Copy"
           onClick={handleCopy}
         >
@@ -96,12 +161,13 @@ function MessageStatsBar({
             <CopyIcon className="size-4" />
           )}
         </button>
-        {/* <button className="p-1 hover:bg-muted rounded transition-colors" title="Select">
-          <MousePointerClickIcon className="size-4" />
-        </button> */}
         <button
-          className={cn("hover:bg-muted rounded p-2 transition-colors", isStreaming && "hidden")}
+          className={cn(
+            "hover:bg-muted rounded p-2 transition-colors",
+            isStreaming && "hidden",
+          )}
           title="Regenerate"
+          onClick={onRegenerate}
         >
           <RefreshCwIcon className="size-4" />
         </button>
@@ -190,18 +256,51 @@ export function Chat({
 
   const [initialMessages] = useState(() => preload ?? []);
 
-  const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
-    id: currentThreadId, // Stable ID - doesn't change when currentThreadId changes
-    messages: initialMessages as UIMessage<unknown, UIDataTypes, UITools>[],
-    transport: new DefaultChatTransport({
+  // Create transport with useMemo so it can access current state
+  const transport = useMemo(() => {
+    return new DefaultChatTransport({
       api: "/api/chat",
+      prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
+        // For regenerate: messageId is the assistant message to regenerate
+        // For submit: messageId is undefined, last message is the user message
+        const lastMessage = messages[messages.length - 1];
+
+        return {
+          body: {
+            threadId: id,
+            trigger: trigger, // 'submit-message' or 'regenerate-message'
+            // For submit-message: send the user message ID
+            // For regenerate-message: send the assistant message ID to regenerate
+            userMessageId:
+              trigger === "submit-message" ? lastMessage?.id : undefined,
+            messageId: trigger === "regenerate-message" ? messageId : undefined,
+            fileIds: [],
+            model: "gpt-4o",
+            id: id,
+            clientId: chatSessionId,
+          },
+        };
+      },
       prepareReconnectToStreamRequest: () => {
         console.log("prepareReconnectToStreamRequest", currentThreadId);
         return {
           api: `/api/chat/${currentThreadId}/stream`,
         };
       },
-    }),
+    });
+  }, [currentThreadId, chatSessionId]);
+
+  const {
+    messages,
+    status,
+    sendMessage,
+    setMessages,
+    resumeStream,
+    regenerate,
+  } = useChat({
+    id: currentThreadId, // Stable ID - doesn't change when currentThreadId changes
+    messages: initialMessages as UIMessage<unknown, UIDataTypes, UITools>[],
+    transport,
     onError: (error) => {
       console.error("Chat error:", error);
     },
@@ -309,14 +408,190 @@ export function Chat({
 
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
 
-  const finalMessages = useMemo(() => {
-    if (optimisticMessage && messages.length > 0) {
-      if (messages.at(-1)?.role === "user" || (messages.at(-2)?.metadata as Record<string, unknown> | undefined)?.tempReduxMessageId === optimisticMessage.id) { // our message has shown up
-        return messages;
+  // Branching state
+  const { selections, selectBranch, resetSelections } = useBranchState();
+  const messageTree = useMessageTree(
+    convexMessages as TreeMessage[] | undefined,
+  );
+
+  // Inline editing state
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+
+  // Pending regenerate state for auto-switching branches
+  const [pendingRegenerate, setPendingRegenerate] = useState<{
+    originalMessageId: string;
+    parentId: string | undefined;
+  } | null>(null);
+
+  // Mutations for edit (regenerate now uses built-in function)
+  const editMessageMutation = useMutation(api.functions.threads.editMessage);
+  const { safeGetSignedId } = useSignedCid();
+
+  // Reset branch selections when switching threads
+  useEffect(() => {
+    resetSelections();
+  }, [currentThreadId, resetSelections]);
+
+  // Auto-switch to new branch when regeneration completes
+  useEffect(() => {
+    if (pendingRegenerate && status === "ready") {
+      // Regeneration completed - switch to the new branch (newest sibling)
+      const siblings = messageTree.getSiblings(pendingRegenerate.parentId);
+      if (siblings.length > 0) {
+        // Select the newest sibling (last one)
+        selectBranch(pendingRegenerate.parentId, siblings.length - 1);
+      }
+      setPendingRegenerate(null);
+    }
+  }, [status, pendingRegenerate, messageTree, selectBranch]);
+
+  // Sync useChat messages when branch selection changes
+  useEffect(() => {
+    // Only sync when not streaming (to avoid interfering with active streams)
+    // And only if we have explicit selections (not the default empty state)
+    if (
+      status !== "streaming" &&
+      status !== "submitted" &&
+      selections.size > 0
+    ) {
+      const visiblePath = messageTree.getVisiblePath(selections);
+      if (visiblePath.length > 0) {
+        setMessages(visiblePath as unknown as UIMessage[]);
       }
     }
-    return [...messages, optimisticMessage].filter((m): m is UIMessage => Boolean(m));
-  }, [messages, optimisticMessage])
+  }, [selections, messageTree, status, setMessages]);
+
+  const finalMessages = useMemo(() => {
+    // During streaming or when we have an optimistic message, use the useChat messages
+    if (status === "streaming" || status === "submitted" || optimisticMessage) {
+      if (optimisticMessage && messages.length > 0) {
+        if (
+          messages.at(-1)?.role === "user" ||
+          (messages.at(-2)?.metadata as Record<string, unknown> | undefined)
+            ?.tempReduxMessageId === optimisticMessage.id
+        ) {
+          // our message has shown up
+          return messages;
+        }
+      }
+      return [...messages, optimisticMessage].filter((m): m is UIMessage =>
+        Boolean(m),
+      );
+    }
+
+    // When not streaming, compute visible path from tree based on branch selections
+    const visiblePath = messageTree.getVisiblePath(selections);
+    return visiblePath as unknown as UIMessage[];
+  }, [messages, optimisticMessage, status, messageTree, selections]);
+
+  // Handle starting edit mode
+  const handleStartEdit = useCallback((messageId: string, content: string) => {
+    setEditingMessageId(messageId);
+    setEditContent(content);
+  }, []);
+
+  // Handle submitting an edit
+  const handleSubmitEdit = useCallback(async () => {
+    if (!editingMessageId || !currentThreadId || !editContent.trim()) return;
+
+    try {
+      // Get signed message ID
+      const [signedId] = await safeGetSignedId(1);
+      if (!signedId) throw new Error("Failed to get signed ID");
+
+      // Create the edited message
+      const result = await editMessageMutation({
+        threadId: currentThreadId,
+        originalMessageId: editingMessageId,
+        newMessageId: signedId.str,
+        parts: [{ type: "text", text: editContent.trim() }] as TextPart[],
+      });
+
+      // Clear edit state
+      setEditingMessageId(null);
+      setEditContent("");
+
+      // Get the message to find its parent for branch selection update
+      const originalMessage = messageTree.getMessageById(editingMessageId);
+      if (originalMessage) {
+        // Update branch selection to show new branch
+        const siblings = messageTree.getSiblings(originalMessage.parentId);
+        selectBranch(originalMessage.parentId, siblings.length); // New message will be at this index
+      }
+
+      // For edit, make a direct fetch call to the API
+      // Don't pass clientId so resumeStream can pick up the stream
+      void fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          threadId: result.threadId,
+          userMessageId: result.messageId,
+          fileIds: [],
+          model: "gpt-4o", // TODO: Get from thread settings
+          id: result.threadId,
+          // clientId intentionally omitted so resumeStream picks up the stream
+          trigger: "edit-message",
+        }),
+      });
+      // The UI will update through resumeStream when the stream starts
+    } catch (error) {
+      console.error("Failed to edit message:", error);
+    }
+  }, [
+    editingMessageId,
+    currentThreadId,
+    editContent,
+    safeGetSignedId,
+    editMessageMutation,
+    messageTree,
+    selectBranch,
+  ]);
+
+  // Handle regenerating an assistant message
+  const handleRegenerate = useCallback(
+    (assistantMessageId: string) => {
+      // Get the original message to find its parent for tracking
+      const origMessage = messageTree.getMessageById(assistantMessageId);
+      if (origMessage) {
+        setPendingRegenerate({
+          originalMessageId: assistantMessageId,
+          parentId: origMessage.parentId,
+        });
+      }
+
+      // Use the built-in regenerate function from useChat
+      // The transport will handle sending the correct request
+      regenerate({ messageId: assistantMessageId });
+    },
+    [messageTree, regenerate],
+  );
+
+  // Handle branch navigation
+  const handleBranchPrev = useCallback(
+    (parentId: string | undefined, currentIndex: number) => {
+      if (currentIndex > 0) {
+        selectBranch(parentId, currentIndex - 1);
+      }
+    },
+    [selectBranch],
+  );
+
+  const handleBranchNext = useCallback(
+    (
+      parentId: string | undefined,
+      currentIndex: number,
+      totalSiblings: number,
+    ) => {
+      if (currentIndex < totalSiblings - 1) {
+        selectBranch(parentId, currentIndex + 1);
+      }
+    },
+    [selectBranch],
+  );
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -324,7 +599,7 @@ export function Chat({
         <ConversationContent className="pt-0 pb-36">
           <div className="mx-auto w-full max-w-3xl">
             {!currentThreadId && finalMessages.length === 0 ? (
-              <EmptyChat 
+              <EmptyChat
                 threadId={currentThreadId}
                 setThreadId={(id: string) => {
                   setCurrentThreadId(id);
@@ -343,13 +618,24 @@ export function Chat({
                     .map((part) => part.text)
                     .join("");
                   // Check if this is the last assistant message and we're streaming
-                  const isLastMessage = i === messages.length - 1;
+                  const isLastMessage = i === finalMessages.length - 1;
                   const isStreamingAssistant =
                     status === "streaming" &&
                     message.role === "assistant" &&
                     isLastMessage;
+                  // Hide bottom bar only for the currently streaming message
+                  const shouldHideBottomBar = isStreamingAssistant;
                   const messageStats = messageStatsMap.get(message.id);
                   const isHovered = hoveredMessageId === message.id;
+                  const isEditing = editingMessageId === message.id;
+
+                  // Get sibling info for branch selector
+                  const treeMessage = message as unknown as TreeMessage;
+                  const siblings = messageTree.getSiblings(
+                    treeMessage.parentId,
+                  );
+                  const hasBranches = siblings.length > 1;
+                  const currentBranchIndex = treeMessage.siblingIndex ?? 0;
 
                   return (
                     <div
@@ -360,10 +646,7 @@ export function Chat({
                           ? "justify-end"
                           : "justify-start",
                       )}
-                      onMouseEnter={() =>
-                        message.role === "assistant" &&
-                        setHoveredMessageId(message.id)
-                      }
+                      onMouseEnter={() => setHoveredMessageId(message.id)}
                       onMouseLeave={() => setHoveredMessageId(null)}
                     >
                       <div
@@ -374,25 +657,129 @@ export function Chat({
                             : "",
                         )}
                       >
-                        {!message.parts.length && (
-                          <Spinner className="size-4" />
+                        {/* Inline edit mode for user messages */}
+                        {isEditing ? (
+                          <div className="flex flex-col gap-2">
+                            <textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              className="border-primary-foreground/30 focus:ring-primary-foreground/50 min-h-[80px] w-full resize-none rounded-lg border bg-transparent p-2 text-sm focus:ring-1 focus:outline-none"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  void handleSubmitEdit();
+                                }
+                                if (e.key === "Escape") {
+                                  setEditingMessageId(null);
+                                  setEditContent("");
+                                }
+                              }}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => void handleSubmitEdit()}
+                                disabled={!editContent.trim()}
+                              >
+                                Save & Submit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingMessageId(null);
+                                  setEditContent("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {!message.parts.length && (
+                              <Spinner className="size-4" />
+                            )}
+                            <Streamdown
+                              mode={
+                                isStreamingAssistant ? "streaming" : "static"
+                              }
+                            >
+                              {textContent}
+                            </Streamdown>
+                          </>
                         )}
-                        <Streamdown
-                          mode={isStreamingAssistant ? "streaming" : "static"}
-                        >
-                          {textContent}
-                        </Streamdown>
-                        {/* <span className="text-xs text-muted-foreground">
-                          {message.id}
-                        </span> */}
-                        {/* Show stats bar for assistant messages on hover - always render to prevent layout shift */}
+
+                        {/* User message actions (copy + edit) */}
+                        {message.role === "user" && !isEditing && (
+                          <div className="flex items-center justify-between gap-2">
+                            <UserMessageActions
+                              content={textContent}
+                              onEdit={() =>
+                                handleStartEdit(message.id, textContent)
+                              }
+                              isVisible={isHovered && !shouldHideBottomBar}
+                            />
+                            {hasBranches && (
+                              <BranchSelector
+                                current={currentBranchIndex}
+                                total={siblings.length}
+                                onPrev={() =>
+                                  handleBranchPrev(
+                                    treeMessage.parentId,
+                                    currentBranchIndex,
+                                  )
+                                }
+                                onNext={() =>
+                                  handleBranchNext(
+                                    treeMessage.parentId,
+                                    currentBranchIndex,
+                                    siblings.length,
+                                  )
+                                }
+                                visible={isHovered && !shouldHideBottomBar}
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Assistant message stats bar with regenerate */}
                         {message.role === "assistant" && (
-                          <MessageStatsBar
-                            stats={messageStats}
-                            isVisible={isHovered}
-                            content={textContent}
-                            isStreaming={isStreamingAssistant && isLastMessage}
-                          />
+                          <div className="flex items-center justify-between gap-2">
+                            <MessageStatsBar
+                              stats={messageStats}
+                              isVisible={isHovered && !shouldHideBottomBar}
+                              content={textContent}
+                              isStreaming={
+                                isStreamingAssistant && isLastMessage
+                              }
+                              onRegenerate={() =>
+                                void handleRegenerate(message.id)
+                              }
+                            />
+                            {hasBranches && (
+                              <BranchSelector
+                                current={currentBranchIndex}
+                                total={siblings.length}
+                                onPrev={() =>
+                                  handleBranchPrev(
+                                    treeMessage.parentId,
+                                    currentBranchIndex,
+                                  )
+                                }
+                                onNext={() =>
+                                  handleBranchNext(
+                                    treeMessage.parentId,
+                                    currentBranchIndex,
+                                    siblings.length,
+                                  )
+                                }
+                                visible={isHovered && !shouldHideBottomBar}
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -418,6 +805,7 @@ export function Chat({
         messages={messages}
         status={status}
         clientId={chatSessionId}
+        parentMessageId={finalMessages.at(-1)?.id}
       />
     </div>
   );
