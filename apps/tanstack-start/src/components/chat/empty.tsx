@@ -27,7 +27,6 @@ interface EmptyChatProps {
   setThreadId: (id: string) => void;
   sendMessage: (message: { text: string, id?: string, metadata?: Record<string, unknown> }, options?: { body?: object }) => void;
   setOptimisticMessage: (message: UIMessage | undefined) => void;
-  currentLeafMessageId?: string;
   clientId: string;
 }
 
@@ -40,7 +39,7 @@ const SUGGESTIONS = [
   "Write a professional email template",
 ];
 
-export const EmptyChat = ({ threadId, setThreadId, sendMessage, setOptimisticMessage, currentLeafMessageId, clientId }: EmptyChatProps) => {
+export const EmptyChat = ({ threadId, setThreadId, sendMessage, setOptimisticMessage, clientId }: EmptyChatProps) => {
   const { safeGetSignedId } = useSignedCid();
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const selectedModel = MODELS[0]?.id ?? "gpt-4o";
@@ -50,7 +49,6 @@ export const EmptyChat = ({ threadId, setThreadId, sendMessage, setOptimisticMes
       messageContent: text,
       threadId,
       setThreadId,
-      currentLeafMessageId,
       selectedModel,
       clientId,
       fileIds: [],

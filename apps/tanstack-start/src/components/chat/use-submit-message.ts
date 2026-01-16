@@ -4,7 +4,6 @@ interface SubmitMessageParams {
   messageContent: string;
   threadId: string | undefined;
   setThreadId: (id: string) => void;
-  currentLeafMessageId: string | undefined;
   selectedModel: string;
   clientId: string;
   fileIds?: string[];
@@ -13,7 +12,6 @@ interface SubmitMessageParams {
     threadId: string;
     message: { parts: TextPart[] };
     messageId: string;
-    currentLeafMessageId?: string;
   }) => Promise<{ threadId: string; messageId: string }>;
   setOptimisticMessage: (message: UIMessage | undefined) => void;
   sendMessage: (message: { text: string, id?: string, metadata?: Record<string, unknown> }, options?: { body?: object }) => void;
@@ -23,7 +21,6 @@ export async function submitMessage({
   messageContent,
   threadId,
   setThreadId,
-  currentLeafMessageId,
   selectedModel,
   clientId,
   fileIds = [],
@@ -62,7 +59,6 @@ export async function submitMessage({
       threadId: threadId,
       message: messagePart,
       messageId: messageId.str,
-      currentLeafMessageId
     })
   } else { // new thread
     const [messageId, threadId] = await safeGetSignedId(2);

@@ -47,7 +47,6 @@ export const threadSchema = z.object({
     tools: z.array(z.string()),
   }),
 
-  currentLeafMessageId: zid("messages").optional(),
   updatedAt: z.number(),
 });
 

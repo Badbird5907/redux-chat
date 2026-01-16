@@ -31,11 +31,10 @@ interface ChatInputProps {
   setOptimisticMessage: (message: UIMessage | undefined) => void
   messages: UIMessage[]
   status: "ready" | "streaming" | "submitted" | "error"
-  currentLeafMessageId?: string
   clientId: string // Client session ID to identify the initiating client
 }
 
-export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMessage, messages: _messages, status, currentLeafMessageId, clientId }: ChatInputProps) {
+export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMessage, messages: _messages, status, clientId }: ChatInputProps) {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
   const [selectedModel, setSelectedModel] = useState(MODELS[0]?.id ?? "gpt-4o")
@@ -222,7 +221,6 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       messageContent,
       threadId,
       setThreadId,
-      currentLeafMessageId,
       selectedModel,
       clientId,
       fileIds,
@@ -231,7 +229,7 @@ export function ChatInput({ threadId, setThreadId, sendMessage, setOptimisticMes
       setOptimisticMessage,
       sendMessage,
     })
-  }, [input, attachments, status, isExpanded, threadId, setOptimisticMessage, selectedModel, sendMessage, safeGetSignedId, createMessage, currentLeafMessageId, setThreadId, clientId])
+  }, [input, attachments, status, isExpanded, threadId, setOptimisticMessage, selectedModel, sendMessage, safeGetSignedId, createMessage, setThreadId, clientId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

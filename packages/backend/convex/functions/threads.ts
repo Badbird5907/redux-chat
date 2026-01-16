@@ -83,7 +83,7 @@ export const abortStream = mutation({
   },
 });
 
-// Get all messages for a thread, walking from root to current leaf
+// Get all messages for a thread - client decides which branch to display
 export const getThreadMessages = query({
   args: { threadId: v.string() },
   handler: async (ctx, args) => {
@@ -107,26 +107,7 @@ export const getThreadMessages = query({
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
 
-    // Build path from root to current leaf
-    if (!thread.currentLeafMessageId) {
-      return [];
-    }
-
-    // Build a map for quick lookups
-    const messageMap = new Map(allMessages.map((m) => [m.messageId, m]));
-
-    // Walk backwards from leaf to root to get the path
-    const path: typeof allMessages = [];
-    let currentId: string | undefined = thread.currentLeafMessageId;
-
-    while (currentId) {
-      const message = messageMap.get(currentId);
-      if (!message) break;
-      path.unshift(message);
-      currentId = message.parentId;
-    }
-
-    return path.map((m) => ({
+    return allMessages.map((m) => ({
       ...m,
       id: m.messageId,
     }));
@@ -285,7 +266,6 @@ export const sendMessage = mutation({
     threadId: v.string(),
     message: sendMessageSchema,
     messageId: v.string(),
-    currentLeafMessageId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const [messageId, sig] = args.messageId.split(":");
@@ -298,9 +278,9 @@ export const sendMessage = mutation({
     }
 
     let threadId = args.threadId;
-    let parentId: string | undefined = undefined;
-    let depth = 0;
-    let siblingIndex = 0;
+    const parentId: string | undefined = undefined;
+    const depth = 0;
+    const siblingIndex = 0;
 
     if (threadId.includes(":")) { // is a new thread
       const [actualThreadId, tSig] = threadId.split(":");
@@ -319,7 +299,6 @@ export const sendMessage = mutation({
         name: "New Thread",
         status: "generating",
         updatedAt: Date.now(),
-        currentLeafMessageId: messageId,
         settings: {
           model: "gpt-4o",
           temperature: 0.7,
@@ -332,33 +311,8 @@ export const sendMessage = mutation({
         throw new ConvexError("Thread not found");
       }
 
-      // Handle branching from a specific message
-      if (args.currentLeafMessageId) {
-        const currentLeafId = args.currentLeafMessageId;
-        const parentMessage = await ctx.db.query("messages")
-          .withIndex("by_threadId_messageId", (q) => 
-            q.eq("threadId", threadId).eq("messageId", currentLeafId)
-          )
-          .first();
-
-        if (!parentMessage) {
-          throw new ConvexError("Parent message not found");
-        }
-
-        parentId = currentLeafId;
-        depth = parentMessage.depth + 1;
-
-        // Count existing siblings to determine siblingIndex
-        const siblings = await ctx.db.query("messages")
-          .withIndex("by_parentId", (q) => q.eq("parentId", currentLeafId))
-          .collect();
-        
-        siblingIndex = siblings.length;
-      }
-
-      // Update thread's currentLeafMessageId
+      // Update thread status
       await ctx.db.patch(thread._id, {
-        currentLeafMessageId: messageId,
         status: "generating",
         updatedAt: Date.now(),
       });
@@ -456,12 +410,7 @@ export const internal_prepareStream = backendMutation({
       siblingIndex: 0,
       mutation: { type: "original" },
     }
-    await Promise.all([
-      ctx.db.insert("messages", assistantMessage),
-      ctx.db.patch(thread._id, {
-        currentLeafMessageId: assistantMessageId,
-      }),
-    ]);
+    await ctx.db.insert("messages", assistantMessage);
 
     return {
       thread,

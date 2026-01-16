@@ -333,7 +333,6 @@ export function Chat({
                 }}
                 setOptimisticMessage={setOptimisticMessage}
                 sendMessage={sendMessage}
-                currentLeafMessageId={convexMessages?.at(-1)?.messageId}
                 clientId={chatSessionId}
               />
             ) : (
@@ -418,7 +417,6 @@ export function Chat({
         sendMessage={sendMessage}
         messages={messages}
         status={status}
-        currentLeafMessageId={convexMessages?.at(-1)?.messageId}
         clientId={chatSessionId}
       />
     </div>
