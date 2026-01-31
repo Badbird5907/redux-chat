@@ -17,6 +17,9 @@ import { cn } from "@redux/ui/lib/utils";
 import appCss from "@/styles.css?url";
 import { authClient } from '@/lib/auth/client'
 import { getToken } from '@/lib/auth/server'
+import { TanStackDevtools } from '@tanstack/react-devtools'
+import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools'
+import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 
 const getAuth = createServerFn({ method: 'GET' }).handler(async () => {
   return await getToken()
@@ -134,6 +137,18 @@ function RootDocument({ children }: { children: ReactNode }) {
       >
         <ThemeProvider>
           {children}
+          <TanStackDevtools plugins={[
+            {
+              name: 'TanStack Query',
+              render: <ReactQueryDevtoolsPanel />,
+              defaultOpen: true
+            },
+            {
+              name: 'TanStack Router',
+              render: <TanStackRouterDevtoolsPanel />,
+              defaultOpen: false
+            },
+          ]} />
           {/* <ThemeToggle /> */}
           <Toaster />
         </ThemeProvider>

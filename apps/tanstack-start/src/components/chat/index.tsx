@@ -86,7 +86,10 @@ function MessageStatsBar({
       {/* Action buttons */}
       <div className="flex items-center gap-1">
         <button
-          className={cn("hover:bg-muted rounded p-2 transition-colors", isStreaming && "hidden")}
+          className={cn(
+            "hover:bg-muted rounded p-2 transition-colors",
+            isStreaming && "hidden",
+          )}
           title="Copy"
           onClick={handleCopy}
         >
@@ -100,7 +103,10 @@ function MessageStatsBar({
           <MousePointerClickIcon className="size-4" />
         </button> */}
         <button
-          className={cn("hover:bg-muted rounded p-2 transition-colors", isStreaming && "hidden")}
+          className={cn(
+            "hover:bg-muted rounded p-2 transition-colors",
+            isStreaming && "hidden",
+          )}
           title="Regenerate"
         >
           <RefreshCwIcon className="size-4" />
@@ -147,12 +153,11 @@ export function Chat({
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId,
   );
-  const [optimisticMessage, setOptimisticMessage] = useState<
-    UIMessage | undefined
-  >(undefined);
 
   // Track the last synced message count to avoid reverting to stale data during streaming
   const lastMessageCount = useRef(0);
+
+  const [optimisticMessage, setOptimisticMessage] = useState<UIMessage | undefined>(undefined);
 
   // Update currentThreadId when initialThreadId changes (e.g., navigation to different thread)
   // Only sync if initialThreadId is defined AND different (don't reset to undefined when user creates new thread)
@@ -167,7 +172,10 @@ export function Chat({
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
     { threadId: currentThreadId ?? "" },
-    { default: preload, skip: !currentThreadId || !!optimisticMessage },
+    {
+      default: preload,
+      skip: !currentThreadId,
+    },
   );
 
   const [chatSessionId] = useState(() => {
@@ -213,26 +221,8 @@ export function Chat({
   const activeStreamInfo = useQuery(
     api.functions.threads.getThreadStreamId,
     { threadId: currentThreadId ?? "" },
-    { skip: !currentThreadId || !!optimisticMessage },
+    { skip: !currentThreadId },
   ) as { streamId: string; clientId: string | undefined } | undefined;
-
-  useEffect(() => {
-    // Only clear optimistic message once the useChat hook has received the user message
-    // This prevents a flash of empty content during the transition from submitted to streaming
-    if (
-      (status === "streaming" || status === "submitted") &&
-      optimisticMessage &&
-      messages.length > 0
-    ) {
-      // Check if the user message has been added to messages
-      const hasUserMessage = messages.some(
-        (m) => m.id === optimisticMessage.id,
-      );
-      if (hasUserMessage) {
-        setOptimisticMessage(undefined);
-      }
-    }
-  }, [status, optimisticMessage, messages]);
 
   useEffect(() => {
     if (
@@ -240,10 +230,6 @@ export function Chat({
       status === "streaming" ||
       status === "submitted"
     ) {
-      return;
-    }
-
-    if (optimisticMessage) {
       return;
     }
 
@@ -262,7 +248,6 @@ export function Chat({
     activeStreamInfo,
     resumeStream,
     status,
-    optimisticMessage,
     chatSessionId,
   ]);
 
@@ -280,8 +265,7 @@ export function Chat({
   useEffect(() => {
     if (
       status !== "streaming" &&
-      convexUIMessages.length > 0 &&
-      !optimisticMessage
+      convexUIMessages.length > 0
     ) {
       // Only sync if Convex has caught up (has at least as many messages as we had during streaming)
       if (convexUIMessages.length >= lastMessageCount.current) {
@@ -290,7 +274,7 @@ export function Chat({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- messages intentionally excluded to prevent infinite loop
-  }, [convexUIMessages, status, setMessages, optimisticMessage]);
+  }, [convexUIMessages, status, setMessages]);
 
   // Create a map of message stats from convexMessages
   const messageStatsMap = useMemo(() => {
@@ -310,13 +294,15 @@ export function Chat({
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
 
   const finalMessages = useMemo(() => {
-    if (optimisticMessage && messages.length > 0) {
-      if (messages.at(-1)?.role === "user" || (messages.at(-2)?.metadata as Record<string, unknown> | undefined)?.tempReduxMessageId === optimisticMessage.id) { // our message has shown up
+    if (optimisticMessage) {
+      const first = messages[0];
+      if (first?.role === "user" && first.id === optimisticMessage.id) {
         return messages;
       }
+      return [...messages, optimisticMessage];
     }
-    return [...messages, optimisticMessage].filter((m): m is UIMessage => Boolean(m));
-  }, [messages, optimisticMessage])
+    return messages;
+  }, [messages, optimisticMessage]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -324,16 +310,17 @@ export function Chat({
         <ConversationContent className="pt-0 pb-36">
           <div className="mx-auto w-full max-w-3xl">
             {!currentThreadId && finalMessages.length === 0 ? (
-              <EmptyChat 
+              <EmptyChat
                 threadId={currentThreadId}
                 setThreadId={(id: string) => {
                   setCurrentThreadId(id);
                   lastMessageCount.current = 0;
                   window.history.replaceState({}, "", `/chat/${id}`);
                 }}
-                setOptimisticMessage={setOptimisticMessage}
                 sendMessage={sendMessage}
                 clientId={chatSessionId}
+                convexMessages={convexUIMessages}
+                setOptimisticMessage={(m) => setOptimisticMessage(m)}
               />
             ) : (
               <div className="flex flex-col gap-8">
@@ -408,16 +395,17 @@ export function Chat({
       {/* Input area */}
       <ChatInput
         threadId={currentThreadId}
-        setOptimisticMessage={setOptimisticMessage}
         setThreadId={(id) => {
           setCurrentThreadId(id);
           lastMessageCount.current = 0;
           window.history.replaceState({}, "", `/chat/${id}`);
         }}
         sendMessage={sendMessage}
+        setOptimisticMessage={(m) => setOptimisticMessage(m)}
         messages={messages}
         status={status}
         clientId={chatSessionId}
+        convexMessages={convexUIMessages}
       />
     </div>
   );

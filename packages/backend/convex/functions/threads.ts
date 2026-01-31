@@ -1,11 +1,10 @@
-import { paginationOptsValidator } from "convex/server";
-import { backendMutation, mutation, query, backendQuery } from "./index";
-import { ConvexError, v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
-import { backendEnv } from "../env";
-import { nanoid } from "nanoid";
+import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { Buffer } from "buffer/";
-import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
+import { paginationOptsValidator } from "convex/server";
+import { ConvexError, v } from "convex/values";
+
+import { backendEnv } from "../env";
+import { backendMutation, backendQuery, mutation, query } from "./index";
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -173,7 +172,7 @@ export const internal_updateMessageUsage = backendMutation({
         timeToFirstTokenMs: v.number(),
         totalDurationMs: v.number(),
         tokensPerSecond: v.number(),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -244,7 +243,7 @@ async function importKey(secret: string, enc: TextEncoder): Promise<CryptoKey> {
     keyData,
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign", "verify"]
+    ["sign", "verify"],
   );
 }
 
@@ -264,17 +263,33 @@ export const verifySignature = async (
 export const sendMessage = mutation({
   args: {
     threadId: v.string(),
-    message: sendMessageSchema,
-    messageId: v.string(),
+    userMessage: sendMessageSchema,
+    userMessageId: v.string(),
+    assistantMessageId: v.string(),
+    model: v.string(),
   },
   handler: async (ctx, args) => {
-    const [messageId, sig] = args.messageId.split(":");
-    if (!messageId || !sig) {
-      throw new ConvexError("Invalid messageId or signature");
+    // 1. Decode & verify userMessageId
+    const [userMsgId, userSig] = args.userMessageId.split(":");
+    if (!userMsgId || !userSig) {
+      throw new ConvexError("Invalid userMessageId or signature");
     }
-    const verified = await verifySignature(messageId, sig);
-    if (!verified) {
-      throw new ConvexError("Invalid signature");
+    const userVerified = await verifySignature(userMsgId, userSig);
+    if (!userVerified) {
+      throw new ConvexError("Invalid user message signature");
+    }
+
+    // 2. Decode & verify assistantMessageId
+    const [assistantMsgId, assistantSig] = args.assistantMessageId.split(":");
+    if (!assistantMsgId || !assistantSig) {
+      throw new ConvexError("Invalid assistantMessageId or signature");
+    }
+    const assistantVerified = await verifySignature(
+      assistantMsgId,
+      assistantSig,
+    );
+    if (!assistantVerified) {
+      throw new ConvexError("Invalid assistant message signature");
     }
 
     let threadId = args.threadId;
@@ -282,17 +297,19 @@ export const sendMessage = mutation({
     const depth = 0;
     const siblingIndex = 0;
 
-    if (threadId.includes(":")) { // is a new thread
+    // 3. Insert thread if needed
+    if (threadId.includes(":")) {
+      // is a new thread
       const [actualThreadId, tSig] = threadId.split(":");
       if (!actualThreadId || !tSig) {
-        throw new ConvexError("Invalid threadId or messageId");
+        throw new ConvexError("Invalid threadId or signature");
       }
       const verified = await verifySignature(actualThreadId, tSig);
       if (!verified) {
-        throw new ConvexError("Invalid signature");
+        throw new ConvexError("Invalid thread signature");
       }
       threadId = actualThreadId;
-      
+
       await ctx.db.insert("threads", {
         threadId,
         userId: ctx.userId,
@@ -300,13 +317,16 @@ export const sendMessage = mutation({
         status: "generating",
         updatedAt: Date.now(),
         settings: {
-          model: "gpt-4o",
+          model: args.model,
           temperature: 0.7,
           tools: [],
         },
-      })
+      });
     } else {
-      const thread = await ctx.db.query("threads").withIndex("by_threadId", (q) => q.eq("threadId", args.threadId)).first();
+      const thread = await ctx.db
+        .query("threads")
+        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+        .first();
       if (thread?.userId !== ctx.userId) {
         throw new ConvexError("Thread not found");
       }
@@ -318,106 +338,36 @@ export const sendMessage = mutation({
       });
     }
 
+    // 4. Insert user message
     await ctx.db.insert("messages", {
       threadId: threadId,
-      messageId,
+      messageId: userMsgId,
       parentId,
       role: "user",
-      parts: args.message.parts as UIMessagePart<UIDataTypes, UITools>[],
+      parts: args.userMessage.parts as UIMessagePart<UIDataTypes, UITools>[],
       status: "completed",
       depth,
       siblingIndex,
       mutation: { type: "original" },
-    })
-    return { threadId, messageId };
-  }
-})
+    });
 
-export const internal_prepareStream = backendMutation({
-  // this function returns all the data needed to stream
-  args: {
-    threadId: v.string(),
-    userMessageId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    // we send auth over bearer token too, so we need to validate it
-    const [thread, userMessage] = await Promise.all([
-      ctx.db
-        .query("threads")
-        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-        .first(),
-      ctx.db
-        .query("messages")
-        .withIndex("by_threadId_messageId", (q) => q.eq("threadId", args.threadId).eq("messageId", args.userMessageId))
-        .first(),
-    ]);
-
-    if (!thread) {
-      throw new ConvexError("Thread not found");
-    }
-    if (!userMessage) {
-      throw new ConvexError("User message not found");
-    }
-    if (
-      userMessage.threadId !== thread.threadId
-    ) {
-      throw new ConvexError("Message does not belong to thread");
-    }
-    if (userMessage.role !== "user") {
-      throw new ConvexError("Message is not a user message");
-    }
-
-    // Walk up the message tree to get conversation history
-    // Start from the given message and traverse up via parentId
-    const conversationHistory: UIMessage<unknown, UIDataTypes, UITools>[] = [
-      {
-        id: userMessage.messageId,
-        role: userMessage.role,
-        parts: userMessage.parts as UIMessagePart<UIDataTypes, UITools>[],
-      },
-    ];
-
-    let currentId: string | undefined = userMessage.parentId;
-
-    // Collect messages from leaf to root
-    while (currentId) {
-      const currentMessage: Doc<"messages"> | null = await ctx.db
-        .query("messages")
-        .filter(q => q.eq(q.field("messageId"), currentId))
-        .first();
-
-      if (!currentMessage) break;
-
-      conversationHistory.unshift({
-        id: currentMessage.messageId,
-        role: currentMessage.role,
-        parts: currentMessage.parts as UIMessagePart<UIDataTypes, UITools>[],
-      });
-
-      currentId = currentMessage.parentId;
-    }
-    
-    // insert a new assistant message
-    const assistantMessageId = nanoid();
-    const assistantMessage: Omit<Doc<"messages">, "_creationTime" | "_id"> = {
-      threadId: args.threadId,
-      messageId: assistantMessageId,
-      parentId: userMessage.messageId,
+    // 5. Insert empty assistant message
+    await ctx.db.insert("messages", {
+      threadId: threadId,
+      messageId: assistantMsgId,
+      parentId: userMsgId,
       role: "assistant",
       parts: [],
       status: "generating",
-      depth: 0,
+      depth: 1,
       siblingIndex: 0,
       mutation: { type: "original" },
-    }
-    await ctx.db.insert("messages", assistantMessage);
+    });
 
     return {
-      thread,
-      userMessage,
-      conversationHistory,
-      settings: thread.settings,
-      assistantMessage,
+      threadId,
+      userMessageId: userMsgId,
+      assistantMessageId: assistantMsgId,
     };
   },
 });
@@ -427,9 +377,9 @@ export const getThreadStreamId = query({
   handler: async (ctx, args) => {
     console.log("filtering by threadId", args.threadId);
     const thread = await ctx.db
-        .query("threads")
-        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-        .first();
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
 
     if (thread?.userId !== ctx.userId) {
       return undefined;

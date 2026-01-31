@@ -134,7 +134,7 @@
     @apply border-border outline-ring/50;
   }
   html {
-    font-size: 14px; /* scale down text a tiny bit, imo too large on default */
+    font-size: 15px; /* scale down text a tiny bit, imo too large on default */
   }
   body {
     @apply bg-background text-foreground;

@@ -1,10 +1,13 @@
-import { useMemo } from "react";
 import type { UIMessage } from "ai";
-import { api } from "@redux/backend/convex/_generated/api";
+import { useMemo } from "react";
 import { useMutation } from "convex/react";
-import { MODELS } from "@/lib/model-config"
-import { useSignedCid } from "@/components/chat/client-id"
-import { submitMessage } from "@/components/chat/use-submit-message"
+import { toast } from "sonner";
+
+import { api } from "@redux/backend/convex/_generated/api";
+
+import { useSignedCid } from "@/components/chat/client-id";
+import { submitMessage } from "@/components/chat/use-submit-message";
+import { MODELS } from "@/lib/model-config";
 
 interface SuggestionCardProps {
   text: string;
@@ -15,7 +18,7 @@ const SuggestionCard = ({ text, onClick }: SuggestionCardProps) => {
   return (
     <button
       onClick={onClick}
-      className="text-left px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors text-sm text-foreground"
+      className="border-border bg-card hover:bg-muted/50 text-foreground rounded-xl border px-4 py-3 text-left text-sm transition-colors"
     >
       {text}
     </button>
@@ -25,9 +28,13 @@ const SuggestionCard = ({ text, onClick }: SuggestionCardProps) => {
 interface EmptyChatProps {
   threadId: string | undefined;
   setThreadId: (id: string) => void;
-  sendMessage: (message: { text: string, id?: string, metadata?: Record<string, unknown> }, options?: { body?: object }) => void;
+  sendMessage: (
+    message: { text: string; id?: string; metadata?: Record<string, unknown> },
+    options?: { body?: object },
+  ) => void;
   setOptimisticMessage: (message: UIMessage | undefined) => void;
   clientId: string;
+  convexMessages: UIMessage[];
 }
 
 const SUGGESTIONS = [
@@ -39,24 +46,39 @@ const SUGGESTIONS = [
   "Write a professional email template",
 ];
 
-export const EmptyChat = ({ threadId, setThreadId, sendMessage, setOptimisticMessage, clientId }: EmptyChatProps) => {
+export const EmptyChat = ({
+  threadId,
+  setThreadId,
+  sendMessage,
+  setOptimisticMessage,
+  clientId,
+  convexMessages,
+}: EmptyChatProps) => {
   const { safeGetSignedId } = useSignedCid();
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const selectedModel = MODELS[0]?.id ?? "gpt-4o";
 
   const handleSuggestionClick = async (text: string) => {
-    await submitMessage({
-      messageContent: text,
-      threadId,
-      setThreadId,
-      selectedModel,
-      clientId,
-      fileIds: [],
-      safeGetSignedId,
-      createMessage,
-      setOptimisticMessage,
-      sendMessage,
-    });
+    try {
+      await submitMessage({
+        messageContent: text,
+        threadId,
+        setThreadId,
+        selectedModel,
+        clientId,
+        fileIds: [],
+        safeGetSignedId,
+        createMessage,
+        setOptimisticMessage,
+        sendMessage,
+        convexMessages,
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send message",
+      );
+      console.error("Failed to send message:", error);
+    }
   };
 
   const greeting = useMemo(() => {
@@ -93,7 +115,6 @@ export const EmptyChat = ({ threadId, setThreadId, sendMessage, setOptimisticMes
       "Hello, night owl",
       "Still up? Let's chat",
       "Late night session? I'm here to help",
-      "Good evening! Burning the midnight oil?",
       "Still up? How can I help you tonight?",
     ];
 
@@ -116,21 +137,21 @@ export const EmptyChat = ({ threadId, setThreadId, sendMessage, setOptimisticMes
         1000 /
         60 /
         60 /
-        24
+        24,
     );
     const selectionIndex = (hours + dayOfYear) % greetings.length;
     const selectedGreeting =
-      greetings[selectionIndex] ?? (greetings[0] ?? "Hello");
+      greetings[selectionIndex] ?? greetings[0] ?? "Hello";
 
     return selectedGreeting;
   }, []);
 
   return (
     <div className="flex h-full flex-col items-center px-4 pt-36 pb-36">
-      <div className="flex flex-col items-center justify-center flex-1">
-        <h1 className="text-4xl font-bold mb-8 text-center">{greeting}</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <h1 className="mb-8 text-center text-4xl font-bold">{greeting}</h1>
+
+        <div className="grid w-full max-w-2xl grid-cols-1 gap-3 md:grid-cols-2">
           {SUGGESTIONS.map((text) => (
             <SuggestionCard
               key={text}
