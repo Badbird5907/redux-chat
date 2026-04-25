@@ -42,14 +42,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.10.9",
-    "@t3-oss/env-core": "^0.13.8",
-    "ai": "^6.0.5",
+    "@convex-dev/better-auth": "^0.11.5",
+    "@t3-oss/env-core": "^0.13.11",
+    "ai": "^6.0.168",
     "better-auth": "catalog:",
     "buffer": "^6.0.3",
-    "convex": "^1.31.2",
-    "convex-helpers": "^0.1.108",
-    "nanoid": "^5.1.6",
+    "convex": "^1.36.1",
+    "convex-helpers": "^0.1.115",
+    "nanoid": "^5.1.9",
     "zod": "catalog:"
   },
   "devDependencies": {

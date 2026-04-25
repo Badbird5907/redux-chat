@@ -83,17 +83,17 @@ const ApiChatIdStreamIndexRoute = ApiChatIdStreamIndexRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof AppIndexRoute
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
-  '/': typeof AppIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/chat': typeof ApiChatIndexRoute
-  '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
+  '/api/chat/': typeof ApiChatIndexRoute
+  '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
@@ -126,17 +126,17 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | '/auth'
     | '/components'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
-    | '/'
     | '/chat/$id'
     | '/api/auth/$'
-    | '/api/chat'
-    | '/api/chat/$id/stream'
+    | '/api/chat/'
+    | '/api/chat/$id/stream/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -194,7 +194,7 @@ declare module '@tanstack/react-router' {
     '/_app': {
       id: '/_app'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -236,7 +236,7 @@ declare module '@tanstack/react-router' {
     '/api/chat/': {
       id: '/api/chat/'
       path: '/api/chat'
-      fullPath: '/api/chat'
+      fullPath: '/api/chat/'
       preLoaderRoute: typeof ApiChatIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -257,7 +257,7 @@ declare module '@tanstack/react-router' {
     '/api/chat/$id/stream/': {
       id: '/api/chat/$id/stream/'
       path: '/api/chat/$id/stream'
-      fullPath: '/api/chat/$id/stream'
+      fullPath: '/api/chat/$id/stream/'
       preLoaderRoute: typeof ApiChatIdStreamIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

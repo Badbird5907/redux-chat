@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "@tanstack/react-router";
-import { LogOut, Settings } from "lucide-react";
+import { Link, useRouter } from "@tanstack/react-router";
+import { LogIn, LogOut, Settings } from "lucide-react";
 
-import { Button } from "@redux/ui/components/button";
+import { Button, buttonVariants } from "@redux/ui/components/button";
+import { cn } from "@redux/ui/lib/utils";
 import {
   Drawer,
   DrawerClose,
@@ -45,7 +46,7 @@ export const AppSidebarFooter = () => {
     });
   };
 
-  if (!mounted || isPending || !session) {
+  if (!mounted || isPending) {
     return (
       <div className="flex items-center gap-2 px-2 py-2">
         <Skeleton className="h-10 w-10 rounded-full" />
@@ -53,6 +54,22 @@ export const AppSidebarFooter = () => {
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-3 w-32" />
         </div>
+      </div>
+    );
+  }
+  if (!session) {
+    return (
+      <div className="px-2 py-2">
+        <Link
+          to="/auth/sign-in"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "lg" }),
+            "w-full gap-2",
+          )}
+        >
+          <LogIn className="size-4" />
+          Sign in
+        </Link>
       </div>
     );
   }

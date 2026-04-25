@@ -1,8 +1,7 @@
 diff --git a/dist/index.mjs b/dist/index.mjs
-index f3e132cec9fc233117178ba7d427dc604d2f4b77..ccaecd118c87c6f6325a09afdf6f53abd8ca3191 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
-@@ -11631,8 +11631,9 @@ var AbstractChat = class {
+@@ -13170,8 +13170,9 @@ var AbstractChat = class {
      let isAbort = false;
      let isDisconnect = false;
      let isError = false;
@@ -13,7 +12,7 @@ index f3e132cec9fc233117178ba7d427dc604d2f4b77..ccaecd118c87c6f6325a09afdf6f53ab
          state: createStreamingUIMessageState({
            lastMessage: this.state.snapshot(lastMessage),
            messageId: this.generateId()
-@@ -11722,14 +11723,20 @@ var AbstractChat = class {
+@@ -13236,14 +13237,20 @@ var AbstractChat = class {
        this.setStatus({ status: "error", error: err });
      } finally {
        try {
@@ -23,7 +22,7 @@ index f3e132cec9fc233117178ba7d427dc604d2f4b77..ccaecd118c87c6f6325a09afdf6f53ab
 -          isAbort,
 -          isDisconnect,
 -          isError,
--          finishReason: (_a16 = this.activeResponse) == null ? void 0 : _a16.state.finishReason
+-          finishReason: (_a21 = this.activeResponse) == null ? void 0 : _a21.state.finishReason
 -        });
 +        // PATCH: Use local `activeResponse` instead of `this.activeResponse` in finally block.
 +        // `this.activeResponse` can be undefined if an error is thrown before assignment,
@@ -36,7 +35,7 @@ index f3e132cec9fc233117178ba7d427dc604d2f4b77..ccaecd118c87c6f6325a09afdf6f53ab
 +            isAbort,
 +            isDisconnect,
 +            isError,
-+            finishReason: (_a16 = activeResponse) == null ? void 0 : _a16.state.finishReason
++            finishReason: (_a21 = activeResponse) == null ? void 0 : _a21.state.finishReason
 +          });
 +        }
        } catch (err) {

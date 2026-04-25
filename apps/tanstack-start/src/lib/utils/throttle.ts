@@ -42,7 +42,10 @@ export function throttle<T extends (...arguments_: unknown[]) => unknown>(
 	let timeoutId: ReturnType<typeof setTimeout> | undefined;
 	let lastCallTime = 0;
 
-	return function throttled(...arguments_) {
+	return function throttled(
+		this: ThisParameterType<T>,
+		...arguments_: Parameters<T>
+	) {
 		clearTimeout(timeoutId);
 
 		const now = Date.now();

@@ -1,6 +1,6 @@
 "use client";
 
-import type { TextUIPart, UIDataTypes, UIMessage, UITools } from "ai";
+import type { TextPart, TextUIPart, UIMessage } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -200,7 +200,7 @@ export function Chat({
 
   const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
     id: currentThreadId, // Stable ID - doesn't change when currentThreadId changes
-    messages: initialMessages as UIMessage<unknown, UIDataTypes, UITools>[],
+    messages: initialMessages,
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareReconnectToStreamRequest: () => {
@@ -327,7 +327,7 @@ export function Chat({
                 {finalMessages.map((message, i) => {
                   const textParts = message.parts.filter(isTextPart);
                   const textContent = textParts
-                    .map((part) => part.text)
+                    .map((part: TextPart) => part.text)
                     .join("");
                   // Check if this is the last assistant message and we're streaming
                   const isLastMessage = i === messages.length - 1;

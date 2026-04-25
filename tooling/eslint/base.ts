@@ -8,6 +8,11 @@ import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const turboConfig = turboPlugin.configs?.recommended;
+const turboRecommended =
+  turboConfig && !Array.isArray(turboConfig) && turboConfig.rules
+    ? turboConfig.rules
+    : {};
 
 /**
  * All packages that leverage t3-env should use this rule
@@ -56,7 +61,7 @@ export const baseConfig = defineConfig(
       ...tseslint.configs.stylisticTypeChecked,
     ],
     rules: {
-      ...turboPlugin.configs.recommended.rules,
+      ...turboRecommended,
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },

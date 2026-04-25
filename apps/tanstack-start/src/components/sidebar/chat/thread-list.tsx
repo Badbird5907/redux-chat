@@ -81,7 +81,7 @@ export default function ThreadList() {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const groupedItems = useMemo(() => {
-    return groupThreads(results as Thread[]);
+    return groupThreads(results);
   }, [results]);
 
   const [virtualState, setVirtualState] = useState<{
@@ -137,6 +137,19 @@ export default function ThreadList() {
   }, [virtualizer]);
 
   const { items, totalSize } = virtualState;
+
+  if (!isAuthenticated) {
+    // TODO: in the future, if we have a free non-signed in tier, we can keep a temp thread list here
+    return (
+      <SidebarGroup>
+        <SidebarGroupContent className="px-2 pt-4">
+          <div className="flex items-center justify-center px-2">
+            <p className="text-sm text-muted-foreground">Sign in to view your threads</p>
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
 
   if (status === "LoadingFirstPage") {
     return (

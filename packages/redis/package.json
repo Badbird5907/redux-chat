@@ -18,8 +18,8 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@t3-oss/env-core": "^0.13.8",
-    "@upstash/redis": "^1.35.8",
+    "@t3-oss/env-core": "^0.13.11",
+    "@upstash/redis": "^1.37.0",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "convex-helpers": "^0.1.108",
+    "convex-helpers": "^0.1.115",
     "zod": "catalog:"
   },
   "devDependencies": {

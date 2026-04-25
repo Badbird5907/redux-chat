@@ -16,20 +16,21 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "devDependencies": {
-    "@react-email/preview-server": "^5.1.0",
+    "@react-email/preview-server": "^5.2.10",
     "@redux/eslint-config": "workspace:*",
     "@redux/prettier-config": "workspace:*",
     "@redux/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
     "@types/react": "catalog:react19",
     "@types/react-dom": "catalog:react19",
     "eslint": "catalog:",
     "prettier": "catalog:",
-    "react-email": "^5.1.0",
+    "react-email": "^6.0.0",
     "typescript": "catalog:"
   },
   "prettier": "@redux/prettier-config",
   "dependencies": {
-    "@react-email/components": "^1.0.2",
+    "@react-email/components": "^1.0.12",
     "react": "catalog:react19",
     "react-dom": "catalog:react19"
   },
