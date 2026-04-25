@@ -1,7 +1,14 @@
 "use client";
 
 import type { TextPart, TextUIPart, UIMessage } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import {
@@ -13,6 +20,7 @@ import {
   ZapIcon,
 } from "lucide-react";
 import { Streamdown } from "streamdown";
+import { useStickToBottomContext } from "use-stick-to-bottom";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import Spinner from "@redux/ui/components/spinner";
@@ -143,6 +151,60 @@ function MessageStatsBar({
   );
 }
 
+function InitialThreadScrollInitializer({
+  enabled,
+  onReady,
+}: {
+  enabled: boolean;
+  onReady: () => void;
+}) {
+  const { scrollRef } = useStickToBottomContext();
+
+  useLayoutEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const revealAfterPaint = () => {
+      requestAnimationFrame(() => {
+        if (!cancelled) {
+          onReady();
+        }
+      });
+    };
+
+    const scrollElement = scrollRef.current;
+
+    if (!scrollElement) {
+      const animationFrame = requestAnimationFrame(() => {
+        const nextScrollElement = scrollRef.current;
+
+        if (nextScrollElement) {
+          nextScrollElement.scrollTop = nextScrollElement.scrollHeight;
+        }
+
+        revealAfterPaint();
+      });
+
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(animationFrame);
+      };
+    }
+
+    scrollElement.scrollTop = scrollElement.scrollHeight;
+    revealAfterPaint();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, onReady, scrollRef]);
+
+  return null;
+}
+
 export function Chat({
   initialThreadId,
   preload,
@@ -158,16 +220,9 @@ export function Chat({
   const lastMessageCount = useRef(0);
 
   const [optimisticMessage, setOptimisticMessage] = useState<UIMessage | undefined>(undefined);
-
-  // Update currentThreadId when initialThreadId changes (e.g., navigation to different thread)
-  // Only sync if initialThreadId is defined AND different (don't reset to undefined when user creates new thread)
-  useEffect(() => {
-    if (initialThreadId && initialThreadId !== currentThreadId) {
-      setCurrentThreadId(initialThreadId);
-      // Reset message count tracking when switching threads
-      lastMessageCount.current = 0;
-    }
-  }, [initialThreadId, currentThreadId]);
+  const [initialThreadScrollReady, setInitialThreadScrollReady] = useState(
+    () => !initialThreadId,
+  );
 
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
@@ -209,7 +264,9 @@ export function Chat({
           api: `/api/chat/${currentThreadId}/stream`,
         };
       },
+      
     }),
+    
     onError: (error) => {
       console.error("Chat error:", error);
     },
@@ -304,10 +361,32 @@ export function Chat({
     return messages;
   }, [messages, optimisticMessage]);
 
+  const shouldInitializeInitialThreadScroll =
+    Boolean(initialThreadId) &&
+    finalMessages.length > 0 &&
+    !initialThreadScrollReady &&
+    status !== "submitted" &&
+    status !== "streaming";
+
+  const handleInitialThreadScrollReady = useCallback(() => {
+    setInitialThreadScrollReady(true);
+  }, []);
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <Conversation className="relative size-full">
-        <ConversationContent className="pt-0 pb-36">
+        <InitialThreadScrollInitializer
+          enabled={shouldInitializeInitialThreadScroll}
+          onReady={handleInitialThreadScrollReady}
+        />
+        <ConversationContent
+          className={cn(
+            "pt-0 pb-36 transition-opacity duration-200 ease-out",
+            shouldInitializeInitialThreadScroll
+              ? "pointer-events-none opacity-0"
+              : "opacity-100",
+          )}
+        >
           <div className="mx-auto w-full max-w-3xl">
             {!currentThreadId && finalMessages.length === 0 ? (
               <EmptyChat

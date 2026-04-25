@@ -112,10 +112,10 @@ export const EmptyChat = ({
     ];
 
     const nightGreetings = [
-      "Hello, night owl",
-      "Still up? Let's chat",
-      "Late night session? I'm here to help",
-      "Still up? How can I help you tonight?",
+      "Good evening",
+      "Quiet hours, clear thoughts",
+      "What can I help with tonight?",
+      "Ready when you are",
     ];
 
     // Select greetings based on time of day

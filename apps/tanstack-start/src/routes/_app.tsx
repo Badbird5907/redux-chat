@@ -1,9 +1,12 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger } from "@redux/ui/components/sidebar";
 // import { getToken } from "@/lib/auth/server";
 import AppSidebar from "@/components/sidebar";
 import ThreadList from "@/components/sidebar/chat/thread-list";
 import { getSidebarConfig } from "@/server/cookie";
+import { Button } from "@redux/ui/components/button";
+import { ButtonGroup } from "@redux/ui/components/button-group";
+import { Search } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
@@ -24,15 +27,27 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
+  const router = useRouter()
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
-      <AppSidebar>
+      <AppSidebar
+        header={
+          <>
+            <ButtonGroup className="w-full min-w-0">
+              <Button className="min-w-0 flex-1 shrink" onClick={() => router.navigate({ to: "/" })}>New Chat</Button>
+              <Button size="icon" aria-label="Search threads">
+                <Search />
+              </Button>
+            </ButtonGroup>
+          </>
+        }
+      >
         <ThreadList />
       </AppSidebar>
-      <div className="h-screen w-screen flex flex-col p-2">
-        <div className="bg-card/80 relative flex-1 w-full rounded-4xl p-4 overflow-hidden">
-          <div className="absolute top-4 left-4 z-10 bg-card/80 flex w-fit items-center justify-between rounded-md p-1">
+      <div className="flex h-screen w-screen flex-col p-2">
+        <div className="bg-card/80 relative w-full flex-1 overflow-hidden rounded-4xl p-4">
+          <div className="bg-card/80 absolute top-4 left-4 z-10 flex w-fit items-center justify-between rounded-md p-1">
             <SidebarTrigger />
           </div>
           <div className="h-full overflow-hidden">

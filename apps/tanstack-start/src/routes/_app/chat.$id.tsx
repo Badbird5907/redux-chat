@@ -6,31 +6,47 @@ import { SignedCidProvider } from "@/components/chat/client-id";
 import { fetchAuthQuery } from "@/lib/auth/server";
 import z from "zod";
 
-const getThreadMessages = createServerFn({ method: "GET" })
+const loadChat = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
-    const thread = await fetchAuthQuery(
-      api.functions.threads.getThreadMessages,
-      { threadId: data.id }
-    );
-    return thread;
+    const [messages, thread] = await Promise.all([
+      fetchAuthQuery(api.functions.threads.getThreadMessages, {
+        threadId: data.id,
+      }),
+      fetchAuthQuery(api.functions.threads.getThread, {
+        threadId: data.id,
+      }).catch((): null => null),
+    ]);
+    const displayName = thread != null ? thread.name.trim() : "";
+    return {
+      messages,
+      threadName: displayName || null,
+    };
   });
 
 export const Route = createFileRoute("/_app/chat/$id")({
   params: z.object({ id: z.string() }),
-  loader: ({ params }) => {
-    return getThreadMessages({ data: { id: params.id } });
+  loader: ({ params }) => loadChat({ data: { id: params.id } }),
+  head: ({ loaderData }) => {
+    const name = loaderData?.threadName;
+    return {
+      meta: [
+        {
+          title: name ? `${name} | Redux Chat` : "Redux Chat",
+        },
+      ],
+    };
   },
   component: ChatPage,
 });
 
 function ChatPage() {
   const { id } = Route.useParams();
-  const messages = Route.useLoaderData();
+  const { messages } = Route.useLoaderData();
 
   return (
     <SignedCidProvider>
-      <Chat initialThreadId={id} preload={messages} />
+      <Chat key={id} initialThreadId={id} preload={messages} />
     </SignedCidProvider>
   );
 }

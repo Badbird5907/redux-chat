@@ -12,8 +12,10 @@ import { AppSidebarFooter } from "@/components/sidebar/footer";
 
 export default function AppSidebar({
   children,
+  header,
 }: {
   children: React.ReactNode;
+  header: React.ReactNode;
 }) {
 
   return (
@@ -24,6 +26,7 @@ export default function AppSidebar({
             <span className="font-audiowide">Redux.chat</span>
           </h1>
         </Link>
+        {header}
         <div className="mt-2 border-t" />
       </SidebarHeader>
       <SidebarContent

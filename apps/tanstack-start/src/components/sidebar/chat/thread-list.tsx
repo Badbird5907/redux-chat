@@ -3,13 +3,13 @@
 import { useRef, useMemo, useState, useEffect } from "react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useConvexAuth,
-usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery } from "convex/react";
 import { api } from "@redux/backend/convex/_generated/api";
 import { SidebarGroup, SidebarGroupContent } from "@redux/ui/components/sidebar";
 import { Skeleton } from "@redux/ui/components/skeleton";
 import Spinner from "@redux/ui/components/spinner";
 import ChatThreadSidebarItem from "./chat-thread";
+import { authClient } from "@/lib/auth/client";
 
 type Thread = {
   threadId: string;
@@ -56,7 +56,7 @@ function groupThreads(threads: Thread[]): GroupedItem[] {
     const group = getDateGroup(thread.timestamp);
     if (group !== currentGroup) {
       currentGroup = group;
-      items.push({ type: "header", label: group, key: `header-${group}` });
+      items.push({ type: "header", label: group, key: `header-${group}-${thread.threadId}` });
     }
     items.push({ type: "thread", thread, key: thread.threadId });
   }
@@ -71,10 +71,10 @@ const ITEM_HEIGHT = 32 + ITEM_GAP; // Height of each thread item including gap
 const HEADER_HEIGHT = 28; // Height of group headers
 
 export default function ThreadList() {
-  const { isAuthenticated } = useConvexAuth();
+  const { data: session, isPending } = authClient.useSession();
   const { results, status, loadMore } = usePaginatedQuery(
     api.functions.threads.getThreads,
-    isAuthenticated ? {} : "skip",
+    session ? {} : "skip",
     { initialNumItems: INITIAL_ITEMS }
   );
 
@@ -138,7 +138,7 @@ export default function ThreadList() {
 
   const { items, totalSize } = virtualState;
 
-  if (!isAuthenticated) {
+  if (!session && !isPending) {
     // TODO: in the future, if we have a free non-signed in tier, we can keep a temp thread list here
     return (
       <SidebarGroup>

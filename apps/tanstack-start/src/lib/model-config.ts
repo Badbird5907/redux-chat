@@ -10,8 +10,8 @@ export interface ModelConfig {
 // Define your models here - replace with your own implementation
 export const MODELS: ModelConfig[] = [
   {
-    id: "gpt-4o",
-    name: "GPT-4o",
+    id: "gpt-5.4-mini",
+    name: "GPT-5.4 Mini",
     provider: "OpenAI",
     allowedFileTypes: ["image/*", ".pdf", ".txt", ".doc", ".docx"],
   },
