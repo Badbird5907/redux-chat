@@ -43,7 +43,6 @@ export const threadSchema = z.object({
 
   settings: z.object({
     model: z.string(),
-    temperature: z.number(),
     tools: z.array(z.string()),
   }),
 

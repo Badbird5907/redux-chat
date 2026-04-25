@@ -24,8 +24,9 @@ const mutationInfo = v.union(
 
 export const threadSettings = v.object({
   model: v.string(),
-  temperature: v.number(),
-  tools: v.array(v.string()),
+  // tools: v.array(v.string()),
+  tools: v.record(v.string(), v.any()) // { toolName: toolConfig }
+  // maybe use `false` for disabled, and a object as config for enabled. This way new tools can be added without being auto-disabled
 });
 
 export default defineSchema({

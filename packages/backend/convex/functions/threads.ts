@@ -318,7 +318,6 @@ export const sendMessage = mutation({
         updatedAt: Date.now(),
         settings: {
           model: args.model,
-          temperature: 0.7,
           tools: [],
         },
       });
