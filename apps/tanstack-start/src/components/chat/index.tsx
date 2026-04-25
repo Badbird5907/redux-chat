@@ -222,7 +222,9 @@ export function Chat({
   // Track the last synced message count to avoid reverting to stale data during streaming
   const lastMessageCount = useRef(0);
 
-  const [optimisticMessage, setOptimisticMessage] = useState<UIMessage | undefined>(undefined);
+  const [optimisticMessage, setOptimisticMessage] = useState<
+    UIMessage | undefined
+  >(undefined);
   const [initialThreadScrollReady, setInitialThreadScrollReady] = useState(
     () => !initialThreadId,
   );
@@ -238,14 +240,9 @@ export function Chat({
 
   const chatSessionId = useStableClientId();
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
-  const currentThreadIdRef = useRef(currentThreadId);
   const locallyCompletedStreamRef = useRef(false);
 
   const [initialMessages] = useState(() => preload ?? []);
-
-  useEffect(() => {
-    currentThreadIdRef.current = currentThreadId;
-  }, [currentThreadId]);
 
   const handleThreadIdChange = useCallback((id: string) => {
     setCurrentThreadId(id);
@@ -257,23 +254,22 @@ export function Chat({
     });
   }, [router]);
 
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        prepareReconnectToStreamRequest: () => ({
+          api: `/api/chat/${currentThreadId}/stream`,
+        }),
+      }),
+    [currentThreadId],
+  );
+
   const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
     id: chatInstanceId,
     messages: initialMessages,
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      prepareReconnectToStreamRequest: () => {
-        // console.log(
-        //   "prepareReconnectToStreamRequest",
-        //   currentThreadIdRef.current,
-        // );
-        return {
-          api: `/api/chat/${currentThreadIdRef.current}/stream`,
-        };
-      },
-      
-    }),
-    
+    transport,
+
     onError: (error) => {
       console.error("Chat error:", error);
     },
@@ -295,13 +291,25 @@ export function Chat({
       return;
     }
 
-    setCurrentThreadId(initialThreadId);
-    setOptimisticMessage(undefined);
-    lastMessageCount.current = 0;
+    let cancelled = false;
 
-    if (status === "ready" && !initialThreadId) {
-      setMessages([]);
-    }
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      setCurrentThreadId(initialThreadId);
+      setOptimisticMessage(undefined);
+      lastMessageCount.current = 0;
+
+      if (status === "ready" && !initialThreadId) {
+        setMessages([]);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentThreadId, initialThreadId, setMessages, status]);
 
   const activeStreamInfo = useQuery(

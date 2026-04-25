@@ -22,7 +22,7 @@ const mutationInfo = v.union(
   v.object({ type: v.literal("regeneration"), fromMessageId: v.string() })
 );
 
-export const threadSettings = v.object({
+export const messageSettings = v.object({
   model: v.string(),
   // tools: v.array(v.string()),
   tools: v.record(v.string(), v.any()) // { toolName: toolConfig }
@@ -35,7 +35,7 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(),
     status: threadStatus,
-    settings: threadSettings,
+    settings: messageSettings,
     activeStreamId: v.optional(v.string()),
     activeStreamClientId: v.optional(v.string()), // Client session ID that initiated the active stream
     updatedAt: v.number(),

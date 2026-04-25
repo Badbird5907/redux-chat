@@ -36,7 +36,7 @@ function AppLayout() {
   });
 
   const initialThreadId = useMemo(() => {
-    const match = pathname.match(/^\/chat\/([^/]+)$/);
+    const match = /^\/chat\/([^/]+)$/.exec(pathname);
     return match?.[1] ? decodeURIComponent(match[1]) : undefined;
   }, [pathname]);
 
