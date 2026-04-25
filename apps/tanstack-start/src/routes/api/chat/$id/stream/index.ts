@@ -3,8 +3,9 @@ import { createResumableStreamContext } from 'resumable-stream';
 import { waitUntil } from '@vercel/functions';
 import { createFileRoute } from '@tanstack/react-router';
 
-import { fetchAuthQuery } from "@/lib/auth/server";
+import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { api } from '@redux/backend/convex/_generated/api';
+import { createUpstashPubSub } from '@/lib/upstash-resumable-stream';
 
 export const Route = createFileRoute('/api/chat/$id/stream/')({
   server: {
@@ -19,8 +20,11 @@ export const Route = createFileRoute('/api/chat/$id/stream/')({
           return new Response(null, { status: 204 });
         }
 
+        const { publisher, subscriber } = createUpstashPubSub();
         const streamContext = createResumableStreamContext({
           waitUntil,
+          publisher,
+          subscriber
         });
 
         return new Response(
@@ -28,6 +32,19 @@ export const Route = createFileRoute('/api/chat/$id/stream/')({
           { headers: UI_MESSAGE_STREAM_HEADERS }
         );
       },
+      DELETE: async ({ params }) => {
+        const { id } = params;
+        const thread = await fetchAuthQuery(api.functions.threads.getThread, { threadId: id });
+        console.log("DELETE request received for thread:", thread._id);
+        if (!thread.activeStreamId) {
+          return new Response(null, { status: 204 });
+        }
+        await fetchAuthMutation(api.functions.threads.abortStream, {
+          threadId: id,
+          messageId: thread.activeStreamId,
+        });
+        return new Response("Stream aborted", { status: 200 });
+      }
     },
   },
 });

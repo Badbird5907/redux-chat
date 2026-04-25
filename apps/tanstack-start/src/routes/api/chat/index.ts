@@ -10,6 +10,7 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { env } from "@/env";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { throttle } from "@/lib/utils/throttle";
+import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 
 const requestBody = z.object({
   fileIds: z.array(z.string()),
@@ -59,7 +60,6 @@ export const Route = createFileRoute("/api/chat/")({
         const result = streamText({
           model: openai(model),
           messages: modelMessages,
-          temperature: 0.7,
           abortSignal: abortController.signal,
           onFinish: async ({ usage }) => {
             // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
@@ -123,6 +123,9 @@ export const Route = createFileRoute("/api/chat/")({
               });
             }, 1000);
           },
+          onAbort: () => {
+            console.log("Stream aborted");
+          }
         });
 
         console.log("stream started");
@@ -149,8 +152,11 @@ export const Route = createFileRoute("/api/chat/")({
           },
           consumeSseStream: async ({ stream }) => {
             const streamId = generateId();
+            const { publisher, subscriber } = createUpstashPubSub();
             const streamContext = createResumableStreamContext({
               waitUntil,
+              publisher,
+              subscriber
             });
             await streamContext.createNewResumableStream(
               streamId,
