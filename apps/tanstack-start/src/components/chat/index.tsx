@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { useRouter } from "@tanstack/react-router";
 import {
   CheckIcon,
   ClockIcon,
@@ -34,6 +35,7 @@ import {
 import { useQuery } from "@/lib/hooks/convex";
 import { EmptyChat } from "./empty";
 import { ChatInput } from "./input";
+import { useStableClientId } from "./use-stable-client-id";
 
 // Type guard to narrow part types to TextUIPart
 const isTextPart = (part: { type: string }): part is TextUIPart =>
@@ -212,6 +214,7 @@ export function Chat({
   initialThreadId: string | undefined;
   preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
 }) {
+  const router = useRouter();
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId,
   );
@@ -233,35 +236,39 @@ export function Chat({
     },
   );
 
-  const [chatSessionId] = useState(() => {
-    // const existingId =
-    //   typeof window !== "undefined"
-    //     ? sessionStorage.getItem("chatSessionId")
-    //     : null;
-
-    // if (existingId) {
-    //   return existingId;
-    // }
-
-    // const newId = crypto.randomUUID();
-    // if (typeof window !== "undefined") {
-    //   sessionStorage.setItem("chatSessionId", newId);
-    // }
-    // return newId;
-    return crypto.randomUUID();
-  });
+  const chatSessionId = useStableClientId();
+  const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
+  const currentThreadIdRef = useRef(currentThreadId);
+  const locallyCompletedStreamRef = useRef(false);
 
   const [initialMessages] = useState(() => preload ?? []);
 
+  useEffect(() => {
+    currentThreadIdRef.current = currentThreadId;
+  }, [currentThreadId]);
+
+  const handleThreadIdChange = useCallback((id: string) => {
+    setCurrentThreadId(id);
+    lastMessageCount.current = 0;
+    void router.navigate({
+      to: "/chat/$id",
+      params: { id },
+      replace: true,
+    });
+  }, [router]);
+
   const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
-    id: currentThreadId, // Stable ID - doesn't change when currentThreadId changes
+    id: chatInstanceId,
     messages: initialMessages,
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareReconnectToStreamRequest: () => {
-        console.log("prepareReconnectToStreamRequest", currentThreadId);
+        // console.log(
+        //   "prepareReconnectToStreamRequest",
+        //   currentThreadIdRef.current,
+        // );
         return {
-          api: `/api/chat/${currentThreadId}/stream`,
+          api: `/api/chat/${currentThreadIdRef.current}/stream`,
         };
       },
       
@@ -272,8 +279,30 @@ export function Chat({
     },
     onFinish: (message) => {
       console.log("Finish:", message);
+      locallyCompletedStreamRef.current =
+        !message.isAbort && !message.isDisconnect && !message.isError;
     },
   });
+
+  useEffect(() => {
+    if (status === "submitted" || status === "streaming") {
+      locallyCompletedStreamRef.current = false;
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (initialThreadId === currentThreadId) {
+      return;
+    }
+
+    setCurrentThreadId(initialThreadId);
+    setOptimisticMessage(undefined);
+    lastMessageCount.current = 0;
+
+    if (status === "ready" && !initialThreadId) {
+      setMessages([]);
+    }
+  }, [currentThreadId, initialThreadId, setMessages, status]);
 
   const activeStreamInfo = useQuery(
     api.functions.threads.getThreadStreamId,
@@ -284,6 +313,7 @@ export function Chat({
   useEffect(() => {
     if (
       !activeStreamInfo?.streamId ||
+      locallyCompletedStreamRef.current ||
       status === "streaming" ||
       status === "submitted"
     ) {
@@ -291,15 +321,18 @@ export function Chat({
     }
 
     if (activeStreamInfo.clientId === chatSessionId) {
-      console.log("Skipping resume: stream is from this client");
-      return;
+      console.log(
+        "Resuming active stream after remount",
+        activeStreamInfo.streamId,
+      );
+    } else {
+      console.log(
+        "Resuming stream from another client",
+        activeStreamInfo.streamId,
+      );
+      console.log(chatSessionId, "vs", activeStreamInfo.clientId);
     }
 
-    console.log(
-      "Resuming stream from another client",
-      activeStreamInfo.streamId,
-    );
-    console.log(chatSessionId, "vs", activeStreamInfo.clientId);
     void resumeStream();
   }, [
     activeStreamInfo,
@@ -322,6 +355,7 @@ export function Chat({
   useEffect(() => {
     if (
       status !== "streaming" &&
+      !activeStreamInfo?.streamId &&
       convexUIMessages.length > 0
     ) {
       // Only sync if Convex has caught up (has at least as many messages as we had during streaming)
@@ -331,7 +365,7 @@ export function Chat({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- messages intentionally excluded to prevent infinite loop
-  }, [convexUIMessages, status, setMessages]);
+  }, [activeStreamInfo?.streamId, convexUIMessages, status, setMessages]);
 
   // Create a map of message stats from convexMessages
   const messageStatsMap = useMemo(() => {
@@ -391,11 +425,7 @@ export function Chat({
             {!currentThreadId && finalMessages.length === 0 ? (
               <EmptyChat
                 threadId={currentThreadId}
-                setThreadId={(id: string) => {
-                  setCurrentThreadId(id);
-                  lastMessageCount.current = 0;
-                  window.history.replaceState({}, "", `/chat/${id}`);
-                }}
+                setThreadId={handleThreadIdChange}
                 sendMessage={sendMessage}
                 clientId={chatSessionId}
                 convexMessages={convexUIMessages}
@@ -474,11 +504,7 @@ export function Chat({
       {/* Input area */}
       <ChatInput
         threadId={currentThreadId}
-        setThreadId={(id) => {
-          setCurrentThreadId(id);
-          lastMessageCount.current = 0;
-          window.history.replaceState({}, "", `/chat/${id}`);
-        }}
+        setThreadId={handleThreadIdChange}
         sendMessage={sendMessage}
         setOptimisticMessage={(m) => setOptimisticMessage(m)}
         messages={messages}

@@ -1,4 +1,5 @@
-import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter, useRouterState } from "@tanstack/react-router";
+import { lazy, Suspense, useMemo } from "react";
 import { SidebarProvider, SidebarTrigger } from "@redux/ui/components/sidebar";
 // import { getToken } from "@/lib/auth/server";
 import AppSidebar from "@/components/sidebar";
@@ -7,6 +8,8 @@ import { getSidebarConfig } from "@/server/cookie";
 import { Button } from "@redux/ui/components/button";
 import { ButtonGroup } from "@redux/ui/components/button-group";
 import { Search } from "lucide-react";
+
+const ChatRouteClient = lazy(() => import("@/components/chat/route-client"));
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
@@ -27,7 +30,15 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
-  const router = useRouter()
+  const router = useRouter();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+
+  const initialThreadId = useMemo(() => {
+    const match = pathname.match(/^\/chat\/([^/]+)$/);
+    return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+  }, [pathname]);
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
@@ -35,7 +46,12 @@ function AppLayout() {
         header={
           <>
             <ButtonGroup className="w-full min-w-0">
-              <Button className="min-w-0 flex-1 shrink" onClick={() => router.navigate({ to: "/" })}>New Chat</Button>
+              <Button
+                className="min-w-0 flex-1 shrink"
+                onClick={() => router.navigate({ to: "/" })}
+              >
+                New Chat
+              </Button>
               <Button size="icon" aria-label="Search threads">
                 <Search />
               </Button>
@@ -51,7 +67,12 @@ function AppLayout() {
             <SidebarTrigger />
           </div>
           <div className="h-full overflow-hidden">
-            <Outlet />
+            <Suspense fallback={null}>
+              <ChatRouteClient
+                initialThreadId={initialThreadId}
+                preload={undefined}
+              />
+            </Suspense>
           </div>
         </div>
       </div>

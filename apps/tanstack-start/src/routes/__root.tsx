@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import {
+  ClientOnly,
   createRootRouteWithContext,
   HeadContent,
   Outlet,
@@ -7,6 +8,7 @@ import {
   useRouteContext,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { lazy, Suspense } from "react";
 import { createServerFn } from '@tanstack/react-start'
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
 import type { ConvexQueryClient } from '@convex-dev/react-query'
@@ -17,9 +19,11 @@ import { cn } from "@redux/ui/lib/utils";
 import appCss from "@/styles.css?url";
 import { authClient } from '@/lib/auth/client'
 import { getToken } from '@/lib/auth/server'
-import { TanStackDevtools } from '@tanstack/react-devtools'
-import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
+
+// eslint-disable-next-line turbo/no-undeclared-env-vars -- DEV is a Vite built-in, not a user-provided environment variable.
+const AppTanStackDevtools = import.meta.env.DEV
+  ? lazy(() => import("@/components/devtools/tanstack-devtools"))
+  : null;
 
 const getAuth = createServerFn({ method: 'GET' }).handler(async () => {
   return await getToken()
@@ -137,18 +141,13 @@ function RootDocument({ children }: { children: ReactNode }) {
       >
         <ThemeProvider>
           {children}
-          <TanStackDevtools plugins={[
-            {
-              name: 'TanStack Query',
-              render: <ReactQueryDevtoolsPanel />,
-              defaultOpen: true
-            },
-            {
-              name: 'TanStack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-              defaultOpen: false
-            },
-          ]} />
+          {AppTanStackDevtools ? (
+            <ClientOnly>
+              <Suspense fallback={null}>
+                <AppTanStackDevtools />
+              </Suspense>
+            </ClientOnly>
+          ) : null}
           {/* <ThemeToggle /> */}
           <Toaster />
         </ThemeProvider>

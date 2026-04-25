@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { api } from "@redux/backend/convex/_generated/api";
-import { Chat } from "@/components/chat";
-import { SignedCidProvider } from "@/components/chat/client-id";
 import { fetchAuthQuery } from "@/lib/auth/server";
 import z from "zod";
 
@@ -25,6 +23,7 @@ const loadChat = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/chat/$id")({
+  ssr: "data-only",
   params: z.object({ id: z.string() }),
   loader: ({ params }) => loadChat({ data: { id: params.id } }),
   head: ({ loaderData }) => {
@@ -41,12 +40,5 @@ export const Route = createFileRoute("/_app/chat/$id")({
 });
 
 function ChatPage() {
-  const { id } = Route.useParams();
-  const { messages } = Route.useLoaderData();
-
-  return (
-    <SignedCidProvider>
-      <Chat key={id} initialThreadId={id} preload={messages} />
-    </SignedCidProvider>
-  );
+  return null;
 }
