@@ -3,9 +3,14 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva } from "class-variance-authority";
 
 import { cn } from "@redux/ui/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@redux/ui/components/tooltip";
 
 const buttonVariants = cva(
-  "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-[3px] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 cursor-pointer",
+  "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-[3px] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -45,15 +50,47 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  tooltip,
+  render,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return (
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    tooltip?: string | React.ReactNode;
+  }) {
+  const buttonRender: ButtonPrimitive.Props["render"] = tooltip
+    ? (buttonProps, buttonState) => {
+        if (typeof render === "function") {
+          return (
+            <TooltipTrigger
+              render={(triggerProps) => render(triggerProps, buttonState)}
+              {...buttonProps}
+            />
+          );
+        }
+
+        return <TooltipTrigger render={render} {...buttonProps} />;
+      }
+    : render;
+
+  const button = (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      render={buttonRender}
       {...props}
     />
   );
+
+  if (tooltip) {
+    return (
+      <Tooltip delay={300}>
+        {button}
+        <TooltipContent>{tooltip}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return button;
 }
 
 export { Button, buttonVariants };

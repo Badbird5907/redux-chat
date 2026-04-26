@@ -15,9 +15,15 @@ function TooltipProvider({
   );
 }
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
+function Tooltip({
+  delay,
+  closeDelay,
+  timeout,
+  ...props
+}: TooltipPrimitive.Root.Props &
+  Pick<TooltipPrimitive.Provider.Props, "closeDelay" | "delay" | "timeout">) {
   return (
-    <TooltipProvider>
+    <TooltipProvider closeDelay={closeDelay} delay={delay} timeout={timeout}>
       <TooltipPrimitive.Root data-slot="tooltip" {...props} />
     </TooltipProvider>
   );
@@ -58,7 +64,7 @@ function TooltipContent({
           {...props}
         >
           {children}
-          <TooltipPrimitive.Arrow className="bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px] data-[side=bottom]:top-1 data-[side=left]:top-1/2! data-[side=left]:-right-1 data-[side=left]:-translate-y-1/2 data-[side=right]:top-1/2! data-[side=right]:-left-1 data-[side=right]:-translate-y-1/2 data-[side=top]:-bottom-2.5" />
+          <TooltipPrimitive.Arrow className="bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] data-[side=bottom]:top-1 data-[side=left]:top-1/2! data-[side=left]:-right-1 data-[side=left]:-translate-y-1/2 data-[side=right]:top-1/2! data-[side=right]:-left-1 data-[side=right]:-translate-y-1/2 data-[side=top]:-bottom-2.5" />
         </TooltipPrimitive.Popup>
       </TooltipPrimitive.Positioner>
     </TooltipPrimitive.Portal>

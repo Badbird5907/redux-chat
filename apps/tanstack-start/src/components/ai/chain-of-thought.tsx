@@ -9,9 +9,11 @@ import {
 } from "@redux/ui/components/collapsible";
 import { cn } from "@redux/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { BrainIcon, ChevronDownIcon, DotIcon } from "lucide-react";
+import { ChevronDownIcon, DotIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
+
+import { Shimmer } from "@/components/ai/shimmer";
 
 interface ChainOfThoughtContextValue {
   isOpen: boolean;
@@ -70,10 +72,21 @@ export const ChainOfThought = memo(
 
 export type ChainOfThoughtHeaderProps = ComponentProps<
   typeof CollapsibleTrigger
->;
+> & {
+  icon?: LucideIcon;
+  shimmer?: boolean;
+  status?: ChainOfThoughtStepProps["status"];
+};
 
 export const ChainOfThoughtHeader = memo(
-  ({ className, children, ...props }: ChainOfThoughtHeaderProps) => {
+  ({
+    className,
+    children,
+    icon: Icon,
+    shimmer = false,
+    status = "complete",
+    ...props
+  }: ChainOfThoughtHeaderProps) => {
     const { isOpen, setIsOpen } = useChainOfThought();
 
     return (
@@ -85,9 +98,23 @@ export const ChainOfThoughtHeader = memo(
           )}
           {...props}
         >
-          <BrainIcon className="size-4" />
-          <span className="flex-1 text-left">
-            {children ?? "Chain of Thought"}
+          {Icon ? (
+            <Icon className={cn("size-4 shrink-0", headerStatusStyles[status])} />
+          ) : null}
+          <span
+            className={cn(
+              "text-left",
+              status === "active" && "text-foreground",
+              status === "error" && "text-destructive"
+            )}
+          >
+            {typeof children === "string" && shimmer ? (
+              <Shimmer as="span" className="text-sm" duration={1.8}>
+                {children}
+              </Shimmer>
+            ) : (
+              children ?? "Thought Process"
+            )}
           </span>
           <ChevronDownIcon
             className={cn(
@@ -105,14 +132,23 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
   icon?: LucideIcon;
   label: ReactNode;
   description?: ReactNode;
-  status?: "complete" | "active" | "pending";
+  shimmer?: boolean;
+  status?: "complete" | "active" | "error" | "pending";
 };
 
 const stepStatusStyles = {
   active: "text-foreground",
   complete: "text-muted-foreground",
+  error: "text-destructive",
   pending: "text-muted-foreground/50",
 };
+
+const headerStatusStyles = {
+  active: "text-foreground",
+  complete: "text-muted-foreground",
+  error: "text-destructive",
+  pending: "text-muted-foreground/50",
+} as const;
 
 export const ChainOfThoughtStep = memo(
   ({
@@ -120,6 +156,7 @@ export const ChainOfThoughtStep = memo(
     icon: Icon = DotIcon,
     label,
     description,
+    shimmer = false,
     status = "complete",
     children,
     ...props
@@ -138,9 +175,26 @@ export const ChainOfThoughtStep = memo(
         <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px bg-border" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
-        <div>{label}</div>
+        <div>
+          {typeof label === "string" && shimmer ? (
+            <Shimmer as="span" className="text-sm" duration={1.8}>
+              {label}
+            </Shimmer>
+          ) : (
+            label
+          )}
+        </div>
         {description && (
-          <div className="text-muted-foreground text-xs">{description}</div>
+          <div className="text-muted-foreground text-xs">
+            {/* {typeof description === "string" && shimmer ? (
+              <Shimmer as="span" className="text-xs" duration={1.8}>
+                {description}
+              </Shimmer>
+            ) : (
+              description
+            )} */}
+            {description}
+          </div>
         )}
         {children}
       </div>

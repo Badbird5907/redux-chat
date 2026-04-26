@@ -3,6 +3,7 @@
 import type { UIMessage } from "ai";
 import {
   BrainIcon,
+  CheckIcon,
   GlobeIcon,
   SearchIcon,
   WrenchIcon,
@@ -43,6 +44,7 @@ export function AssistantMessageParts({
   const defaultChainOpen =
     isLastMessage &&
     steps.some((step) => step.status === "active" || step.status === "error");
+  const headerState = getChainOfThoughtHeaderState(steps);
 
   return (
     <>
@@ -64,7 +66,13 @@ export function AssistantMessageParts({
           defaultOpen={defaultChainOpen}
           key={`${message.id}:chain:${defaultChainOpen ? "open" : "closed"}`}
         >
-          <ChainOfThoughtHeader />
+          <ChainOfThoughtHeader
+            icon={headerState.icon}
+            shimmer={headerState.status === "active"}
+            status={headerState.status}
+          >
+            {headerState.label}
+          </ChainOfThoughtHeader>
           <ChainOfThoughtContent>
             {steps.map((step) => (
               <ChainOfThoughtStep
@@ -72,7 +80,8 @@ export function AssistantMessageParts({
                 icon={getAssistantStepIcon(step)}
                 key={step.id}
                 label={step.label}
-                status={step.status as "active" | "complete" | "pending"}
+                shimmer={step.kind === "tool" && step.status === "active"}
+                status={step.status}
               >
                 {step.searchResults?.length ? (
                   <ChainOfThoughtSearchResults>
@@ -116,4 +125,36 @@ export function getAssistantStepIcon(step: AssistantTimelineStep) {
   }
 
   return WrenchIcon;
+}
+
+function getChainOfThoughtHeaderState(steps: AssistantTimelineStep[]) {
+  const activeStep =
+    [...steps].reverse().find((step) => step.status === "active") ??
+    [...steps].reverse().find((step) => step.status === "pending");
+
+  if (activeStep) {
+    return {
+      icon: getAssistantStepIcon(activeStep),
+      label: activeStep.summary ?? activeStep.label,
+      status: activeStep.status,
+    } as const;
+  }
+
+  const errorCount = steps.filter((step) => step.status === "error").length;
+  const completeCount = steps.filter((step) => step.status === "complete").length;
+  const totalCount = steps.length;
+
+  if (errorCount > 0) {
+    return {
+      icon: WrenchIcon,
+      label: `Completed ${completeCount} of ${totalCount} steps`,
+      status: "error",
+    } as const;
+  }
+
+  return {
+    icon: CheckIcon,
+    label: `Completed ${totalCount} step${totalCount === 1 ? "" : "s"}`,
+    status: "complete",
+  } as const;
 }

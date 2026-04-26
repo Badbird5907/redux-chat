@@ -9,6 +9,7 @@ import { Button } from "@redux/ui/components/button";
 import { ButtonGroup } from "@redux/ui/components/button-group";
 import { Search } from "lucide-react";
 import { CommandPanel } from "@/components/command";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
 
 const ChatRouteClient = lazy(() => import("@/components/chat/route-client"));
 
@@ -55,9 +56,11 @@ function AppLayout() {
               >
                 New Chat
               </Button>
+
               <Button
                 size="icon"
                 aria-label="Search threads"
+                tooltip={`Search threads ${formatForDisplay("Mod+K")}`}
                 onClick={() => setCommandOpen(true)}
               >
                 <Search />

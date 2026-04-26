@@ -55,10 +55,10 @@ export function mergeMessageSettings(
   return normalizeMessageSettings({
     ...normalizedBase,
     ...patch,
-    tools: {
-      ...normalizedBase.tools,
-      ...normalizeTools(patch.tools),
-    },
+    tools:
+      patch.tools !== undefined
+        ? normalizeTools(patch.tools)
+        : normalizedBase.tools,
   });
 }
 

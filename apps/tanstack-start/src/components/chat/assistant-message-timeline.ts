@@ -25,6 +25,7 @@ export interface AssistantTimelineStep {
   rawPartIds: string[];
   searchResults?: AssistantTimelineSearchResult[];
   status: AssistantTimelineStepStatus;
+  summary?: string;
 }
 
 interface NormalizedAssistantMessage {
@@ -66,6 +67,7 @@ export function normalizeAssistantMessage(
       label: "Thinking",
       rawPartIds: reasoningParts.map(({ id }) => id),
       status: isLastReasoningPartStreaming(message.parts) ? "active" : "complete",
+      summary: "Thinking through the response",
     });
     attachableStepIndex = 0;
   }
@@ -73,14 +75,16 @@ export function normalizeAssistantMessage(
   for (const { id, part } of indexedParts) {
     if (isToolUIPart(part)) {
       const toolName = getToolName(part);
+      const label = part.title ?? humanizeToolName(toolName);
       const toolStep: AssistantTimelineStep = {
         description: getToolDescription(toolName, part),
         id: part.toolCallId,
         kind: "tool",
-        label: part.title ?? humanizeToolName(toolName),
+        label,
         rawPartIds: [id],
         searchResults: getToolSearchResults(toolName, part),
         status: mapToolStateToStatus(part.state),
+        summary: getToolSummary(toolName, label, part),
       };
 
       steps.push(toolStep);
@@ -116,6 +120,7 @@ export function normalizeAssistantMessage(
         rawPartIds: [id],
         searchResults: [result],
         status: "complete",
+        summary: "Collecting supporting sources",
       });
       attachableStepIndex = steps.length - 1;
       continue;
@@ -141,6 +146,7 @@ export function normalizeAssistantMessage(
         label: "Source",
         rawPartIds: [id],
         status: "complete",
+        summary: "Collecting supporting sources",
       });
       attachableStepIndex = steps.length - 1;
     }
@@ -230,6 +236,38 @@ function getToolDescription(
   }
 
   return inputText;
+}
+
+function getToolSummary(
+  toolName: string,
+  label: string,
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const normalizedToolName = toolName.toLowerCase();
+  const query = getToolQuery(part);
+
+  if (normalizedToolName === "search" && query) {
+    return part.state === "output-available"
+      ? `Searched for ${formatInlineQuery(query)}`
+      : `Searching for ${formatInlineQuery(query)}`;
+  }
+
+  switch (part.state) {
+    case "output-error":
+      return `${label} failed`;
+    case "output-denied":
+      return `${label} was denied`;
+    case "output-available":
+      return `Finished ${label.toLowerCase()}`;
+    case "input-streaming":
+    case "input-available":
+      return `${label} in progress`;
+    case "approval-requested":
+    case "approval-responded":
+      return `Waiting on ${label.toLowerCase()}`;
+    default:
+      return label;
+  }
 }
 
 function getToolInput(
@@ -399,6 +437,10 @@ function formatSourceUrlLabel(url: string) {
   } catch {
     return url;
   }
+}
+
+function formatInlineQuery(query: string) {
+  return `"${summarizeText(query, 80) ?? query}"`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

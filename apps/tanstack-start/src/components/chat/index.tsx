@@ -623,10 +623,10 @@ export function Chat({
                     >
                       <div
                         className={cn(
-                          "max-w-full rounded-lg px-4 py-2",
+                          "rounded-lg px-4 py-2",
                           message.role === "user"
                             ? "bg-primary text-primary-foreground"
-                            : "",
+                            : "w-full",
                         )}
                       >
                         {!message.parts.length && (
