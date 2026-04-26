@@ -1,19 +1,22 @@
-import type { FileRouter } from "@silo-storage/sdk-server";
+import type { FileRouter, SiloRouteConfigInput } from "@silo-storage/sdk-server";
 import { createSiloUpload } from "@silo-storage/sdk-server";
 import { z } from "zod";
 
+import { getModelAttachmentExpects } from "@redux/types";
 
 import { getRequestUserIdFromHeaders } from "@/lib/auth/server";
-import { buildAttachmentUrl, createUploadedAttachmentRecord } from "@/lib/silo/core.server";
-import { getModelAttachmentExpects } from "@redux/types";
+import {
+  buildAttachmentUrl,
+  createUploadedAttachmentRecord,
+} from "@/lib/silo/core.server";
 
 export interface UploadContext {
   userId?: string;
 }
 
 const f = createSiloUpload<Request, UploadContext>();
-const ATTACHMENT_TTL_DAYS = 60;
-const ATTACHMENT_TTL_MS = ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
+const DRAFT_ATTACHMENT_TTL_HOURS = 24;
+const DRAFT_ATTACHMENT_TTL_MS = DRAFT_ATTACHMENT_TTL_HOURS * 60 * 60 * 1000;
 
 const chatAttachmentInput = z.object({
   modelId: z.string(),
@@ -23,7 +26,8 @@ const chatAttachmentInput = z.object({
 export const fileRouter = {
   chatAttachment: f(chatAttachmentInput)
     .middleware(async ({ req, context, input }) => {
-      const userId = context.userId ?? (await getRequestUserIdFromHeaders(req.headers));
+      const userId =
+        context.userId ?? (await getRequestUserIdFromHeaders(req.headers));
       if (!userId) {
         throw new Error("Unauthorized");
       }
@@ -32,17 +36,17 @@ export const fileRouter = {
         userId,
         threadId: input.threadId,
         modelId: input.modelId,
-        expiresAt: Date.now() + ATTACHMENT_TTL_MS,
+        expiresAt: Date.now() + DRAFT_ATTACHMENT_TTL_MS,
       };
     })
     .expects(({ input }) => {
       const parsedInput = chatAttachmentInput.parse(input);
-      return getModelAttachmentExpects(parsedInput.modelId);
+      return getModelAttachmentExpects(parsedInput.modelId) as SiloRouteConfigInput;
     })
     .public(false)
     .serveImage(true)
     // .public(true)
-    .expires("60 days")
+    .expires("24 hours")
     .onUploadComplete(async ({ metadata, file }) => {
       const serveImage = file.mimeType.startsWith("image/");
 
@@ -60,7 +64,9 @@ export const fileRouter = {
         size: file.size,
         isPublic: false,
         serveImage,
-        expiresAt: metadata.expiresAt ? new Date(metadata.expiresAt).getTime() : undefined,
+        expiresAt: metadata.expiresAt
+          ? new Date(metadata.expiresAt).getTime()
+          : undefined,
       });
 
       return {

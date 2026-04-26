@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@redux/ui/components/sidebar";
 // import { getToken } from "@/lib/auth/server";
 import AppSidebar from "@/components/sidebar";
@@ -8,6 +8,7 @@ import { getSidebarConfig } from "@/server/cookie";
 import { Button } from "@redux/ui/components/button";
 import { ButtonGroup } from "@redux/ui/components/button-group";
 import { Search } from "lucide-react";
+import { CommandPanel } from "@/components/command";
 
 const ChatRouteClient = lazy(() => import("@/components/chat/route-client"));
 
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
   const router = useRouter();
+  const [commandOpen, setCommandOpen] = useState(false);
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -42,6 +44,7 @@ function AppLayout() {
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+      <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
       <AppSidebar
         header={
           <>
@@ -52,7 +55,11 @@ function AppLayout() {
               >
                 New Chat
               </Button>
-              <Button size="icon" aria-label="Search threads">
+              <Button
+                size="icon"
+                aria-label="Search threads"
+                onClick={() => setCommandOpen(true)}
+              >
                 <Search />
               </Button>
             </ButtonGroup>

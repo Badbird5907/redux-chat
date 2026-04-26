@@ -1,12 +1,24 @@
 import type { GenericMutationCtx } from "convex/server";
+import { createSiloCoreFromToken } from "@silo-storage/sdk-core";
 import { ConvexError, v } from "convex/values";
 
 import type { DataModel } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
+import { backendEnv } from "../env";
 import { backendMutation, mutation, query } from "./index";
+import { internalAction, internalMutation } from "./internal";
 
 type AttachmentMutationCtx = GenericMutationCtx<DataModel> & {
   userId: string;
 };
+
+const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
+const ATTACHED_ATTACHMENT_TTL_MS =
+  ATTACHED_ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
+  return expiresAt !== undefined && expiresAt <= now;
+}
 
 export async function attachDraftAttachmentsToMessage(
   ctx: AttachmentMutationCtx,
@@ -26,6 +38,10 @@ export async function attachDraftAttachmentsToMessage(
       throw new ConvexError("Attachment not found");
     }
 
+    if (isAttachmentExpired(attachment.expiresAt)) {
+      throw new ConvexError("Attachment has expired");
+    }
+
     if (attachment.status !== "draft") {
       throw new ConvexError("Attachment is no longer in draft state");
     }
@@ -36,6 +52,18 @@ export async function attachDraftAttachmentsToMessage(
       messageId: args.messageId,
       updatedAt: Date.now(),
     });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.functions.attachments.internal_extendAttachedAttachmentExpiry,
+      {
+        attachmentId: attachment.attachmentId,
+        projectId: attachment.projectId,
+        environmentId: attachment.environmentId,
+        fileKeyId: attachment.fileKeyId,
+        expiresAt: Date.now() + ATTACHED_ATTACHMENT_TTL_MS,
+      },
+    );
   }
 }
 
@@ -62,7 +90,9 @@ export const internal_createUploadedAttachment = backendMutation({
 
     const existing = await ctx.db
       .query("attachments")
-      .withIndex("by_attachmentId", (q) => q.eq("attachmentId", args.attachmentId))
+      .withIndex("by_attachmentId", (q) =>
+        q.eq("attachmentId", args.attachmentId),
+      )
       .first();
 
     if (existing) {
@@ -111,11 +141,14 @@ export const internal_createUploadedAttachment = backendMutation({
 export const listByIds = query({
   args: { attachmentIds: v.array(v.string()) },
   handler: async (ctx, args) => {
+    const now = Date.now();
     const attachments = await Promise.all(
       args.attachmentIds.map(async (attachmentId) => {
         const attachment = await ctx.db
           .query("attachments")
-          .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
+          .withIndex("by_attachmentId", (q) =>
+            q.eq("attachmentId", attachmentId),
+          )
           .first();
 
         if (attachment?.userId !== ctx.userId) {
@@ -138,6 +171,7 @@ export const listByIds = query({
           isPublic: attachment.isPublic,
           serveImage: attachment.serveImage,
           expiresAt: attachment.expiresAt,
+          expired: isAttachmentExpired(attachment.expiresAt, now),
         };
       }),
     );
@@ -146,12 +180,71 @@ export const listByIds = query({
   },
 });
 
+export const internal_syncAttachmentExpiry = internalMutation({
+  args: {
+    attachmentId: v.string(),
+    expiresAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const attachment = await ctx.db
+      .query("attachments")
+      .withIndex("by_attachmentId", (q) =>
+        q.eq("attachmentId", args.attachmentId),
+      )
+      .first();
+
+    if (!attachment) {
+      return;
+    }
+
+    await ctx.db.patch(attachment._id, {
+      expiresAt: args.expiresAt,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const internal_extendAttachedAttachmentExpiry = internalAction({
+  args: {
+    attachmentId: v.string(),
+    projectId: v.string(),
+    environmentId: v.string(),
+    fileKeyId: v.string(),
+    expiresAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const env = backendEnv();
+    const siloCore = createSiloCoreFromToken({
+      url: env.SILO_URL,
+      token: env.SILO_TOKEN,
+      cdnHost: env.SILO_CDN,
+    });
+
+    await siloCore.updateFileExpiry({
+      projectId: args.projectId,
+      environmentId: args.environmentId,
+      fileKeyId: args.fileKeyId,
+      expiresAt: new Date(args.expiresAt),
+    });
+
+    await ctx.runMutation(
+      internal.functions.attachments.internal_syncAttachmentExpiry,
+      {
+        attachmentId: args.attachmentId,
+        expiresAt: args.expiresAt,
+      },
+    );
+  },
+});
+
 export const deleteDraftAttachment = mutation({
   args: { attachmentId: v.string() },
   handler: async (ctx, args) => {
     const attachment = await ctx.db
       .query("attachments")
-      .withIndex("by_attachmentId", (q) => q.eq("attachmentId", args.attachmentId))
+      .withIndex("by_attachmentId", (q) =>
+        q.eq("attachmentId", args.attachmentId),
+      )
       .first();
 
     if (attachment?.userId !== ctx.userId) {

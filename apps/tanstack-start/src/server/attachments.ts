@@ -17,28 +17,38 @@ export const resolveAttachments = createServerFn({ method: "POST" })
       return [];
     }
 
-    const attachments = await fetchAuthQuery(api.functions.attachments.listByIds, {
-      attachmentIds: data.attachmentIds,
-    });
+    const attachments = await fetchAuthQuery(
+      api.functions.attachments.listByIds,
+      {
+        attachmentIds: data.attachmentIds,
+      },
+    );
 
     return Promise.all(
-      attachments.map(async (attachment) => ({
-        attachmentId: attachment.attachmentId,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        size: attachment.size,
-        expiresAt: attachment.expiresAt,
-        status: attachment.status,
-        threadId: attachment.threadId,
-        messageId: attachment.messageId,
-        url: await buildAttachmentUrl({
-          accessKey: attachment.accessKey,
+      attachments.map(async (attachment) => {
+        const url = attachment.expired
+          ? undefined
+          : await buildAttachmentUrl({
+              accessKey: attachment.accessKey,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              isPublic: attachment.isPublic,
+              serveImage: attachment.serveImage,
+            });
+
+        return {
+          attachmentId: attachment.attachmentId,
           fileName: attachment.fileName,
           mimeType: attachment.mimeType,
-          isPublic: attachment.isPublic,
-          serveImage: attachment.serveImage,
-        }),
-      })),
+          size: attachment.size,
+          expiresAt: attachment.expiresAt,
+          expired: attachment.expired,
+          status: attachment.status,
+          threadId: attachment.threadId,
+          messageId: attachment.messageId,
+          url,
+        };
+      }),
     );
   });
 
@@ -49,21 +59,26 @@ export const deleteDraftAttachment = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const [attachment] = await fetchAuthQuery(api.functions.attachments.listByIds, {
-      attachmentIds: [data.attachmentId],
-    });
+    const [attachment] = await fetchAuthQuery(
+      api.functions.attachments.listByIds,
+      {
+        attachmentIds: [data.attachmentId],
+      },
+    );
 
     if (!attachment) {
       throw new Error("Attachment not found");
     }
 
-    const siloCore = getSiloCore();
-    await siloCore.deleteFile({
-      projectId: attachment.projectId,
-      environmentId: attachment.environmentId,
-      fileKeyId: attachment.fileKeyId,
-      accessKey: attachment.accessKey,
-    });
+    if (!attachment.expired) {
+      const siloCore = getSiloCore();
+      await siloCore.deleteFile({
+        projectId: attachment.projectId,
+        environmentId: attachment.environmentId,
+        fileKeyId: attachment.fileKeyId,
+        accessKey: attachment.accessKey,
+      });
+    }
 
     await fetchAuthMutation(api.functions.attachments.deleteDraftAttachment, {
       attachmentId: data.attachmentId,

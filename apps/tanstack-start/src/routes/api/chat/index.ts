@@ -1,7 +1,7 @@
+import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
-import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { convertToModelMessages, generateId, streamText } from "ai";
 import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
@@ -11,8 +11,8 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { env } from "@/env";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
-import { throttle } from "@/lib/utils/throttle";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
+import { throttle } from "@/lib/utils/throttle";
 
 const requestBody = z.object({
   fileIds: z.array(z.string()),
@@ -45,23 +45,30 @@ async function resolveModelAttachments(attachmentIds: string[]) {
     return [];
   }
 
-  const attachments = await fetchAuthQuery(api.functions.attachments.listByIds, {
-    attachmentIds,
-  });
+  const attachments = await fetchAuthQuery(
+    api.functions.attachments.listByIds,
+    {
+      attachmentIds,
+    },
+  );
 
   return Promise.all(
-    attachments.map(async (attachment): Promise<ModelAttachment> => ({
-      attachmentId: attachment.attachmentId,
-      fileName: attachment.fileName,
-      mimeType: attachment.mimeType,
-      url: await buildAttachmentUrl({
-        accessKey: attachment.accessKey,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        isPublic: attachment.isPublic,
-        serveImage: attachment.serveImage,
-      }),
-    })),
+    attachments
+      .filter((attachment) => !attachment.expired)
+      .map(
+        async (attachment): Promise<ModelAttachment> => ({
+          attachmentId: attachment.attachmentId,
+          fileName: attachment.fileName,
+          mimeType: attachment.mimeType,
+          url: await buildAttachmentUrl({
+            accessKey: attachment.accessKey,
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            isPublic: attachment.isPublic,
+            serveImage: attachment.serveImage,
+          }),
+        }),
+      ),
   );
 }
 
@@ -122,7 +129,9 @@ function mergeAttachments(
   incoming: ModelAttachment[],
 ) {
   const mergedById = new Map(
-    existing?.map((attachment) => [attachment.attachmentId, attachment] as const),
+    existing?.map(
+      (attachment) => [attachment.attachmentId, attachment] as const,
+    ),
   );
 
   for (const attachment of incoming) {
@@ -171,8 +180,14 @@ export const Route = createFileRoute("/api/chat/")({
       POST: async ({ request }) => {
         const parsedBody = requestBody.parse(await request.json());
 
-        const { threadId, assistantMessageId, messages, fileIds, clientId, model } =
-          parsedBody;
+        const {
+          threadId,
+          assistantMessageId,
+          messages,
+          fileIds,
+          clientId,
+          model,
+        } = parsedBody;
         console.log("Received request:", {
           threadId,
           assistantMessageId,
@@ -180,7 +195,8 @@ export const Route = createFileRoute("/api/chat/")({
           model,
         });
 
-        const attachmentsByMessageId = await getAttachmentsByMessageId(threadId);
+        const attachmentsByMessageId =
+          await getAttachmentsByMessageId(threadId);
         const lastUserMessageId = getLastUserMessageId(messages);
 
         if (lastUserMessageId && fileIds.length > 0) {
@@ -199,7 +215,9 @@ export const Route = createFileRoute("/api/chat/")({
         );
 
         // Convert to model messages format
-        const modelMessages = await convertToModelMessages(messagesWithAttachments);
+        const modelMessages = await convertToModelMessages(
+          messagesWithAttachments,
+        );
         console.log("modelMessages");
         console.dir(modelMessages, { depth: Infinity });
         console.log("------------");
@@ -279,7 +297,7 @@ export const Route = createFileRoute("/api/chat/")({
           },
           onAbort: () => {
             console.log("Stream aborted");
-          }
+          },
         });
 
         console.log("stream started");
@@ -310,7 +328,7 @@ export const Route = createFileRoute("/api/chat/")({
             const streamContext = createResumableStreamContext({
               waitUntil,
               publisher,
-              subscriber
+              subscriber,
             });
             await streamContext.createNewResumableStream(
               streamId,

@@ -1,6 +1,6 @@
 "use no memo"; // Opt out of React Compiler - TanStack Virtual uses flushSync internally
 
-import { useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@redux/backend/convex/_generated/api";
@@ -71,9 +71,15 @@ const HEADER_HEIGHT = 28; // Height of group headers
 
 export default function ThreadList() {
   const { data: session, isPending } = authClient.useSession();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { results, status, loadMore } = usePaginatedQuery(
     api.functions.threads.getThreads,
-    session ? {} : "skip",
+    mounted && session ? {} : "skip",
     { initialNumItems: INITIAL_ITEMS }
   );
 
@@ -83,13 +89,7 @@ export default function ThreadList() {
     return groupThreads(results);
   }, [results]);
 
-  const loadMoreRef = useRef(loadMore);
-  const statusRef = useRef(status);
-  const groupedItemsLengthRef = useRef(groupedItems.length);
-  
-  loadMoreRef.current = loadMore;
-  statusRef.current = status;
-  groupedItemsLengthRef.current = groupedItems.length;
+  const lastLoadMoreCountRef = useRef<number | null>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
@@ -109,24 +109,37 @@ export default function ThreadList() {
     },
     overscan: 20,
     initialRect: { height: 600, width: 200 },
-    onChange: (instance) => {
-      const items = instance.getVirtualItems();
-      const lastItem = items[items.length - 1];
-      if (!lastItem) return;
-
-      if (
-        lastItem.index >= groupedItemsLengthRef.current - 1 &&
-        statusRef.current === "CanLoadMore"
-      ) {
-        loadMoreRef.current(LOAD_MORE_ITEMS);
-      }
-    },
   });
 
   const items = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
 
-  if (!session && !isPending) {
+  useEffect(() => {
+    if (!mounted || status !== "CanLoadMore") return;
+
+    const lastItem = items[items.length - 1];
+    if (!lastItem || lastItem.index < groupedItems.length - 1) return;
+    if (lastLoadMoreCountRef.current === groupedItems.length) return;
+
+    lastLoadMoreCountRef.current = groupedItems.length;
+    loadMore(LOAD_MORE_ITEMS);
+  }, [groupedItems.length, items, loadMore, mounted, status]);
+
+  if (!mounted || isPending) {
+    return (
+      <SidebarGroup>
+        <SidebarGroupContent className="px-2">
+          <div className="space-y-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
+
+  if (!session) {
     // TODO: in the future, if we have a free non-signed in tier, we can keep a temp thread list here
     return (
       <SidebarGroup>

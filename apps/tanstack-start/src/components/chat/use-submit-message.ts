@@ -15,6 +15,7 @@ interface SubmitMessageParams {
     fileName: string;
     mimeType: string;
     size: number;
+    expiresAt?: number;
     url?: string;
   }[];
   allocateSignedIds: (count: number) => Promise<AllocatedSignedId[]>;

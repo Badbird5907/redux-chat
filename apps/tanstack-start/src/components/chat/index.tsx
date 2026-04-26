@@ -10,9 +10,9 @@ import {
   useState,
 } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { DefaultChatTransport } from "ai";
 import {
   CheckIcon,
   ClockIcon,
@@ -41,6 +41,7 @@ import { EmptyChat } from "./empty";
 import { ChatInput } from "./input";
 import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
+import { getChatModelConfig } from "@redux/types";
 
 // Type guard to narrow part types to TextUIPart
 const isTextPart = (part: { type: string }): part is TextUIPart =>
@@ -67,6 +68,8 @@ interface ResolvedAttachment {
   fileName: string;
   mimeType: string;
   size: number;
+  expiresAt?: number;
+  expired?: boolean;
   url?: string;
 }
 
@@ -75,7 +78,13 @@ interface MessageAttachmentSummary {
   fileName: string;
   mimeType: string;
   size: number;
+  expiresAt?: number;
+  expired?: boolean;
   url?: string;
+}
+
+function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
+  return expiresAt !== undefined && expiresAt <= now;
 }
 
 function MessageStatsBar({
@@ -145,7 +154,7 @@ function MessageStatsBar({
       </div>
 
       {/* Model name */}
-      {model && <span className="flex items-center gap-1">{model}</span>}
+      {model && <span className="flex items-center gap-1">{getChatModelConfig(model)?.name}</span>}
 
       {/* Tokens per second */}
       {generationStats && (
@@ -262,21 +271,27 @@ export function Chat({
   const chatSessionId = useStableClientId();
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
   const locallyCompletedStreamRef = useRef(false);
-  const { settings, isReady: settingsReady, setModel } =
-    useChatSettings(currentThreadId);
+  const {
+    settings,
+    isReady: settingsReady,
+    setModel,
+  } = useChatSettings(currentThreadId);
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
 
   const [initialMessages] = useState(() => preload ?? []);
 
-  const handleThreadIdChange = useCallback((id: string) => {
-    setCurrentThreadId(id);
-    lastMessageCount.current = 0;
-    void router.navigate({
-      to: "/chat/$id",
-      params: { id },
-      replace: true,
-    });
-  }, [router]);
+  const handleThreadIdChange = useCallback(
+    (id: string) => {
+      setCurrentThreadId(id);
+      lastMessageCount.current = 0;
+      void router.navigate({
+        to: "/chat/$id",
+        params: { id },
+        replace: true,
+      });
+    },
+    [router],
+  );
 
   const transport = useMemo(
     () =>
@@ -366,12 +381,7 @@ export function Chat({
     }
 
     void resumeStream();
-  }, [
-    activeStreamInfo,
-    resumeStream,
-    status,
-    chatSessionId,
-  ]);
+  }, [activeStreamInfo, resumeStream, status, chatSessionId]);
 
   const convexUIMessages = useMemo(() => {
     return convexMessages?.filter((m) => m.status !== "generating") ?? [];
@@ -496,6 +506,8 @@ export function Chat({
                 fileName: attachment.fileName,
                 mimeType: attachment.mimeType,
                 size: attachment.size,
+                expiresAt: attachment.expiresAt,
+                expired: attachment.expired,
                 url: attachment.url,
               },
             ]),
@@ -553,12 +565,21 @@ export function Chat({
                   const messageStats = messageStatsMap.get(message.id);
                   const isHovered = hoveredMessageId === message.id;
                   const persistedAttachments: MessageAttachmentSummary[] =
-                    messageAttachmentsByMessageId.get(message.id)?.map(
-                      (attachment) => ({
+                    messageAttachmentsByMessageId
+                      .get(message.id)
+                      ?.map((attachment) => ({
                         ...attachment,
-                        url: resolvedMessageAttachments[attachment.attachmentId]?.url,
-                      }),
-                    ) ?? [];
+                        expired:
+                          resolvedMessageAttachments[attachment.attachmentId]
+                            ?.expired ??
+                          isAttachmentExpired(attachment.expiresAt),
+                        expiresAt:
+                          attachment.expiresAt ??
+                          resolvedMessageAttachments[attachment.attachmentId]
+                            ?.expiresAt,
+                        url: resolvedMessageAttachments[attachment.attachmentId]
+                          ?.url,
+                      })) ?? [];
                   const messageMetadata = (
                     "metadata" in message ? message.metadata : undefined
                   ) as { attachments?: MessageAttachmentSummary[] } | undefined;
@@ -608,13 +629,18 @@ export function Chat({
                         {attachmentsToRender.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {attachmentsToRender.map((attachment) => {
-                              const isImage = attachment.mimeType.startsWith("image/");
+                              const isImage =
+                                attachment.mimeType.startsWith("image/");
+                              const isExpired =
+                                attachment.expired ??
+                                isAttachmentExpired(attachment.expiresAt);
                               return (
                                 <button
                                   key={attachment.attachmentId}
                                   type="button"
                                   onClick={() =>
                                     attachment.url &&
+                                    !isExpired &&
                                     setPreviewFile({
                                       id: attachment.attachmentId,
                                       name: attachment.fileName,
@@ -624,10 +650,14 @@ export function Chat({
                                   }
                                   className={cn(
                                     "border-border bg-background/70 flex items-center gap-2 rounded-xl border px-3 py-2 text-left",
-                                    attachment.url && "hover:border-primary transition-colors",
+                                    attachment.url &&
+                                      !isExpired &&
+                                      "hover:border-primary transition-colors",
+                                    isExpired &&
+                                      "text-muted-foreground opacity-70",
                                   )}
                                 >
-                                  {isImage && attachment.url ? (
+                                  {isImage && attachment.url && !isExpired ? (
                                     <img
                                       src={attachment.url}
                                       alt={attachment.fileName}
@@ -636,9 +666,16 @@ export function Chat({
                                   ) : (
                                     <FileText className="h-4 w-4 shrink-0" />
                                   )}
-                                  <span className="max-w-48 truncate text-sm">
-                                    {attachment.fileName}
-                                  </span>
+                                  <div className="min-w-0">
+                                    <span className="block max-w-48 truncate text-sm">
+                                      {attachment.fileName}
+                                    </span>
+                                    {isExpired && (
+                                      <span className="text-muted-foreground block text-xs">
+                                        Expired
+                                      </span>
+                                    )}
+                                  </div>
                                 </button>
                               );
                             })}

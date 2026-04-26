@@ -132,7 +132,7 @@ export default function ChatThreadSidebarItem({
       ) : (
         <SidebarMenuButton
           isActive={isActive}
-          className="w-full"
+          className="w-full data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted"
           render={
             <Link to={`/chat/$id`} params={{ id: threadId }} preload="intent" />
           }
@@ -155,8 +155,8 @@ export default function ChatThreadSidebarItem({
               showOnHover={status === "completed"}
               className={
                 status === "generating"
-                  ? "group-hover/menu-item:opacity-100 md:opacity-0"
-                  : undefined
+                  ? "group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-foreground md:opacity-0"
+                  : "peer-data-active/menu-button:text-foreground"
               }
             />
           }

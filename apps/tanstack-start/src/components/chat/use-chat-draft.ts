@@ -27,15 +27,46 @@ interface StoredDraft {
     fileName: string;
     mimeType: string;
     size: number;
+    expiresAt?: number;
     lastKnownUrl?: string;
   }[];
   updatedAt: number;
 }
 
 const STORAGE_VERSION = 1;
+const DRAFT_UPDATED_EVENT = "redux-chat:draft-updated";
 
-function getStorageKey(threadId?: string) {
-  return threadId ? `redux-chat:draft:thread:${threadId}` : "redux-chat:draft:home";
+export function getChatDraftStorageKey(threadId?: string) {
+  return threadId
+    ? `redux-chat:draft:thread:${threadId}`
+    : "redux-chat:draft:home";
+}
+
+export function setStoredChatDraft({
+  threadId,
+  text,
+}: {
+  threadId?: string;
+  text: string;
+}) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const scopeKey = getChatDraftStorageKey(threadId);
+  const draft: StoredDraft = {
+    version: STORAGE_VERSION,
+    text,
+    attachments: [],
+    updatedAt: Date.now(),
+  };
+
+  window.localStorage.setItem(scopeKey, JSON.stringify(draft));
+  window.dispatchEvent(
+    new CustomEvent(DRAFT_UPDATED_EVENT, {
+      detail: { scopeKey },
+    }),
+  );
 }
 
 function revokeObjectUrl(attachment: DraftAttachment) {
@@ -44,10 +75,14 @@ function revokeObjectUrl(attachment: DraftAttachment) {
   }
 }
 
+function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
+  return expiresAt !== undefined && expiresAt <= now;
+}
+
 export function useChatDraft(threadId?: string) {
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
-  const scopeKey = useMemo(() => getStorageKey(threadId), [threadId]);
+  const scopeKey = useMemo(() => getChatDraftStorageKey(threadId), [threadId]);
 
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<DraftAttachment[]>([]);
@@ -56,7 +91,9 @@ export function useChatDraft(threadId?: string) {
 
   useEffect(() => {
     const previousAttachments = previousAttachmentsRef.current;
-    const currentAttachmentIds = new Set(attachments.map((attachment) => attachment.attachmentId));
+    const currentAttachmentIds = new Set(
+      attachments.map((attachment) => attachment.attachmentId),
+    );
 
     previousAttachments.forEach((attachment) => {
       if (!currentAttachmentIds.has(attachment.attachmentId)) {
@@ -96,7 +133,11 @@ export function useChatDraft(threadId?: string) {
       try {
         const parsed = JSON.parse(raw) as StoredDraft;
         const savedAttachments =
-          parsed.version === STORAGE_VERSION ? (parsed.attachments ?? []) : [];
+          parsed.version === STORAGE_VERSION
+            ? (parsed.attachments ?? []).filter(
+                (attachment) => !isAttachmentExpired(attachment.expiresAt),
+              )
+            : [];
 
         if (savedAttachments.length === 0) {
           if (!cancelled) {
@@ -109,32 +150,40 @@ export function useChatDraft(threadId?: string) {
 
         const resolvedAttachments = await resolveAttachmentsFn({
           data: {
-            attachmentIds: savedAttachments.map((attachment) => attachment.attachmentId),
+            attachmentIds: savedAttachments.map(
+              (attachment) => attachment.attachmentId,
+            ),
           },
         });
 
         const resolvedById = new Map(
-          resolvedAttachments.map((attachment) => [attachment.attachmentId, attachment] as const),
+          resolvedAttachments.map(
+            (attachment) => [attachment.attachmentId, attachment] as const,
+          ),
         );
 
-        const hydratedAttachments = savedAttachments.flatMap((savedAttachment) => {
-          const resolvedAttachment = resolvedById.get(savedAttachment.attachmentId);
-          if (!resolvedAttachment) {
-            return [];
-          }
+        const hydratedAttachments = savedAttachments.flatMap(
+          (savedAttachment) => {
+            const resolvedAttachment = resolvedById.get(
+              savedAttachment.attachmentId,
+            );
+            if (!resolvedAttachment || resolvedAttachment.expired) {
+              return [];
+            }
 
-          return [
-            {
-              attachmentId: resolvedAttachment.attachmentId,
-              fileName: resolvedAttachment.fileName,
-              mimeType: resolvedAttachment.mimeType,
-              size: resolvedAttachment.size,
-              url: resolvedAttachment.url,
-              expiresAt: resolvedAttachment.expiresAt,
-              uploading: false,
-            } satisfies DraftAttachment,
-          ];
-        });
+            return [
+              {
+                attachmentId: resolvedAttachment.attachmentId,
+                fileName: resolvedAttachment.fileName,
+                mimeType: resolvedAttachment.mimeType,
+                size: resolvedAttachment.size,
+                url: resolvedAttachment.url,
+                expiresAt: resolvedAttachment.expiresAt,
+                uploading: false,
+              } satisfies DraftAttachment,
+            ];
+          },
+        );
 
         if (!cancelled) {
           setText(parsed.text ?? "");
@@ -163,33 +212,85 @@ export function useChatDraft(threadId?: string) {
       return;
     }
 
+    const persistedAttachments = attachments
+      .filter(
+        (attachment) =>
+          !attachment.uploading && !isAttachmentExpired(attachment.expiresAt),
+      )
+      .map((attachment) => ({
+        attachmentId: attachment.attachmentId,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+        expiresAt: attachment.expiresAt,
+        lastKnownUrl: attachment.url,
+      }));
+
+    if (!text.trim() && persistedAttachments.length === 0) {
+      window.localStorage.removeItem(scopeKey);
+      return;
+    }
+
     const draft: StoredDraft = {
       version: STORAGE_VERSION,
       text,
-      attachments: attachments
-        .filter((attachment) => !attachment.uploading)
-        .map((attachment) => ({
-          attachmentId: attachment.attachmentId,
-          fileName: attachment.fileName,
-          mimeType: attachment.mimeType,
-          size: attachment.size,
-          lastKnownUrl: attachment.url,
-        })),
+      attachments: persistedAttachments,
       updatedAt: Date.now(),
     };
 
     window.localStorage.setItem(scopeKey, JSON.stringify(draft));
   }, [attachments, isReady, scopeKey, text]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleDraftUpdated: EventListener = (event) => {
+      const customEvent = event as CustomEvent<{ scopeKey?: string }>;
+      if (customEvent.detail.scopeKey !== scopeKey) {
+        return;
+      }
+
+      const raw = window.localStorage.getItem(scopeKey);
+      if (!raw) {
+        setText("");
+        setAttachments([]);
+        setIsReady(true);
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(raw) as StoredDraft;
+        setText(parsed.text ?? "");
+        setAttachments([]);
+        setIsReady(true);
+      } catch (error) {
+        console.error("Failed to sync chat draft", error);
+      }
+    };
+
+    window.addEventListener(DRAFT_UPDATED_EVENT, handleDraftUpdated);
+
+    return () => {
+      window.removeEventListener(DRAFT_UPDATED_EVENT, handleDraftUpdated);
+    };
+  }, [scopeKey]);
+
   const appendAttachment = useCallback((attachment: DraftAttachment) => {
     setAttachments((previous) => [...previous, attachment]);
   }, []);
 
   const updateAttachment = useCallback(
-    (attachmentId: string, updater: (attachment: DraftAttachment) => DraftAttachment) => {
+    (
+      attachmentId: string,
+      updater: (attachment: DraftAttachment) => DraftAttachment,
+    ) => {
       setAttachments((previous) =>
         previous.map((attachment) =>
-          attachment.attachmentId === attachmentId ? updater(attachment) : attachment,
+          attachment.attachmentId === attachmentId
+            ? updater(attachment)
+            : attachment,
         ),
       );
     },
@@ -205,7 +306,9 @@ export function useChatDraft(threadId?: string) {
       });
 
       setAttachments((previous) =>
-        previous.filter((attachment) => attachment.attachmentId !== attachmentId),
+        previous.filter(
+          (attachment) => attachment.attachmentId !== attachmentId,
+        ),
       );
     },
     [deleteDraftAttachmentFn],

@@ -56,6 +56,10 @@ interface PreviewableFile {
   url?: string;
 }
 
+function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
+  return expiresAt !== undefined && expiresAt <= now;
+}
+
 export function ChatInput({
   threadId,
   setThreadId,
@@ -156,7 +160,9 @@ export function ChatInput({
 
       for (const file of Array.from(files)) {
         if (!isFileAllowedForModel(selectedModel, file)) {
-          toast.error(`File type not supported by ${currentModelConfig.name} (${file.type})`);
+          toast.error(
+            `File type not supported by ${currentModelConfig.name} (${file.type})`,
+          );
           continue;
         }
 
@@ -254,7 +260,28 @@ export function ChatInput({
   );
 
   const handleSubmit = useCallback(async () => {
-    if ((!input.trim() && attachments.length === 0) || status !== "ready") {
+    const expiredAttachments = attachments.filter(
+      (attachment) =>
+        !attachment.uploading && isAttachmentExpired(attachment.expiresAt),
+    );
+    const currentAttachments = attachments.filter(
+      (attachment) =>
+        attachment.uploading || !isAttachmentExpired(attachment.expiresAt),
+    );
+
+    if (expiredAttachments.length > 0) {
+      setAttachments(currentAttachments);
+      toast.error(
+        expiredAttachments.length === 1
+          ? "An attachment expired and was removed."
+          : "Some attachments expired and were removed.",
+      );
+    }
+
+    if (
+      (!input.trim() && currentAttachments.length === 0) ||
+      status !== "ready"
+    ) {
       return;
     }
 
@@ -269,8 +296,6 @@ export function ChatInput({
     if (isExpanded) {
       setIsExpanded(false);
     }
-
-    const currentAttachments = [...attachments];
 
     try {
       await submitMessage({
@@ -287,6 +312,7 @@ export function ChatInput({
           fileName: attachment.fileName,
           mimeType: attachment.mimeType,
           size: attachment.size,
+          expiresAt: attachment.expiresAt,
           url: attachment.url,
         })),
         allocateSignedIds,
@@ -313,6 +339,7 @@ export function ChatInput({
     isExpanded,
     allocateSignedIds,
     sendMessage,
+    setAttachments,
     setOptimisticMessage,
     setThreadId,
     settings,
@@ -334,6 +361,10 @@ export function ChatInput({
   const isSubmitting = status === "streaming" || status === "submitted";
   const hasUploadingFiles = attachments.some(
     (attachment) => attachment.uploading,
+  );
+  const hasUsableAttachments = attachments.some(
+    (attachment) =>
+      !attachment.uploading && !isAttachmentExpired(attachment.expiresAt),
   );
 
   const tokenCount = useMemo(() => {
@@ -398,11 +429,13 @@ export function ChatInput({
               <div className="flex flex-wrap gap-2 px-4 pt-3">
                 {attachments.map((file) => {
                   const isImage = file.mimeType.startsWith("image/");
+                  const isExpired = isAttachmentExpired(file.expiresAt);
                   return (
                     <div key={file.attachmentId} className="group relative">
                       <button
                         onClick={() =>
                           !file.uploading &&
+                          !isExpired &&
                           setPreviewFile({
                             id: file.attachmentId,
                             name: file.fileName,
@@ -411,9 +444,9 @@ export function ChatInput({
                           })
                         }
                         className="border-border bg-muted hover:border-primary block h-16 w-16 overflow-hidden rounded-lg border transition-colors"
-                        disabled={file.uploading}
+                        disabled={file.uploading || isExpired}
                       >
-                        {isImage && file.url ? (
+                        {isImage && file.url && !isExpired ? (
                           <img
                             src={file.url}
                             alt={file.fileName}
@@ -422,6 +455,11 @@ export function ChatInput({
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
                             <FileText className="text-muted-foreground h-6 w-6" />
+                          </div>
+                        )}
+                        {isExpired && !file.uploading && (
+                          <div className="bg-background/85 text-muted-foreground absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+                            Expired
                           </div>
                         )}
                         {file.uploading && (
@@ -649,7 +687,7 @@ export function ChatInput({
                   size="icon"
                   className={cn(
                     "h-8 w-8 rounded-full transition-all",
-                    input.trim() || attachments.length > 0
+                    input.trim() || hasUsableAttachments
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-muted text-muted-foreground",
                   )}
@@ -657,7 +695,7 @@ export function ChatInput({
                   disabled={
                     isSubmitting ||
                     hasUploadingFiles ||
-                    (!input.trim() && attachments.length === 0) ||
+                    (!input.trim() && !hasUsableAttachments) ||
                     !settingsReady ||
                     !draftReady
                   }

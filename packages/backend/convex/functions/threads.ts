@@ -40,6 +40,38 @@ export const getThreads = query({
   },
 });
 
+export const searchThreads = query({
+  args: {
+    search: v.string(),
+    limit: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const search = args.search.trim().toLowerCase();
+    const limit = Math.max(1, Math.min(Math.floor(args.limit), 25));
+
+    const threads = await ctx.db
+      .query("threads")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .order("desc")
+      .collect();
+
+    const filteredThreads =
+      search.length === 0
+        ? threads
+        : threads.filter((thread) =>
+            thread.name.toLowerCase().includes(search),
+          );
+
+    return filteredThreads.slice(0, limit).map((thread) => ({
+      threadId: (thread.threadId as string | undefined) ?? thread._id,
+      name: thread.name,
+      timestamp: thread.updatedAt,
+      status: thread.status,
+      _creationTime: thread._creationTime,
+    }));
+  },
+});
+
 export const getThread = query({
   args: { threadId: v.string() },
   handler: async (ctx, args) => {
