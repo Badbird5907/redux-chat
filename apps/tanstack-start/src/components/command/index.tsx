@@ -18,6 +18,7 @@ import {
 } from "@redux/ui/components/command";
 
 import { setStoredChatDraft } from "@/components/chat/use-chat-draft";
+import { requestChatReset } from "@/components/chat/reset-chat";
 import { authClient } from "@/lib/auth/client";
 import { useQuery } from "@/lib/hooks/convex";
 
@@ -77,6 +78,8 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
   };
 
   const handleOpenNewChat = async (prefill?: string) => {
+    requestChatReset();
+
     if (prefill !== undefined) {
       setStoredChatDraft({
         text: prefill,

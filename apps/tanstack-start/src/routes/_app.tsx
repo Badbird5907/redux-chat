@@ -1,9 +1,10 @@
 import { createFileRoute, useRouter, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@redux/ui/components/sidebar";
 // import { getToken } from "@/lib/auth/server";
 import AppSidebar from "@/components/sidebar";
 import ThreadList from "@/components/sidebar/chat/thread-list";
+import { RESET_CHAT_EVENT, requestChatReset } from "@/components/chat/reset-chat";
 import { getSidebarConfig } from "@/server/cookie";
 import { Button } from "@redux/ui/components/button";
 import { ButtonGroup } from "@redux/ui/components/button-group";
@@ -34,6 +35,7 @@ function AppLayout() {
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
   const router = useRouter();
   const [commandOpen, setCommandOpen] = useState(false);
+  const [chatResetKey, setChatResetKey] = useState(0);
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -42,6 +44,22 @@ function AppLayout() {
     const match = /^\/chat\/([^/]+)$/.exec(pathname);
     return match?.[1] ? decodeURIComponent(match[1]) : undefined;
   }, [pathname]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleChatReset = () => {
+      setChatResetKey((current) => current + 1);
+    };
+
+    window.addEventListener(RESET_CHAT_EVENT, handleChatReset);
+
+    return () => {
+      window.removeEventListener(RESET_CHAT_EVENT, handleChatReset);
+    };
+  }, []);
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
@@ -52,7 +70,10 @@ function AppLayout() {
             <ButtonGroup className="w-full min-w-0">
               <Button
                 className="min-w-0 flex-1 shrink"
-                onClick={() => router.navigate({ to: "/" })}
+                onClick={() => {
+                  requestChatReset();
+                  void router.navigate({ to: "/" });
+                }}
               >
                 New Chat
               </Button>
@@ -79,6 +100,7 @@ function AppLayout() {
           <div className="h-full overflow-hidden">
             <Suspense fallback={null}>
               <ChatRouteClient
+                key={`${pathname}:${chatResetKey}`}
                 initialThreadId={initialThreadId}
                 preload={undefined}
               />

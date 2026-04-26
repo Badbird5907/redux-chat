@@ -356,6 +356,28 @@ export function Chat({
     };
   }, [currentThreadId, initialThreadId, setMessages, status]);
 
+  useEffect(() => {
+    if (initialThreadId || currentThreadId || status !== "ready") {
+      return;
+    }
+
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      setOptimisticMessage(undefined);
+      lastMessageCount.current = 0;
+      setMessages([]);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentThreadId, initialThreadId, setMessages, status]);
+
   const activeStreamInfo = useQuery(
     api.functions.threads.getThreadStreamId,
     { threadId: currentThreadId ?? "" },
