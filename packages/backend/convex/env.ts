@@ -24,6 +24,7 @@ export function backendEnv() {
       VITE_S3_AVATARS_URL: z.url(),
       VITE_CONVEX_SITE_URL: z.url(),
       OPENAI_API_KEY: z.string().min(1),
+      OPENROUTER_API_KEY: z.string().min(1),
     },
     runtimeEnv: process.env,
     skipValidation: shouldSkipValidation,

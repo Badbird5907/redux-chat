@@ -13,6 +13,7 @@ import type * as env from "../env.js";
 import type * as functions_attachments from "../functions/attachments.js";
 import type * as functions_defaultMessageSettings from "../functions/defaultMessageSettings.js";
 import type * as functions_index from "../functions/index.js";
+import type * as functions_internal from "../functions/internal.js";
 import type * as functions_migrations from "../functions/migrations.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   "functions/attachments": typeof functions_attachments;
   "functions/defaultMessageSettings": typeof functions_defaultMessageSettings;
   "functions/index": typeof functions_index;
+  "functions/internal": typeof functions_internal;
   "functions/migrations": typeof functions_migrations;
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;

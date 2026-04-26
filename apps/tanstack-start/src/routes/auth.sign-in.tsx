@@ -29,6 +29,7 @@ const signInSchema = z.object({
 export const Route = createFileRoute('/auth/sign-in')({
   beforeLoad: ({ context }) => {
     if (context.isAuthenticated) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({ to: '/' })
     }
   },
@@ -37,12 +38,10 @@ export const Route = createFileRoute('/auth/sign-in')({
 
 function SignInPage() {
   const navigate = useNavigate()
-  const [lastUsed, setLastUsed] = React.useState<string | null>(null)
+  const [lastUsed] = React.useState<string | null>(() =>
+    typeof window === 'undefined' ? null : localStorage.getItem('last-used-provider'),
+  )
   const [isGitHubLoading, setIsGitHubLoading] = React.useState(false)
-
-  React.useEffect(() => {
-    setLastUsed(localStorage.getItem('last-used-provider'))
-  }, [])
 
   const form = useForm({
     defaultValues: {

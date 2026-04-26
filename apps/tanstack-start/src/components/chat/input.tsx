@@ -84,12 +84,10 @@ export function ChatInput({
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
   const [showTokenVisualization, setShowTokenVisualization] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
-  const [showErrorBorder, setShowErrorBorder] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
-  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
@@ -137,26 +135,6 @@ export function ChatInput({
     }
   }, [input, showTokenVisualization, isExpanded]);
 
-  useEffect(() => {
-    if (status === "error") {
-      setShowErrorBorder(true);
-
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
-
-      errorTimeoutRef.current = setTimeout(() => {
-        setShowErrorBorder(false);
-      }, 10000);
-    }
-
-    return () => {
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
-    };
-  }, [status]);
-
   const visualizationHeight = useMemo(() => {
     if (!showTokenVisualization || !textareaHeight) return null;
     const lineHeight = 24;
@@ -165,6 +143,7 @@ export function ChatInput({
   }, [showTokenVisualization, textareaHeight]);
 
   const selectedModel = settings.model;
+  const showErrorBorder = status === "error";
   const currentModelConfig = getChatModelConfig(selectedModel);
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
 

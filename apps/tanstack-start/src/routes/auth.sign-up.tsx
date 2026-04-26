@@ -26,6 +26,7 @@ const signUpSchema = z.object({
 export const Route = createFileRoute('/auth/sign-up')({
   beforeLoad: ({ context }) => {
     if (context.isAuthenticated) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({ to: '/' })
     }
   },
@@ -51,7 +52,7 @@ function SignUpPage() {
         name: value.name,
         fetchOptions: {
           onSuccess: () => {
-            navigate({ to: '/' })
+            void navigate({ to: '/' })
           },
           onError: (ctx) => {
             toast.error(ctx.error.message)

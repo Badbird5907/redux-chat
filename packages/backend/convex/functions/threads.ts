@@ -1,13 +1,17 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
+import { generateText } from "ai";
 import { Buffer } from "buffer/";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 
+import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
 import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
+import { internalAction, internalMutation } from "./internal";
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -43,11 +47,11 @@ export const getThread = query({
       .filter((q) => q.eq(q.field("threadId"), args.threadId))
       .first();
 
-    if (thread?.userId != ctx.userId) {
-      throw new ConvexError("Thread not found");
-    }
-    if (!thread) {
+    if (thread === null) {
       return null;
+    }
+    if (thread.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
     }
 
     return {
@@ -101,7 +105,7 @@ export const getThreadMessages = query({
       .filter((q) => q.eq(q.field("threadId"), args.threadId))
       .first();
 
-    if (!thread) {
+    if (thread === null) {
       return [];
     }
 
@@ -123,15 +127,15 @@ export const getThreadMessages = query({
 
     const attachmentsByMessageId = new Map<
       string,
-      Array<{
+      {
         attachmentId: string;
         fileName: string;
         mimeType: string;
         size: number;
         serveImage: boolean;
         isPublic: boolean;
-        expiresAt: number;
-      }>
+        expiresAt: number | undefined;
+      }[]
     >();
 
     for (const attachment of allAttachments) {
@@ -307,6 +311,33 @@ export const verifySignature = async (
   return crypto.subtle.verify("HMAC", key, signatureBuffer, messageData);
 };
 
+function extractUserPrompt(parts: UIMessagePart<UIDataTypes, UITools>[]) {
+  const text = parts
+    .flatMap((part) =>
+      part.type === "text" && typeof part.text === "string"
+        ? [part.text.trim()]
+        : [],
+    )
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  return text.length > 0 ? text : undefined;
+}
+
+function sanitizeThreadTitle(rawTitle: string) {
+  const title = rawTitle
+    .replace(/^["'\s]+|["'\s]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!title) {
+    return undefined;
+  }
+
+  return title.slice(0, 80);
+}
+
 export const sendMessage = mutation({
   args: {
     threadId: v.string(),
@@ -345,6 +376,7 @@ export const sendMessage = mutation({
     }
 
     let threadId = args.threadId;
+    let createdNewThread = false;
     const parentId: string | undefined = undefined;
     const depth = 0;
     const siblingIndex = 0;
@@ -371,6 +403,7 @@ export const sendMessage = mutation({
         updatedAt: Date.now(),
         settings: normalizedSettings,
       });
+      createdNewThread = true;
     } else {
       const thread = await ctx.db
         .query("threads")
@@ -422,11 +455,88 @@ export const sendMessage = mutation({
       model: args.model,
     });
 
+    const userPrompt = extractUserPrompt(
+      args.userMessage.parts as UIMessagePart<UIDataTypes, UITools>[],
+    );
+
+    if (createdNewThread && userPrompt) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.functions.threads.internal_generateThreadTitle,
+        {
+          threadId,
+          prompt: userPrompt,
+        },
+      );
+    }
+
     return {
       threadId,
       userMessageId: userMsgId,
       assistantMessageId: assistantMsgId,
     };
+  },
+});
+
+export const internal_setThreadTitle = internalMutation({
+  args: {
+    threadId: v.string(),
+    generated: v.boolean(),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+
+    if (!thread || (thread.name !== "New Thread" && args.generated)) {
+      return;
+    }
+
+    await ctx.db.patch(thread._id, {
+      name: args.title,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const internal_generateThreadTitle = internalAction({
+  args: {
+    threadId: v.string(),
+    prompt: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const env = backendEnv();
+
+    const openrouter = createOpenRouter({
+      apiKey: env.OPENROUTER_API_KEY,
+    });
+
+    try {
+      const { text } = await generateText({
+        model: openrouter.chat("google/gemini-3.1-flash-lite-preview"),
+        prompt: [
+          "Generate a short chat thread title for the user's first message.",
+          "Return only the title with no quotes, prefix, or punctuation decoration.",
+          "Keep it under 8 words.",
+          `User message: ${args.prompt}`,
+        ].join("\n"),
+      });
+
+      const title = sanitizeThreadTitle(text);
+      if (!title) {
+        return;
+      }
+
+      await ctx.runMutation(internal.functions.threads.internal_setThreadTitle, {
+        threadId: args.threadId,
+        generated: true,
+        title,
+      });
+    } catch (error) {
+      console.error("Failed to generate thread title", error);
+    }
   },
 });
 
@@ -444,7 +554,7 @@ export const updateThreadSettings = mutation({
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .first();
 
-    if (!thread || thread.userId !== ctx.userId) {
+    if (thread?.userId !== ctx.userId) {
       throw new ConvexError("Thread not found");
     }
 

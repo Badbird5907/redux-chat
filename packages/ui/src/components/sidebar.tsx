@@ -37,6 +37,24 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 const MIN_SIDEBAR_WIDTH = "14rem";
 const MAX_SIDEBAR_WIDTH = "22rem";
 
+function getStoredSidebarConfig(defaultOpen: boolean, defaultWidth: string) {
+  if (typeof window === "undefined") {
+    return { open: defaultOpen, width: defaultWidth };
+  }
+
+  const savedConfig = window.localStorage.getItem(SIDEBAR_CONFIG_KEY);
+  if (!savedConfig) {
+    return { open: defaultOpen, width: defaultWidth };
+  }
+
+  const [openState, savedWidth] = savedConfig.split(":");
+
+  return {
+    open: (openState ?? String(defaultOpen)) === "true",
+    width: savedWidth ?? defaultWidth,
+  };
+}
+
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
   open: boolean;
@@ -83,24 +101,18 @@ function SidebarProvider({
   const [openMobile, setOpenMobile] = React.useState(false);
 
   //* new state for sidebar width
-  const [width, setWidth] = React.useState(defaultWidth);
-
-  // Load state and width from localStorage on mount
-  React.useEffect(() => {
-    const savedConfig = localStorage.getItem(SIDEBAR_CONFIG_KEY);
-    if (savedConfig) {
-      const [openState, savedWidth] = savedConfig.split(":");
-      if (openState !== undefined) _setOpen(openState === "true");
-      if (savedWidth !== undefined) setWidth(savedWidth);
-    }
-  }, []);
+  const [width, setWidth] = React.useState(
+    () => getStoredSidebarConfig(defaultOpen, defaultWidth).width,
+  );
 
   //* new state for tracking is dragging rail
   const [isDraggingRail, setIsDraggingRail] = React.useState(false);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen);
+  const [_open, _setOpen] = React.useState(
+    () => getStoredSidebarConfig(defaultOpen, defaultWidth).open,
+  );
   const open = openProp ?? _open;
 
   const persistConfig = React.useCallback((open: boolean, width: string) => {
@@ -120,7 +132,7 @@ function SidebarProvider({
 
       persistConfig(openState, width);
     },
-    [setOpenProp, open, width, persistConfig],
+    [open, persistConfig, setOpenProp, width],
   );
 
   const setWidthAndPersist = React.useCallback(
@@ -181,6 +193,7 @@ function SidebarProvider({
       setOpenMobile,
       toggleSidebar,
       width,
+      setWidthAndPersist,
       isDraggingRail,
     ],
   );
@@ -369,11 +382,7 @@ function SidebarRail({
   });
 
   //* Merge external ref with our dragRef
-  // @ts-ignore
-  const combinedRef = React.useMemo(
-    () => mergeButtonRefs([dragRef]),
-    [dragRef],
-  );
+  const combinedRef = mergeButtonRefs([dragRef]);
 
   return (
     <button

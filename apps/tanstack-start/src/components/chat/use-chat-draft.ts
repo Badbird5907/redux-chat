@@ -20,15 +20,15 @@ export interface DraftAttachment {
 }
 
 interface StoredDraft {
-  version: 1;
-  text: string;
-  attachments: Array<{
+  version: number;
+  text?: string;
+  attachments?: {
     attachmentId: string;
     fileName: string;
     mimeType: string;
     size: number;
     lastKnownUrl?: string;
-  }>;
+  }[];
   updatedAt: number;
 }
 
@@ -95,7 +95,8 @@ export function useChatDraft(threadId?: string) {
 
       try {
         const parsed = JSON.parse(raw) as StoredDraft;
-        const savedAttachments = parsed.version === STORAGE_VERSION ? parsed.attachments : [];
+        const savedAttachments =
+          parsed.version === STORAGE_VERSION ? (parsed.attachments ?? []) : [];
 
         if (savedAttachments.length === 0) {
           if (!cancelled) {
@@ -128,7 +129,7 @@ export function useChatDraft(threadId?: string) {
               fileName: resolvedAttachment.fileName,
               mimeType: resolvedAttachment.mimeType,
               size: resolvedAttachment.size,
-              url: resolvedAttachment.url ?? savedAttachment.lastKnownUrl,
+              url: resolvedAttachment.url,
               expiresAt: resolvedAttachment.expiresAt,
               uploading: false,
             } satisfies DraftAttachment,

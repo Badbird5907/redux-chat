@@ -47,7 +47,7 @@ import * as z from "zod";
  */
 export const zodTable = <
   Table extends string,
-  T extends z.ZodObject<any>,
+  T extends z.ZodObject<z.ZodRawShape>,
 >(
   tableName: Table,
   schema: T,

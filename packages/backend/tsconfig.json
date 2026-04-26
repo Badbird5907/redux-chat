@@ -1,6 +1,6 @@
 {
   "extends": "@redux/tsconfig/base.json",
-  "include": ["convex", "*.ts"],
+  "include": ["convex", "scripts/**/*.ts", "*.ts"],
   "exclude": ["node_modules", "./convex/_generated"],
   "compilerOptions": {
     "lib": ["ES2022", "dom"],
