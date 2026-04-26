@@ -3,7 +3,10 @@ import { Buffer } from "buffer/";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
+import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
+
 import { backendEnv } from "../env";
+import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
 
 export const getThreads = query({
@@ -43,7 +46,14 @@ export const getThread = query({
     if (thread?.userId != ctx.userId) {
       throw new ConvexError("Thread not found");
     }
-    return thread;
+    if (!thread) {
+      return null;
+    }
+
+    return {
+      ...thread,
+      settings: normalizeMessageSettings(thread.settings),
+    };
   },
 });
 
@@ -106,9 +116,46 @@ export const getThreadMessages = query({
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
 
+    const allAttachments = await ctx.db
+      .query("attachments")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
+
+    const attachmentsByMessageId = new Map<
+      string,
+      Array<{
+        attachmentId: string;
+        fileName: string;
+        mimeType: string;
+        size: number;
+        serveImage: boolean;
+        isPublic: boolean;
+        expiresAt: number;
+      }>
+    >();
+
+    for (const attachment of allAttachments) {
+      if (!attachment.messageId) {
+        continue;
+      }
+
+      const existing = attachmentsByMessageId.get(attachment.messageId) ?? [];
+      existing.push({
+        attachmentId: attachment.attachmentId,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+        serveImage: attachment.serveImage,
+        isPublic: attachment.isPublic,
+        expiresAt: attachment.expiresAt,
+      });
+      attachmentsByMessageId.set(attachment.messageId, existing);
+    }
+
     return allMessages.map((m) => ({
       ...m,
       id: m.messageId,
+      attachments: attachmentsByMessageId.get(m.messageId) ?? [],
     }));
   },
 });
@@ -267,6 +314,11 @@ export const sendMessage = mutation({
     userMessageId: v.string(),
     assistantMessageId: v.string(),
     model: v.string(),
+    settings: v.object({
+      model: v.string(),
+      tools: v.record(v.string(), v.any()),
+    }),
+    attachmentIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     // 1. Decode & verify userMessageId
@@ -296,6 +348,7 @@ export const sendMessage = mutation({
     const parentId: string | undefined = undefined;
     const depth = 0;
     const siblingIndex = 0;
+    const normalizedSettings = normalizeMessageSettings(args.settings);
 
     // 3. Insert thread if needed
     if (threadId.includes(":")) {
@@ -316,10 +369,7 @@ export const sendMessage = mutation({
         name: "New Thread",
         status: "generating",
         updatedAt: Date.now(),
-        settings: {
-          model: args.model,
-          tools: [],
-        },
+        settings: normalizedSettings,
       });
     } else {
       const thread = await ctx.db
@@ -350,6 +400,14 @@ export const sendMessage = mutation({
       mutation: { type: "original" },
     });
 
+    if (args.attachmentIds?.length) {
+      await attachDraftAttachmentsToMessage(ctx, {
+        attachmentIds: args.attachmentIds,
+        threadId,
+        messageId: userMsgId,
+      });
+    }
+
     // 5. Insert empty assistant message
     await ctx.db.insert("messages", {
       threadId: threadId,
@@ -361,6 +419,7 @@ export const sendMessage = mutation({
       depth: 1,
       siblingIndex: 0,
       mutation: { type: "original" },
+      model: args.model,
     });
 
     return {
@@ -368,6 +427,35 @@ export const sendMessage = mutation({
       userMessageId: userMsgId,
       assistantMessageId: assistantMsgId,
     };
+  },
+});
+
+export const updateThreadSettings = mutation({
+  args: {
+    threadId: v.string(),
+    patch: v.object({
+      model: v.optional(v.string()),
+      tools: v.optional(v.record(v.string(), v.any())),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+
+    if (!thread || thread.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
+    }
+
+    const mergedSettings = mergeMessageSettings(thread.settings, args.patch);
+
+    await ctx.db.patch(thread._id, {
+      settings: mergedSettings,
+      updatedAt: Date.now(),
+    });
+
+    return mergedSettings;
   },
 });
 

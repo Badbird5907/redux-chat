@@ -10,7 +10,10 @@
 
 import type * as auth from "../auth.js";
 import type * as env from "../env.js";
+import type * as functions_attachments from "../functions/attachments.js";
+import type * as functions_defaultMessageSettings from "../functions/defaultMessageSettings.js";
 import type * as functions_index from "../functions/index.js";
+import type * as functions_migrations from "../functions/migrations.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
@@ -25,7 +28,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   env: typeof env;
+  "functions/attachments": typeof functions_attachments;
+  "functions/defaultMessageSettings": typeof functions_defaultMessageSettings;
   "functions/index": typeof functions_index;
+  "functions/migrations": typeof functions_migrations;
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;
   http: typeof http;

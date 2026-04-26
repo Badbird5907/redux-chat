@@ -15,24 +15,18 @@ import {
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
+import type { MessageSettings } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
 import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
 import { useSignedCid } from "@/components/chat/client-id";
-import { uploadFile } from "@/components/chat/dummy";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { ModelSelector } from "@/components/chat/model-selector";
+import { useChatDraft } from "@/components/chat/use-chat-draft";
 import { submitMessage } from "@/components/chat/use-submit-message";
-import { getModelConfig, MODELS } from "@/lib/model-config";
-
-interface UploadedFile {
-  id: string;
-  name: string;
-  type: string;
-  uploading: boolean;
-  url?: string;
-}
+import { getChatModelConfig, isFileAllowedForModel, MODELS } from "@/lib/model-config";
+import { useUpload } from "@/lib/silo/react";
 
 interface ChatInputProps {
   threadId?: string;
@@ -46,6 +40,16 @@ interface ChatInputProps {
   status: "ready" | "streaming" | "submitted" | "error";
   clientId: string;
   convexMessages: UIMessage[];
+  settings: MessageSettings;
+  settingsReady: boolean;
+  onModelChange: (modelId: string) => Promise<MessageSettings>;
+}
+
+interface PreviewableFile {
+  id: string;
+  name: string;
+  type: string;
+  url?: string;
 }
 
 export function ChatInput({
@@ -57,11 +61,22 @@ export function ChatInput({
   status,
   clientId,
   convexMessages,
+  settings,
+  settingsReady,
+  onModelChange,
 }: ChatInputProps) {
-  const [input, setInput] = useState("");
-  const [attachments, setAttachments] = useState<UploadedFile[]>([]);
-  const [selectedModel, setSelectedModel] = useState(MODELS[0]?.id ?? "gpt-4o");
-  const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
+  const {
+    text: input,
+    setText: setInput,
+    attachments,
+    isReady: draftReady,
+    appendAttachment,
+    updateAttachment,
+    removeAttachment,
+    setAttachments,
+    clearDraft,
+  } = useChatDraft(threadId);
+  const [previewFile, setPreviewFile] = useState<PreviewableFile | null>(null);
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
   const [showTokenVisualization, setShowTokenVisualization] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
@@ -74,6 +89,12 @@ export function ChatInput({
   const { safeGetSignedId } = useSignedCid();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
+  const upload = useUpload({
+    endpoint: "chatAttachment",
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -114,8 +135,6 @@ export function ChatInput({
 
   useEffect(() => {
     if (status === "error") {
-      // this is intended
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowErrorBorder(true);
 
       if (errorTimeoutRef.current) {
@@ -141,63 +160,79 @@ export function ChatInput({
     return Math.min(textareaHeight, maxHeight);
   }, [showTokenVisualization, textareaHeight]);
 
+  const selectedModel = settings.model;
+  const currentModelConfig = getChatModelConfig(selectedModel);
+  const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
+
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (!files) return;
-
-      const modelConfig = getModelConfig(selectedModel);
-      if (!modelConfig) return;
+      if (!files || !currentModelConfig) {
+        return;
+      }
 
       for (const file of Array.from(files)) {
-        const isAllowed = modelConfig.allowedFileTypes.some((allowedType) => {
-          if (allowedType.startsWith(".")) {
-            return file.name.toLowerCase().endsWith(allowedType.toLowerCase());
-          }
-          if (allowedType.includes("*")) {
-            const [type] = allowedType.split("/");
-            return type ? file.type.startsWith(type) : false;
-          }
-          return file.type === allowedType;
-        });
-
-        if (!isAllowed && modelConfig.allowedFileTypes.length > 0) {
-          alert(`File type not supported by ${modelConfig.name}`);
+        if (!isFileAllowedForModel(selectedModel, file)) {
+          toast.error(`File type not supported by ${currentModelConfig.name}`);
           continue;
         }
 
-        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`; // TODO
-
-        const url =
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const objectUrl =
           file.type.startsWith("image/") ||
           file.type.startsWith("video/") ||
           file.type.startsWith("audio/") ||
-          file.type === "application/pdf" ||
-          file.name.toLowerCase().endsWith(".pdf")
+          file.type === "application/pdf"
             ? URL.createObjectURL(file)
             : undefined;
 
-        setAttachments((prev) => [
-          ...prev,
-          {
-            id: tempId,
-            name: file.name,
-            type: file.type,
-            uploading: true,
-            url,
-          },
-        ]);
+        appendAttachment({
+          attachmentId: tempId,
+          fileName: file.name,
+          mimeType: file.type,
+          size: file.size,
+          url: objectUrl,
+          uploading: true,
+          objectUrl,
+        });
 
         try {
-          const fileId = await uploadFile(file);
-          setAttachments((prev) =>
-            prev.map((f) =>
-              f.id === tempId ? { ...f, id: fileId, uploading: false } : f,
-            ),
+          const completion = await upload.uploadFile(file, {
+            input: {
+              modelId: selectedModel,
+              threadId,
+            },
+          });
+
+          updateAttachment(tempId, (attachment) => {
+            if (attachment.objectUrl) {
+              URL.revokeObjectURL(attachment.objectUrl);
+            }
+
+            return {
+              attachmentId: completion.result.attachmentId,
+              fileName: completion.result.fileName,
+              mimeType: completion.result.mimeType,
+              size: completion.result.size,
+              url: completion.result.url,
+              uploading: false,
+              expiresAt: completion.result.expiresAt,
+            };
+          });
+        } catch (error) {
+          setAttachments((previous) => {
+            const failedAttachment = previous.find(
+              (attachment) => attachment.attachmentId === tempId,
+            );
+            if (failedAttachment?.objectUrl) {
+              URL.revokeObjectURL(failedAttachment.objectUrl);
+            }
+            return previous.filter((attachment) => attachment.attachmentId !== tempId);
+          });
+
+          toast.error(
+            error instanceof Error ? error.message : `Failed to upload ${file.name}`,
           );
-        } catch {
-          setAttachments((prev) => prev.filter((f) => f.id !== tempId));
-          if (url) URL.revokeObjectURL(url);
         }
       }
 
@@ -205,68 +240,71 @@ export function ChatInput({
         fileInputRef.current.value = "";
       }
     },
-    [selectedModel],
+    [
+      appendAttachment,
+      currentModelConfig,
+      selectedModel,
+      setAttachments,
+      threadId,
+      updateAttachment,
+      upload,
+    ],
   );
 
-  const removeAttachment = useCallback((id: string) => {
-    setAttachments((prev) => {
-      const file = prev.find((f) => f.id === id);
-      if (file?.url) URL.revokeObjectURL(file.url);
-      return prev.filter((f) => f.id !== id);
-    });
-  }, []);
-
-  // Cleanup object URLs on unmount
-  const attachmentsRef = useRef(attachments);
-  useEffect(() => {
-    attachmentsRef.current = attachments;
-  }, [attachments]);
-
-  useEffect(() => {
-    return () => {
-      attachmentsRef.current.forEach((file) => {
-        if (file.url) URL.revokeObjectURL(file.url);
-      });
-    };
-  }, []);
+  const handleRemoveAttachment = useCallback(
+    async (attachmentId: string) => {
+      try {
+        await removeAttachment(attachmentId);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to remove attachment",
+        );
+      }
+    },
+    [removeAttachment],
+  );
 
   const handleSubmit = useCallback(async () => {
-    if ((!input.trim() && attachments.length === 0) || status !== "ready")
+    if ((!input.trim() && attachments.length === 0) || status !== "ready") {
       return;
+    }
 
-    if (attachments.some((f) => f.uploading)) return;
+    if (!settingsReady || !draftReady) {
+      return;
+    }
+
+    if (attachments.some((attachment) => attachment.uploading)) {
+      return;
+    }
 
     if (isExpanded) {
       setIsExpanded(false);
     }
 
-    // Capture input before clearing
-    const messageContent = input;
     const currentAttachments = [...attachments];
-
-    // Clear input immediately - user feels the responsiveness
-    setInput("");
-    setAttachments([]);
-    currentAttachments.forEach((file) => {
-      if (file.url) URL.revokeObjectURL(file.url);
-    });
-
-    const fileIds = currentAttachments.map((f) => f.id);
 
     try {
       await submitMessage({
-        messageContent,
+        messageContent: input,
         threadId,
         setThreadId,
-        selectedModel,
+        settings,
         clientId,
-        fileIds,
+        attachmentIds: currentAttachments.map((attachment) => attachment.attachmentId),
+        attachmentMetadata: currentAttachments.map((attachment) => ({
+          attachmentId: attachment.attachmentId,
+          fileName: attachment.fileName,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          url: attachment.url,
+        })),
         safeGetSignedId,
         createMessage,
         setOptimisticMessage,
         sendMessage,
         convexMessages,
       });
+      clearDraft();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to send message",
@@ -274,19 +312,22 @@ export function ChatInput({
       console.error("Failed to send message:", error);
     }
   }, [
-    input,
     attachments,
-    status,
-    isExpanded,
-    threadId,
-    setOptimisticMessage,
-    selectedModel,
-    sendMessage,
-    safeGetSignedId,
-    createMessage,
-    setThreadId,
+    clearDraft,
     clientId,
     convexMessages,
+    createMessage,
+    draftReady,
+    input,
+    isExpanded,
+    safeGetSignedId,
+    sendMessage,
+    setOptimisticMessage,
+    setThreadId,
+    settings,
+    settingsReady,
+    status,
+    threadId,
   ]);
 
   const handleKeyDown = useCallback(
@@ -300,10 +341,7 @@ export function ChatInput({
   );
 
   const isSubmitting = status === "streaming" || status === "submitted";
-  const hasUploadingFiles = attachments.some((f) => f.uploading);
-  const currentModelConfig = getModelConfig(selectedModel);
-  const acceptedFileTypes =
-    currentModelConfig?.allowedFileTypes.join(",") ?? "";
+  const hasUploadingFiles = attachments.some((attachment) => attachment.uploading);
 
   const tokenCount = useMemo(() => {
     if (!input.trim()) return 0;
@@ -366,18 +404,26 @@ export function ChatInput({
             {attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 px-4 pt-3">
                 {attachments.map((file) => {
-                  const isImage = file.type.startsWith("image/");
+                  const isImage = file.mimeType.startsWith("image/");
                   return (
-                    <div key={file.id} className="group relative">
+                    <div key={file.attachmentId} className="group relative">
                       <button
-                        onClick={() => !file.uploading && setPreviewFile(file)}
+                        onClick={() =>
+                          !file.uploading &&
+                          setPreviewFile({
+                            id: file.attachmentId,
+                            name: file.fileName,
+                            type: file.mimeType,
+                            url: file.url,
+                          })
+                        }
                         className="border-border bg-muted hover:border-primary block h-16 w-16 overflow-hidden rounded-lg border transition-colors"
                         disabled={file.uploading}
                       >
                         {isImage && file.url ? (
                           <img
-                            src={file.url || "/placeholder.svg"}
-                            alt={file.name}
+                            src={file.url}
+                            alt={file.fileName}
                             className="h-full w-full object-cover"
                           />
                         ) : (
@@ -393,7 +439,7 @@ export function ChatInput({
                       </button>
                       {!file.uploading && (
                         <button
-                          onClick={() => removeAttachment(file.id)}
+                          onClick={() => void handleRemoveAttachment(file.attachmentId)}
                           className="bg-background border-border hover:bg-muted absolute -top-1.5 -right-1.5 rounded-full border p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
                         >
                           <X className="text-muted-foreground h-3 w-3" />
@@ -452,12 +498,9 @@ export function ChatInput({
                       "bg-cyan-200 dark:bg-cyan-900/30",
                     ];
                     const colorClass = colors[index % colors.length];
-
-                    // Check if token contains or is a newline
                     const hasNewline = token.includes("\n");
 
                     if (hasNewline) {
-                      // Split by newlines and render each part
                       const parts = token.split("\n");
                       return (
                         <span key={index}>
@@ -497,10 +540,7 @@ export function ChatInput({
                     return (
                       <span
                         key={index}
-                        className={cn(
-                          "inline-block rounded px-0.5",
-                          colorClass,
-                        )}
+                        className={cn("inline-block rounded px-0.5", colorClass)}
                       >
                         {token}
                       </span>
@@ -520,7 +560,7 @@ export function ChatInput({
                     isExpanded && "flex-1",
                   )}
                   style={isExpanded ? undefined : { maxHeight: `${24 * 10}px` }}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !draftReady}
                 />
               )}
             </div>
@@ -544,7 +584,9 @@ export function ChatInput({
                   disabled={
                     isSubmitting ||
                     !currentModelConfig ||
-                    currentModelConfig.allowedFileTypes.length === 0
+                    currentModelConfig.accept.length === 0 ||
+                    !settingsReady ||
+                    !draftReady
                   }
                 >
                   <Plus className="h-5 w-5" />
@@ -600,7 +642,9 @@ export function ChatInput({
                 <ModelSelector
                   models={MODELS}
                   selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
+                  onModelChange={(modelId) => {
+                    void onModelChange(modelId);
+                  }}
                 />
                 <Button
                   type="button"
@@ -611,11 +655,13 @@ export function ChatInput({
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-muted text-muted-foreground",
                   )}
-                  onClick={handleSubmit}
+                  onClick={() => void handleSubmit()}
                   disabled={
                     isSubmitting ||
                     hasUploadingFiles ||
-                    (!input.trim() && attachments.length === 0)
+                    (!input.trim() && attachments.length === 0) ||
+                    !settingsReady ||
+                    !draftReady
                   }
                 >
                   {isSubmitting ? (

@@ -17,6 +17,7 @@ import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
@@ -61,6 +62,11 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => AuthRoute,
 } as any)
+const ApiUploadRoute = ApiUploadRouteImport.update({
+  id: '/api/upload',
+  path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
   id: '/api/chat/',
   path: '/api/chat/',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/components'
+    | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/components'
+    | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth'
     | '/components'
+    | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
+  ApiUploadRoute: typeof ApiUploadRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/forgot-password'
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/api/upload': {
+      id: '/api/upload'
+      path: '/api/upload'
+      fullPath: '/api/upload'
+      preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/chat/': {
       id: '/api/chat/'
@@ -296,6 +316,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
+  ApiUploadRoute: ApiUploadRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,

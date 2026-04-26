@@ -15,7 +15,7 @@ export const Route = createFileRoute('/api/chat/$id/stream/')({
 
         const thread = await fetchAuthQuery(api.functions.threads.getThread, { threadId: id });
 
-        if (!thread.activeStreamId) {
+        if (!thread?.activeStreamId) {
           // no content response when there is no active stream
           return new Response(null, { status: 204 });
         }
@@ -35,8 +35,8 @@ export const Route = createFileRoute('/api/chat/$id/stream/')({
       DELETE: async ({ params }) => {
         const { id } = params;
         const thread = await fetchAuthQuery(api.functions.threads.getThread, { threadId: id });
-        console.log("DELETE request received for thread:", thread._id);
-        if (!thread.activeStreamId) {
+        console.log("DELETE request received for thread:", thread?._id);
+        if (!thread?.activeStreamId) {
           return new Response(null, { status: 204 });
         }
         await fetchAuthMutation(api.functions.threads.abortStream, {

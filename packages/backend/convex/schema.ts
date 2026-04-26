@@ -22,14 +22,22 @@ const mutationInfo = v.union(
   v.object({ type: v.literal("regeneration"), fromMessageId: v.string() })
 );
 
+const attachmentStatus = v.union(v.literal("draft"), v.literal("attached"));
+
 export const messageSettings = v.object({
   model: v.string(),
-  // tools: v.array(v.string()),
-  tools: v.record(v.string(), v.any()) // { toolName: toolConfig }
+  tools: v.union(v.record(v.string(), v.any()), v.array(v.string())), // temporary legacy compatibility for old string[] rows
+  temperature: v.optional(v.number()), // temporary legacy compatibility so old rows can be backfilled away
   // maybe use `false` for disabled, and a object as config for enabled. This way new tools can be added without being auto-disabled
 });
 
 export default defineSchema({
+  defaultMessageSettings: defineTable({
+    userId: v.string(),
+    settings: messageSettings,
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   threads: defineTable({
     threadId: v.string(),
     userId: v.string(),
@@ -73,6 +81,34 @@ export default defineSchema({
   })
     .index("by_threadId", ["threadId"])
     .index("by_threadId_messageId", ["threadId", "messageId"])
-    .index("by_parentId", ["parentId", "siblingIndex"]), 
+    .index("by_parentId", ["parentId", "siblingIndex"]),
+
+  attachments: defineTable({
+    attachmentId: v.string(),
+    userId: v.string(),
+    threadId: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+    status: attachmentStatus,
+    projectId: v.string(),
+    environmentId: v.string(),
+    accessKey: v.string(),
+    fileKeyId: v.string(),
+    fileId: v.optional(v.string()),
+    fileName: v.string(),
+    mimeType: v.string(),
+    size: v.number(),
+    isPublic: v.boolean(),
+    serveImage: v.boolean(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_attachmentId", ["attachmentId"])
+    .index("by_userId", ["userId"])
+    .index("by_userId_status", ["userId", "status"])
+    .index("by_threadId", ["threadId"])
+    .index("by_messageId", ["messageId"])
+    .index("by_accessKey", ["accessKey"])
+    .index("by_fileKeyId", ["fileKeyId"]),
 });
 

@@ -3,11 +3,11 @@ import { useMemo } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 
+import type { MessageSettings } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
 
 import { useSignedCid } from "@/components/chat/client-id";
 import { submitMessage } from "@/components/chat/use-submit-message";
-import { MODELS } from "@/lib/model-config";
 
 interface SuggestionCardProps {
   text: string;
@@ -35,6 +35,7 @@ interface EmptyChatProps {
   setOptimisticMessage: (message: UIMessage | undefined) => void;
   clientId: string;
   convexMessages: UIMessage[];
+  settings: MessageSettings;
 }
 
 const SUGGESTIONS = [
@@ -53,10 +54,10 @@ export const EmptyChat = ({
   setOptimisticMessage,
   clientId,
   convexMessages,
+  settings,
 }: EmptyChatProps) => {
   const { safeGetSignedId } = useSignedCid();
   const createMessage = useMutation(api.functions.threads.sendMessage);
-  const selectedModel = MODELS[0]?.id ?? "gpt-4o";
 
   const handleSuggestionClick = async (text: string) => {
     try {
@@ -64,9 +65,9 @@ export const EmptyChat = ({
         messageContent: text,
         threadId,
         setThreadId,
-        selectedModel,
+        settings,
         clientId,
-        fileIds: [],
+        attachmentIds: [],
         safeGetSignedId,
         createMessage,
         setOptimisticMessage,

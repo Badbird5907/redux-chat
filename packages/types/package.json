@@ -5,6 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./api/chat": "./src/api/chat.ts",
+    "./chat/message-settings": "./src/chat/message-settings.ts",
+    "./chat/model-config": "./src/chat/model-config.ts",
     "./zod/threads": "./src/zod/threads.ts"
   },
   "autoexport": true,
@@ -18,6 +20,7 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
+    "@silo-storage/mime-types": "0.1.8",
     "convex-helpers": "^0.1.115",
     "zod": "catalog:"
   },

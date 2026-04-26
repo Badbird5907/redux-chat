@@ -67,3 +67,9 @@ export const testQuery = query({
         return "testQuery";
     }
 })
+
+export const getCurrentUserId = query({
+    handler: (_ctx) => {
+        return { userId: _ctx.userId };
+    }
+})

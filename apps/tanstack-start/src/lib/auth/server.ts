@@ -1,6 +1,11 @@
 import { convexBetterAuthReactStart } from '@convex-dev/better-auth/react-start'
-import { env } from '@/env';
+import { getToken as getConvexToken } from "@convex-dev/better-auth/utils";
+import { ConvexHttpClient } from "convex/browser";
 import { ConvexError } from 'convex/values';
+
+import { api } from "@redux/backend/convex/_generated/api";
+
+import { env } from '@/env';
 // import { env } from '@/env'
 
 const isAuthError = (error: unknown) => {
@@ -13,6 +18,44 @@ const isAuthError = (error: unknown) => {
     "";
   return /auth/i.test(message as string);
 };
+
+async function getAuthTokenFromHeaders(headers: Headers): Promise<string | undefined> {
+  const mutableHeaders = new Headers(headers);
+  mutableHeaders.delete("content-length");
+  mutableHeaders.delete("transfer-encoding");
+  mutableHeaders.set("accept-encoding", "identity");
+
+  const token = await getConvexToken(env.VITE_CONVEX_SITE_URL, mutableHeaders, {
+    jwtCache: {
+      enabled: true,
+      isAuthError,
+    },
+  });
+
+  return token.token;
+}
+
+export async function getRequestUserIdFromHeaders(
+  headers: Headers,
+): Promise<string | undefined> {
+  const token = await getAuthTokenFromHeaders(headers);
+  if (!token) {
+    return undefined;
+  }
+
+  const client = new ConvexHttpClient(env.VITE_CONVEX_URL);
+  client.setAuth(token);
+
+  return client
+    .query(api.functions.user.getCurrentUserId, {})
+    .then(({ userId }) => userId)
+    .catch((error: unknown) => {
+      if (isAuthError(error)) {
+        return undefined;
+      }
+      throw error;
+    });
+}
 
 export const {
   handler,

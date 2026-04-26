@@ -11,11 +11,13 @@ import {
 } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@tanstack/react-router";
 import {
   CheckIcon,
   ClockIcon,
   CopyIcon,
+  FileText,
   RefreshCwIcon,
   WholeWord,
   ZapIcon,
@@ -32,9 +34,12 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai/conversation";
+import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { useQuery } from "@/lib/hooks/convex";
+import { resolveAttachments } from "@/server/attachments";
 import { EmptyChat } from "./empty";
 import { ChatInput } from "./input";
+import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
 
 // Type guard to narrow part types to TextUIPart
@@ -55,6 +60,22 @@ interface MessageStats {
   };
   model?: string;
   content?: string;
+}
+
+interface ResolvedAttachment {
+  attachmentId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  url?: string;
+}
+
+interface MessageAttachmentSummary {
+  attachmentId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  url?: string;
 }
 
 function MessageStatsBar({
@@ -241,6 +262,9 @@ export function Chat({
   const chatSessionId = useStableClientId();
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
   const locallyCompletedStreamRef = useRef(false);
+  const { settings, isReady: settingsReady, setModel } =
+    useChatSettings(currentThreadId);
+  const resolveAttachmentsFn = useServerFn(resolveAttachments);
 
   const [initialMessages] = useState(() => preload ?? []);
 
@@ -391,6 +415,15 @@ export function Chat({
   }, [convexMessages]);
 
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<{
+    id: string;
+    name: string;
+    type: string;
+    url?: string;
+  } | null>(null);
+  const [resolvedMessageAttachments, setResolvedMessageAttachments] = useState<
+    Record<string, ResolvedAttachment>
+  >({});
 
   const finalMessages = useMemo(() => {
     if (optimisticMessage) {
@@ -413,6 +446,70 @@ export function Chat({
   const handleInitialThreadScrollReady = useCallback(() => {
     setInitialThreadScrollReady(true);
   }, []);
+
+  const messageAttachmentsByMessageId = useMemo(() => {
+    const map = new Map<string, MessageAttachmentSummary[]>();
+    convexMessages?.forEach((message) => {
+      if (!("attachments" in message) || !Array.isArray(message.attachments)) {
+        return;
+      }
+      map.set(message.messageId, message.attachments);
+    });
+    return map;
+  }, [convexMessages]);
+
+  const attachmentIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          convexMessages?.flatMap((message) =>
+            "attachments" in message && Array.isArray(message.attachments)
+              ? message.attachments.map((attachment) => attachment.attachmentId)
+              : [],
+          ) ?? [],
+        ),
+      ),
+    [convexMessages],
+  );
+
+  useEffect(() => {
+    if (attachmentIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void resolveAttachmentsFn({
+      data: { attachmentIds },
+    })
+      .then((attachments) => {
+        if (cancelled) {
+          return;
+        }
+
+        setResolvedMessageAttachments(
+          Object.fromEntries(
+            attachments.map((attachment) => [
+              attachment.attachmentId,
+              {
+                attachmentId: attachment.attachmentId,
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+                size: attachment.size,
+                url: attachment.url,
+              },
+            ]),
+          ),
+        );
+      })
+      .catch((error) => {
+        console.error("Failed to resolve message attachment URLs", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attachmentIds, resolveAttachmentsFn]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -438,6 +535,7 @@ export function Chat({
                 clientId={chatSessionId}
                 convexMessages={convexUIMessages}
                 setOptimisticMessage={(m) => setOptimisticMessage(m)}
+                settings={settings}
               />
             ) : (
               <div className="flex flex-col gap-8">
@@ -454,6 +552,27 @@ export function Chat({
                     isLastMessage;
                   const messageStats = messageStatsMap.get(message.id);
                   const isHovered = hoveredMessageId === message.id;
+                  const persistedAttachments: MessageAttachmentSummary[] =
+                    messageAttachmentsByMessageId.get(message.id)?.map(
+                      (attachment) => ({
+                        ...attachment,
+                        url: resolvedMessageAttachments[attachment.attachmentId]?.url,
+                      }),
+                    ) ?? [];
+                  const messageMetadata = (
+                    "metadata" in message ? message.metadata : undefined
+                  ) as { attachments?: MessageAttachmentSummary[] } | undefined;
+                  const optimisticAttachments =
+                    persistedAttachments.length === 0 &&
+                    messageMetadata &&
+                    typeof messageMetadata === "object" &&
+                    Array.isArray(messageMetadata.attachments)
+                      ? messageMetadata.attachments
+                      : [];
+                  const attachmentsToRender =
+                    persistedAttachments.length > 0
+                      ? persistedAttachments
+                      : optimisticAttachments;
 
                   return (
                     <div
@@ -486,6 +605,45 @@ export function Chat({
                         >
                           {textContent}
                         </Streamdown>
+                        {attachmentsToRender.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {attachmentsToRender.map((attachment) => {
+                              const isImage = attachment.mimeType.startsWith("image/");
+                              return (
+                                <button
+                                  key={attachment.attachmentId}
+                                  type="button"
+                                  onClick={() =>
+                                    attachment.url &&
+                                    setPreviewFile({
+                                      id: attachment.attachmentId,
+                                      name: attachment.fileName,
+                                      type: attachment.mimeType,
+                                      url: attachment.url,
+                                    })
+                                  }
+                                  className={cn(
+                                    "border-border bg-background/70 flex items-center gap-2 rounded-xl border px-3 py-2 text-left",
+                                    attachment.url && "hover:border-primary transition-colors",
+                                  )}
+                                >
+                                  {isImage && attachment.url ? (
+                                    <img
+                                      src={attachment.url}
+                                      alt={attachment.fileName}
+                                      className="h-10 w-10 rounded object-cover"
+                                    />
+                                  ) : (
+                                    <FileText className="h-4 w-4 shrink-0" />
+                                  )}
+                                  <span className="max-w-48 truncate text-sm">
+                                    {attachment.fileName}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                         {/* <span className="text-xs text-muted-foreground">
                           {message.id}
                         </span> */}
@@ -519,6 +677,14 @@ export function Chat({
         status={status}
         clientId={chatSessionId}
         convexMessages={convexUIMessages}
+        settings={settings}
+        settingsReady={settingsReady}
+        onModelChange={setModel}
+      />
+
+      <FilePreviewDialog
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
       />
     </div>
   );

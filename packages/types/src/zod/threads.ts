@@ -2,7 +2,7 @@ import { z } from "zod";
 import { zid } from "convex-helpers/server/zod4";
 
 export const messageStatus = z.enum(["generating", "completed", "failed"]);
-export const threadStatus = z.enum(["active", "archived"]);
+export const threadStatus = z.enum(["generating", "completed"]);
 const messageRole = z.enum(["user", "assistant", "system"]);
 
 const mutationInfo = z.discriminatedUnion("type", [
@@ -33,6 +33,19 @@ export const messageSchema = z.object({ // messages should be immutable
     })
     .optional(),
   error: z.string().optional(),
+  attachments: z
+    .array(
+      z.object({
+        attachmentId: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+        size: z.number(),
+        serveImage: z.boolean().optional(),
+        isPublic: z.boolean().optional(),
+        expiresAt: z.number().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const threadSchema = z.object({
@@ -43,7 +56,7 @@ export const threadSchema = z.object({
 
   settings: z.object({
     model: z.string(),
-    tools: z.array(z.string()),
+    tools: z.record(z.string(), z.unknown()),
   }),
 
   updatedAt: z.number(),

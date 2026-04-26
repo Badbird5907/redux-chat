@@ -1,12 +1,21 @@
 import type { TextPart, UIMessage } from "ai";
 
+import type { MessageSettings } from "@redux/types";
+
 interface SubmitMessageParams {
   messageContent: string;
   threadId: string | undefined;
   setThreadId: (id: string) => void;
-  selectedModel: string;
+  settings: MessageSettings;
   clientId: string;
-  fileIds?: string[];
+  attachmentIds?: string[];
+  attachmentMetadata?: Array<{
+    attachmentId: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    url?: string;
+  }>;
   safeGetSignedId: (
     count: number,
   ) => Promise<({ id: string; str: string } | undefined)[]>;
@@ -16,6 +25,8 @@ interface SubmitMessageParams {
     userMessageId: string;
     assistantMessageId: string;
     model: string;
+    settings: MessageSettings;
+    attachmentIds?: string[];
   }) => Promise<{
     threadId: string;
     userMessageId: string;
@@ -33,9 +44,10 @@ export async function submitMessage({
   messageContent,
   threadId,
   setThreadId,
-  selectedModel,
+  settings,
   clientId,
-  fileIds = [],
+  attachmentIds = [],
+  attachmentMetadata = [],
   safeGetSignedId,
   createMessage,
   setOptimisticMessage,
@@ -69,7 +81,9 @@ export async function submitMessage({
       userMessage: messagePart,
       userMessageId: userMessageId.str,
       assistantMessageId: assistantMessageId.str,
-      model: selectedModel,
+      model: settings.model,
+      settings,
+      attachmentIds,
     });
   } else {
     // New thread: get 3 signed IDs (user message, assistant message, thread id)
@@ -86,6 +100,9 @@ export async function submitMessage({
       id: userMessageId.id,
       role: "user",
       parts: [{ type: "text", text: messageContent }],
+      metadata: {
+        attachments: attachmentMetadata,
+      },
     });
 
     console.log(
@@ -99,7 +116,9 @@ export async function submitMessage({
       userMessage: messagePart,
       userMessageId: userMessageId.str,
       assistantMessageId: assistantMessageId.str,
-      model: selectedModel,
+      model: settings.model,
+      settings,
+      attachmentIds,
     });
   }
 
@@ -121,8 +140,8 @@ export async function submitMessage({
     threadId: threadInfo.threadId,
     assistantMessageId: threadInfo.assistantMessageId,
     messages: messagesForAPI,
-    fileIds,
-    model: selectedModel,
+    fileIds: attachmentIds,
+    model: settings.model,
     id: threadInfo.threadId,
     clientId,
     trigger: "submit-message" as const,
@@ -139,6 +158,7 @@ export async function submitMessage({
       text: messageContent,
       metadata: {
         assistantMessageId: threadInfo.assistantMessageId,
+        attachments: attachmentMetadata,
       },
     },
     {
