@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { zid } from "convex-helpers/server/zod4";
+import { z } from "zod";
 
 export const messageStatus = z.enum(["generating", "completed", "failed"]);
 export const threadStatus = z.enum(["generating", "completed"]);
@@ -11,7 +11,12 @@ const mutationInfo = z.discriminatedUnion("type", [
   z.object({ type: z.literal("regeneration"), fromMessageId: zid("messages") }),
 ]);
 
-export const messageSchema = z.object({ // messages should be immutable
+const messageToolsSchema = z.object({
+  search: z.object({}).optional(),
+});
+
+export const messageSchema = z.object({
+  // messages should be immutable
   threadId: zid("threads"),
   parentId: zid("messages").optional(),
   role: messageRole,
@@ -50,13 +55,13 @@ export const messageSchema = z.object({ // messages should be immutable
 
 export const threadSchema = z.object({
   userId: zid("users"),
-  
+
   name: z.string(),
   status: threadStatus,
 
   settings: z.object({
     model: z.string(),
-    tools: z.record(z.string(), z.unknown()),
+    tools: messageToolsSchema,
   }),
 
   updatedAt: z.number(),

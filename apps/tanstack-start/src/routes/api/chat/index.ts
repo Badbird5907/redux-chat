@@ -2,13 +2,15 @@ import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
-import { convertToModelMessages, generateId, streamText } from "ai";
+import { convertToModelMessages, generateId, stepCountIs, streamText } from "ai";
 import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
 
 import { env } from "@/env";
+import { getToolSet } from "@/lib/ai/tools";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
@@ -25,6 +27,12 @@ const requestBody = z.object({
       parts: z.array(z.custom<UIMessagePart<UIDataTypes, UITools>>()),
     }),
   ),
+  settings: z.object({
+    model: z.string(),
+    tools: z.object({
+      search: z.object({}).optional(),
+    }),
+  }),
   model: z.string(),
   id: z.string(),
   trigger: z.enum(["submit-message", "regenerate-message"]),
@@ -186,13 +194,16 @@ export const Route = createFileRoute("/api/chat/")({
           messages,
           fileIds,
           clientId,
-          model,
+          settings: rawSettings,
         } = parsedBody;
+        const settings = normalizeMessageSettings(rawSettings);
+        const isSearchEnabled = isToolEnabled(settings.tools, "search");
         console.log("Received request:", {
           threadId,
           assistantMessageId,
           clientId,
-          model,
+          model: settings.model,
+          isSearchEnabled,
         });
 
         const attachmentsByMessageId =
@@ -230,9 +241,11 @@ export const Route = createFileRoute("/api/chat/")({
         let firstTokenTime: number | null = null;
 
         const result = streamText({
-          model: openai(model),
+          model: openai(settings.model),
           messages: modelMessages,
           abortSignal: abortController.signal,
+          tools: getToolSet(settings),
+          stopWhen: stepCountIs(15),
           onFinish: async ({ usage }) => {
             // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
             const usageData =
@@ -303,6 +316,8 @@ export const Route = createFileRoute("/api/chat/")({
         console.log("stream started");
         return result.toUIMessageStreamResponse({
           originalMessages: messages,
+          sendReasoning: true,
+          sendSources: true,
           generateMessageId: () => assistantMessageId,
           messageMetadata: ({ part }) => {
             if (part.type === "start") {

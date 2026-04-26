@@ -15,8 +15,9 @@ import {
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
-import type { MessageSettings } from "@redux/types";
+import type { MessageSettings, MessageSettingsPatch } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
+import { isToolEnabled } from "@redux/types";
 import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -45,8 +46,11 @@ interface ChatInputProps {
   clientId: string;
   convexMessages: UIMessage[];
   settings: MessageSettings;
+  baselineSettings: MessageSettings;
   settingsReady: boolean;
   onModelChange: (modelId: string) => Promise<MessageSettings>;
+  onSettingsChange: (patch: MessageSettingsPatch) => Promise<MessageSettings>;
+  restoreSettings: (settings: MessageSettings) => void;
 }
 
 interface PreviewableFile {
@@ -70,8 +74,11 @@ export function ChatInput({
   clientId,
   convexMessages,
   settings,
+  baselineSettings,
   settingsReady,
   onModelChange,
+  onSettingsChange,
+  restoreSettings,
 }: ChatInputProps) {
   const {
     text: input,
@@ -83,9 +90,14 @@ export function ChatInput({
     removeAttachment,
     setAttachments,
     clearDraft,
-  } = useChatDraft(threadId);
+  } = useChatDraft({
+    threadId,
+    settings,
+    baselineSettings,
+    settingsReady,
+    restoreSettings,
+  });
   const [previewFile, setPreviewFile] = useState<PreviewableFile | null>(null);
-  const [isSearchEnabled, setIsSearchEnabled] = useState(false);
   const [showTokenVisualization, setShowTokenVisualization] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -147,6 +159,7 @@ export function ChatInput({
   }, [showTokenVisualization, textareaHeight]);
 
   const selectedModel = settings.model;
+  const isSearchEnabled = isToolEnabled(settings.tools, "search");
   const showErrorBorder = status === "error";
   const currentModelConfig = getChatModelConfig(selectedModel);
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
@@ -258,6 +271,14 @@ export function ChatInput({
     },
     [removeAttachment],
   );
+
+  const handleToggleSearch = useCallback(() => {
+    void onSettingsChange({
+      tools: {
+        search: isSearchEnabled ? undefined : {},
+      },
+    });
+  }, [isSearchEnabled, onSettingsChange]);
 
   const handleSubmit = useCallback(async () => {
     const expiredAttachments = attachments.filter(
@@ -630,13 +651,14 @@ export function ChatInput({
 
                 <button
                   type="button"
-                  onClick={() => setIsSearchEnabled(!isSearchEnabled)}
+                  onClick={handleToggleSearch}
                   className={cn(
                     "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
                     isSearchEnabled
                       ? "bg-primary/60 border-primary/90 text-primary-foreground hover:bg-primary/20"
                       : "hover:bg-muted/80 text-foreground border-border bg-none",
                   )}
+                  disabled={!settingsReady}
                 >
                   <Search className="h-3.5 w-3.5" />
                   <span>Search</span>

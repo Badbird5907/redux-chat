@@ -1,9 +1,9 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { Buffer } from "buffer/";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 
@@ -380,7 +380,9 @@ export const sendMessage = mutation({
     model: v.string(),
     settings: v.object({
       model: v.string(),
-      tools: v.record(v.string(), v.any()),
+      tools: v.object({
+        search: v.optional(v.object({})),
+      }),
     }),
     attachmentIds: v.optional(v.array(v.string())),
   },
@@ -562,11 +564,14 @@ export const internal_generateThreadTitle = internalAction({
         return;
       }
 
-      await ctx.runMutation(internal.functions.threads.internal_setThreadTitle, {
-        threadId: args.threadId,
-        generated: true,
-        title,
-      });
+      await ctx.runMutation(
+        internal.functions.threads.internal_setThreadTitle,
+        {
+          threadId: args.threadId,
+          generated: true,
+          title,
+        },
+      );
     } catch (error) {
       console.error("Failed to generate thread title", error);
     }
@@ -578,7 +583,11 @@ export const updateThreadSettings = mutation({
     threadId: v.string(),
     patch: v.object({
       model: v.optional(v.string()),
-      tools: v.optional(v.record(v.string(), v.any())),
+      tools: v.optional(
+        v.object({
+          search: v.optional(v.object({})),
+        }),
+      ),
     }),
   },
   handler: async (ctx, args) => {

@@ -1,6 +1,7 @@
 "use client";
 
-import type { TextPart, TextUIPart, UIMessage } from "ai";
+import { isTextUIPart } from "ai";
+import type { UIMessage } from "ai";
 import {
   useCallback,
   useEffect,
@@ -26,6 +27,7 @@ import { Streamdown } from "streamdown";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import { getChatModelConfig } from "@redux/types";
 import Spinner from "@redux/ui/components/spinner";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -34,6 +36,7 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai/conversation";
+import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
@@ -41,11 +44,6 @@ import { EmptyChat } from "./empty";
 import { ChatInput } from "./input";
 import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
-import { getChatModelConfig } from "@redux/types";
-
-// Type guard to narrow part types to TextUIPart
-const isTextPart = (part: { type: string }): part is TextUIPart =>
-  part.type === "text";
 
 // Type for message stats from Convex
 interface MessageStats {
@@ -154,7 +152,11 @@ function MessageStatsBar({
       </div>
 
       {/* Model name */}
-      {model && <span className="flex items-center gap-1">{getChatModelConfig(model)?.name}</span>}
+      {model && (
+        <span className="flex items-center gap-1">
+          {getChatModelConfig(model)?.name}
+        </span>
+      )}
 
       {/* Tokens per second */}
       {generationStats && (
@@ -273,8 +275,11 @@ export function Chat({
   const locallyCompletedStreamRef = useRef(false);
   const {
     settings,
+    baselineSettings,
     isReady: settingsReady,
     setModel,
+    restoreSettings,
+    updateSettings,
   } = useChatSettings(currentThreadId);
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
 
@@ -551,11 +556,17 @@ export function Chat({
               />
             ) : (
               <div className="flex flex-col gap-8">
-                {finalMessages.map((message, i) => {
-                  const textParts = message.parts.filter(isTextPart);
-                  const textContent = textParts
-                    .map((part: TextPart) => part.text)
-                    .join("");
+                {finalMessages.map((message: UIMessage, i) => {
+                  const textContent = message.parts.reduce<string>(
+                    (content, part: UIMessage["parts"][number]) => {
+                    if (!isTextUIPart(part)) {
+                      return content;
+                    }
+
+                    return content + part.text;
+                    },
+                    "",
+                  );
                   // Check if this is the last assistant message and we're streaming
                   const isLastMessage = i === messages.length - 1;
                   const isStreamingAssistant =
@@ -612,7 +623,7 @@ export function Chat({
                     >
                       <div
                         className={cn(
-                          "max-w-[80%] rounded-lg px-4 py-2",
+                          "max-w-full rounded-lg px-4 py-2",
                           message.role === "user"
                             ? "bg-primary text-primary-foreground"
                             : "",
@@ -621,11 +632,15 @@ export function Chat({
                         {!message.parts.length && (
                           <Spinner className="size-4" />
                         )}
-                        <Streamdown
-                          mode={isStreamingAssistant ? "streaming" : "static"}
-                        >
-                          {textContent}
-                        </Streamdown>
+                        {message.role === "assistant" ? (
+                          <AssistantMessageParts
+                            isLastMessage={isLastMessage}
+                            isStreaming={isStreamingAssistant}
+                            message={message}
+                          />
+                        ) : (
+                          <Streamdown mode="static">{textContent}</Streamdown>
+                        )}
                         {attachmentsToRender.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {attachmentsToRender.map((attachment) => {
@@ -704,7 +719,6 @@ export function Chat({
         <ConversationScrollButton />
       </Conversation>
 
-      {/* Input area */}
       <ChatInput
         threadId={currentThreadId}
         setThreadId={handleThreadIdChange}
@@ -715,8 +729,11 @@ export function Chat({
         clientId={chatSessionId}
         convexMessages={convexUIMessages}
         settings={settings}
+        baselineSettings={baselineSettings}
         settingsReady={settingsReady}
         onModelChange={setModel}
+        onSettingsChange={updateSettings}
+        restoreSettings={restoreSettings}
       />
 
       <FilePreviewDialog

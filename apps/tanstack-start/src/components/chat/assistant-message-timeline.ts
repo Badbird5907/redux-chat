@@ -1,0 +1,406 @@
+import {
+  getToolName,
+  isReasoningUIPart,
+  isToolUIPart,
+  isTextUIPart,
+} from "ai";
+import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
+
+export type AssistantTimelineStepStatus =
+  | "active"
+  | "complete"
+  | "error"
+  | "pending";
+
+export interface AssistantTimelineSearchResult {
+  title: string;
+  url: string;
+}
+
+export interface AssistantTimelineStep {
+  description?: string;
+  id: string;
+  kind: "reasoning" | "source" | "tool";
+  label: string;
+  rawPartIds: string[];
+  searchResults?: AssistantTimelineSearchResult[];
+  status: AssistantTimelineStepStatus;
+}
+
+interface NormalizedAssistantMessage {
+  reasoningText?: string;
+  steps: AssistantTimelineStep[];
+  textContent: string;
+}
+
+export function normalizeAssistantMessage(
+  message: UIMessage,
+): NormalizedAssistantMessage {
+  const textContent = message.parts
+    .filter(isTextUIPart)
+    .map((part) => part.text)
+    .join("");
+  const indexedParts = message.parts.map((part, index) => ({
+    id: `${message.id}:${index}`,
+    index,
+    part,
+  }));
+  const reasoningParts = indexedParts.filter(({ part }) => isReasoningUIPart(part));
+  const reasoningText = joinReasoningParts(
+    reasoningParts.flatMap(({ part }) => (isReasoningUIPart(part) ? [part.text] : [])),
+  );
+  const hasToolOrSourceActivity = indexedParts.some(
+    ({ part }) =>
+      isToolUIPart(part) ||
+      part.type === "source-document" ||
+      part.type === "source-url",
+  );
+  const steps: AssistantTimelineStep[] = [];
+  let attachableStepIndex = -1;
+
+  if (reasoningText && hasToolOrSourceActivity) {
+    steps.push({
+      description: summarizeText(reasoningText),
+      id: `${message.id}:reasoning`,
+      kind: "reasoning",
+      label: "Thinking",
+      rawPartIds: reasoningParts.map(({ id }) => id),
+      status: isLastReasoningPartStreaming(message.parts) ? "active" : "complete",
+    });
+    attachableStepIndex = 0;
+  }
+
+  for (const { id, part } of indexedParts) {
+    if (isToolUIPart(part)) {
+      const toolName = getToolName(part);
+      const toolStep: AssistantTimelineStep = {
+        description: getToolDescription(toolName, part),
+        id: part.toolCallId,
+        kind: "tool",
+        label: part.title ?? humanizeToolName(toolName),
+        rawPartIds: [id],
+        searchResults: getToolSearchResults(toolName, part),
+        status: mapToolStateToStatus(part.state),
+      };
+
+      steps.push(toolStep);
+      attachableStepIndex = steps.length - 1;
+      continue;
+    }
+
+    if (part.type === "source-url") {
+      const result = {
+        title:
+          part.title?.trim() && part.title.trim().length > 0
+            ? part.title.trim()
+            : formatSourceUrlLabel(part.url),
+        url: part.url,
+      };
+
+      const targetStep = attachSearchResultToCurrentStep(
+        steps,
+        attachableStepIndex,
+        result,
+        id,
+      );
+
+      if (targetStep !== null) {
+        attachableStepIndex = targetStep;
+        continue;
+      }
+
+      steps.push({
+        id: `${message.id}:sources`,
+        kind: "source",
+        label: "Sources",
+        rawPartIds: [id],
+        searchResults: [result],
+        status: "complete",
+      });
+      attachableStepIndex = steps.length - 1;
+      continue;
+    }
+
+    if (part.type === "source-document") {
+      const targetStep = steps[attachableStepIndex];
+      const sourceText = part.filename ? `${part.title} (${part.filename})` : part.title;
+
+      if (targetStep) {
+        targetStep.description = appendDescription(
+          targetStep.description,
+          `Source: ${sourceText}`,
+        );
+        targetStep.rawPartIds.push(id);
+        continue;
+      }
+
+      steps.push({
+        description: sourceText,
+        id: `${message.id}:document-source`,
+        kind: "source",
+        label: "Source",
+        rawPartIds: [id],
+        status: "complete",
+      });
+      attachableStepIndex = steps.length - 1;
+    }
+  }
+
+  return {
+    reasoningText,
+    steps,
+    textContent,
+  };
+}
+
+function isLastReasoningPartStreaming(parts: UIMessage["parts"]) {
+  const lastReasoningPart = [...parts].reverse().find(isReasoningUIPart);
+  return lastReasoningPart?.state === "streaming";
+}
+
+function joinReasoningParts(parts: string[]) {
+  const joined = parts.map((part) => part.trim()).filter(Boolean).join("\n\n");
+  return joined || undefined;
+}
+
+function mapToolStateToStatus(
+  state: string,
+): AssistantTimelineStepStatus {
+  switch (state) {
+    case "input-streaming":
+    case "input-available":
+    case "approval-requested":
+    case "approval-responded":
+      return "active";
+    case "output-available":
+      return "complete";
+    case "output-denied":
+    case "output-error":
+      return "error";
+    default:
+      return "pending";
+  }
+}
+
+function humanizeToolName(toolName: string) {
+  return toolName
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getToolDescription(
+  toolName: string,
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const inputText = summarizeUnknown(getToolInput(part));
+  const normalizedToolName = toolName.toLowerCase();
+
+  if (part.state === "output-error") {
+    return part.errorText;
+  }
+
+  if (part.state === "output-denied") {
+    return "Tool execution was denied.";
+  }
+
+  if (normalizedToolName === "search") {
+    const query = getToolQuery(part);
+
+    if (part.state === "output-available") {
+      const results = getToolSearchResults(toolName, part);
+      if (results.length > 0) {
+        return query
+          ? `Searched for "${query}" and found ${results.length} result${results.length === 1 ? "" : "s"}.`
+          : `Found ${results.length} search result${results.length === 1 ? "" : "s"}.`;
+      }
+    }
+
+    if (query) {
+      return `Searching for "${query}"`;
+    }
+  }
+
+  if (part.state === "output-available") {
+    const outputText = summarizeUnknown(part.output);
+    if (outputText) {
+      return outputText;
+    }
+  }
+
+  return inputText;
+}
+
+function getToolInput(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  if ("input" in part) {
+    return part.input;
+  }
+
+  return undefined;
+}
+
+function getToolQuery(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const input = getToolInput(part);
+  return isRecord(input) && typeof input.query === "string" ? input.query : undefined;
+}
+
+function getToolSearchResults(
+  toolName: string,
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  if (toolName.toLowerCase() !== "search" || part.state !== "output-available") {
+    return [];
+  }
+
+  const candidates = extractSearchResultCandidates(part.output);
+  return dedupeSearchResults(candidates);
+}
+
+function extractSearchResultCandidates(value: unknown): AssistantTimelineSearchResult[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(extractSearchResultCandidates);
+  }
+
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  const directResult = toSearchResult(value);
+  if (directResult) {
+    return [directResult];
+  }
+
+  return Object.values(value).flatMap(extractSearchResultCandidates);
+}
+
+function toSearchResult(value: Record<string, unknown>) {
+  if (typeof value.url !== "string") {
+    return null;
+  }
+
+  const title =
+    typeof value.title === "string" && value.title.trim()
+      ? value.title.trim()
+      : formatSourceUrlLabel(value.url);
+
+  return {
+    title,
+    url: value.url,
+  };
+}
+
+function dedupeSearchResults(results: AssistantTimelineSearchResult[]) {
+  const unique = new Map<string, AssistantTimelineSearchResult>();
+
+  for (const result of results) {
+    if (!result.url) {
+      continue;
+    }
+
+    unique.set(result.url, result);
+  }
+
+  return Array.from(unique.values());
+}
+
+function attachSearchResultToCurrentStep(
+  steps: AssistantTimelineStep[],
+  currentStepIndex: number,
+  result: AssistantTimelineSearchResult,
+  rawPartId: string,
+) {
+  const targetStep = steps[currentStepIndex];
+
+  if (!targetStep) {
+    return null;
+  }
+
+  targetStep.searchResults = dedupeSearchResults([
+    ...(targetStep.searchResults ?? []),
+    result,
+  ]);
+  targetStep.rawPartIds.push(rawPartId);
+
+  return currentStepIndex;
+}
+
+function summarizeUnknown(value: unknown): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    return summarizeText(value);
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return undefined;
+    }
+
+    const preview: string = value
+      .slice(0, 3)
+      .map((item) => summarizeUnknown(item))
+      .filter(Boolean)
+      .join(" | ");
+
+    return summarizeText(preview);
+  }
+
+  if (isRecord(value)) {
+    const preferredKeys = ["query", "summary", "title", "text", "message"];
+    for (const key of preferredKeys) {
+      const candidate = value[key];
+      if (typeof candidate === "string" && candidate.trim()) {
+        return summarizeText(candidate);
+      }
+    }
+
+    try {
+      return summarizeText(JSON.stringify(value));
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
+function summarizeText(value: string, maxLength = 180) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+}
+
+function appendDescription(existing: string | undefined, next: string) {
+  return existing ? `${existing}\n${next}` : next;
+}
+
+function formatSourceUrlLabel(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}

@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 
+import type { MessageSettings, MessageSettingsInput } from "@redux/types";
+import { normalizeMessageSettings } from "@redux/types";
+
 import {
   deleteDraftAttachment,
   resolveAttachments,
@@ -22,6 +25,7 @@ export interface DraftAttachment {
 interface StoredDraft {
   version: number;
   text?: string;
+  settings?: MessageSettingsInput;
   attachments?: {
     attachmentId: string;
     fileName: string;
@@ -33,7 +37,7 @@ interface StoredDraft {
   updatedAt: number;
 }
 
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 const DRAFT_UPDATED_EVENT = "redux-chat:draft-updated";
 
 export function getChatDraftStorageKey(threadId?: string) {
@@ -45,9 +49,11 @@ export function getChatDraftStorageKey(threadId?: string) {
 export function setStoredChatDraft({
   threadId,
   text,
+  settings,
 }: {
   threadId?: string;
   text: string;
+  settings?: MessageSettingsInput;
 }) {
   if (typeof window === "undefined") {
     return;
@@ -57,6 +63,7 @@ export function setStoredChatDraft({
   const draft: StoredDraft = {
     version: STORAGE_VERSION,
     text,
+    settings,
     attachments: [],
     updatedAt: Date.now(),
   };
@@ -79,7 +86,43 @@ function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
 }
 
-export function useChatDraft(threadId?: string) {
+function serializeMessageSettings(
+  settings: MessageSettingsInput | null | undefined,
+) {
+  const normalizedSettings = normalizeMessageSettings(settings);
+
+  return JSON.stringify({
+    ...normalizedSettings,
+    tools: Object.fromEntries(
+      Object.entries(normalizedSettings.tools).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    ),
+  });
+}
+
+function areMessageSettingsEqual(
+  left: MessageSettingsInput | null | undefined,
+  right: MessageSettingsInput | null | undefined,
+) {
+  return serializeMessageSettings(left) === serializeMessageSettings(right);
+}
+
+interface UseChatDraftOptions {
+  threadId?: string;
+  settings: MessageSettings;
+  baselineSettings: MessageSettings;
+  settingsReady: boolean;
+  restoreSettings: (settings: MessageSettings) => void;
+}
+
+export function useChatDraft({
+  threadId,
+  settings,
+  baselineSettings,
+  settingsReady,
+  restoreSettings,
+}: UseChatDraftOptions) {
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
   const scopeKey = useMemo(() => getChatDraftStorageKey(threadId), [threadId]);
@@ -87,6 +130,7 @@ export function useChatDraft(threadId?: string) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<DraftAttachment[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
   const previousAttachmentsRef = useRef<DraftAttachment[]>([]);
 
   useEffect(() => {
@@ -115,6 +159,11 @@ export function useChatDraft(threadId?: string) {
 
     async function loadDraft() {
       setIsReady(false);
+      setLoadedScopeKey(null);
+
+      if (!settingsReady) {
+        return;
+      }
 
       if (typeof window === "undefined") {
         return;
@@ -125,6 +174,7 @@ export function useChatDraft(threadId?: string) {
         if (!cancelled) {
           setText("");
           setAttachments([]);
+          setLoadedScopeKey(scopeKey);
           setIsReady(true);
         }
         return;
@@ -132,17 +182,26 @@ export function useChatDraft(threadId?: string) {
 
       try {
         const parsed = JSON.parse(raw) as StoredDraft;
+        const savedSettings =
+          parsed.version >= 2 && parsed.settings
+            ? normalizeMessageSettings(parsed.settings)
+            : undefined;
         const savedAttachments =
-          parsed.version === STORAGE_VERSION
+          parsed.version >= 1
             ? (parsed.attachments ?? []).filter(
                 (attachment) => !isAttachmentExpired(attachment.expiresAt),
               )
             : [];
 
+        if (savedSettings && !cancelled) {
+          restoreSettings(savedSettings);
+        }
+
         if (savedAttachments.length === 0) {
           if (!cancelled) {
             setText(parsed.text ?? "");
             setAttachments([]);
+            setLoadedScopeKey(scopeKey);
             setIsReady(true);
           }
           return;
@@ -188,6 +247,7 @@ export function useChatDraft(threadId?: string) {
         if (!cancelled) {
           setText(parsed.text ?? "");
           setAttachments(hydratedAttachments);
+          setLoadedScopeKey(scopeKey);
           setIsReady(true);
         }
       } catch (error) {
@@ -195,6 +255,7 @@ export function useChatDraft(threadId?: string) {
         if (!cancelled) {
           setText("");
           setAttachments([]);
+          setLoadedScopeKey(scopeKey);
           setIsReady(true);
         }
       }
@@ -205,10 +266,15 @@ export function useChatDraft(threadId?: string) {
     return () => {
       cancelled = true;
     };
-  }, [resolveAttachmentsFn, scopeKey]);
+  }, [resolveAttachmentsFn, restoreSettings, scopeKey, settingsReady]);
 
   useEffect(() => {
-    if (!isReady || typeof window === "undefined") {
+    if (
+      !isReady ||
+      !settingsReady ||
+      loadedScopeKey !== scopeKey ||
+      typeof window === "undefined"
+    ) {
       return;
     }
 
@@ -226,7 +292,11 @@ export function useChatDraft(threadId?: string) {
         lastKnownUrl: attachment.url,
       }));
 
-    if (!text.trim() && persistedAttachments.length === 0) {
+    if (
+      !text.trim() &&
+      persistedAttachments.length === 0 &&
+      areMessageSettingsEqual(settings, baselineSettings)
+    ) {
       window.localStorage.removeItem(scopeKey);
       return;
     }
@@ -234,12 +304,22 @@ export function useChatDraft(threadId?: string) {
     const draft: StoredDraft = {
       version: STORAGE_VERSION,
       text,
+      settings,
       attachments: persistedAttachments,
       updatedAt: Date.now(),
     };
 
     window.localStorage.setItem(scopeKey, JSON.stringify(draft));
-  }, [attachments, isReady, scopeKey, text]);
+  }, [
+    attachments,
+    baselineSettings,
+    isReady,
+    loadedScopeKey,
+    scopeKey,
+    settings,
+    settingsReady,
+    text,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -256,6 +336,7 @@ export function useChatDraft(threadId?: string) {
       if (!raw) {
         setText("");
         setAttachments([]);
+        setLoadedScopeKey(scopeKey);
         setIsReady(true);
         return;
       }
@@ -264,6 +345,10 @@ export function useChatDraft(threadId?: string) {
         const parsed = JSON.parse(raw) as StoredDraft;
         setText(parsed.text ?? "");
         setAttachments([]);
+        if (parsed.version >= 2 && parsed.settings) {
+          restoreSettings(normalizeMessageSettings(parsed.settings));
+        }
+        setLoadedScopeKey(scopeKey);
         setIsReady(true);
       } catch (error) {
         console.error("Failed to sync chat draft", error);
@@ -275,7 +360,7 @@ export function useChatDraft(threadId?: string) {
     return () => {
       window.removeEventListener(DRAFT_UPDATED_EVENT, handleDraftUpdated);
     };
-  }, [scopeKey]);
+  }, [restoreSettings, scopeKey]);
 
   const appendAttachment = useCallback((attachment: DraftAttachment) => {
     setAttachments((previous) => [...previous, attachment]);
@@ -320,6 +405,7 @@ export function useChatDraft(threadId?: string) {
       previous.forEach(revokeObjectUrl);
       return [];
     });
+    setLoadedScopeKey(scopeKey);
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(scopeKey);

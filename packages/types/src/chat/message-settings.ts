@@ -1,5 +1,12 @@
-export type MessageToolSettings = Record<string, unknown>;
-export type LegacyMessageToolSettings = MessageToolSettings | string[];
+export const MESSAGE_TOOL_NAMES = ["search"] as const;
+
+export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
+
+export type SearchToolSettings = object 
+
+export interface MessageToolSettings {
+  search?: SearchToolSettings;
+}
 
 export interface MessageSettings {
   model: string;
@@ -7,13 +14,15 @@ export interface MessageSettings {
   [key: string]: unknown;
 }
 
-export interface MessageSettingsInput
-  extends Omit<Partial<MessageSettings>, "tools"> {
-  tools?: LegacyMessageToolSettings;
+export interface MessageSettingsInput extends Omit<
+  Partial<MessageSettings>,
+  "tools"
+> {
+  tools?: Partial<MessageToolSettings>;
 }
 
 export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
-  tools?: MessageToolSettings;
+  tools?: Partial<MessageToolSettings>;
 };
 
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
@@ -24,7 +33,7 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
 export function normalizeMessageSettings(
   input: MessageSettingsInput | null | undefined,
 ): MessageSettings {
-  const { temperature: _temperature, ...rest } = input ?? {};
+  const rest = input ?? {};
 
   return {
     ...DEFAULT_MESSAGE_SETTINGS,
@@ -54,15 +63,30 @@ export function mergeMessageSettings(
 }
 
 function normalizeTools(
-  tools: MessageToolSettings | string[] | null | undefined,
+  tools: Partial<MessageToolSettings> | null | undefined,
 ): MessageToolSettings {
-  if (Array.isArray(tools)) {
-    return Object.fromEntries(
-      tools
-        .filter((toolName): toolName is string => typeof toolName === "string")
-        .map((toolName) => [toolName, true]),
-    );
+  const normalizedTools: MessageToolSettings = {};
+
+  if (
+    tools?.search &&
+    typeof tools.search === "object" &&
+    !Array.isArray(tools.search)
+  ) {
+    normalizedTools.search = {};
   }
 
-  return tools && typeof tools === "object" ? { ...tools } : {};
+  return normalizedTools;
+}
+
+export function isToolEnabled(
+  tools: MessageToolSettings,
+  toolName: MessageToolName,
+) {
+  return tools[toolName] !== undefined;
+}
+
+export function getEnabledMessageTools(tools: MessageToolSettings) {
+  return MESSAGE_TOOL_NAMES.filter((toolName) =>
+    isToolEnabled(tools, toolName),
+  );
 }

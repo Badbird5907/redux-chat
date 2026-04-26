@@ -1,9 +1,6 @@
 import { v } from "convex/values";
 
-import {
-  mergeMessageSettings,
-  normalizeMessageSettings,
-} from "@redux/types";
+import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 
 import { mutation } from "./index";
 
@@ -17,7 +14,9 @@ export const getOrCreate = mutation({
 
     if (existing) {
       const normalizedSettings = normalizeMessageSettings(existing.settings);
-      if (JSON.stringify(normalizedSettings) !== JSON.stringify(existing.settings)) {
+      if (
+        JSON.stringify(normalizedSettings) !== JSON.stringify(existing.settings)
+      ) {
         await ctx.db.patch(existing._id, {
           settings: normalizedSettings,
           updatedAt: Date.now(),
@@ -40,7 +39,11 @@ export const update = mutation({
   args: {
     patch: v.object({
       model: v.optional(v.string()),
-      tools: v.optional(v.record(v.string(), v.any())),
+      tools: v.optional(
+        v.object({
+          search: v.optional(v.object({})),
+        }),
+      ),
     }),
   },
   handler: async (ctx, args) => {

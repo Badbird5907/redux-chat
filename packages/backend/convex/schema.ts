@@ -4,7 +4,7 @@ import { v } from "convex/values";
 const messageStatus = v.union(
   v.literal("generating"),
   v.literal("completed"),
-  v.literal("failed")
+  v.literal("failed"),
 );
 
 // primarily controls the ui sidebar
@@ -13,22 +13,24 @@ const threadStatus = v.union(v.literal("generating"), v.literal("completed"));
 const messageRole = v.union(
   v.literal("user"),
   v.literal("assistant"),
-  v.literal("system")
+  v.literal("system"),
 );
 
 const mutationInfo = v.union(
   v.object({ type: v.literal("original") }),
   v.object({ type: v.literal("edit"), fromMessageId: v.string() }),
-  v.object({ type: v.literal("regeneration"), fromMessageId: v.string() })
+  v.object({ type: v.literal("regeneration"), fromMessageId: v.string() }),
 );
 
 const attachmentStatus = v.union(v.literal("draft"), v.literal("attached"));
 
+const messageTools = v.object({
+  search: v.optional(v.object({})),
+});
+
 export const messageSettings = v.object({
   model: v.string(),
-  tools: v.union(v.record(v.string(), v.any()), v.array(v.string())), // temporary legacy compatibility for old string[] rows
-  temperature: v.optional(v.number()), // temporary legacy compatibility so old rows can be backfilled away
-  // maybe use `false` for disabled, and a object as config for enabled. This way new tools can be added without being auto-disabled
+  tools: messageTools,
 });
 
 export default defineSchema({
@@ -68,14 +70,14 @@ export default defineSchema({
         promptTokens: v.number(),
         responseTokens: v.number(),
         totalTokens: v.number(),
-      })
+      }),
     ),
     generationStats: v.optional(
       v.object({
         timeToFirstTokenMs: v.number(),
         totalDurationMs: v.number(),
         tokensPerSecond: v.number(),
-      })
+      }),
     ),
     error: v.optional(v.string()),
   })
@@ -111,4 +113,3 @@ export default defineSchema({
     .index("by_accessKey", ["accessKey"])
     .index("by_fileKeyId", ["fileKeyId"]),
 });
-

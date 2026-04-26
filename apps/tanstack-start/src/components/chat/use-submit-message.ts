@@ -141,6 +141,7 @@ export async function submitMessage({
     assistantMessageId: threadInfo.assistantMessageId,
     messages: messagesForAPI,
     fileIds: attachmentIds,
+    settings,
     model: settings.model,
     id: threadInfo.threadId,
     clientId,

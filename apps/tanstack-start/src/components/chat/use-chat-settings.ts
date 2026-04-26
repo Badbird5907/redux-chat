@@ -1,28 +1,41 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation } from "convex/react";
-import { useConvex } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 
+import type { MessageSettings, MessageSettingsPatch } from "@redux/types";
+import { api } from "@redux/backend/convex/_generated/api";
 import {
   DEFAULT_MESSAGE_SETTINGS,
   mergeMessageSettings,
-  normalizeMessageSettings
+  normalizeMessageSettings,
 } from "@redux/types";
-import type { MessageSettings, MessageSettingsPatch } from "@redux/types";
-import { api } from "@redux/backend/convex/_generated/api";
 
 import { authClient } from "@/lib/auth/client";
 
 export function useChatSettings(threadId?: string) {
   const convex = useConvex();
   const { data: session } = authClient.useSession();
-  const getDefaultSettings = useMutation(api.functions.defaultMessageSettings.getOrCreate);
-  const updateDefaultSettings = useMutation(api.functions.defaultMessageSettings.update);
-  const updateThreadSettings = useMutation(api.functions.threads.updateThreadSettings);
-  const scopeKey = useMemo(() => (threadId ? `thread:${threadId}` : "home"), [threadId]);
+  const getDefaultSettings = useMutation(
+    api.functions.defaultMessageSettings.getOrCreate,
+  );
+  const updateDefaultSettings = useMutation(
+    api.functions.defaultMessageSettings.update,
+  );
+  const updateThreadSettings = useMutation(
+    api.functions.threads.updateThreadSettings,
+  );
+  const scopeKey = useMemo(
+    () => (threadId ? `thread:${threadId}` : "home"),
+    [threadId],
+  );
 
-  const [settings, setSettings] = useState<MessageSettings>(DEFAULT_MESSAGE_SETTINGS);
+  const [settings, setSettings] = useState<MessageSettings>(
+    DEFAULT_MESSAGE_SETTINGS,
+  );
+  const [baselineSettings, setBaselineSettings] = useState<MessageSettings>(
+    DEFAULT_MESSAGE_SETTINGS,
+  );
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -34,6 +47,7 @@ export function useChatSettings(threadId?: string) {
       if (!session?.session.userId) {
         if (!cancelled) {
           setSettings(DEFAULT_MESSAGE_SETTINGS);
+          setBaselineSettings(DEFAULT_MESSAGE_SETTINGS);
           setIsReady(true);
         }
         return;
@@ -42,18 +56,24 @@ export function useChatSettings(threadId?: string) {
       try {
         const nextSettings = threadId
           ? normalizeMessageSettings(
-              (await convex.query(api.functions.threads.getThread, { threadId }))?.settings,
+              (
+                await convex.query(api.functions.threads.getThread, {
+                  threadId,
+                })
+              )?.settings,
             )
           : normalizeMessageSettings(await getDefaultSettings({}));
 
         if (!cancelled) {
           setSettings(nextSettings);
+          setBaselineSettings(nextSettings);
           setIsReady(true);
         }
       } catch (error) {
         console.error("Failed to load chat settings", error);
         if (!cancelled) {
           setSettings(DEFAULT_MESSAGE_SETTINGS);
+          setBaselineSettings(DEFAULT_MESSAGE_SETTINGS);
           setIsReady(true);
         }
       }
@@ -86,19 +106,33 @@ export function useChatSettings(threadId?: string) {
             patch,
           });
         }
+
+        setBaselineSettings(nextSettings);
       } catch (error) {
         console.error("Failed to persist chat settings", error);
       }
 
       return nextSettings;
     },
-    [session?.session.userId, settings, threadId, updateDefaultSettings, updateThreadSettings],
+    [
+      session?.session.userId,
+      settings,
+      threadId,
+      updateDefaultSettings,
+      updateThreadSettings,
+    ],
   );
+
+  const restoreSettings = useCallback((nextSettings: MessageSettings) => {
+    setSettings(normalizeMessageSettings(nextSettings));
+  }, []);
 
   return {
     settings,
+    baselineSettings,
     isReady,
     setModel: (model: string) => updateSettings({ model }),
+    restoreSettings,
     updateSettings,
   };
 }
