@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
+import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { convertToModelMessages, generateId, streamText } from "ai";
 import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { api } from "@redux/backend/convex/_generated/api";
 
 import { env } from "@/env";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
+import { buildAttachmentUrl } from "@/lib/silo/core.server";
 import { throttle } from "@/lib/utils/throttle";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 
@@ -20,7 +22,7 @@ const requestBody = z.object({
     z.object({
       id: z.string(),
       role: z.enum(["user", "assistant"]),
-      parts: z.array(z.any()),
+      parts: z.array(z.custom<UIMessagePart<UIDataTypes, UITools>>()),
     }),
   ),
   model: z.string(),
@@ -29,13 +31,147 @@ const requestBody = z.object({
   clientId: z.string().optional(),
 });
 
+type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
+
+interface ModelAttachment {
+  attachmentId: string;
+  fileName: string;
+  mimeType: string;
+  url: string;
+}
+
+async function resolveModelAttachments(attachmentIds: string[]) {
+  if (attachmentIds.length === 0) {
+    return [];
+  }
+
+  const attachments = await fetchAuthQuery(api.functions.attachments.listByIds, {
+    attachmentIds,
+  });
+
+  return Promise.all(
+    attachments.map(async (attachment): Promise<ModelAttachment> => ({
+      attachmentId: attachment.attachmentId,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      url: await buildAttachmentUrl({
+        accessKey: attachment.accessKey,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        isPublic: attachment.isPublic,
+        serveImage: attachment.serveImage,
+      }),
+    })),
+  );
+}
+
+async function getAttachmentsByMessageId(threadId: string) {
+  const threadMessages = await fetchAuthQuery(
+    api.functions.threads.getThreadMessages,
+    { threadId },
+  );
+
+  const attachmentIds = Array.from(
+    new Set(
+      threadMessages.flatMap((message) =>
+        message.attachments.map((attachment) => attachment.attachmentId),
+      ),
+    ),
+  );
+
+  if (attachmentIds.length === 0) {
+    return new Map<string, ModelAttachment[]>();
+  }
+
+  const attachmentsById = new Map<string, ModelAttachment>(
+    (await resolveModelAttachments(attachmentIds)).map((attachment) => [
+      attachment.attachmentId,
+      attachment,
+    ]),
+  );
+
+  const attachmentsByMessageId = new Map<string, ModelAttachment[]>();
+
+  for (const message of threadMessages) {
+    const resolvedAttachments = message.attachments.flatMap((attachment) => {
+      const resolvedAttachment = attachmentsById.get(attachment.attachmentId);
+      return resolvedAttachment ? [resolvedAttachment] : [];
+    });
+
+    if (resolvedAttachments.length > 0) {
+      attachmentsByMessageId.set(message.id, resolvedAttachments);
+    }
+  }
+
+  return attachmentsByMessageId;
+}
+
+function getLastUserMessageId(messages: ChatRequestMessage[]) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role === "user") {
+      return message.id;
+    }
+  }
+
+  return undefined;
+}
+
+function mergeAttachments(
+  existing: ModelAttachment[] | undefined,
+  incoming: ModelAttachment[],
+) {
+  const mergedById = new Map(
+    existing?.map((attachment) => [attachment.attachmentId, attachment] as const),
+  );
+
+  for (const attachment of incoming) {
+    mergedById.set(attachment.attachmentId, attachment);
+  }
+
+  return Array.from(mergedById.values());
+}
+
+function appendAttachmentParts(
+  messages: ChatRequestMessage[],
+  attachmentsByMessageId: Map<string, ModelAttachment[]>,
+) {
+  if (attachmentsByMessageId.size === 0) {
+    return messages;
+  }
+
+  return messages.map((message) => {
+    if (message.role !== "user") {
+      return message;
+    }
+
+    const attachments = attachmentsByMessageId.get(message.id);
+    if (!attachments?.length) {
+      return message;
+    }
+
+    return {
+      ...message,
+      parts: [
+        ...message.parts,
+        ...attachments.map((attachment) => ({
+          type: "file" as const,
+          mediaType: attachment.mimeType,
+          url: attachment.url,
+          filename: attachment.fileName,
+        })),
+      ],
+    };
+  });
+}
+
 export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         const parsedBody = requestBody.parse(await request.json());
 
-        const { threadId, assistantMessageId, messages, clientId, model } =
+        const { threadId, assistantMessageId, messages, fileIds, clientId, model } =
           parsedBody;
         console.log("Received request:", {
           threadId,
@@ -44,8 +180,26 @@ export const Route = createFileRoute("/api/chat/")({
           model,
         });
 
+        const attachmentsByMessageId = await getAttachmentsByMessageId(threadId);
+        const lastUserMessageId = getLastUserMessageId(messages);
+
+        if (lastUserMessageId && fileIds.length > 0) {
+          attachmentsByMessageId.set(
+            lastUserMessageId,
+            mergeAttachments(
+              attachmentsByMessageId.get(lastUserMessageId),
+              await resolveModelAttachments(fileIds),
+            ),
+          );
+        }
+
+        const messagesWithAttachments = appendAttachmentParts(
+          messages,
+          attachmentsByMessageId,
+        );
+
         // Convert to model messages format
-        const modelMessages = await convertToModelMessages(messages);
+        const modelMessages = await convertToModelMessages(messagesWithAttachments);
         console.log("modelMessages");
         console.dir(modelMessages, { depth: Infinity });
         console.log("------------");

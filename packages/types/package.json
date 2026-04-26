@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@silo-storage/mime-types": "0.1.8",
+    "@silo-storage/mime-types": "0.2.1",
     "convex-helpers": "^0.1.115",
     "zod": "catalog:"
   },

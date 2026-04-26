@@ -1,6 +1,5 @@
 export {
   CHAT_MODELS as MODELS,
-  getAllowedMimeTypesForModel,
   getChatModelConfig,
   isFileAllowedForModel,
 } from "@redux/types";

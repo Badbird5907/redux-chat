@@ -1,3 +1,4 @@
+import type { AllocatedSignedId } from "@/components/chat/signed-id-allocator";
 import type { TextPart, UIMessage } from "ai";
 
 import type { MessageSettings } from "@redux/types";
@@ -9,16 +10,14 @@ interface SubmitMessageParams {
   settings: MessageSettings;
   clientId: string;
   attachmentIds?: string[];
-  attachmentMetadata?: Array<{
+  attachmentMetadata?: {
     attachmentId: string;
     fileName: string;
     mimeType: string;
     size: number;
     url?: string;
-  }>;
-  safeGetSignedId: (
-    count: number,
-  ) => Promise<({ id: string; str: string } | undefined)[]>;
+  }[];
+  allocateSignedIds: (count: number) => Promise<AllocatedSignedId[]>;
   createMessage: (args: {
     threadId: string;
     userMessage: { parts: TextPart[] };
@@ -48,7 +47,7 @@ export async function submitMessage({
   clientId,
   attachmentIds = [],
   attachmentMetadata = [],
-  safeGetSignedId,
+  allocateSignedIds,
   createMessage,
   setOptimisticMessage,
   sendMessage,
@@ -71,7 +70,7 @@ export async function submitMessage({
 
   if (threadId) {
     // Existing thread: get 2 signed IDs (user message, assistant message)
-    const [userMessageId, assistantMessageId] = await safeGetSignedId(2);
+    const [userMessageId, assistantMessageId] = await allocateSignedIds(2);
     if (!userMessageId || !assistantMessageId) {
       throw new Error("Failed to get message IDs");
     }
@@ -88,7 +87,7 @@ export async function submitMessage({
   } else {
     // New thread: get 3 signed IDs (user message, assistant message, thread id)
     const [userMessageId, assistantMessageId, threadIdSigned] =
-      await safeGetSignedId(3);
+      await allocateSignedIds(3);
     if (!userMessageId || !assistantMessageId || !threadIdSigned) {
       throw new Error("Failed to get IDs");
     }

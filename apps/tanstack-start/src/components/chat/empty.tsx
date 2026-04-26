@@ -56,7 +56,7 @@ export const EmptyChat = ({
   convexMessages,
   settings,
 }: EmptyChatProps) => {
-  const { safeGetSignedId } = useSignedCid();
+  const { allocate: allocateSignedIds } = useSignedCid();
   const createMessage = useMutation(api.functions.threads.sendMessage);
 
   const handleSuggestionClick = async (text: string) => {
@@ -68,7 +68,7 @@ export const EmptyChat = ({
         settings,
         clientId,
         attachmentIds: [],
-        safeGetSignedId,
+        allocateSignedIds,
         createMessage,
         setOptimisticMessage,
         sendMessage,

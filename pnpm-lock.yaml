@@ -129,17 +129,17 @@ importers:
         specifier: workspace:*
         version: link:../../packages/validators
       '@silo-storage/sdk-core':
-        specifier: ^0.1.8
-        version: 0.1.8
+        specifier: ^0.2.3
+        version: 0.2.3
       '@silo-storage/sdk-react':
-        specifier: ^0.1.8
-        version: 0.1.8(react@19.2.5)
+        specifier: ^0.2.3
+        version: 0.2.3(react@19.2.5)
       '@silo-storage/sdk-server':
-        specifier: ^0.1.8
-        version: 0.1.8
+        specifier: ^0.2.3
+        version: 0.2.3
       '@silo-storage/sdk-tanstack-start':
-        specifier: ^0.1.8
-        version: 0.1.8
+        specifier: ^0.2.3
+        version: 0.2.3
       '@t3-oss/env-core':
         specifier: ^0.13.11
         version: 0.13.11(typescript@5.9.3)(zod@4.3.6)
@@ -429,6 +429,9 @@ importers:
 
   packages/types:
     dependencies:
+      '@silo-storage/mime-types':
+        specifier: 0.2.1
+        version: 0.2.1
       convex-helpers:
         specifier: ^0.1.115
         version: 0.1.115(@standard-schema/spec@1.1.0)(convex@1.36.1(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(zod@4.3.6)
@@ -3480,25 +3483,28 @@ packages:
   '@selderee/plugin-htmlparser2@0.11.0':
     resolution: {integrity: sha512-P33hHGdldxGabLFjPPpaTxVolMrzrcegejx+0GxjrIb9Zv48D8yAIA/QTDR2dFl7Uz7urX8aX6+5bCZslr+gWQ==}
 
-  '@silo-storage/mime-types@0.1.8':
-    resolution: {integrity: sha512-U1KSl31nXiAhFzWn8Pctz58ZHwjGL+RhLep7Vz2EH3da+YvzU+LnDxKFs/RwLnGt0Jwqj3zka4Xq43FfyMCLQA==}
+  '@silo-storage/mime-types@0.2.1':
+    resolution: {integrity: sha512-e1EWbFF789eQnpR9AqMOrvRhQohUWRD50RduaxRoZEcKQpFjLDXpO9cs5k6yEER0gWOVq0+pKojHMNCf6zC4KQ==}
 
-  '@silo-storage/sdk-core@0.1.8':
-    resolution: {integrity: sha512-7Y/gxSNMDcVsje7MpPH+wSg3QVfKUEqAyMm2Spnt1Bv3TmJQVaN3THBOYq+pMnADlPDN9eMhaPrzlcaxSRYdLQ==}
+  '@silo-storage/mime-types@0.2.3':
+    resolution: {integrity: sha512-XtoqUno0SoGxP5VX/xQzhjOo2WR1y5NO6mGlOEOBUnZ5Bs29IgfXaLJzejBCmaJ9njdwBB8a6ik+ysMdBtLX7Q==}
 
-  '@silo-storage/sdk-react@0.1.8':
-    resolution: {integrity: sha512-h5YJX1YAx6+KecCqwOisW9jFP26Kn5tW7fiQfH7wQWl/saq9M8/Ojg6iKZdrR9XXpAs7f18dzykfg1dt2ixTlw==}
+  '@silo-storage/sdk-core@0.2.3':
+    resolution: {integrity: sha512-J89Ym4l1Q2U6JuD+dJu6pqi6kHCo/lBbR1bGPmWOZR7tMMIYhHwel+TheyTCNzNAAQ5b3zIags277slkDcklMw==}
+
+  '@silo-storage/sdk-react@0.2.3':
+    resolution: {integrity: sha512-7BUY54oC2BYetkRPDDvUO42pgsoZRFfxXtg52ECxTJj7bW/X06b61I+zeIU7TqgwlWkSCDXHlHeQNR8FOp7Rgg==}
     peerDependencies:
       react: '>=18.2.0'
 
-  '@silo-storage/sdk-server@0.1.8':
-    resolution: {integrity: sha512-WC4gLtdMeFLRplxyXkuRt2NVCs1imeXNFJDxf89A+TG2ft8aPm1rxrO7xmLwaXlr3Uj1fhyAr6AmIYNkR5oqNQ==}
+  '@silo-storage/sdk-server@0.2.3':
+    resolution: {integrity: sha512-rvx+UPWmxJVD5nit9/srIMn4mb8GUTN2eFHRsd0HW43MNksxihXxp2PihCv1oVSedZaGQvaJb0PvFZiJM0lt6A==}
 
-  '@silo-storage/sdk-tanstack-start@0.1.8':
-    resolution: {integrity: sha512-KSla4Tke5S/d8zPQBjq+lWruRAUOHdtgtGm5U6T7WqofnGs+PQtMs79a6fcWjkEqQtCMfnFyaPZtqwiku/XMXQ==}
+  '@silo-storage/sdk-tanstack-start@0.2.3':
+    resolution: {integrity: sha512-cJEOh+ywzkRPsIS8v/yIFK2oSVatHHZn8tPWLp+tRoFL5lLgnR4K1m6BKpVlLOnQnE07UF61bBKQ+5WsWLyDXQ==}
 
-  '@silo-storage/shared@0.1.8':
-    resolution: {integrity: sha512-9nuxqNlRA5ANPNBoDYDzgA4gE/OsZUfUXmNcyil0b7Ea6CQo6PS0evR9Ej6ZuWjElYPjV6NVjme0PnrjYxnwTg==}
+  '@silo-storage/shared@0.2.3':
+    resolution: {integrity: sha512-ahgCips1inwh3sWZTG6M6h8rS7oqin3X5NjgM8gia490WbzZRZ1ekyNGhK4eBsYHvP1OywK9sPIvKOU0pyq37w==}
 
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
@@ -9736,33 +9742,35 @@ snapshots:
       domhandler: 5.0.3
       selderee: 0.11.0
 
-  '@silo-storage/mime-types@0.1.8': {}
+  '@silo-storage/mime-types@0.2.1': {}
 
-  '@silo-storage/sdk-core@0.1.8':
+  '@silo-storage/mime-types@0.2.3': {}
+
+  '@silo-storage/sdk-core@0.2.3':
     dependencies:
-      '@silo-storage/shared': 0.1.8
+      '@silo-storage/shared': 0.2.3
       nanoid: 5.1.9
       zod: 4.3.6
 
-  '@silo-storage/sdk-react@0.1.8(react@19.2.5)':
+  '@silo-storage/sdk-react@0.2.3(react@19.2.5)':
     dependencies:
-      '@silo-storage/mime-types': 0.1.8
+      '@silo-storage/mime-types': 0.2.3
       react: 19.2.5
       tus-js-client: 4.3.1
 
-  '@silo-storage/sdk-server@0.1.8':
+  '@silo-storage/sdk-server@0.2.3':
     dependencies:
-      '@silo-storage/mime-types': 0.1.8
-      '@silo-storage/sdk-core': 0.1.8
+      '@silo-storage/mime-types': 0.2.3
+      '@silo-storage/sdk-core': 0.2.3
       '@standard-schema/spec': 1.1.0
       ms: 3.0.0-canary.202508261828
       zod: 4.3.6
 
-  '@silo-storage/sdk-tanstack-start@0.1.8':
+  '@silo-storage/sdk-tanstack-start@0.2.3':
     dependencies:
-      '@silo-storage/sdk-server': 0.1.8
+      '@silo-storage/sdk-server': 0.2.3
 
-  '@silo-storage/shared@0.1.8': {}
+  '@silo-storage/shared@0.2.3': {}
 
   '@socket.io/component-emitter@3.1.2': {}
 

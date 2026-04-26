@@ -25,7 +25,11 @@ import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { ModelSelector } from "@/components/chat/model-selector";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
 import { submitMessage } from "@/components/chat/use-submit-message";
-import { getChatModelConfig, isFileAllowedForModel, MODELS } from "@/lib/model-config";
+import {
+  getChatModelConfig,
+  isFileAllowedForModel,
+  MODELS,
+} from "@/lib/model-config";
 import { useUpload } from "@/lib/silo/react";
 
 interface ChatInputProps {
@@ -86,7 +90,7 @@ export function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { safeGetSignedId } = useSignedCid();
+  const { allocate: allocateSignedIds } = useSignedCid();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const upload = useUpload({
@@ -227,11 +231,15 @@ export function ChatInput({
             if (failedAttachment?.objectUrl) {
               URL.revokeObjectURL(failedAttachment.objectUrl);
             }
-            return previous.filter((attachment) => attachment.attachmentId !== tempId);
+            return previous.filter(
+              (attachment) => attachment.attachmentId !== tempId,
+            );
           });
 
           toast.error(
-            error instanceof Error ? error.message : `Failed to upload ${file.name}`,
+            error instanceof Error
+              ? error.message
+              : `Failed to upload ${file.name}`,
           );
         }
       }
@@ -257,7 +265,9 @@ export function ChatInput({
         await removeAttachment(attachmentId);
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : "Failed to remove attachment",
+          error instanceof Error
+            ? error.message
+            : "Failed to remove attachment",
         );
       }
     },
@@ -290,7 +300,9 @@ export function ChatInput({
         setThreadId,
         settings,
         clientId,
-        attachmentIds: currentAttachments.map((attachment) => attachment.attachmentId),
+        attachmentIds: currentAttachments.map(
+          (attachment) => attachment.attachmentId,
+        ),
         attachmentMetadata: currentAttachments.map((attachment) => ({
           attachmentId: attachment.attachmentId,
           fileName: attachment.fileName,
@@ -298,7 +310,7 @@ export function ChatInput({
           size: attachment.size,
           url: attachment.url,
         })),
-        safeGetSignedId,
+        allocateSignedIds,
         createMessage,
         setOptimisticMessage,
         sendMessage,
@@ -320,7 +332,7 @@ export function ChatInput({
     draftReady,
     input,
     isExpanded,
-    safeGetSignedId,
+    allocateSignedIds,
     sendMessage,
     setOptimisticMessage,
     setThreadId,
@@ -341,7 +353,9 @@ export function ChatInput({
   );
 
   const isSubmitting = status === "streaming" || status === "submitted";
-  const hasUploadingFiles = attachments.some((attachment) => attachment.uploading);
+  const hasUploadingFiles = attachments.some(
+    (attachment) => attachment.uploading,
+  );
 
   const tokenCount = useMemo(() => {
     if (!input.trim()) return 0;
@@ -439,7 +453,9 @@ export function ChatInput({
                       </button>
                       {!file.uploading && (
                         <button
-                          onClick={() => void handleRemoveAttachment(file.attachmentId)}
+                          onClick={() =>
+                            void handleRemoveAttachment(file.attachmentId)
+                          }
                           className="bg-background border-border hover:bg-muted absolute -top-1.5 -right-1.5 rounded-full border p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
                         >
                           <X className="text-muted-foreground h-3 w-3" />
@@ -540,7 +556,10 @@ export function ChatInput({
                     return (
                       <span
                         key={index}
-                        className={cn("inline-block rounded px-0.5", colorClass)}
+                        className={cn(
+                          "inline-block rounded px-0.5",
+                          colorClass,
+                        )}
                       >
                         {token}
                       </span>

@@ -2,10 +2,10 @@ import type { FileRouter } from "@silo-storage/sdk-server";
 import { createSiloUpload } from "@silo-storage/sdk-server";
 import { z } from "zod";
 
-import { getAllowedMimeTypesForModel } from "@redux/types";
 
 import { getRequestUserIdFromHeaders } from "@/lib/auth/server";
 import { buildAttachmentUrl, createUploadedAttachmentRecord } from "@/lib/silo/core.server";
+import { getModelAttachmentExpects } from "@redux/types";
 
 export interface UploadContext {
   userId?: string;
@@ -20,49 +20,8 @@ const chatAttachmentInput = z.object({
   threadId: z.string().optional(),
 });
 
-function resolveChatAttachmentMimeTypes(modelId: string): string[] {
-  return [...getAllowedMimeTypesForModel(modelId)];
-}
-
 export const fileRouter = {
-  chatAttachment: f({
-    image: {
-      maxFileSize: "8MB",
-      maxFileCount: 4,
-    },
-    video: {
-      maxFileSize: "64MB",
-      maxFileCount: 4,
-    },
-    audio: {
-      maxFileSize: "32MB",
-      maxFileCount: 4,
-    },
-    "application/pdf": {
-      maxFileSize: "16MB",
-      maxFileCount: 4,
-    },
-    "text/plain": {
-      maxFileSize: "4MB",
-      maxFileCount: 4,
-    },
-    "application/msword": {
-      maxFileSize: "8MB",
-      maxFileCount: 4,
-    },
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-      maxFileSize: "8MB",
-      maxFileCount: 4,
-    },
-  })
-    .input(chatAttachmentInput)
-    .public(false)
-    .serveImage(true)
-    .expires("60 days")
-    .mimeTypes(({ input }) => {
-      const parsedInput = chatAttachmentInput.parse(input);
-      return resolveChatAttachmentMimeTypes(parsedInput.modelId);
-    })
+  chatAttachment: f(chatAttachmentInput)
     .middleware(async ({ req, context, input }) => {
       const userId = context.userId ?? (await getRequestUserIdFromHeaders(req.headers));
       if (!userId) {
@@ -71,11 +30,19 @@ export const fileRouter = {
 
       return {
         userId,
-        modelId: input.modelId,
         threadId: input.threadId,
+        modelId: input.modelId,
         expiresAt: Date.now() + ATTACHMENT_TTL_MS,
       };
     })
+    .expects(({ input }) => {
+      const parsedInput = chatAttachmentInput.parse(input);
+      return getModelAttachmentExpects(parsedInput.modelId);
+    })
+    .public(false)
+    .serveImage(true)
+    // .public(true)
+    .expires("60 days")
     .onUploadComplete(async ({ metadata, file }) => {
       const serveImage = file.mimeType.startsWith("image/");
 
@@ -93,7 +60,7 @@ export const fileRouter = {
         size: file.size,
         isPublic: false,
         serveImage,
-        expiresAt: metadata.expiresAt,
+        expiresAt: metadata.expiresAt ? new Date(metadata.expiresAt).getTime() : undefined,
       });
 
       return {

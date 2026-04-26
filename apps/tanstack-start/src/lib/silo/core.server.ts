@@ -57,7 +57,7 @@ export async function createUploadedAttachmentRecord(input: {
   size: number;
   isPublic: boolean;
   serveImage: boolean;
-  expiresAt: number;
+  expiresAt?: number;
 }) {
   const client = getInternalConvexClient();
   return client.mutation(api.functions.attachments.internal_createUploadedAttachment, {

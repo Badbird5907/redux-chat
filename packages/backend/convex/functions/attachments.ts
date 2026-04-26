@@ -22,7 +22,7 @@ export async function attachDraftAttachmentsToMessage(
       .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
       .first();
 
-    if (!attachment || attachment.userId !== ctx.userId) {
+    if (attachment?.userId !== ctx.userId) {
       throw new ConvexError("Attachment not found");
     }
 
@@ -55,7 +55,7 @@ export const internal_createUploadedAttachment = backendMutation({
     size: v.number(),
     isPublic: v.boolean(),
     serveImage: v.boolean(),
-    expiresAt: v.number(),
+    expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -118,7 +118,7 @@ export const listByIds = query({
           .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
           .first();
 
-        if (!attachment || attachment.userId !== ctx.userId) {
+        if (attachment?.userId !== ctx.userId) {
           return null;
         }
 
@@ -154,7 +154,7 @@ export const deleteDraftAttachment = mutation({
       .withIndex("by_attachmentId", (q) => q.eq("attachmentId", args.attachmentId))
       .first();
 
-    if (!attachment || attachment.userId !== ctx.userId) {
+    if (attachment?.userId !== ctx.userId) {
       throw new ConvexError("Attachment not found");
     }
 

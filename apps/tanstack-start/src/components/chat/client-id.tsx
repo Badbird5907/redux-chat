@@ -1,114 +1,89 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
+import type { AllocatedSignedId } from "@/components/chat/signed-id-allocator";
+import type { ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useServerFn } from "@tanstack/react-start";
+
+import { SignedIdQueueAllocator } from "@/components/chat/signed-id-allocator";
 import { generateSignedIds } from "@/server/signed-id";
 
-export type SignedId = { id: string; sig: string; }
-const SignedCidContext = createContext<{ fetchNew: (n: number) => Promise<void>, signedMessageIds?: SignedId[], removeIds: (n: number) => SignedId[] } | undefined>(undefined)
+interface SignedIdAllocator {
+  allocate: (count: number) => Promise<AllocatedSignedId[]>;
+  prefetch: (minimumCount?: number) => Promise<void>;
+}
+
+const SignedCidContext = createContext<SignedIdAllocator | undefined>(
+  undefined,
+);
 
 const DEFAULT_CACHE_SIZE = 4;
+const MAX_BATCH_SIZE = 4;
 
-export const SignedCidProvider = ({ children }: { children: React.ReactNode }) => {
-    const [signedMessageIds, setSignedMessageIds] = useState<SignedId[]>([])
-    const idsRef = useRef<SignedId[]>([]);
-    const isFetchingRef = useRef(false);
-    const fetchPromiseRef = useRef<Promise<void> | null>(null);
+export const SignedCidProvider = ({ children }: { children: ReactNode }) => {
+  const generateSignedIdsFn = useServerFn(generateSignedIds);
+  const allocatorRef = useRef<SignedIdQueueAllocator | null>(null);
 
-    const generateSignedIdsFn = useServerFn(generateSignedIds)
-    const fetchNew = useCallback(async (n: number) => {
-        // If already fetching, wait for that fetch to complete
-        if (fetchPromiseRef.current) {
-            await fetchPromiseRef.current;
-            return;
-        }
-        
-        if (isFetchingRef.current) return;
-        isFetchingRef.current = true;
-        
-        const promise = (async () => {
-            try {
-                const newIds = await generateSignedIdsFn({ data: n });
-                idsRef.current = [...idsRef.current, ...newIds];
-                setSignedMessageIds(idsRef.current);
-            } finally {
-                isFetchingRef.current = false;
-                fetchPromiseRef.current = null;
-            }
-        })();
-        
-        fetchPromiseRef.current = promise;
-        await promise;
-    }, [generateSignedIdsFn]);
+  allocatorRef.current ??= new SignedIdQueueAllocator(
+    (count) => generateSignedIdsFn({ data: count }),
+    {
+      defaultCacheSize: DEFAULT_CACHE_SIZE,
+      maxBatchSize: MAX_BATCH_SIZE,
+    },
+  );
 
-    const removeIds = useCallback((n: number): SignedId[] => {
-        const toRemove = idsRef.current.slice(0, n);
-        idsRef.current = idsRef.current.slice(n);
-        setSignedMessageIds(idsRef.current);
-        return toRemove;
-    }, []);
+  const getAllocator = useCallback(() => {
+    const allocator = allocatorRef.current;
+    if (!allocator) {
+      throw new Error("Signed ID allocator is not initialized");
+    }
 
-    // Pre-load 3 IDs on mount
-    useEffect(() => {
-        void fetchNew(DEFAULT_CACHE_SIZE);
-    }, [fetchNew]);
+    return allocator;
+  }, []);
 
-    return (
-        <SignedCidContext.Provider value={{ fetchNew, signedMessageIds, removeIds }}>
-            {children}
-        </SignedCidContext.Provider>
-    )
-}
+  const fetchChunk = useCallback(
+    async (minimumCount = DEFAULT_CACHE_SIZE) => {
+      await getAllocator().prefetch(minimumCount);
+    },
+    [getAllocator],
+  );
+
+  const allocate = useCallback(
+    async (count: number): Promise<AllocatedSignedId[]> => {
+      return getAllocator().allocate(count);
+    },
+    [getAllocator],
+  );
+
+  useEffect(() => {
+    void fetchChunk(DEFAULT_CACHE_SIZE).catch((error: unknown) => {
+      console.error("Failed to warm signed ID cache", { error });
+    });
+  }, [fetchChunk]);
+
+  const value = useMemo(
+    () => ({
+      allocate,
+      prefetch: fetchChunk,
+    }),
+    [allocate, fetchChunk],
+  );
+
+  return (
+    <SignedCidContext.Provider value={value}>
+      {children}
+    </SignedCidContext.Provider>
+  );
+};
 
 export const useSignedCid = () => {
-    const ctx = useContext(SignedCidContext);
-    if (!ctx) throw new Error("Must be used in SignedCidContext")
-    
-    return {
-        fetchNew: ctx.fetchNew,
-        signedMessageIds: ctx.signedMessageIds,
-        safeGetSignedId: async (n = 1) => {
-            // Check if we have enough IDs in cache
-            let currentCount = ctx.signedMessageIds?.length ?? 0;
-            
-            if (currentCount < n) {
-                // Not enough IDs, block and fetch
-                const needed = n - currentCount;
-                await ctx.fetchNew(needed);
-                
-                // After fetch, check if we have enough now
-                currentCount = ctx.signedMessageIds?.length ?? 0;
-                if (currentCount < n) {
-                    console.error("Failed to get enough IDs after fetch", {
-                        requested: n,
-                        available: currentCount,
-                        needed
-                    });
-                    throw new Error(`Failed to get enough IDs. Requested ${n}, available ${currentCount}`);
-                }
-            }
-            
-            // Remove the requested IDs from cache
-            const ids: SignedId[] = ctx.removeIds(n);
-            
-            if (ids.length < n) {
-                console.error("removeIds returned fewer IDs than requested", {
-                    requested: n,
-                    received: ids.length
-                });
-                throw new Error(`Failed to remove enough IDs. Requested ${n}, got ${ids.length}`);
-            }
-            
-            // Non-blocking: replenish the cache back to default size
-            const remainingCount = (ctx.signedMessageIds?.length ?? 0);
-            if (remainingCount < DEFAULT_CACHE_SIZE) {
-                ctx.fetchNew(DEFAULT_CACHE_SIZE - remainingCount).catch(err => {
-                    console.error("Failed to replenish ID cache:", err);
-                });
-            }
-            
-            return ids.map(sid => ({
-                ...sid,
-                str: `${sid.id}:${sid.sig}`
-            }));
-        }
-    }
-}
+  const ctx = useContext(SignedCidContext);
+  if (!ctx) throw new Error("Must be used in SignedCidContext");
+
+  return ctx;
+};

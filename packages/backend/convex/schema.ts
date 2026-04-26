@@ -99,7 +99,7 @@ export default defineSchema({
     size: v.number(),
     isPublic: v.boolean(),
     serveImage: v.boolean(),
-    expiresAt: v.number(),
+    expiresAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
