@@ -19,6 +19,7 @@
     "@convex-dev/react-query": "^0.1.0",
     "@redux/backend": "workspace:*",
     "@redux/redis": "workspace:*",
+    "@redux/shared": "workspace:*",
     "@redux/types": "workspace:*",
     "@redux/ui": "workspace:*",
     "@redux/validators": "workspace:*",

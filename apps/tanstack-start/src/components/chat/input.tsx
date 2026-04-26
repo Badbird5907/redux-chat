@@ -156,7 +156,7 @@ export function ChatInput({
 
       for (const file of Array.from(files)) {
         if (!isFileAllowedForModel(selectedModel, file)) {
-          toast.error(`File type not supported by ${currentModelConfig.name}`);
+          toast.error(`File type not supported by ${currentModelConfig.name} (${file.type})`);
           continue;
         }
 

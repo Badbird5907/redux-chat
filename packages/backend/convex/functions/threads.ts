@@ -16,10 +16,11 @@ import { internalAction, internalMutation } from "./internal";
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
-    // Query threads by userId, ordered by updatedAt descending
+    // Use the compound userId+updatedAt index so pagination stays stable
+    // when a new thread is inserted or an existing one is updated.
     const results = await ctx.db
       .query("threads")
-      .filter((q) => q.eq(q.field("userId"), ctx.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -566,6 +567,39 @@ export const updateThreadSettings = mutation({
     });
 
     return mergedSettings;
+  },
+});
+
+export const updateThreadName = mutation({
+  args: {
+    threadId: v.string(),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+
+    if (thread?.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
+    }
+
+    const name = args.name.trim().slice(0, 80);
+    if (!name) {
+      throw new ConvexError("Thread name cannot be empty");
+    }
+
+    if (thread.name === name) {
+      return { name: thread.name };
+    }
+
+    await ctx.db.patch(thread._id, {
+      name,
+      updatedAt: Date.now(),
+    });
+
+    return { name };
   },
 });
 

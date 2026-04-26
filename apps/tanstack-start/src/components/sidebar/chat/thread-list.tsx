@@ -1,7 +1,6 @@
 "use no memo"; // Opt out of React Compiler - TanStack Virtual uses flushSync internally
 
-import { useRef, useMemo, useState, useEffect } from "react";
-import type { VirtualItem } from "@tanstack/react-virtual";
+import { useRef, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@redux/backend/convex/_generated/api";
@@ -84,11 +83,6 @@ export default function ThreadList() {
     return groupThreads(results);
   }, [results]);
 
-  const [virtualState, setVirtualState] = useState<{
-    items: VirtualItem[];
-    totalSize: number;
-  }>({ items: [], totalSize: 0 });
-
   const loadMoreRef = useRef(loadMore);
   const statusRef = useRef(status);
   const groupedItemsLengthRef = useRef(groupedItems.length);
@@ -101,6 +95,13 @@ export default function ThreadList() {
   const virtualizer = useVirtualizer({
     count: status === "CanLoadMore" ? groupedItems.length + 1 : groupedItems.length,
     getScrollElement: () => parentRef.current,
+    getItemKey: (index) => {
+      if (index >= groupedItems.length) {
+        return "loader";
+      }
+
+      return groupedItems[index]?.key ?? index;
+    },
     estimateSize: (index) => {
       if (index >= groupedItems.length) return ITEM_HEIGHT; // Loader row
       const item = groupedItems[index];
@@ -110,14 +111,9 @@ export default function ThreadList() {
     initialRect: { height: 600, width: 200 },
     onChange: (instance) => {
       const items = instance.getVirtualItems();
-      const totalSize = instance.getTotalSize();
-      
-      // Update state with virtual items
-      setVirtualState({ items, totalSize });
-      
       const lastItem = items[items.length - 1];
       if (!lastItem) return;
-      
+
       if (
         lastItem.index >= groupedItemsLengthRef.current - 1 &&
         statusRef.current === "CanLoadMore"
@@ -127,16 +123,8 @@ export default function ThreadList() {
     },
   });
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      setVirtualState({
-        items: virtualizer.getVirtualItems(),
-        totalSize: virtualizer.getTotalSize(),
-      });
-    });
-  }, [virtualizer]);
-
-  const { items, totalSize } = virtualState;
+  const items = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
 
   if (!session && !isPending) {
     // TODO: in the future, if we have a free non-signed in tier, we can keep a temp thread list here

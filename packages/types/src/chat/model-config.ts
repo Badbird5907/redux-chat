@@ -1,4 +1,6 @@
+import type { FileRouterInputKey} from "@silo-storage/mime-types";
 import {
+  expandFileRouterInputKeyToMimeTypes,
   lookupMimeTypeFromFile,
 } from "@silo-storage/mime-types";
 
@@ -92,11 +94,15 @@ export function isFileAllowedForModel(
   if (config.allowedMimeTypes.length === 0) {
     return false;
   }
+  const expanded = [];
+  for (const mimeType of config.allowedMimeTypes) {
+    expanded.push(...expandFileRouterInputKeyToMimeTypes(mimeType as FileRouterInputKey))
+  }
 
-  if (file.type && config.allowedMimeTypes.includes(file.type)) {
+  if (file.type && expanded.includes(file.type)) {
     return true;
   }
 
   const inferredMimeType = lookupMimeTypeFromFile(file.name, file.type);
-  return inferredMimeType ? config.allowedMimeTypes.includes(inferredMimeType) : false;
+  return inferredMimeType ? expanded.includes(inferredMimeType) : false;
 }
