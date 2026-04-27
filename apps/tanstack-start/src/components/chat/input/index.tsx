@@ -4,10 +4,11 @@ import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
-import { isToolEnabled } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
+import { isToolEnabled } from "@redux/types";
 import { cn } from "@redux/ui/lib/utils";
 
+import type { ChatInputProps, PreviewableFile } from "./types";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
@@ -18,11 +19,10 @@ import {
   MODELS,
 } from "@/lib/model-config";
 import { useUpload } from "@/lib/silo/react";
-
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
-import type { ChatInputProps, PreviewableFile } from "./types";
+import { ChatToolsDialog } from "./tools-dialog";
 import { isAttachmentExpired } from "./utils";
 
 export function ChatInput({
@@ -63,6 +63,7 @@ export function ChatInput({
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [toolsDialogOpen, setToolsDialogOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
@@ -122,6 +123,12 @@ export function ChatInput({
 
   const selectedModel = settings.model;
   const isSearchEnabled = isToolEnabled(settings.tools, "search");
+  const isAnalysisWorkspaceEnabled = isToolEnabled(
+    settings.tools,
+    "analysisWorkspace",
+  );
+  const syncUploadsToAnalysisWorkspace =
+    settings.tools.analysisWorkspace?.syncUploads !== false;
   const showErrorBorder = status === "error";
   const currentModelConfig = getChatModelConfig(selectedModel);
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
@@ -250,13 +257,44 @@ export function ChatInput({
     [removeAttachment],
   );
 
-  const handleToggleSearch = useCallback(() => {
-    void onSettingsChange({
-      tools: {
-        search: isSearchEnabled ? undefined : {},
-      },
-    });
-  }, [isSearchEnabled, onSettingsChange]);
+  const handleSearchEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void onSettingsChange({
+        tools: {
+          search: enabled ? {} : undefined,
+        },
+      });
+    },
+    [onSettingsChange],
+  );
+
+  const handleAnalysisWorkspaceEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void onSettingsChange({
+        tools: {
+          analysisWorkspace: enabled
+            ? (settings.tools.analysisWorkspace ?? { syncUploads: true })
+            : undefined,
+        },
+      });
+    },
+    [onSettingsChange, settings.tools.analysisWorkspace],
+  );
+
+  const handleAnalysisWorkspaceSyncUploadsChange = useCallback(
+    (syncUploads: boolean) => {
+      if (!isAnalysisWorkspaceEnabled) {
+        return;
+      }
+
+      void onSettingsChange({
+        tools: {
+          analysisWorkspace: { syncUploads },
+        },
+      });
+    },
+    [isAnalysisWorkspaceEnabled, onSettingsChange],
+  );
 
   const handleSubmit = useCallback(async () => {
     const expiredAttachments = attachments.filter(
@@ -479,9 +517,15 @@ export function ChatInput({
               dropdownOpen={dropdownOpen}
               onDropdownOpenChange={setDropdownOpen}
               onOpenFilePicker={openFilePicker}
+              onOpenToolsDialog={() => {
+                setDropdownOpen(false);
+                setToolsDialogOpen(true);
+              }}
               canUploadFiles={canUploadFiles}
               isSearchEnabled={isSearchEnabled}
-              onToggleSearch={handleToggleSearch}
+              onToggleSearch={() =>
+                handleSearchEnabledChange(!isSearchEnabled)
+              }
               settingsReady={settingsReady}
               isContentOverflowing={isContentOverflowing}
               isExpanded={isExpanded}
@@ -508,6 +552,20 @@ export function ChatInput({
       <FilePreviewDialog
         file={previewFile}
         onClose={() => setPreviewFile(null)}
+      />
+
+      <ChatToolsDialog
+        isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
+        isSearchEnabled={isSearchEnabled}
+        onAnalysisWorkspaceEnabledChange={handleAnalysisWorkspaceEnabledChange}
+        onAnalysisWorkspaceSyncUploadsChange={
+          handleAnalysisWorkspaceSyncUploadsChange
+        }
+        onOpenChange={setToolsDialogOpen}
+        onSearchEnabledChange={handleSearchEnabledChange}
+        open={toolsDialogOpen}
+        settingsReady={settingsReady}
+        syncUploads={syncUploadsToAnalysisWorkspace}
       />
     </>
   );

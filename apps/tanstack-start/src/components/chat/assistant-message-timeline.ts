@@ -1,10 +1,5 @@
-import {
-  getToolName,
-  isReasoningUIPart,
-  isToolUIPart,
-  isTextUIPart,
-} from "ai";
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
+import { getToolName, isReasoningUIPart, isTextUIPart, isToolUIPart } from "ai";
 
 export type AssistantTimelineStepStatus =
   | "active"
@@ -18,6 +13,7 @@ export interface AssistantTimelineSearchResult {
 }
 
 export interface AssistantTimelineStep {
+  analysisDetails?: AssistantTimelineAnalysisDetails;
   description?: string;
   id: string;
   kind: "reasoning" | "source" | "tool";
@@ -26,6 +22,18 @@ export interface AssistantTimelineStep {
   searchResults?: AssistantTimelineSearchResult[];
   status: AssistantTimelineStepStatus;
   summary?: string;
+  toolName?: string;
+}
+
+export interface AssistantTimelineAnalysisDetails {
+  code?: string;
+  stderr: string[];
+  stdout: string[];
+  text?: string;
+  uploadedFiles: {
+    fileName: string;
+    path: string;
+  }[];
 }
 
 interface NormalizedAssistantMessage {
@@ -46,9 +54,13 @@ export function normalizeAssistantMessage(
     index,
     part,
   }));
-  const reasoningParts = indexedParts.filter(({ part }) => isReasoningUIPart(part));
+  const reasoningParts = indexedParts.filter(({ part }) =>
+    isReasoningUIPart(part),
+  );
   const reasoningText = joinReasoningParts(
-    reasoningParts.flatMap(({ part }) => (isReasoningUIPart(part) ? [part.text] : [])),
+    reasoningParts.flatMap(({ part }) =>
+      isReasoningUIPart(part) ? [part.text] : [],
+    ),
   );
   const hasToolOrSourceActivity = indexedParts.some(
     ({ part }) =>
@@ -66,7 +78,9 @@ export function normalizeAssistantMessage(
       kind: "reasoning",
       label: "Thinking",
       rawPartIds: reasoningParts.map(({ id }) => id),
-      status: isLastReasoningPartStreaming(message.parts) ? "active" : "complete",
+      status: isLastReasoningPartStreaming(message.parts)
+        ? "active"
+        : "complete",
       summary: "Thinking through the response",
     });
     attachableStepIndex = 0;
@@ -75,8 +89,9 @@ export function normalizeAssistantMessage(
   for (const { id, part } of indexedParts) {
     if (isToolUIPart(part)) {
       const toolName = getToolName(part);
-      const label = part.title ?? humanizeToolName(toolName);
+      const label = getToolLabel(toolName, part.title);
       const toolStep: AssistantTimelineStep = {
+        analysisDetails: getAnalysisDetails(toolName, part),
         description: getToolDescription(toolName, part),
         id: part.toolCallId,
         kind: "tool",
@@ -85,6 +100,7 @@ export function normalizeAssistantMessage(
         searchResults: getToolSearchResults(toolName, part),
         status: mapToolStateToStatus(part.state),
         summary: getToolSummary(toolName, label, part),
+        toolName,
       };
 
       steps.push(toolStep);
@@ -128,7 +144,9 @@ export function normalizeAssistantMessage(
 
     if (part.type === "source-document") {
       const targetStep = steps[attachableStepIndex];
-      const sourceText = part.filename ? `${part.title} (${part.filename})` : part.title;
+      const sourceText = part.filename
+        ? `${part.title} (${part.filename})`
+        : part.title;
 
       if (targetStep) {
         targetStep.description = appendDescription(
@@ -165,13 +183,14 @@ function isLastReasoningPartStreaming(parts: UIMessage["parts"]) {
 }
 
 function joinReasoningParts(parts: string[]) {
-  const joined = parts.map((part) => part.trim()).filter(Boolean).join("\n\n");
+  const joined = parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
   return joined || undefined;
 }
 
-function mapToolStateToStatus(
-  state: string,
-): AssistantTimelineStepStatus {
+function mapToolStateToStatus(state: string): AssistantTimelineStepStatus {
   switch (state) {
     case "input-streaming":
     case "input-available":
@@ -194,6 +213,14 @@ function humanizeToolName(toolName: string) {
     .replace(/[_-]+/g, " ")
     .trim()
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getToolLabel(toolName: string, title: string | undefined) {
+  if (toolName.toLowerCase() === "analysis_workspace") {
+    return "Analysis";
+  }
+
+  return title ?? humanizeToolName(toolName);
 }
 
 function getToolDescription(
@@ -228,6 +255,29 @@ function getToolDescription(
     }
   }
 
+  if (normalizedToolName === "analysis_workspace") {
+    if (part.state === "output-available") {
+      // const analysisDetails = getAnalysisDetails(toolName, part);
+      // const outputPreview =
+      //   summarizeText(
+      //     [
+      //       analysisDetails?.text,
+      //       analysisDetails?.stdout.join("\n"),
+      //       analysisDetails?.stderr.join("\n"),
+      //     ]
+      //       .filter(Boolean)
+      //       .join("\n"),
+      //   ) ?? "Executed Python analysis.";
+
+      // return outputPreview;
+      return "Executed Python analysis.";
+    }
+
+    if (part.state === "input-streaming" || part.state === "input-available") {
+      return "Preparing Python analysis.";
+    }
+  }
+
   if (part.state === "output-available") {
     const outputText = summarizeUnknown(part.output);
     if (outputText) {
@@ -250,6 +300,18 @@ function getToolSummary(
     return part.state === "output-available"
       ? `Searched for ${formatInlineQuery(query)}`
       : `Searching for ${formatInlineQuery(query)}`;
+  }
+
+  if (normalizedToolName === "analysis_workspace") {
+    switch (part.state) {
+      case "output-available":
+        return "Ran analysis";
+      case "input-streaming":
+      case "input-available":
+        return "Running analysis";
+      default:
+        return "Analysis";
+    }
   }
 
   switch (part.state) {
@@ -284,14 +346,19 @@ function getToolQuery(
   part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
 ) {
   const input = getToolInput(part);
-  return isRecord(input) && typeof input.query === "string" ? input.query : undefined;
+  return isRecord(input) && typeof input.query === "string"
+    ? input.query
+    : undefined;
 }
 
 function getToolSearchResults(
   toolName: string,
   part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
 ) {
-  if (toolName.toLowerCase() !== "search" || part.state !== "output-available") {
+  if (
+    toolName.toLowerCase() !== "search" ||
+    part.state !== "output-available"
+  ) {
     return [];
   }
 
@@ -299,7 +366,43 @@ function getToolSearchResults(
   return dedupeSearchResults(candidates);
 }
 
-function extractSearchResultCandidates(value: unknown): AssistantTimelineSearchResult[] {
+function getAnalysisDetails(
+  toolName: string,
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+): AssistantTimelineAnalysisDetails | undefined {
+  if (toolName.toLowerCase() !== "analysis_workspace") {
+    return undefined;
+  }
+
+  const input = getToolInput(part);
+  const output = part.state === "output-available" ? part.output : undefined;
+
+  const code =
+    isRecord(input) && typeof input.code === "string" ? input.code : undefined;
+  const stdout = readStringArray(output, "logs", "stdout");
+  const stderr = readStringArray(output, "logs", "stderr");
+  const text =
+    isRecord(output) && typeof output.text === "string"
+      ? output.text
+      : undefined;
+  const uploadedFiles = readUploadedFiles(output);
+
+  if (!code && !text && stdout.length === 0 && stderr.length === 0) {
+    return undefined;
+  }
+
+  return {
+    code,
+    stderr,
+    stdout,
+    text,
+    uploadedFiles,
+  };
+}
+
+function extractSearchResultCandidates(
+  value: unknown,
+): AssistantTimelineSearchResult[] {
   if (Array.isArray(value)) {
     return value.flatMap(extractSearchResultCandidates);
   }
@@ -445,4 +548,49 @@ function formatInlineQuery(query: string) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function readStringArray(
+  value: unknown,
+  firstKey: string,
+  secondKey: string,
+): string[] {
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  const firstLevel = value[firstKey];
+  if (!isRecord(firstLevel)) {
+    return [];
+  }
+
+  const candidate = firstLevel[secondKey];
+  if (!Array.isArray(candidate)) {
+    return [];
+  }
+
+  return candidate.filter((item): item is string => typeof item === "string");
+}
+
+function readUploadedFiles(value: unknown) {
+  if (!isRecord(value) || !Array.isArray(value.uploadedFiles)) {
+    return [];
+  }
+
+  return value.uploadedFiles.flatMap((file) => {
+    if (!isRecord(file)) {
+      return [];
+    }
+
+    if (typeof file.fileName !== "string" || typeof file.path !== "string") {
+      return [];
+    }
+
+    return [
+      {
+        fileName: file.fileName,
+        path: file.path,
+      },
+    ];
+  });
 }

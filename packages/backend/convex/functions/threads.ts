@@ -382,6 +382,11 @@ export const sendMessage = mutation({
       model: v.string(),
       tools: v.object({
         search: v.optional(v.object({})),
+        analysisWorkspace: v.optional(
+          v.object({
+            syncUploads: v.optional(v.boolean()),
+          }),
+        ),
       }),
     }),
     attachmentIds: v.optional(v.array(v.string())),
@@ -586,6 +591,11 @@ export const updateThreadSettings = mutation({
       tools: v.optional(
         v.object({
           search: v.optional(v.object({})),
+          analysisWorkspace: v.optional(
+            v.object({
+              syncUploads: v.optional(v.boolean()),
+            }),
+          ),
         }),
       ),
     }),

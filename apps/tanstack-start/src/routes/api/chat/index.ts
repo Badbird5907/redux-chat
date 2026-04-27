@@ -2,7 +2,12 @@ import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
-import { convertToModelMessages, generateId, stepCountIs, streamText } from "ai";
+import {
+  convertToModelMessages,
+  generateId,
+  stepCountIs,
+  streamText,
+} from "ai";
 import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
 
@@ -10,7 +15,7 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
 
 import { env } from "@/env";
-import { getToolSet } from "@/lib/ai/tools";
+import { createToolRuntime } from "@/lib/ai/tools";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
@@ -31,6 +36,11 @@ const requestBody = z.object({
     model: z.string(),
     tools: z.object({
       search: z.object({}).optional(),
+      analysisWorkspace: z
+        .object({
+          syncUploads: z.boolean().optional(),
+        })
+        .optional(),
     }),
   }),
   model: z.string(),
@@ -182,6 +192,23 @@ function appendAttachmentParts(
   });
 }
 
+function getToolAttachments(
+  attachmentsByMessageId: Map<string, ModelAttachment[]>,
+) {
+  return Array.from(
+    new Map(
+      Array.from(attachmentsByMessageId.values())
+        .flat()
+        .map((attachment) => [attachment.attachmentId, attachment] as const),
+    ).values(),
+  ).map((attachment) => ({
+    attachmentId: attachment.attachmentId,
+    fileName: attachment.fileName,
+    mimeType: attachment.mimeType,
+    url: attachment.url,
+  }));
+}
+
 export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
@@ -224,6 +251,18 @@ export const Route = createFileRoute("/api/chat/")({
           messages,
           attachmentsByMessageId,
         );
+        const toolRuntime = createToolRuntime(settings, {
+          attachments: getToolAttachments(attachmentsByMessageId),
+        });
+        let didCleanupTools = false;
+        const cleanupTools = async () => {
+          if (didCleanupTools) {
+            return;
+          }
+
+          didCleanupTools = true;
+          await toolRuntime.cleanup();
+        };
 
         // Convert to model messages format
         const modelMessages = await convertToModelMessages(
@@ -244,50 +283,56 @@ export const Route = createFileRoute("/api/chat/")({
           model: openai(settings.model),
           messages: modelMessages,
           abortSignal: abortController.signal,
-          tools: getToolSet(settings),
+          tools: toolRuntime.tools,
           stopWhen: stepCountIs(15),
           onFinish: async ({ usage }) => {
-            // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
-            const usageData =
-              usage.inputTokens !== undefined &&
-              usage.outputTokens !== undefined &&
-              usage.totalTokens !== undefined
-                ? {
-                    promptTokens: usage.inputTokens,
-                    responseTokens: usage.outputTokens,
-                    totalTokens: usage.totalTokens,
-                  }
-                : undefined;
+            try {
+              // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
+              const usageData =
+                usage.inputTokens !== undefined &&
+                usage.outputTokens !== undefined &&
+                usage.totalTokens !== undefined
+                  ? {
+                      promptTokens: usage.inputTokens,
+                      responseTokens: usage.outputTokens,
+                      totalTokens: usage.totalTokens,
+                    }
+                  : undefined;
 
-            // Calculate generation stats
-            const totalDurationMs = Date.now() - streamStartTime;
-            const timeToFirstTokenMs = firstTokenTime
-              ? firstTokenTime - streamStartTime
-              : totalDurationMs;
-            const outputTokens = usage.outputTokens ?? 0;
-            const tokensPerSecond =
-              totalDurationMs > 0 ? (outputTokens / totalDurationMs) * 1000 : 0;
+              // Calculate generation stats
+              const totalDurationMs = Date.now() - streamStartTime;
+              const timeToFirstTokenMs = firstTokenTime
+                ? firstTokenTime - streamStartTime
+                : totalDurationMs;
+              const outputTokens = usage.outputTokens ?? 0;
+              const tokensPerSecond =
+                totalDurationMs > 0
+                  ? (outputTokens / totalDurationMs) * 1000
+                  : 0;
 
-            const generationStats = {
-              timeToFirstTokenMs,
-              totalDurationMs,
-              tokensPerSecond,
-            };
+              const generationStats = {
+                timeToFirstTokenMs,
+                totalDurationMs,
+                tokensPerSecond,
+              };
 
-            // Save the completed response to Convex
-            await fetchAuthMutation(
-              api.functions.threads.internal_updateMessageUsage,
-              {
-                secret: env.INTERNAL_CONVEX_SECRET,
-                messageId: assistantMessageId,
-                usage: usageData ?? {
-                  promptTokens: 0,
-                  responseTokens: 0,
-                  totalTokens: 0,
+              // Save the completed response to Convex
+              await fetchAuthMutation(
+                api.functions.threads.internal_updateMessageUsage,
+                {
+                  secret: env.INTERNAL_CONVEX_SECRET,
+                  messageId: assistantMessageId,
+                  usage: usageData ?? {
+                    promptTokens: 0,
+                    responseTokens: 0,
+                    totalTokens: 0,
+                  },
+                  generationStats,
                 },
-                generationStats,
-              },
-            );
+              );
+            } finally {
+              await cleanupTools();
+            }
           },
           onChunk: () => {
             // Track time to first token
@@ -310,6 +355,7 @@ export const Route = createFileRoute("/api/chat/")({
           },
           onAbort: () => {
             console.log("Stream aborted");
+            void cleanupTools();
           },
         });
 

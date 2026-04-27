@@ -1,7 +1,9 @@
+import type { ModelConfig } from "@/lib/model-config";
 import type React from "react";
 import type { RefObject } from "react";
 import {
   ArrowUp,
+  Hammer,
   Loader2,
   Maximize2,
   Minimize2,
@@ -14,13 +16,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 import { cn } from "@redux/ui/lib/utils";
 
 import { ModelSelector } from "@/components/chat/model-selector";
-import type { ModelConfig } from "@/lib/model-config";
 
 interface ChatInputToolbarProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -29,6 +31,7 @@ interface ChatInputToolbarProps {
   dropdownOpen: boolean;
   onDropdownOpenChange: (open: boolean) => void;
   onOpenFilePicker: () => void;
+  onOpenToolsDialog: () => void;
   canUploadFiles: boolean;
   isSearchEnabled: boolean;
   onToggleSearch: () => void;
@@ -57,6 +60,7 @@ export function ChatInputToolbar({
   dropdownOpen,
   onDropdownOpenChange,
   onOpenFilePicker,
+  onOpenToolsDialog,
   canUploadFiles,
   isSearchEnabled,
   onToggleSearch,
@@ -110,7 +114,17 @@ export function ChatInputToolbar({
               <span className="min-w-0 grow whitespace-nowrap">
                 Upload file
               </span>
-              <DropdownMenuShortcut className="shrink-0">Ctrl+U</DropdownMenuShortcut>
+              <DropdownMenuShortcut className="shrink-0">
+                Ctrl+U
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onOpenToolsDialog}
+              disabled={!settingsReady}
+            >
+              <Hammer className="size-4 shrink-0" />
+              <span className="min-w-0 grow whitespace-nowrap">Tools</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

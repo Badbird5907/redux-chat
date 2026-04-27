@@ -26,6 +26,11 @@ const attachmentStatus = v.union(v.literal("draft"), v.literal("attached"));
 
 const messageTools = v.object({
   search: v.optional(v.object({})),
+  analysisWorkspace: v.optional(
+    v.object({
+      syncUploads: v.optional(v.boolean()),
+    }),
+  ),
 });
 
 export const messageSettings = v.object({

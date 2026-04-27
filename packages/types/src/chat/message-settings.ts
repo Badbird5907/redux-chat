@@ -1,11 +1,25 @@
-export const MESSAGE_TOOL_NAMES = ["search"] as const;
+export const MESSAGE_TOOL_NAMES = ["search", "analysisWorkspace"] as const;
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
 
-export type SearchToolSettings = object 
+export type SearchToolSettings = object;
+
+export interface AnalysisWorkspaceToolSettings {
+  syncUploads: boolean;
+}
+
+export interface AnalysisWorkspaceToolSettingsInput {
+  syncUploads?: boolean;
+}
 
 export interface MessageToolSettings {
   search?: SearchToolSettings;
+  analysisWorkspace?: AnalysisWorkspaceToolSettings;
+}
+
+export interface MessageToolSettingsInput {
+  search?: SearchToolSettings;
+  analysisWorkspace?: AnalysisWorkspaceToolSettingsInput;
 }
 
 export interface MessageSettings {
@@ -18,11 +32,11 @@ export interface MessageSettingsInput extends Omit<
   Partial<MessageSettings>,
   "tools"
 > {
-  tools?: Partial<MessageToolSettings>;
+  tools?: MessageToolSettingsInput;
 }
 
 export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
-  tools?: Partial<MessageToolSettings>;
+  tools?: MessageToolSettingsInput;
 };
 
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
@@ -57,13 +71,16 @@ export function mergeMessageSettings(
     ...patch,
     tools:
       patch.tools !== undefined
-        ? normalizeTools(patch.tools)
+        ? normalizeTools({
+            ...normalizedBase.tools,
+            ...patch.tools,
+          })
         : normalizedBase.tools,
   });
 }
 
 function normalizeTools(
-  tools: Partial<MessageToolSettings> | null | undefined,
+  tools: MessageToolSettingsInput | null | undefined,
 ): MessageToolSettings {
   const normalizedTools: MessageToolSettings = {};
 
@@ -73,6 +90,16 @@ function normalizeTools(
     !Array.isArray(tools.search)
   ) {
     normalizedTools.search = {};
+  }
+
+  if (
+    tools?.analysisWorkspace &&
+    typeof tools.analysisWorkspace === "object" &&
+    !Array.isArray(tools.analysisWorkspace)
+  ) {
+    normalizedTools.analysisWorkspace = {
+      syncUploads: tools.analysisWorkspace.syncUploads !== false,
+    };
   }
 
   return normalizedTools;

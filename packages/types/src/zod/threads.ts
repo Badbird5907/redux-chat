@@ -13,6 +13,11 @@ const mutationInfo = z.discriminatedUnion("type", [
 
 const messageToolsSchema = z.object({
   search: z.object({}).optional(),
+  analysisWorkspace: z
+    .object({
+      syncUploads: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const messageSchema = z.object({
