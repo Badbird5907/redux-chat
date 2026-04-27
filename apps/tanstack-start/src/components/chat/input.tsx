@@ -32,6 +32,13 @@ import {
   MODELS,
 } from "@/lib/model-config";
 import { useUpload } from "@/lib/silo/react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@redux/ui/components/dropdown-menu";
 
 interface ChatInputProps {
   threadId?: string;
@@ -101,6 +108,7 @@ export function ChatInput({
   const [showTokenVisualization, setShowTokenVisualization] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
@@ -163,6 +171,22 @@ export function ChatInput({
   const showErrorBorder = status === "error";
   const currentModelConfig = getChatModelConfig(selectedModel);
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
+  const isSubmitting = status === "streaming" || status === "submitted";
+  const canUploadFiles =
+    !isSubmitting &&
+    !!currentModelConfig &&
+    currentModelConfig.accept.length > 0 &&
+    settingsReady &&
+    draftReady;
+
+  const openFilePicker = useCallback(() => {
+    if (!canUploadFiles) {
+      return;
+    }
+
+    setDropdownOpen(false);
+    fileInputRef.current?.click();
+  }, [canUploadFiles]);
 
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -371,15 +395,42 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.repeat) {
+          return;
+        }
+        openFilePicker();
+        return;
+      }
+
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         void handleSubmit();
       }
     },
-    [handleSubmit],
+    [handleSubmit, openFilePicker],
   );
 
-  const isSubmitting = status === "streaming" || status === "submitted";
+  useEffect(() => {
+    const handleUploadHotkey = (event: KeyboardEvent) => {
+      if (
+        event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !event.repeat &&
+        event.key.toLowerCase() === "u"
+      ) {
+        event.preventDefault();
+        openFilePicker();
+      }
+    };
+
+    window.addEventListener("keydown", handleUploadHotkey);
+    return () => window.removeEventListener("keydown", handleUploadHotkey);
+  }, [openFilePicker]);
+
   const hasUploadingFiles = attachments.some(
     (attachment) => attachment.uploading,
   );
@@ -632,23 +683,35 @@ export function ChatInput({
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-full"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={
-                    isSubmitting ||
-                    !currentModelConfig ||
-                    currentModelConfig.accept.length === 0 ||
-                    !settingsReady ||
-                    !draftReady
-                  }
+                <DropdownMenu
+                  open={dropdownOpen}
+                  onOpenChange={setDropdownOpen}
                 >
-                  <Plus className="h-5 w-5" />
-                </Button>
-
+                  <DropdownMenuTrigger>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-full"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-max min-w-52">
+                    <DropdownMenuItem
+                      onClick={openFilePicker}
+                      disabled={!canUploadFiles}
+                    >
+                      <Plus className="size-4 shrink-0" />
+                      <span className="min-w-0 grow whitespace-nowrap">
+                        Upload file
+                      </span>
+                      <DropdownMenuShortcut className="shrink-0">
+                        Ctrl+U
+                      </DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <button
                   type="button"
                   onClick={handleToggleSearch}
