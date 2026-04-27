@@ -88,6 +88,7 @@
     "./components/skeleton": "./src/components/skeleton.tsx",
     "./components/sonner": "./src/components/sonner.tsx",
     "./components/spinner": "./src/components/spinner.tsx",
+    "./components/table": "./src/components/table.tsx",
     "./components/textarea": "./src/components/textarea.tsx",
     "./components/theme": "./src/components/theme.tsx",
     "./components/toast": "./src/components/toast.tsx",

@@ -13,12 +13,15 @@ import { useTheme } from "@redux/ui/components/theme";
 import { cn } from "@redux/ui/lib/utils";
 
 import {
-  ensureShikiLanguage,
-  getShikiHighlighter,
   getShikiTheme,
+  isPlainTextLanguage,
   normalizeMarkdownLanguage,
 } from "./shiki-highlighter";
-import { useFrameBufferedValue } from "./use-frame-buffered-value";
+import {
+  getHighlightedHtmlFromCache,
+  highlightCodeInWorker,
+  prewarmShikiWorker,
+} from "./shiki-worker-client";
 
 interface ShikiCodeBlockProps {
   code: string;
@@ -38,47 +41,16 @@ interface HighlightedCodeState {
   html: string;
 }
 
-const STREAMING_HIGHLIGHT_DELAY_MS = 150;
-const STREAMING_HIGHLIGHT_MAX_CODE_LENGTH = 12000;
+const STREAMING_CODE_TEXT_DELAY_MS = 64;
 
-function scheduleHighlightWork(callback: () => void, delay: number) {
-  let idleId: number | null = null;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+let hasPrewarmedShikiWorker = false;
 
-  const requestCallback = () => {
-    if (
-      typeof window !== "undefined" &&
-      "requestIdleCallback" in window &&
-      typeof window.requestIdleCallback === "function"
-    ) {
-      idleId = window.requestIdleCallback(callback, {
-        timeout: STREAMING_HIGHLIGHT_DELAY_MS,
-      });
-      return;
-    }
-
-    callback();
-  };
-
-  if (delay > 0) {
-    timeoutId = setTimeout(requestCallback, delay);
-  } else {
-    requestCallback();
-  }
+function scheduleCodeFlush(callback: () => void, delay: number) {
+  const timeoutId = setTimeout(callback, delay);
 
   return () => {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
-
-    if (idleId !== null && typeof window !== "undefined") {
-      window.cancelIdleCallback(idleId);
-    }
+    clearTimeout(timeoutId);
   };
-}
-
-function isPlainTextLanguage(language: string) {
-  return language === "text" || language === "math";
 }
 
 export function ShikiCodeBlock({
@@ -91,40 +63,166 @@ export function ShikiCodeBlock({
     () => normalizeMarkdownLanguage(info),
     [info],
   );
-  const renderedCode = useFrameBufferedValue(code, isStreaming);
+  const [displayedCode, setDisplayedCode] = useState(code);
   const shikiTheme = getShikiTheme(resolvedTheme);
   const request = useMemo<HighlightRequest>(
     () => ({
-      cacheKey: `${shikiTheme}:${normalizedLanguage}:${renderedCode}`,
-      code: renderedCode,
+      cacheKey: `${shikiTheme}:${normalizedLanguage}:${displayedCode}`,
+      code: displayedCode,
       normalizedLanguage,
       theme: shikiTheme,
     }),
-    [normalizedLanguage, renderedCode, shikiTheme],
+    [displayedCode, normalizedLanguage, shikiTheme],
   );
 
   const [highlightedCode, setHighlightedCode] =
     useState<HighlightedCodeState | null>(null);
 
+  const latestCodeRef = useRef(code);
   const latestRequestRef = useRef(request);
   const highlightedCodeRef = useRef<HighlightedCodeState | null>(null);
   const isMountedRef = useRef(true);
-  const isStreamingRef = useRef(isStreaming);
-  const isHighlightRunningRef = useRef(false);
-  const lastHighlightAtRef = useRef(0);
-  const cancelScheduledHighlightRef = useRef<(() => void) | null>(null);
-  const runHighlightRef = useRef<(() => Promise<void>) | null>(null);
-  const scheduleNextHighlightRef = useRef<(() => void) | null>(null);
+  const cancelCodeFlushRef = useRef<(() => void) | null>(null);
+  const inFlightRequestRef = useRef<HighlightRequest | null>(null);
+  const queuedRequestRef = useRef<HighlightRequest | null>(null);
+  const latestIssuedCacheKeyRef = useRef(request.cacheKey);
+  const latestResolvedCacheKeyRef = useRef<string | null>(null);
 
-  const clearScheduledHighlight = useCallback(() => {
-    cancelScheduledHighlightRef.current?.();
-    cancelScheduledHighlightRef.current = null;
+  const clearScheduledCodeFlush = useCallback(() => {
+    cancelCodeFlushRef.current?.();
+    cancelCodeFlushRef.current = null;
   }, []);
+
+  const applyHighlightedCode = useCallback(
+    (nextHighlightedCode: HighlightedCodeState) => {
+      startTransition(() => {
+        setHighlightedCode((previousHighlight) => {
+          if (
+            previousHighlight?.cacheKey === nextHighlightedCode.cacheKey &&
+            previousHighlight.html === nextHighlightedCode.html
+          ) {
+            return previousHighlight;
+          }
+
+          return nextHighlightedCode;
+        });
+      });
+    },
+    [],
+  );
+
+  const processHighlightRequest = useCallback(
+    (nextRequest: HighlightRequest) => {
+      if (isPlainTextLanguage(nextRequest.normalizedLanguage)) {
+        return;
+      }
+
+      const cachedHtml = getHighlightedHtmlFromCache(nextRequest.cacheKey);
+      if (cachedHtml !== null) {
+        latestResolvedCacheKeyRef.current = nextRequest.cacheKey;
+        applyHighlightedCode({
+          cacheKey: nextRequest.cacheKey,
+          html: cachedHtml,
+        });
+        return;
+      }
+
+      if (inFlightRequestRef.current !== null) {
+        queuedRequestRef.current = nextRequest;
+        latestIssuedCacheKeyRef.current = nextRequest.cacheKey;
+        return;
+      }
+
+      inFlightRequestRef.current = nextRequest;
+      latestIssuedCacheKeyRef.current = nextRequest.cacheKey;
+
+      void highlightCodeInWorker({
+        cacheKey: nextRequest.cacheKey,
+        code: nextRequest.code,
+        language: nextRequest.normalizedLanguage,
+        theme: nextRequest.theme,
+      })
+        .then((result) => {
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          inFlightRequestRef.current = null;
+          latestResolvedCacheKeyRef.current = result.cacheKey;
+
+          if (latestRequestRef.current.cacheKey === result.cacheKey) {
+            applyHighlightedCode(result);
+          }
+
+          const queuedRequest = queuedRequestRef.current;
+          queuedRequestRef.current = null;
+
+          if (
+            queuedRequest !== null &&
+            queuedRequest.cacheKey !== result.cacheKey
+          ) {
+            processHighlightRequest(queuedRequest);
+          }
+        })
+        .catch(() => {
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          inFlightRequestRef.current = null;
+
+          const queuedRequest = queuedRequestRef.current;
+          queuedRequestRef.current = null;
+
+          if (queuedRequest !== null) {
+            processHighlightRequest(queuedRequest);
+            return;
+          }
+
+          if (latestRequestRef.current.cacheKey !== nextRequest.cacheKey) {
+            return;
+          }
+
+          latestResolvedCacheKeyRef.current = null;
+          startTransition(() => {
+            setHighlightedCode(null);
+          });
+        });
+    },
+    [applyHighlightedCode],
+  );
+
+  useEffect(() => {
+    latestCodeRef.current = code;
+
+    if (!isStreaming) {
+      clearScheduledCodeFlush();
+      setDisplayedCode((previousCode) =>
+        previousCode === code ? previousCode : code,
+      );
+      return;
+    }
+
+    if (
+      cancelCodeFlushRef.current !== null ||
+      displayedCode === latestCodeRef.current
+    ) {
+      return;
+    }
+
+    cancelCodeFlushRef.current = scheduleCodeFlush(() => {
+      cancelCodeFlushRef.current = null;
+      const nextCode = latestCodeRef.current;
+
+      setDisplayedCode((previousCode) =>
+        previousCode === nextCode ? previousCode : nextCode,
+      );
+    }, STREAMING_CODE_TEXT_DELAY_MS);
+  }, [clearScheduledCodeFlush, code, displayedCode, isStreaming]);
 
   useEffect(() => {
     latestRequestRef.current = request;
-    isStreamingRef.current = isStreaming;
-  }, [isStreaming, request]);
+  }, [request]);
 
   useEffect(() => {
     highlightedCodeRef.current = highlightedCode;
@@ -135,130 +233,57 @@ export function ShikiCodeBlock({
 
     return () => {
       isMountedRef.current = false;
-      clearScheduledHighlight();
+      clearScheduledCodeFlush();
+      queuedRequestRef.current = null;
     };
-  }, [clearScheduledHighlight]);
+  }, [clearScheduledCodeFlush]);
 
   useEffect(() => {
-    runHighlightRef.current = async () => {
-      if (isHighlightRunningRef.current) {
-        return;
-      }
+    if (
+      hasPrewarmedShikiWorker ||
+      isPlainTextLanguage(normalizedLanguage) ||
+      displayedCode.length === 0
+    ) {
+      return;
+    }
 
-      const nextRequest = latestRequestRef.current;
-
-      if (isPlainTextLanguage(nextRequest.normalizedLanguage)) {
-        return;
-      }
-
-      isHighlightRunningRef.current = true;
-
-      try {
-        const shikiLanguage = await ensureShikiLanguage(
-          nextRequest.normalizedLanguage,
-        );
-
-        if (!shikiLanguage || !isMountedRef.current) {
-          return;
-        }
-
-        const highlighter = await getShikiHighlighter();
-        const html = highlighter.codeToHtml(nextRequest.code, {
-          lang: shikiLanguage,
-          theme: nextRequest.theme,
-        });
-
-        const nextHighlightedCode = {
-          cacheKey: nextRequest.cacheKey,
-          html,
-        };
-
-        lastHighlightAtRef.current = performance.now();
-
-        startTransition(() => {
-          setHighlightedCode((previousHighlight) => {
-            if (
-              previousHighlight?.cacheKey === nextHighlightedCode.cacheKey &&
-              previousHighlight.html === nextHighlightedCode.html
-            ) {
-              return previousHighlight;
-            }
-
-            return nextHighlightedCode;
-          });
-        });
-      } catch {
-        if (!isMountedRef.current) {
-          return;
-        }
-
-        const shouldKeepPreviousHighlight =
-          isStreamingRef.current && highlightedCodeRef.current !== null;
-
-        if (!shouldKeepPreviousHighlight) {
-          startTransition(() => {
-            setHighlightedCode(null);
-          });
-        }
-      } finally {
-        isHighlightRunningRef.current = false;
-      }
-
-      if (latestRequestRef.current.cacheKey !== nextRequest.cacheKey) {
-        scheduleNextHighlightRef.current?.();
-      }
-    };
-
-    scheduleNextHighlightRef.current = () => {
-      const nextRequest = latestRequestRef.current;
-
-      if (isPlainTextLanguage(nextRequest.normalizedLanguage)) {
-        return;
-      }
-
-      if (
-        cancelScheduledHighlightRef.current !== null ||
-        isHighlightRunningRef.current
-      ) {
-        return;
-      }
-
-      const highlightInterval = isStreamingRef.current
-        ? nextRequest.code.length > STREAMING_HIGHLIGHT_MAX_CODE_LENGTH
-          ? STREAMING_HIGHLIGHT_DELAY_MS * 2
-          : STREAMING_HIGHLIGHT_DELAY_MS
-        : 0;
-      const elapsedSinceLastHighlight =
-        performance.now() - lastHighlightAtRef.current;
-      const delay = Math.max(0, highlightInterval - elapsedSinceLastHighlight);
-
-      cancelScheduledHighlightRef.current = scheduleHighlightWork(() => {
-        cancelScheduledHighlightRef.current = null;
-        void runHighlightRef.current?.();
-      }, delay);
-    };
-
-    return () => {
-      runHighlightRef.current = null;
-      scheduleNextHighlightRef.current = null;
-    };
-  }, []);
+    hasPrewarmedShikiWorker = true;
+    prewarmShikiWorker();
+  }, [displayedCode.length, normalizedLanguage]);
 
   useEffect(() => {
-    if (isPlainTextLanguage(normalizedLanguage)) {
-      clearScheduledHighlight();
+    if (isPlainTextLanguage(request.normalizedLanguage)) {
+      queuedRequestRef.current = null;
+      latestResolvedCacheKeyRef.current = null;
 
       if (highlightedCodeRef.current !== null) {
         startTransition(() => {
           setHighlightedCode(null);
         });
       }
-
       return;
     }
 
-    scheduleNextHighlightRef.current?.();
-  }, [clearScheduledHighlight, normalizedLanguage, request]);
+    const cachedHtml = getHighlightedHtmlFromCache(request.cacheKey);
+    if (cachedHtml !== null) {
+      latestResolvedCacheKeyRef.current = request.cacheKey;
+      applyHighlightedCode({
+        cacheKey: request.cacheKey,
+        html: cachedHtml,
+      });
+      return;
+    }
+
+    if (
+      latestResolvedCacheKeyRef.current === request.cacheKey ||
+      inFlightRequestRef.current?.cacheKey === request.cacheKey ||
+      queuedRequestRef.current?.cacheKey === request.cacheKey
+    ) {
+      return;
+    }
+
+    processHighlightRequest(request);
+  }, [applyHighlightedCode, processHighlightRequest, request]);
 
   const shouldRenderHighlighted =
     highlightedCode !== null && !isPlainTextLanguage(normalizedLanguage);
@@ -276,7 +301,7 @@ export function ShikiCodeBlock({
                 "language-" + normalizedLanguage,
             )}
           >
-            {renderedCode}
+            {displayedCode}
           </code>
         </pre>
       )}

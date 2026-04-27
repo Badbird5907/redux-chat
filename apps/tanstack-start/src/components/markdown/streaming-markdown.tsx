@@ -11,6 +11,7 @@ import {
   remarkPlugins,
 } from "./markdown-components";
 import { parseMarkdownIntoBlocks } from "./parse-markdown-into-blocks";
+import { ShikiCodeBlock } from "./shiki-code-block";
 import { useFrameBufferedValue } from "./use-frame-buffered-value";
 
 interface StreamingMarkdownProps {
@@ -21,6 +22,14 @@ interface StreamingMarkdownProps {
 
 interface MarkdownBlockProps {
   content: string;
+  isStreaming?: boolean;
+}
+
+interface CodeBlockProps {
+  raw: string;
+  code: string;
+  info?: string;
+  isClosed: boolean;
   isStreaming?: boolean;
 }
 
@@ -53,6 +62,33 @@ const MemoizedMarkdownBlock = memo(
 
 MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
 
+const MemoizedCodeBlock = memo(
+  ({
+    code,
+    info,
+    isClosed,
+    isStreaming = false,
+  }: CodeBlockProps) => {
+    if (isStreaming && !isClosed && code.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="chat-markdown">
+        <ShikiCodeBlock code={code} info={info} isStreaming={isStreaming} />
+      </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.raw === nextProps.raw &&
+      prevProps.isStreaming === nextProps.isStreaming
+    );
+  },
+);
+
+MemoizedCodeBlock.displayName = "MemoizedCodeBlock";
+
 export function StreamingMarkdown({
   content,
   isStreaming = false,
@@ -72,11 +108,25 @@ export function StreamingMarkdown({
     <div className={cn("flex flex-col", className)}>
       {blocks.map((block, index) => {
         const isLastBlock = index === blocks.length - 1;
+        const isStreamingBlock = isStreaming && isLastBlock;
+
+        if (block.type === "code") {
+          return (
+            <MemoizedCodeBlock
+              code={block.code}
+              info={block.info}
+              isClosed={block.isClosed}
+              isStreaming={isStreamingBlock}
+              key={index}
+              raw={block.raw}
+            />
+          );
+        }
 
         return (
           <MemoizedMarkdownBlock
-            content={block}
-            isStreaming={isStreaming && isLastBlock}
+            content={block.raw}
+            isStreaming={isStreamingBlock}
             key={index}
           />
         );
