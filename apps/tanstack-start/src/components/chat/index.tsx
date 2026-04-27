@@ -341,7 +341,7 @@ export function Chat({
     ) => {
       locallyStartedStreamRef.current = true;
       locallyCompletedStreamRef.current = false;
-      sendMessage(message, options);
+      void sendMessage(message, options);
     },
     [sendMessage],
   );
