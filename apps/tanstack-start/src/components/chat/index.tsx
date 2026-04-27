@@ -273,6 +273,7 @@ export function Chat({
   const chatSessionId = useStableClientId();
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
   const locallyCompletedStreamRef = useRef(false);
+  const locallyStartedStreamRef = useRef(false);
   const {
     settings,
     baselineSettings,
@@ -302,9 +303,12 @@ export function Chat({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        prepareReconnectToStreamRequest: () => ({
-          api: `/api/chat/${currentThreadId}/stream`,
-        }),
+        prepareReconnectToStreamRequest: () => {
+          console.log("prepareReconnectToStreamRequest", currentThreadId);
+          return {
+            api: `/api/chat/${currentThreadId}/stream`,
+          }
+        },
       }),
     [currentThreadId],
   );
@@ -313,16 +317,34 @@ export function Chat({
     id: chatInstanceId,
     messages: initialMessages,
     transport,
-
+    
     onError: (error) => {
+      locallyStartedStreamRef.current = false;
       console.error("Chat error:", error);
     },
     onFinish: (message) => {
       console.log("Finish:", message);
+      locallyStartedStreamRef.current = false;
       locallyCompletedStreamRef.current =
         !message.isAbort && !message.isDisconnect && !message.isError;
     },
   });
+
+  const sendMessageWithTracking = useCallback(
+    (
+      message: {
+        text: string;
+        id?: string;
+        metadata?: Record<string, unknown>;
+      },
+      options?: { body?: object },
+    ) => {
+      locallyStartedStreamRef.current = true;
+      locallyCompletedStreamRef.current = false;
+      sendMessage(message, options);
+    },
+    [sendMessage],
+  );
 
   useEffect(() => {
     if (status === "submitted" || status === "streaming") {
@@ -390,6 +412,13 @@ export function Chat({
       locallyCompletedStreamRef.current ||
       status === "streaming" ||
       status === "submitted"
+    ) {
+      return;
+    }
+
+    if (
+      activeStreamInfo.clientId === chatSessionId &&
+      locallyStartedStreamRef.current
     ) {
       return;
     }
@@ -570,7 +599,7 @@ export function Chat({
               <EmptyChat
                 threadId={currentThreadId}
                 setThreadId={handleThreadIdChange}
-                sendMessage={sendMessage}
+                sendMessage={sendMessageWithTracking}
                 clientId={chatSessionId}
                 convexMessages={convexUIMessages}
                 setOptimisticMessage={(m) => setOptimisticMessage(m)}
@@ -744,7 +773,7 @@ export function Chat({
       <ChatInput
         threadId={currentThreadId}
         setThreadId={handleThreadIdChange}
-        sendMessage={sendMessage}
+        sendMessage={sendMessageWithTracking}
         setOptimisticMessage={(m) => setOptimisticMessage(m)}
         messages={messages}
         status={status}

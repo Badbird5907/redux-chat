@@ -100,7 +100,7 @@ function AppLayout() {
           <div className="h-full overflow-hidden">
             <Suspense fallback={null}>
               <ChatRouteClient
-                key={`${pathname}:${chatResetKey}`}
+                key={chatResetKey}
                 initialThreadId={initialThreadId}
                 preload={undefined}
               />
