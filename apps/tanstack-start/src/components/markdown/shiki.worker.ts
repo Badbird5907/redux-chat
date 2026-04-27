@@ -7,10 +7,11 @@ import {
   LANGUAGE_LOADERS,
   PRELOADED_LANGUAGES,
   THEME_IDS,
-  THEME_LOADERS,
-  type MarkdownLanguageId,
-  type MarkdownThemeId,
+  THEME_LOADERS
+  
+  
 } from "./shiki-config";
+import type {MarkdownLanguageId, MarkdownThemeId} from "./shiki-config";
 import type {
   HighlightErrorMessage,
   HighlightSuccessMessage,
@@ -78,15 +79,9 @@ async function ensureShikiLanguage(
   return loadLanguage;
 }
 
-workerScope.onmessage = async (
-  event: MessageEvent<WorkerRequestMessage>,
-) => {
-  const message = event.data;
-
-  if (message.type !== "highlight") {
-    return;
-  }
-
+async function handleHighlightMessage(
+  message: WorkerRequestMessage,
+): Promise<void> {
   const cachedHtml = highlightedHtmlCache.get(message.cacheKey);
   if (cachedHtml !== undefined) {
     const response: HighlightSuccessMessage = {
@@ -133,6 +128,10 @@ workerScope.onmessage = async (
     };
     workerScope.postMessage(response);
   }
+}
+
+workerScope.onmessage = (event: MessageEvent<WorkerRequestMessage>) => {
+  void handleHighlightMessage(event.data);
 };
 
 export {};

@@ -18,7 +18,7 @@ function escapeRegex(value: string) {
 }
 
 export function isClosedFencedCodeBlock(raw: string) {
-  const openingFenceMatch = raw.match(/^ {0,3}([`~]{3,})[^\n]*(?:\n|$)/);
+  const openingFenceMatch = /^ {0,3}([`~]{3,})[^\n]*(?:\n|$)/.exec(raw);
 
   if (!openingFenceMatch) {
     return true;
@@ -62,12 +62,19 @@ export function parseMarkdownIntoBlocks(markdown: string): MarkdownBlock[] {
     }
 
     if (token.type === "code") {
+      const { raw, text, lang } = token as {
+        type: "code";
+        raw: string;
+        text: string;
+        lang?: string;
+      };
+      const trimmedLang = lang?.trim();
       blocks.push({
         type: "code",
-        raw: token.raw,
-        code: token.text ?? "",
-        info: token.lang?.trim() || undefined,
-        isClosed: isClosedFencedCodeBlock(token.raw),
+        raw,
+        code: text,
+        info: trimmedLang !== "" ? trimmedLang : undefined,
+        isClosed: isClosedFencedCodeBlock(raw),
       });
       continue;
     }

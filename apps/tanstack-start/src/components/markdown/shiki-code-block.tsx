@@ -93,6 +93,11 @@ export function ShikiCodeBlock({
     cancelCodeFlushRef.current = null;
   }, []);
 
+  // Ref used to break the circular self-reference inside processHighlightRequest's useCallback
+  const processHighlightRequestRef = useRef<
+    ((nextRequest: HighlightRequest) => void) | null
+  >(null);
+
   const applyHighlightedCode = useCallback(
     (nextHighlightedCode: HighlightedCodeState) => {
       startTransition(() => {
@@ -161,7 +166,7 @@ export function ShikiCodeBlock({
             queuedRequest !== null &&
             queuedRequest.cacheKey !== result.cacheKey
           ) {
-            processHighlightRequest(queuedRequest);
+            processHighlightRequestRef.current?.(queuedRequest);
           }
         })
         .catch(() => {
@@ -175,7 +180,7 @@ export function ShikiCodeBlock({
           queuedRequestRef.current = null;
 
           if (queuedRequest !== null) {
-            processHighlightRequest(queuedRequest);
+            processHighlightRequestRef.current?.(queuedRequest);
             return;
           }
 
@@ -192,14 +197,22 @@ export function ShikiCodeBlock({
     [applyHighlightedCode],
   );
 
+  // Keep the ref pointing at the latest stable callback so recursive calls
+  // inside the callback body don't form a self-referential const initializer.
+  useEffect(() => {
+    processHighlightRequestRef.current = processHighlightRequest;
+  }, [processHighlightRequest]);
+
   useEffect(() => {
     latestCodeRef.current = code;
 
     if (!isStreaming) {
       clearScheduledCodeFlush();
-      setDisplayedCode((previousCode) =>
-        previousCode === code ? previousCode : code,
-      );
+      startTransition(() => {
+        setDisplayedCode((previousCode) =>
+          previousCode === code ? previousCode : code,
+        );
+      });
       return;
     }
 

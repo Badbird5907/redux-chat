@@ -40,6 +40,7 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai/reasoning";
+import { ShikiCodeBlock } from "@/components/markdown/shiki-code-block";
 import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 import { normalizeAssistantMessage } from "./assistant-message-timeline";
 
@@ -181,10 +182,15 @@ function AnalysisDetailsButton({
 
           <div className="flex-1 space-y-6 overflow-y-auto p-4">
             <AnalysisSection icon={Code2Icon} title="Code">
-              <CodeBlock>
-                {details.code?.trim() ??
-                  "# No code was captured for this step."}
-              </CodeBlock>
+              <div className="chat-markdown [&_.chat-markdown__pre]:my-0 [&_.shiki]:my-0">
+                <ShikiCodeBlock
+                  code={
+                    details.code?.trim() ??
+                    "# No code was captured for this step."
+                  }
+                  info="python"
+                />
+              </div>
             </AnalysisSection>
 
             <AnalysisSection icon={TerminalSquareIcon} title="Output">
@@ -262,14 +268,6 @@ function AnalysisSection({
       </div>
       {children}
     </section>
-  );
-}
-
-function CodeBlock({ children }: { children: string }) {
-  return (
-    <pre className="bg-muted/40 border-border overflow-x-auto rounded-2xl border p-4 text-sm leading-6">
-      <code className="font-mono">{children}</code>
-    </pre>
   );
 }
 
