@@ -23,7 +23,6 @@ import {
   WholeWord,
   ZapIcon,
 } from "lucide-react";
-import { Streamdown } from "streamdown";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -38,6 +37,7 @@ import {
 } from "@/components/ai/conversation";
 import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import { StaticMarkdown } from "@/components/markdown/static-markdown";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
 import { EmptyChat } from "./empty";
@@ -690,7 +690,7 @@ export function Chat({
                             message={message}
                           />
                         ) : (
-                          <Streamdown mode="static">{textContent}</Streamdown>
+                          <StaticMarkdown content={textContent} />
                         )}
                         {attachmentsToRender.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">

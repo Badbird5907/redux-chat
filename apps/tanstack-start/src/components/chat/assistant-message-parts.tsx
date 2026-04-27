@@ -14,7 +14,6 @@ import {
   TerminalSquareIcon,
   WrenchIcon,
 } from "lucide-react";
-import { Streamdown } from "streamdown";
 
 import { Button } from "@redux/ui/components/button";
 import {
@@ -41,6 +40,7 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai/reasoning";
+import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 import { normalizeAssistantMessage } from "./assistant-message-timeline";
 
 export function AssistantMessageParts({
@@ -125,9 +125,7 @@ export function AssistantMessageParts({
       ) : null}
 
       {textContent ? (
-        <Streamdown mode={isStreaming ? "streaming" : "static"}>
-          {textContent}
-        </Streamdown>
+        <StreamingMarkdown content={textContent} isStreaming={isStreaming} />
       ) : null}
     </>
   );
@@ -182,7 +180,7 @@ function AnalysisDetailsButton({
           </SheetHeader>
 
           <div className="flex-1 space-y-6 overflow-y-auto p-4">
-            <AnalysisSection icon={Code2Icon} title="Generated Code">
+            <AnalysisSection icon={Code2Icon} title="Code">
               <CodeBlock>
                 {details.code?.trim() ??
                   "# No code was captured for this step."}

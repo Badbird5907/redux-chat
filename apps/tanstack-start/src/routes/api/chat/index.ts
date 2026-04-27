@@ -5,6 +5,7 @@ import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
   generateId,
+  smoothStream,
   stepCountIs,
   streamText,
 } from "ai";
@@ -284,6 +285,10 @@ export const Route = createFileRoute("/api/chat/")({
           messages: modelMessages,
           abortSignal: abortController.signal,
           tools: toolRuntime.tools,
+          experimental_transform: smoothStream({ // this makes client md rendering way smoother and performant
+            delayInMs: 20,
+            chunking: "word",
+          }),
           stopWhen: stepCountIs(15),
           onFinish: async ({ usage }) => {
             try {

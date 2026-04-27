@@ -1,3 +1,4 @@
+@import "katex/dist/katex.min.css";
 @import "tailwindcss";
 @import "@redux/tailwind-config/theme";
 
@@ -9,4 +10,125 @@
 
 body {
   @apply bg-background text-foreground antialiased;
+}
+
+@layer components {
+  .chat-markdown {
+    @apply text-foreground text-[15px] leading-7 break-words;
+  }
+
+  .chat-markdown > :first-child {
+    @apply mt-0;
+  }
+
+  .chat-markdown > :last-child {
+    @apply mb-0;
+  }
+
+  .chat-markdown :is(p, ul, ol, blockquote, hr) {
+    @apply my-4;
+  }
+
+  .chat-markdown :is(h1, h2, h3, h4) {
+    @apply mt-6 mb-3 font-semibold tracking-tight;
+  }
+
+  .chat-markdown h1 {
+    @apply text-3xl;
+  }
+
+  .chat-markdown h2 {
+    @apply text-2xl;
+  }
+
+  .chat-markdown h3 {
+    @apply text-xl;
+  }
+
+  .chat-markdown h4 {
+    @apply text-lg;
+  }
+
+  .chat-markdown ul {
+    @apply list-disc pl-6;
+  }
+
+  .chat-markdown ol {
+    @apply list-decimal pl-6;
+  }
+
+  .chat-markdown li {
+    @apply my-1;
+  }
+
+  .chat-markdown li > ul,
+  .chat-markdown li > ol {
+    @apply my-2;
+  }
+
+  .chat-markdown blockquote {
+    @apply border-border text-muted-foreground border-l-4 pl-4 italic;
+  }
+
+  .chat-markdown hr {
+    @apply border-border;
+  }
+
+  .chat-markdown :not(pre) > code {
+    @apply bg-muted text-foreground rounded-md px-1.5 py-1 font-mono text-[0.9em];
+  }
+
+  .chat-markdown__inline-code {
+    @apply bg-muted text-foreground rounded-md px-1.5 py-1 font-mono text-[0.9em];
+  }
+
+  .chat-markdown__pre,
+  .chat-markdown .shiki {
+    @apply bg-muted/40 border-border my-4 overflow-x-auto rounded-2xl border p-4;
+  }
+
+  .chat-markdown__pre code,
+  .chat-markdown .shiki code {
+    @apply block min-w-max font-mono text-[13px] leading-6;
+  }
+
+  .chat-markdown__code-block {
+    @apply block;
+  }
+
+  .chat-markdown__table-wrap {
+    @apply my-4 overflow-x-auto;
+  }
+
+  .chat-markdown__table {
+    @apply w-full min-w-max border-collapse text-sm;
+  }
+
+  .chat-markdown :is(th, td) {
+    @apply border-border border px-3 py-2 text-left align-top;
+  }
+
+  .chat-markdown th {
+    @apply bg-muted/60 font-medium;
+  }
+
+  .chat-markdown__image {
+    @apply border-border my-4 max-h-[28rem] max-w-full rounded-2xl border object-contain;
+  }
+
+  .chat-markdown__link {
+    @apply text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-primary;
+  }
+
+  .chat-markdown .task-list-item {
+    @apply list-none;
+  }
+
+  .chat-markdown input[type="checkbox"] {
+    @apply mr-2 align-middle;
+  }
+
+  .chat-markdown .katex-display {
+    @apply my-6 overflow-x-auto overflow-y-hidden py-1;
+  }
 }

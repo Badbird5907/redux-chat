@@ -7,8 +7,6 @@ import { z } from "zod";
 import type { MessageSettings } from "@redux/types";
 import { getEnabledMessageTools } from "@redux/types";
 
-import { env } from "@/env";
-
 const SANDBOX_UPLOADS_DIR = "/home/user/uploads";
 
 export interface ChatToolAttachment {
