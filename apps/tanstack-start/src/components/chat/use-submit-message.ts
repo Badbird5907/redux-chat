@@ -6,6 +6,7 @@ import type { MessageSettings } from "@redux/types";
 interface SubmitMessageParams {
   messageContent: string;
   threadId: string | undefined;
+  chatProjectId?: string;
   setThreadId: (id: string) => void;
   settings: MessageSettings;
   clientId: string;
@@ -27,6 +28,7 @@ interface SubmitMessageParams {
     model: string;
     settings: MessageSettings;
     attachmentIds?: string[];
+    chatProjectId?: string;
   }) => Promise<{
     threadId: string;
     userMessageId: string;
@@ -43,6 +45,7 @@ interface SubmitMessageParams {
 export async function submitMessage({
   messageContent,
   threadId,
+  chatProjectId,
   setThreadId,
   settings,
   clientId,
@@ -84,6 +87,7 @@ export async function submitMessage({
       model: settings.model,
       settings,
       attachmentIds,
+      chatProjectId,
     });
   } else {
     // New thread: get 3 signed IDs (user message, assistant message, thread id)
@@ -119,6 +123,7 @@ export async function submitMessage({
       model: settings.model,
       settings,
       attachmentIds,
+      chatProjectId,
     });
   }
 

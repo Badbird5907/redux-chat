@@ -4,6 +4,12 @@ import type { MessageSettings, MessageSettingsPatch } from "@redux/types";
 
 export interface ChatInputProps {
   threadId?: string;
+  /**
+   * When set, new threads created from this input are scoped to the given
+   * project. Existing threads ignore this prop (project membership is fixed
+   * at thread creation time).
+   */
+  chatProjectId?: string;
   setThreadId: (threadId: string) => void;
   sendMessage: (
     message: { text: string; id?: string; metadata?: Record<string, unknown> },

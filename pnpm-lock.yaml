@@ -156,17 +156,17 @@ importers:
         specifier: ^4.0.2
         version: 4.0.2
       '@silo-storage/sdk-core':
-        specifier: ^0.2.4
-        version: 0.2.4
+        specifier: ^0.2.6
+        version: 0.2.6
       '@silo-storage/sdk-react':
-        specifier: ^0.2.4
-        version: 0.2.4(react@19.2.5)
+        specifier: ^0.2.6
+        version: 0.2.6(react@19.2.5)
       '@silo-storage/sdk-server':
-        specifier: ^0.2.4
-        version: 0.2.4
+        specifier: ^0.2.6
+        version: 0.2.6
       '@silo-storage/sdk-tanstack-start':
-        specifier: ^0.2.4
-        version: 0.2.4
+        specifier: ^0.2.6
+        version: 0.2.6
       '@t3-oss/env-core':
         specifier: ^0.13.11
         version: 0.13.11(typescript@5.9.3)(zod@4.3.6)
@@ -236,6 +236,9 @@ importers:
       nitro:
         specifier: 3.0.260415-beta
         version: 3.0.260415-beta(@upstash/redis@1.37.0)(@vercel/functions@3.4.4)(chokidar@4.0.3)(dotenv@17.4.2)(jiti@2.6.1)(lru-cache@11.3.5)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0))
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
       react:
         specifier: catalog:react19
         version: 19.2.5
@@ -275,6 +278,9 @@ importers:
       tokenx:
         specifier: ^1.3.0
         version: 1.3.0
+      unpdf:
+        specifier: ^1.6.1
+        version: 1.6.1
       use-stick-to-bottom:
         specifier: ^1.1.3
         version: 1.1.3(react@19.2.5)
@@ -355,8 +361,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@silo-storage/sdk-core':
-        specifier: ^0.2.4
-        version: 0.2.4
+        specifier: ^0.2.6
+        version: 0.2.6
       '@t3-oss/env-core':
         specifier: ^0.13.11
         version: 0.13.11(typescript@5.9.3)(zod@4.3.6)
@@ -511,8 +517,8 @@ importers:
   packages/types:
     dependencies:
       '@silo-storage/mime-types':
-        specifier: 0.2.1
-        version: 0.2.1
+        specifier: 0.2.6
+        version: 0.2.6
       convex-helpers:
         specifier: ^0.1.115
         version: 0.1.115(@standard-schema/spec@1.1.0)(convex@1.36.1(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(zod@4.3.6)
@@ -2402,6 +2408,12 @@ packages:
   '@oxc-project/types@0.127.0':
     resolution: {integrity: sha512-aIYXQBo4lCbO4z0R3FHeucQHpF46l2LbMdxRvqvuRuW2OxdnSkcng5B8+K12spgLDj93rtN3+J2Vac/TIO+ciQ==}
 
+  '@pdf-lib/standard-fonts@1.0.0':
+    resolution: {integrity: sha512-hU30BK9IUN/su0Mn9VdlVKsWBS6GyhVfqjwl1FjZN4TxP6cCw0jP2w7V3Hf5uX7M0AZJ16vey9yE0ny7Sa59ZA==}
+
+  '@pdf-lib/upng@1.0.1':
+    resolution: {integrity: sha512-dQK2FUMQtowVP00mtIksrlZhdFXQZPC+taih1q4CvPZ5vqdxR/LKBaFg0oAfzd1GlHZXXSPdQfzQnt+ViGvEIQ==}
+
   '@radix-ui/number@1.1.1':
     resolution: {integrity: sha512-MkKCwxlXTgz6CFoJx3pCwn07GKp36+aZyu/u2Ln2VrA5DcdyCZkASEDBTd8x5whTQQL5CiYf4prXKLcgQdv29g==}
 
@@ -3606,28 +3618,25 @@ packages:
   '@shikijs/vscode-textmate@10.0.2':
     resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
 
-  '@silo-storage/mime-types@0.2.1':
-    resolution: {integrity: sha512-e1EWbFF789eQnpR9AqMOrvRhQohUWRD50RduaxRoZEcKQpFjLDXpO9cs5k6yEER0gWOVq0+pKojHMNCf6zC4KQ==}
+  '@silo-storage/mime-types@0.2.6':
+    resolution: {integrity: sha512-y/HPpEGDXlCikxsYhqS4GQ9oSpyYi1z1+jjSn325S52nG2hNEomJmDZ3k2Uv0xDkQhzCTQcIvA0wDZJqAa0hOQ==}
 
-  '@silo-storage/mime-types@0.2.4':
-    resolution: {integrity: sha512-oEAH4vSn5ZCL4KX7R7LEy952viK6zMgmqavAWeBKe4lAeZ+PYTnRBvROmk2II5DsxkYQXERqBcjs5QLsHpVHwA==}
+  '@silo-storage/sdk-core@0.2.6':
+    resolution: {integrity: sha512-dRXXGqEb7CHWazGQPOUh6A+8yjHMt+rgJo6oClb3oEue4CK4QT9PfnSsZ36A0btz6f9HNGn7FtPEFb5TYIQrEQ==}
 
-  '@silo-storage/sdk-core@0.2.4':
-    resolution: {integrity: sha512-B+AwsXc/QMRFsmx0c6fFeEHnsQeVPZYfDo6ndDjyz6LjX0an2JuFqEU50U/REBKz6JjWn1wtqQAsPTOENft4gA==}
-
-  '@silo-storage/sdk-react@0.2.4':
-    resolution: {integrity: sha512-DuPwjlGg/9Ay9bF034wGKBQeba0i3+kB4GR2GcMZhWHjeJL1ho7czGvM8gMTLK5z8IqyajEq/8PILy48lx1s5A==}
+  '@silo-storage/sdk-react@0.2.6':
+    resolution: {integrity: sha512-zuB9DjZhsYIEKQ3Tc6KD+p6MytFnsOv+fxgqItW+oE4Xs4xWRyc5bRl1i5XSr9tO7I3LkFffEX0z0LbnHjQA2A==}
     peerDependencies:
       react: '>=18.2.0'
 
-  '@silo-storage/sdk-server@0.2.4':
-    resolution: {integrity: sha512-H6yuswhs02SF8misZL3eVwwVLvUlMtWVHnd+k6+qGEprtBqqI/TEkx4toiwBhiIq9KsYd2mPvwfFL6qr8EU6Tg==}
+  '@silo-storage/sdk-server@0.2.6':
+    resolution: {integrity: sha512-wzmAnWceshPu8zkmAJSf4VYmOcaZCzgxT4CozSEOkq5EN5x5eURr1+PyWhBFjnfG/P/VgU2sEhrMdggsxtrRxA==}
 
-  '@silo-storage/sdk-tanstack-start@0.2.4':
-    resolution: {integrity: sha512-2rgsNE6tvF8mgmn2NDiUShwDN6nSyIKC97FVkSbbAH9NbkA+XrhZNtU3J6dFl9oXZPc54EUXN+X2AAUuFGe8UQ==}
+  '@silo-storage/sdk-tanstack-start@0.2.6':
+    resolution: {integrity: sha512-wCV6d46dZzRsEiY6XNZgzZt3tdcMT1BMVhc5tOU7uJVw49ok5hPSQ9MZSq3wL3fIbct1P5aftJjWz4Cf616LQw==}
 
-  '@silo-storage/shared@0.2.4':
-    resolution: {integrity: sha512-EKP4zzefs7WKaR5k5Y3lgnuoHnY9/vpuaxCd3JsdICNa1Kbs+VILJ1gUKrCkbCcAsJUAaahwcgtsMpwrEyj0dA==}
+  '@silo-storage/shared@0.2.6':
+    resolution: {integrity: sha512-B7yM8vF0p36u9ufY6rU3SJxejpiwFFfUuE6+IILippjFGopSq/XDoJR7b6N5FS3aZzzO0eO7DyeKLviNJ+5GNA==}
 
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
@@ -6303,6 +6312,9 @@ packages:
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
 
+  pako@1.0.11:
+    resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
+
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
     engines: {node: '>=6'}
@@ -6339,6 +6351,9 @@ packages:
 
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
+
+  pdf-lib@1.17.1:
+    resolution: {integrity: sha512-V/mpyJAoTsN4cnP31vc0wfNA1+p20evqqnap0KLoRUN0Yk/p3wN52DOEsL4oBFcLdb76hlpKPtzJIgo67j/XLw==}
 
   peberminta@0.9.0:
     resolution: {integrity: sha512-XIxfHpEuSJbITd1H3EeQwpcZbTLHc+VVr8ANI9t5sit565tsI4/xK3KWTUFE2e6QiangUkh3B0jihzmGnNrRsQ==}
@@ -6992,6 +7007,9 @@ packages:
     resolution: {integrity: sha512-NoZ4roiN7LnbKn9QqE1amc9DJfzvZXxF4xDavcOWt1BPkdx+m+0gJuPM+S0vCe7zTJMYUP0R8pO2XMr+Y8oLIg==}
     engines: {node: '>=6'}
 
+  tslib@1.14.1:
+    resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
+
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -7098,6 +7116,14 @@ packages:
 
   unist-util-visit@5.1.0:
     resolution: {integrity: sha512-m+vIdyeCOpdr/QeQCu2EzxX/ohgS8KbnPDgFni4dQsfSCtpz8UqDyY5GjRru8PDKuYn7Fq19j1CQ+nJSsGKOzg==}
+
+  unpdf@1.6.1:
+    resolution: {integrity: sha512-KLl5XzRa7u40mqrfwRjXiiZ939KlBgLnAu2RsuNyd3jAr6zOYVqIts8AvF/kl/TC+A+b8sYSPUWrnXLrATIrLQ==}
+    peerDependencies:
+      '@napi-rs/canvas': ^0.1.69
+    peerDependenciesMeta:
+      '@napi-rs/canvas':
+        optional: true
 
   unplugin@2.3.11:
     resolution: {integrity: sha512-5uKD0nqiYVzlmCRs01Fhs2BdkEgBS3SAVP6ndrBsuK42iC2+JHyxM05Rm9G8+5mkmRtzMZGY8Ct5+mliZxU/Ww==}
@@ -8575,6 +8601,14 @@ snapshots:
 
   '@oxc-project/types@0.127.0': {}
 
+  '@pdf-lib/standard-fonts@1.0.0':
+    dependencies:
+      pako: 1.0.11
+
+  '@pdf-lib/upng@1.0.1':
+    dependencies:
+      pako: 1.0.11
+
   '@radix-ui/number@1.1.1': {}
 
   '@radix-ui/primitive@1.1.3': {}
@@ -9720,37 +9754,35 @@ snapshots:
 
   '@shikijs/vscode-textmate@10.0.2': {}
 
-  '@silo-storage/mime-types@0.2.1': {}
+  '@silo-storage/mime-types@0.2.6': {}
 
-  '@silo-storage/mime-types@0.2.4': {}
-
-  '@silo-storage/sdk-core@0.2.4':
+  '@silo-storage/sdk-core@0.2.6':
     dependencies:
-      '@silo-storage/shared': 0.2.4
+      '@silo-storage/shared': 0.2.6
       nanoid: 5.1.9
       zod: 4.3.6
 
-  '@silo-storage/sdk-react@0.2.4(react@19.2.5)':
+  '@silo-storage/sdk-react@0.2.6(react@19.2.5)':
     dependencies:
-      '@silo-storage/mime-types': 0.2.4
+      '@silo-storage/mime-types': 0.2.6
       react: 19.2.5
       tus-js-client: 4.3.1
 
-  '@silo-storage/sdk-server@0.2.4':
+  '@silo-storage/sdk-server@0.2.6':
     dependencies:
-      '@silo-storage/mime-types': 0.2.4
-      '@silo-storage/sdk-core': 0.2.4
+      '@silo-storage/mime-types': 0.2.6
+      '@silo-storage/sdk-core': 0.2.6
       '@standard-schema/spec': 1.1.0
       ms: 3.0.0-canary.202508261828
       zod: 4.3.6
 
-  '@silo-storage/sdk-tanstack-start@0.2.4':
+  '@silo-storage/sdk-tanstack-start@0.2.6':
     dependencies:
-      '@silo-storage/sdk-server': 0.2.4
+      '@silo-storage/sdk-server': 0.2.6
 
-  '@silo-storage/shared@0.2.4':
+  '@silo-storage/shared@0.2.6':
     dependencies:
-      '@silo-storage/mime-types': 0.2.4
+      '@silo-storage/mime-types': 0.2.6
 
   '@socket.io/component-emitter@3.1.2': {}
 
@@ -12927,6 +12959,8 @@ snapshots:
 
   package-json-from-dist@1.0.1: {}
 
+  pako@1.0.11: {}
+
   parent-module@1.0.1:
     dependencies:
       callsites: 3.1.0
@@ -12971,6 +13005,13 @@ snapshots:
       minipass: 7.1.3
 
   pathe@2.0.3: {}
+
+  pdf-lib@1.17.1:
+    dependencies:
+      '@pdf-lib/standard-fonts': 1.0.0
+      '@pdf-lib/upng': 1.0.1
+      pako: 1.0.11
+      tslib: 1.14.1
 
   peberminta@0.9.0: {}
 
@@ -13778,6 +13819,8 @@ snapshots:
       minimist: 1.2.8
       strip-bom: 3.0.0
 
+  tslib@1.14.1: {}
+
   tslib@2.8.1: {}
 
   tsx@4.21.0:
@@ -13927,6 +13970,8 @@ snapshots:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
+
+  unpdf@1.6.1: {}
 
   unplugin@2.3.11:
     dependencies:

@@ -1,5 +1,4 @@
 import type { ToolSet } from "ai";
-import { Sandbox } from "@e2b/code-interpreter";
 import { webSearch } from "@exalabs/ai-sdk";
 import { tool } from "ai";
 import { z } from "zod";
@@ -7,17 +6,21 @@ import { z } from "zod";
 import type { MessageSettings } from "@redux/types";
 import { getEnabledMessageTools } from "@redux/types";
 
-const SANDBOX_UPLOADS_DIR = "/home/user/uploads";
+import {
+  createSandboxRuntime,
+  SANDBOX_UPLOADS_DIR,
+} from "@/lib/ai/tools/sandbox";
+import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
+import { searchProjectKnowledgeTool } from "@/lib/ai/tools/search-project";
 
-export interface ChatToolAttachment {
-  attachmentId: string;
-  fileName: string;
-  mimeType: string;
-  url: string;
-}
+export type { ChatToolAttachment };
 
 interface ToolRuntimeOptions {
   attachments?: ChatToolAttachment[];
+  projectContext?: {
+    chatProjectId: string;
+    userId: string;
+  };
 }
 
 interface ToolRuntime {
@@ -25,66 +28,16 @@ interface ToolRuntime {
   tools: ToolSet;
 }
 
-interface SyncedAttachment {
-  attachmentId: string;
-  fileName: string;
-  mimeType: string;
-  path: string;
-}
-
 export function createToolRuntime(
   settings: MessageSettings,
-  { attachments = [] }: ToolRuntimeOptions = {},
+  { attachments = [], projectContext }: ToolRuntimeOptions = {},
 ): ToolRuntime {
   const enabledTools = getEnabledMessageTools(settings.tools);
   const tools: ToolSet = {};
-  let sandboxPromise: Promise<Sandbox> | undefined;
-  let syncedAttachmentsPromise: Promise<SyncedAttachment[]> | undefined;
 
-  const getSandbox = () => {
-    sandboxPromise ??= Sandbox.create();
-    return sandboxPromise;
-  };
-
-  const syncUploadsToSandbox = async () => {
-    if (settings.tools.analysisWorkspace?.syncUploads === false) {
-      return [];
-    }
-
-    if (attachments.length === 0) {
-      return [];
-    }
-
-    syncedAttachmentsPromise ??= (async () => {
-      const sandbox = await getSandbox();
-      const pathCounts = new Map<string, number>();
-      const syncedAttachments: SyncedAttachment[] = [];
-
-      for (const attachment of attachments) {
-        const response = await fetch(attachment.url);
-        if (!response.ok) {
-          throw new Error(
-            `Failed to download uploaded file "${attachment.fileName}" (${response.status})`,
-          );
-        }
-
-        const filePath = buildSandboxFilePath(attachment.fileName, pathCounts);
-        const content = await response.arrayBuffer();
-
-        await sandbox.files.write(filePath, content);
-        syncedAttachments.push({
-          attachmentId: attachment.attachmentId,
-          fileName: attachment.fileName,
-          mimeType: attachment.mimeType,
-          path: filePath,
-        });
-      }
-
-      return syncedAttachments;
-    })();
-
-    return syncedAttachmentsPromise;
-  };
+  let sandboxRuntime:
+    | ReturnType<typeof createSandboxRuntime>
+    | undefined;
 
   if (enabledTools.includes("search")) {
     tools.search = webSearch();
@@ -93,6 +46,13 @@ export function createToolRuntime(
   if (enabledTools.includes("analysisWorkspace")) {
     const uploadsEnabled =
       settings.tools.analysisWorkspace?.syncUploads !== false;
+
+    sandboxRuntime = createSandboxRuntime({
+      attachments,
+      syncUploads: uploadsEnabled,
+    });
+
+    const { getSandbox, syncUploadsToSandbox } = sandboxRuntime;
 
     tools.analysis_workspace = tool({
       description: uploadsEnabled
@@ -123,49 +83,14 @@ export function createToolRuntime(
     });
   }
 
+  if (projectContext) {
+    tools.search_project_knowledge = searchProjectKnowledgeTool(projectContext);
+  }
+
   return {
     tools,
     cleanup: async () => {
-      if (!sandboxPromise) {
-        return;
-      }
-
-      const sandbox = await sandboxPromise;
-      await sandbox.kill();
+      await sandboxRuntime?.cleanup();
     },
   };
-}
-
-function buildSandboxFilePath(
-  fileName: string,
-  pathCounts: Map<string, number>,
-) {
-  const safeName = sanitizeFileName(fileName);
-  const dotIndex = safeName.lastIndexOf(".");
-  const baseName = dotIndex > 0 ? safeName.slice(0, dotIndex) : safeName;
-  const extension = dotIndex > 0 ? safeName.slice(dotIndex) : "";
-  const currentCount = pathCounts.get(safeName) ?? 0;
-  const nextCount = currentCount + 1;
-  pathCounts.set(safeName, nextCount);
-
-  const uniqueName =
-    currentCount === 0 ? safeName : `${baseName}-${nextCount}${extension}`;
-
-  return `${SANDBOX_UPLOADS_DIR}/${uniqueName}`;
-}
-
-function sanitizeFileName(fileName: string) {
-  const sanitized = fileName
-    .trim()
-    .replace(/[<>:"/\\|?*]/g, "-")
-    .replaceAll(/[\r\n\t]/g, " ")
-    .split("")
-    .filter((character) => {
-      const codePoint = character.codePointAt(0);
-      return codePoint === undefined || codePoint >= 32;
-    })
-    .join("")
-    .replace(/\s+/g, " ");
-
-  return sanitized.length > 0 ? sanitized : "upload";
 }

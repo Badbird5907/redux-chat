@@ -6,6 +6,7 @@ import { estimateTokenCount, splitByTokens } from "tokenx";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import { isToolEnabled } from "@redux/types";
+import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { ChatInputProps, PreviewableFile } from "./types";
@@ -27,6 +28,7 @@ import { isAttachmentExpired } from "./utils";
 
 export function ChatInput({
   threadId,
+  chatProjectId,
   setThreadId,
   sendMessage,
   setOptimisticMessage,
@@ -68,6 +70,7 @@ export function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
+  const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const upload = useUpload({
@@ -338,6 +341,7 @@ export function ChatInput({
       await submitMessage({
         messageContent: input,
         threadId,
+        chatProjectId,
         setThreadId,
         settings,
         clientId,
@@ -367,6 +371,7 @@ export function ChatInput({
     }
   }, [
     attachments,
+    chatProjectId,
     clearDraft,
     clientId,
     convexMessages,
@@ -458,6 +463,16 @@ export function ChatInput({
     setIsExpanded(!isExpanded);
   }, [isExpanded]);
 
+  const fixedInputDesktopLeft = useMemo(() => {
+    if (sidebarState === "expanded") {
+      return "md:left-(--sidebar-width)";
+    }
+    if (sidebarCollapsible === "icon") {
+      return "md:left-(--sidebar-width-icon)";
+    }
+    return "md:left-0";
+  }, [sidebarCollapsible, sidebarState]);
+
   return (
     <>
       {isExpanded && (
@@ -471,7 +486,10 @@ export function ChatInput({
           "fixed flex justify-center transition-all duration-300",
           isExpanded
             ? "inset-4 z-50"
-            : "right-0 bottom-6 left-0 px-4 md:left-(--sidebar-width) md:group-data-[collapsible=icon]/sidebar-wrapper:left-(--sidebar-width-icon)",
+            : cn(
+                "right-0 bottom-6 left-0 px-4",
+                fixedInputDesktopLeft,
+              ),
         )}
       >
         <div
@@ -544,6 +562,7 @@ export function ChatInput({
               hasUploadingFiles={hasUploadingFiles}
               draftReady={draftReady}
               onSubmit={() => void handleSubmit()}
+              project={chatProjectId}
             />
           </div>
         </div>

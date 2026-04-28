@@ -21,7 +21,6 @@ import {
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 import { cn } from "@redux/ui/lib/utils";
-
 import { ModelSelector } from "@/components/chat/model-selector";
 
 interface ChatInputToolbarProps {
@@ -34,6 +33,7 @@ interface ChatInputToolbarProps {
   onOpenToolsDialog: () => void;
   canUploadFiles: boolean;
   isSearchEnabled: boolean;
+  project?: string;
   onToggleSearch: () => void;
   settingsReady: boolean;
   isContentOverflowing: boolean;
@@ -71,6 +71,7 @@ export function ChatInputToolbar({
   tokenCount,
   showTokenVisualization,
   onTokenCountClick,
+  // project,
   models,
   selectedModel,
   onModelChange,
@@ -81,6 +82,7 @@ export function ChatInputToolbar({
   draftReady,
   onSubmit,
 }: ChatInputToolbarProps) {
+  // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
     <div className="flex items-center justify-between px-2 pb-2">
       <div className="flex items-center gap-1">
@@ -142,6 +144,18 @@ export function ChatInputToolbar({
           <Search className="h-3.5 w-3.5" />
           <span>Search</span>
         </button>
+        {/* {project && proj && (
+          <Tooltip>
+            <TooltipTrigger>
+              <button type="button" className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors">
+                <FolderKanban className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Project: {proj.name}</p>
+            </TooltipContent>
+          </Tooltip>
+        )} */}
       </div>
 
       <div className="flex items-center gap-2">

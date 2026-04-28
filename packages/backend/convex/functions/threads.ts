@@ -18,9 +18,11 @@ export const getThreads = query({
   handler: async (ctx, args) => {
     // Use the compound userId+updatedAt index so pagination stays stable
     // when a new thread is inserted or an existing one is updated.
+    // Exclude project-scoped threads — those belong to /projects/$id pages.
     const results = await ctx.db
       .query("threads")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .filter((q) => q.eq(q.field("chatProjectId"), undefined))
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -52,6 +54,7 @@ export const searchThreads = query({
     const threads = await ctx.db
       .query("threads")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .filter((q) => q.eq(q.field("chatProjectId"), undefined))
       .order("desc")
       .collect();
 
@@ -390,6 +393,7 @@ export const sendMessage = mutation({
       }),
     }),
     attachmentIds: v.optional(v.array(v.string())),
+    chatProjectId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Decode & verify userMessageId
@@ -435,6 +439,19 @@ export const sendMessage = mutation({
       }
       threadId = actualThreadId;
 
+      // If creating a project-scoped thread, verify the project belongs to this user.
+      if (args.chatProjectId) {
+        const project = await ctx.db
+          .query("projects")
+          .withIndex("by_projectId", (q) =>
+            q.eq("projectId", args.chatProjectId ?? ""),
+          )
+          .first();
+        if (project?.userId !== ctx.userId) {
+          throw new ConvexError("Project not found");
+        }
+      }
+
       await ctx.db.insert("threads", {
         threadId,
         userId: ctx.userId,
@@ -442,6 +459,7 @@ export const sendMessage = mutation({
         status: "generating",
         updatedAt: Date.now(),
         settings: normalizedSettings,
+        chatProjectId: args.chatProjectId,
       });
       createdNewThread = true;
     } else {
@@ -651,6 +669,30 @@ export const updateThreadName = mutation({
     });
 
     return { name };
+  },
+});
+
+export const deleteThread = mutation({
+  args: { threadId: v.string() },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+
+    if (thread?.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
+    }
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
+
+    await Promise.all(messages.map((message) => ctx.db.delete(message._id)));
+    await ctx.db.delete(thread._id);
+
+    return { success: true };
   },
 });
 

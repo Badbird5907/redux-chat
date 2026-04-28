@@ -47,7 +47,7 @@
     "@openrouter/ai-sdk-provider": "^2.8.1",
     "@redux/shared": "workspace:*",
     "@redux/types": "workspace:*",
-    "@silo-storage/sdk-core": "^0.2.4",
+    "@silo-storage/sdk-core": "^0.2.6",
     "@t3-oss/env-core": "^0.13.11",
     "ai": "^6.0.168",
     "better-auth": "catalog:",

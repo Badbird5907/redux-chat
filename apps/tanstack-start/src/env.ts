@@ -17,6 +17,8 @@ export const env = createEnv({
     SILO_TOKEN: z.string().min(1),
     EXA_API_KEY: z.string().min(1),
     E2B_API_KEY: z.string().min(1),
+    OPENROUTER_API_KEY: z.string().min(1),
+    GEMINI_API_KEY: z.string().min(1),
   },
   client: {
     VITE_CONVEX_URL: z.string().min(1),

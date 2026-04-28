@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
 import { Ellipsis, Pencil, Trash } from "lucide-react";
 import { toast } from "sonner";
@@ -34,13 +34,16 @@ export default function ChatThreadSidebarItem({
   status,
   style,
 }: ChatThreadSidebarItemProps) {
+  const router = useRouter();
   const routerState = useRouterState();
   const isActive = routerState.location.pathname === `/chat/${threadId}`;
   const renameThread = useMutation(api.functions.threads.updateThreadName);
+  const deleteThread = useMutation(api.functions.threads.deleteThread);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [draftName, setDraftName] = React.useState(threadName);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -54,9 +57,22 @@ export default function ChatThreadSidebarItem({
     });
   }, [isRenaming]);
 
-  const handleDelete = () => {
-    // TODO: Implement delete functionality
-    console.log("Delete thread:", threadId);
+  const handleDelete = async () => {
+    setMenuOpen(false);
+    setIsDeleting(true);
+
+    try {
+      await deleteThread({ threadId });
+      toast.success("Thread deleted");
+
+      if (isActive) {
+        await router.navigate({ to: "/" });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete thread");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const startRenaming = () => {
@@ -151,7 +167,7 @@ export default function ChatThreadSidebarItem({
         <DropdownMenuTrigger
           render={
             <SidebarMenuAction
-              disabled={isRenaming}
+              disabled={isRenaming || isDeleting}
               showOnHover={status === "completed"}
               className={
                 status === "generating"
@@ -166,14 +182,20 @@ export default function ChatThreadSidebarItem({
           <span className="sr-only">Settings</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem onClick={startRenaming}>
+          <DropdownMenuItem onClick={startRenaming} disabled={isDeleting}>
             <Pencil className="size-4" />
             <span>Rename</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleDelete} variant="destructive">
+          <DropdownMenuItem
+            onClick={() => {
+              void handleDelete();
+            }}
+            disabled={isDeleting}
+            variant="destructive"
+          >
             <Trash className="size-4" />
-            <span>Delete</span>
+            <span>{isDeleting ? "Deleting..." : "Delete"}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

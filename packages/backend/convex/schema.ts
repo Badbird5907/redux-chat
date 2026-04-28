@@ -24,6 +24,19 @@ const mutationInfo = v.union(
 
 const attachmentStatus = v.union(v.literal("draft"), v.literal("attached"));
 
+const embeddingStatus = v.union(
+  v.literal("queued"),
+  v.literal("indexing"),
+  v.literal("indexed"),
+  v.literal("failed"),
+);
+
+const embeddingModality = v.union(
+  v.literal("text"),
+  v.literal("image"),
+  v.literal("pdf_page"),
+);
+
 const messageTools = v.object({
   search: v.optional(v.object({})),
   analysisWorkspace: v.optional(
@@ -45,6 +58,18 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  projects: defineTable({
+    projectId: v.string(),
+    userId: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    instructions: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_projectId", ["projectId"])
+    .index("by_userId", ["userId", "updatedAt"]),
+
   threads: defineTable({
     threadId: v.string(),
     userId: v.string(),
@@ -54,9 +79,12 @@ export default defineSchema({
     activeStreamId: v.optional(v.string()),
     activeStreamClientId: v.optional(v.string()), // Client session ID that initiated the active stream
     updatedAt: v.number(),
+    // Optional FK to user-facing projects table (distinct from Silo's projectId on attachments)
+    chatProjectId: v.optional(v.string()),
   })
     .index("by_threadId", ["threadId"])
-    .index("by_userId", ["userId", "updatedAt"]),
+    .index("by_userId", ["userId", "updatedAt"])
+    .index("by_userId_chatProjectId", ["userId", "chatProjectId", "updatedAt"]),
 
   messages: defineTable({
     threadId: v.string(),
@@ -95,6 +123,9 @@ export default defineSchema({
     userId: v.string(),
     threadId: v.optional(v.string()),
     messageId: v.optional(v.string()),
+    // Optional FK to user-facing projects table (project file library).
+    // Different from `projectId` below (which is the Silo storage projectId).
+    chatProjectId: v.optional(v.string()),
     status: attachmentStatus,
     projectId: v.string(),
     environmentId: v.string(),
@@ -107,6 +138,10 @@ export default defineSchema({
     isPublic: v.boolean(),
     serveImage: v.boolean(),
     expiresAt: v.optional(v.number()),
+    // RAG indexing state for project files (only set when chatProjectId is set).
+    embeddingStatus: v.optional(embeddingStatus),
+    embeddingError: v.optional(v.string()),
+    embeddingChunkCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -115,6 +150,34 @@ export default defineSchema({
     .index("by_userId_status", ["userId", "status"])
     .index("by_threadId", ["threadId"])
     .index("by_messageId", ["messageId"])
+    .index("by_chatProjectId", ["chatProjectId"])
     .index("by_accessKey", ["accessKey"])
     .index("by_fileKeyId", ["fileKeyId"]),
+
+  // Vector embeddings of project file chunks. Separate from `attachments` so
+  // a vector index can have a fixed dim and so the table can be wiped/migrated
+  // independently of the file metadata. Wrapped behind the VectorStore
+  // interface in apps/tanstack-start/src/server/rag/* — this table can be
+  // dropped wholesale when migrating to an external vector DB.
+  attachmentEmbeddings: defineTable({
+    embeddingId: v.string(),
+    attachmentId: v.string(),
+    chatProjectId: v.string(),
+    userId: v.string(),
+    chunkIndex: v.number(),
+    modality: embeddingModality,
+    pageNumber: v.optional(v.number()),
+    text: v.optional(v.string()),
+    embedding: v.array(v.float64()),
+    embeddingModel: v.string(),
+    embeddingDims: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_attachmentId", ["attachmentId"])
+    .index("by_chatProjectId", ["chatProjectId"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 3072,
+      filterFields: ["chatProjectId"],
+    }),
 });

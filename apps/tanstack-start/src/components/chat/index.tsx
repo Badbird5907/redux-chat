@@ -2,6 +2,7 @@
 
 import { isTextUIPart } from "ai";
 import type { UIMessage } from "ai";
+import type { ReactNode } from "react";
 import {
   useCallback,
   useEffect,
@@ -241,10 +242,16 @@ function InitialThreadScrollInitializer({
 
 export function Chat({
   initialThreadId,
+  chatProjectId,
   preload,
+  emptyContent,
 }: {
   initialThreadId: string | undefined;
+  chatProjectId?: string;
   preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
+  /** Custom content to show when there's no active thread. Defaults to the
+   *  greeting + suggestion cards in <EmptyChat />. */
+  emptyContent?: ReactNode;
 }) {
   const router = useRouter();
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
@@ -269,6 +276,16 @@ export function Chat({
       skip: !currentThreadId,
     },
   );
+
+  // When the caller didn't pass a chatProjectId (e.g. on /chat/$id), look it
+  // up from the thread itself so project chats still show project context.
+  const threadForProject = useQuery(
+    api.functions.threads.getThread,
+    { threadId: currentThreadId ?? "" },
+    { skip: !currentThreadId || Boolean(chatProjectId) },
+  );
+  const effectiveChatProjectId =
+    chatProjectId ?? threadForProject?.chatProjectId ?? undefined;
 
   const chatSessionId = useStableClientId();
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
@@ -596,15 +613,18 @@ export function Chat({
         >
           <div className="mx-auto w-full max-w-3xl">
             {!currentThreadId && finalMessages.length === 0 ? (
-              <EmptyChat
-                threadId={currentThreadId}
-                setThreadId={handleThreadIdChange}
-                sendMessage={sendMessageWithTracking}
-                clientId={chatSessionId}
-                convexMessages={convexUIMessages}
-                setOptimisticMessage={(m) => setOptimisticMessage(m)}
-                settings={settings}
-              />
+              emptyContent ?? (
+                <EmptyChat
+                  threadId={currentThreadId}
+                  chatProjectId={effectiveChatProjectId}
+                  setThreadId={handleThreadIdChange}
+                  sendMessage={sendMessageWithTracking}
+                  clientId={chatSessionId}
+                  convexMessages={convexUIMessages}
+                  setOptimisticMessage={(m) => setOptimisticMessage(m)}
+                  settings={settings}
+                />
+              )
             ) : (
               <div className="flex flex-col gap-8">
                 {finalMessages.map((message: UIMessage, i) => {
@@ -772,6 +792,7 @@ export function Chat({
 
       <ChatInput
         threadId={currentThreadId}
+        chatProjectId={effectiveChatProjectId}
         setThreadId={handleThreadIdChange}
         sendMessage={sendMessageWithTracking}
         setOptimisticMessage={(m) => setOptimisticMessage(m)}

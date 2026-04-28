@@ -1,10 +1,10 @@
 import type { DataModel } from "../_generated/dataModel";
 import { Triggers } from "convex-helpers/server/triggers";
 
-import { customCtx, customMutation, customQuery } from "convex-helpers/server/customFunctions";
-import { query as rawQuery, mutation as rawMutation } from "../_generated/server";
+import { customAction, customCtx, customMutation, customQuery } from "convex-helpers/server/customFunctions";
+import { action as rawAction, query as rawQuery, mutation as rawMutation } from "../_generated/server";
 
-import type { GenericMutationCtx,GenericQueryCtx } from "convex/server";
+import type { GenericActionCtx, GenericMutationCtx,GenericQueryCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { backendEnv } from "../env";
 
@@ -50,7 +50,7 @@ export const mutation = customMutation(
 
 const enforceInternalSecret = {
   args: { secret: v.string() },
-  input: (_ctx: GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>, { secret }: { secret: string }) => {
+  input: (_ctx: GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel> | GenericActionCtx<DataModel>, { secret }: { secret: string }) => {
     const env = backendEnv();
     if (secret !== env.INTERNAL_CONVEX_SECRET) {
       throw new ConvexError("Invalid secret");
@@ -66,5 +66,10 @@ export const backendMutation = customMutation(
 
 export const backendQuery = customQuery(
   rawQuery,
+  enforceInternalSecret
+);
+
+export const backendAction = customAction(
+  rawAction,
   enforceInternalSecret
 );

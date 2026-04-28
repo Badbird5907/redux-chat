@@ -16,6 +16,15 @@ const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
 const ATTACHED_ATTACHMENT_TTL_MS =
   ATTACHED_ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
 
+function createBackendSiloCore() {
+  const env = backendEnv();
+  return createSiloCoreFromToken({
+    url: env.SILO_URL,
+    token: env.SILO_TOKEN,
+    cdnHost: env.SILO_CDN,
+  });
+}
+
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
 }
@@ -73,6 +82,7 @@ export const internal_createUploadedAttachment = backendMutation({
     attachmentId: v.string(),
     userId: v.string(),
     threadId: v.optional(v.string()),
+    chatProjectId: v.optional(v.string()),
     projectId: v.string(),
     environmentId: v.string(),
     accessKey: v.string(),
@@ -88,6 +98,12 @@ export const internal_createUploadedAttachment = backendMutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
+    // Project files are uploaded directly into a project's library — they
+    // never expire and skip the draft -> attached lifecycle.
+    const isProjectFile = args.chatProjectId !== undefined;
+    const status: "draft" | "attached" = isProjectFile ? "attached" : "draft";
+    const expiresAt = isProjectFile ? undefined : args.expiresAt;
+
     const existing = await ctx.db
       .query("attachments")
       .withIndex("by_attachmentId", (q) =>
@@ -98,6 +114,8 @@ export const internal_createUploadedAttachment = backendMutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         threadId: args.threadId,
+        chatProjectId: args.chatProjectId,
+        status,
         projectId: args.projectId,
         environmentId: args.environmentId,
         accessKey: args.accessKey,
@@ -108,7 +126,7 @@ export const internal_createUploadedAttachment = backendMutation({
         size: args.size,
         isPublic: args.isPublic,
         serveImage: args.serveImage,
-        expiresAt: args.expiresAt,
+        expiresAt,
         updatedAt: now,
       });
       return { attachmentId: existing.attachmentId };
@@ -118,7 +136,8 @@ export const internal_createUploadedAttachment = backendMutation({
       attachmentId: args.attachmentId,
       userId: args.userId,
       threadId: args.threadId,
-      status: "draft",
+      chatProjectId: args.chatProjectId,
+      status,
       projectId: args.projectId,
       environmentId: args.environmentId,
       accessKey: args.accessKey,
@@ -129,7 +148,7 @@ export const internal_createUploadedAttachment = backendMutation({
       size: args.size,
       isPublic: args.isPublic,
       serveImage: args.serveImage,
-      expiresAt: args.expiresAt,
+      expiresAt,
       createdAt: now,
       updatedAt: now,
     });
@@ -213,12 +232,7 @@ export const internal_extendAttachedAttachmentExpiry = internalAction({
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const env = backendEnv();
-    const siloCore = createSiloCoreFromToken({
-      url: env.SILO_URL,
-      token: env.SILO_TOKEN,
-      cdnHost: env.SILO_CDN,
-    });
+    const siloCore = createBackendSiloCore();
 
     await siloCore.updateFileExpiry({
       projectId: args.projectId,
@@ -234,6 +248,27 @@ export const internal_extendAttachedAttachmentExpiry = internalAction({
         expiresAt: args.expiresAt,
       },
     );
+  },
+});
+
+export const internal_deleteFileFromSilo = internalAction({
+  args: {
+    projectId: v.string(),
+    environmentId: v.string(),
+    fileKeyId: v.string(),
+    accessKey: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const siloCore = createBackendSiloCore();
+
+    await siloCore.deleteFile({
+      projectId: args.projectId,
+      environmentId: args.environmentId,
+      fileKeyId: args.fileKeyId,
+      accessKey: args.accessKey,
+    });
+
+    return { success: true };
   },
 });
 

@@ -63,6 +63,8 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  /** Must match the `collapsible` prop on `Sidebar` (used for layout like fixed chat input). */
+  collapsible: "offExamples" | "icon" | "none";
   //* new properties for sidebar resizing
   width: string;
   setWidth: (width: string) => void;
@@ -90,12 +92,14 @@ function SidebarProvider({
   style,
   children,
   defaultWidth = SIDEBAR_WIDTH,
+  collapsible = "offExamples",
   ...props
 }: React.ComponentProps<"div"> & {
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultWidth?: string;
+  collapsible?: "offExamples" | "icon" | "none";
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
@@ -177,6 +181,7 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      collapsible,
       //* new context for sidebar resizing
       width,
       setWidth: setWidthAndPersist,
@@ -192,6 +197,7 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      collapsible,
       width,
       setWidthAndPersist,
       isDraggingRail,
@@ -587,7 +593,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "ring-sidebar-ring group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground active:bg-sidebar-accent/20 active:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground data-open:hover:bg-sidebar-accent/15 data-open:hover:text-sidebar-foreground peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-active:font-medium [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+  "ring-sidebar-ring group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground active:bg-sidebar-accent/20 active:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground data-open:hover:bg-sidebar-accent/15 data-open:hover:text-sidebar-foreground peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-active:font-medium [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate cursor-pointer",
   {
     variants: {
       variant: {
@@ -621,7 +627,7 @@ function SidebarMenuButton({
     isActive?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   } & VariantProps<typeof sidebarMenuButtonVariants>) {
-  const { isMobile, state } = useSidebar();
+  const { isMobile } = useSidebar();
   const comp = useRender({
     defaultTagName: "button",
     props: mergeProps<"button">(
@@ -655,7 +661,7 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
+        hidden={isMobile}
         {...tooltip}
       />
     </Tooltip>

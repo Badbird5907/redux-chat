@@ -47,6 +47,7 @@ export async function createUploadedAttachmentRecord(input: {
   attachmentId: string;
   userId: string;
   threadId?: string;
+  chatProjectId?: string;
   projectId: string;
   environmentId: string;
   accessKey: string;

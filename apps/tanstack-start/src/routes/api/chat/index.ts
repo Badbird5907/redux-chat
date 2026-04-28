@@ -13,12 +13,18 @@ import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
-import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
+import {
+  getChatModelConfig,
+  isToolEnabled,
+  normalizeMessageSettings,
+} from "@redux/types";
 
 import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
+import { retrieveProjectContext } from "@/server/rag/retrieve";
+import type { RetrievedChunk } from "@/server/rag/vector-store";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
 
@@ -51,6 +57,9 @@ const requestBody = z.object({
 });
 
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
+
+const ENABLE_PROJECT_RAG_PREFETCH = false; // do we eagerly retrieve project context?
+// maybe sell under "smarter projects"
 
 interface ModelAttachment {
   attachmentId: string;
@@ -143,6 +152,62 @@ function getLastUserMessageId(messages: ChatRequestMessage[]) {
   return undefined;
 }
 
+function extractTextFromMessage(
+  message: ChatRequestMessage | undefined,
+): string {
+  if (!message) return "";
+  return message.parts
+    .map((part) => {
+      if (
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        part &&
+        typeof part === "object" &&
+        "type" in part &&
+        part.type === "text" &&
+        "text" in part &&
+        typeof part.text === "string"
+      ) {
+        return part.text;
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function getLastUserMessage(messages: ChatRequestMessage[]) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role === "user") {
+      return message;
+    }
+  }
+  return undefined;
+}
+
+function formatChunksAsContext(chunks: RetrievedChunk[]): string {
+  const header =
+    "You have access to the following excerpts from this project's files. " +
+    "Cite them inline using their tags (e.g. [#cite-1]) when you use them. " +
+    "If a chunk's content is not relevant, ignore it.";
+
+  const blocks = chunks.map((chunk, index) => {
+    const tag = `[#cite-${index + 1}]`;
+    const locator =
+      chunk.modality === "pdf_page" && chunk.pageNumber !== undefined
+        ? `file: ${chunk.fileName}, page ${chunk.pageNumber}`
+        : `file: ${chunk.fileName}`;
+    const body =
+      chunk.modality === "image"
+        ? "(image — refer to it by file name when relevant)"
+        : (chunk.text ?? "(no text)");
+    return `${tag} ${locator}\n${body}`;
+  });
+
+  return [header, "", ...blocks].join("\n\n");
+}
+
 function mergeAttachments(
   existing: ModelAttachment[] | undefined,
   incoming: ModelAttachment[],
@@ -158,6 +223,52 @@ function mergeAttachments(
   }
 
   return Array.from(mergedById.values());
+}
+
+function modelSupportsProjectMedia(modelId: string, mimeType: string) {
+  const config = getChatModelConfig(modelId);
+  if (!config) {
+    return false;
+  }
+
+  if (mimeType === "application/pdf") {
+    return config.allowedMimeTypes.includes("pdf");
+  }
+
+  if (mimeType.startsWith("image/")) {
+    return config.allowedMimeTypes.includes("image");
+  }
+
+  return false;
+}
+
+function getProjectMediaAttachmentIds(
+  chunks: RetrievedChunk[],
+  modelId: string,
+): string[] {
+  const attachmentIds: string[] = [];
+  const seen = new Set<string>();
+
+  for (const chunk of chunks) {
+    if (chunk.text?.trim()) {
+      continue;
+    }
+    if (!modelSupportsProjectMedia(modelId, chunk.mimeType)) {
+      continue;
+    }
+    if (seen.has(chunk.attachmentId)) {
+      continue;
+    }
+
+    seen.add(chunk.attachmentId);
+    attachmentIds.push(chunk.attachmentId);
+
+    if (attachmentIds.length >= 2) {
+      break;
+    }
+  }
+
+  return attachmentIds;
 }
 
 function appendAttachmentParts(
@@ -238,6 +349,70 @@ export const Route = createFileRoute("/api/chat/")({
           await getAttachmentsByMessageId(threadId);
         const lastUserMessageId = getLastUserMessageId(messages);
 
+        // If this thread belongs to a Project, fetch its shared instructions
+        // and prepend them as a system message to the model. Also retrieve
+        // RAG context from the project's indexed file library.
+        let projectInstructions: string | undefined;
+        let projectContextBlock: string | undefined;
+        let chatProjectId: string | undefined;
+        let threadUserId: string | undefined;
+        try {
+          const thread = await fetchAuthQuery(
+            api.functions.threads.getThread,
+            { threadId },
+          );
+          if (thread?.chatProjectId) {
+            threadUserId = thread.userId;
+            chatProjectId = thread.chatProjectId;
+            const project = await fetchAuthQuery(
+              api.functions.projects.getProject,
+              { projectId: thread.chatProjectId },
+            );
+            const instructions = project?.instructions?.trim();
+            if (instructions) {
+              projectInstructions = instructions;
+            }
+          }
+        } catch (error) {
+          console.error("Failed to load project instructions", error);
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (chatProjectId && ENABLE_PROJECT_RAG_PREFETCH) {
+          const queryText = extractTextFromMessage(getLastUserMessage(messages));
+          if (queryText) {
+            try {
+              const { chunks } = await retrieveProjectContext({
+                chatProjectId,
+                query: queryText,
+                k: 6,
+              });
+              if (chunks.length > 0) {
+                projectContextBlock = formatChunksAsContext(chunks);
+
+                if (lastUserMessageId) {
+                  const projectMediaAttachmentIds = getProjectMediaAttachmentIds(
+                    chunks,
+                    settings.model,
+                  );
+
+                  if (projectMediaAttachmentIds.length > 0) {
+                    attachmentsByMessageId.set(
+                      lastUserMessageId,
+                      mergeAttachments(
+                        attachmentsByMessageId.get(lastUserMessageId),
+                        await resolveModelAttachments(projectMediaAttachmentIds),
+                      ),
+                    );
+                  }
+                }
+              }
+            } catch (error) {
+              console.error("RAG retrieval failed", error);
+            }
+          }
+        }
+
         if (lastUserMessageId && fileIds.length > 0) {
           attachmentsByMessageId.set(
             lastUserMessageId,
@@ -254,6 +429,13 @@ export const Route = createFileRoute("/api/chat/")({
         );
         const toolRuntime = createToolRuntime(settings, {
           attachments: getToolAttachments(attachmentsByMessageId),
+          projectContext:
+            chatProjectId && threadUserId
+              ? {
+                  chatProjectId,
+                  userId: threadUserId,
+                }
+              : undefined,
         });
         let didCleanupTools = false;
         const cleanupTools = async () => {
@@ -269,6 +451,24 @@ export const Route = createFileRoute("/api/chat/")({
         const modelMessages = await convertToModelMessages(
           messagesWithAttachments,
         );
+
+        // Prepend the project's shared instructions and any retrieved RAG
+        // context as leading system messages. We do this on the model-message
+        // array (after conversion) so they never get persisted on the thread.
+        // Order: [projectInstructions, projectContext, ...userMessages]
+        if (projectContextBlock) {
+          modelMessages.unshift({
+            role: "system",
+            content: projectContextBlock,
+          });
+        }
+        if (projectInstructions) {
+          modelMessages.unshift({
+            role: "system",
+            content: projectInstructions,
+          });
+        }
+
         console.log("modelMessages");
         console.dir(modelMessages, { depth: Infinity });
         console.log("------------");
@@ -292,7 +492,6 @@ export const Route = createFileRoute("/api/chat/")({
           stopWhen: stepCountIs(15),
           onFinish: async ({ usage }) => {
             try {
-              // Get usage info if available (AI SDK v5/v6: inputTokens/outputTokens)
               const usageData =
                 usage.inputTokens !== undefined &&
                 usage.outputTokens !== undefined &&

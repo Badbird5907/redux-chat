@@ -27,6 +27,7 @@ const SuggestionCard = ({ text, onClick }: SuggestionCardProps) => {
 
 interface EmptyChatProps {
   threadId: string | undefined;
+  chatProjectId?: string;
   setThreadId: (id: string) => void;
   sendMessage: (
     message: { text: string; id?: string; metadata?: Record<string, unknown> },
@@ -49,6 +50,7 @@ const SUGGESTIONS = [
 
 export const EmptyChat = ({
   threadId,
+  chatProjectId,
   setThreadId,
   sendMessage,
   setOptimisticMessage,
@@ -64,6 +66,7 @@ export const EmptyChat = ({
       await submitMessage({
         messageContent: text,
         threadId,
+        chatProjectId,
         setThreadId,
         settings,
         clientId,
