@@ -46,6 +46,10 @@ export const AppSidebarFooter = () => {
     });
   };
 
+  const handleOpenSettings = () => {
+    void router.navigate({ to: "/settings" });
+  };
+
   if (!mounted || isPending) {
     return (
       <div className="flex items-center gap-2 px-2 py-2">
@@ -89,7 +93,11 @@ export const AppSidebarFooter = () => {
           </DrawerHeader>
           <div className="flex flex-col gap-2 px-4">
             <DrawerClose asChild>
-              <Button variant="ghost" className="w-full justify-start">
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={handleOpenSettings}
+              >
                 <Settings className="size-4" />
                 <span>Settings</span>
               </Button>
@@ -118,7 +126,7 @@ export const AppSidebarFooter = () => {
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="ml-2 w-68 md:w-54" align="start">
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleOpenSettings}>
           <Settings className="size-4" />
           <span>Settings</span>
         </DropdownMenuItem>

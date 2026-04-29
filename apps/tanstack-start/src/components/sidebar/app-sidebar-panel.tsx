@@ -13,12 +13,14 @@ import { CommandPanel } from "@/components/command";
 import { requestChatReset } from "@/components/chat/reset-chat";
 import AppSidebar from "@/components/sidebar";
 import ThreadList from "@/components/sidebar/chat/thread-list";
+import { useResolvedHotkey } from "@/lib/hotkeys";
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
 import { CommandShortcut } from "@redux/ui/components/command";
 
 export function AppSidebarPanel() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [commandOpen, setCommandOpen] = useState(false);
+  const commandHotkey = useResolvedHotkey("command.open");
 
   const isNewChatActive = pathname === "/";
   const isProjectsActive =
@@ -57,7 +59,9 @@ export function AppSidebarPanel() {
               >
                 <Search />
                 <span>Search</span>
-                <CommandShortcut className="opacity-0 group-hover/menu-item:opacity-100 transition-opacity">{formatForDisplay("Mod+K")}</CommandShortcut>
+                <CommandShortcut className="opacity-0 transition-opacity group-hover/menu-item:opacity-100">
+                  {formatForDisplay(commandHotkey)}
+                </CommandShortcut>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

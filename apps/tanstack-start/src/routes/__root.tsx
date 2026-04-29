@@ -18,6 +18,7 @@ import { cn } from "@redux/ui/lib/utils";
 
 import appCss from "@/styles.css?url";
 import { authClient } from '@/lib/auth/client'
+import { HotkeySettingsProvider } from "@/lib/hotkeys";
 import { getToken } from '@/lib/auth/server'
 
 // eslint-disable-next-line turbo/no-undeclared-env-vars -- DEV is a Vite built-in, not a user-provided environment variable.
@@ -140,16 +141,18 @@ function RootDocument({ children }: { children: ReactNode }) {
         }}
       >
         <ThemeProvider>
-          {children}
-          {AppTanStackDevtools ? (
-            <ClientOnly>
-              <Suspense fallback={null}>
-                <AppTanStackDevtools />
-              </Suspense>
-            </ClientOnly>
-          ) : null}
-          {/* <ThemeToggle /> */}
-          <Toaster />
+          <HotkeySettingsProvider>
+            {children}
+            {AppTanStackDevtools ? (
+              <ClientOnly>
+                <Suspense fallback={null}>
+                  <AppTanStackDevtools />
+                </Suspense>
+              </ClientOnly>
+            ) : null}
+            {/* <ThemeToggle /> */}
+            <Toaster />
+          </HotkeySettingsProvider>
         </ThemeProvider>
         <Scripts />
       </body>

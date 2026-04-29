@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { useHotkey } from "@tanstack/react-hotkeys";
-import { MessageSquare, Plus, Search } from "lucide-react";
+import {
+  Keyboard,
+  MessageSquare,
+  Plus,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import {
@@ -21,8 +26,43 @@ import { setStoredChatDraft } from "@/components/chat/use-chat-draft";
 import { requestChatReset } from "@/components/chat/reset-chat";
 import { authClient } from "@/lib/auth/client";
 import { useQuery } from "@/lib/hooks/convex";
+import { useAppHotkey } from "@/lib/hotkeys";
 
 const THREAD_RESULT_LIMIT = 8;
+
+const SETTINGS_NAV_ITEMS = [
+  {
+    value: "settings-general",
+    to: "/settings" as const,
+    title: "General Settings",
+    subtitle: "Preferences and global options",
+    /** Lowercase keywords matched against the search query (see settingsNavMatches). */
+    searchBlob: "general settings preferences",
+  },
+  {
+    value: "settings-hotkeys",
+    to: "/settings/hotkeys" as const,
+    title: "Hotkeys",
+    subtitle: "Customize keyboard shortcuts",
+    searchBlob: "hotkeys keyboard shortcuts",
+  },
+];
+
+function settingsNavMatches(query: string, searchBlob: string) {
+  if (!query.trim()) {
+    return true;
+  }
+  const blob = searchBlob.toLowerCase();
+  const segments = query
+    .toLowerCase()
+    .split(/[/\s]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (segments.length === 0) {
+    return true;
+  }
+  return segments.some((segment) => blob.includes(segment));
+}
 
 interface CommandPanelProps {
   open: boolean;
@@ -37,7 +77,7 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
 
   const normalizedSearch = search.trim();
 
-  useHotkey("Mod+K", () => onOpenChange(true));
+  useAppHotkey("command.open", () => onOpenChange(true));
 
   const recentThreads = useQuery(
     api.functions.threads.searchThreads,
@@ -63,6 +103,14 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
 
   const visibleThreads =
     normalizedSearch.length > 0 ? (matchingThreads ?? []) : (recentThreads ?? []);
+
+  const visibleSettingsNav = SETTINGS_NAV_ITEMS.filter((item) =>
+    settingsNavMatches(normalizedSearch, item.searchBlob),
+  );
+
+  /** With no query, Actions leads; once you're filtering and settings rows match, Settings leads. */
+  const settingsFirst =
+    normalizedSearch.length > 0 && visibleSettingsNav.length > 0;
 
   const showThreadsGroup = hasSession && visibleThreads.length > 0;
   const showNoMatchingThreads =
@@ -98,6 +146,37 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
     });
   };
 
+  const settingsNavGroup =
+    visibleSettingsNav.length > 0 ? (
+      <CommandGroup heading="Settings">
+        {visibleSettingsNav.map((item) => (
+          <CommandItem
+            key={item.value}
+            className="min-h-13"
+            value={item.value}
+            onSelect={() => {
+              handleOpenChange(false);
+              void router.navigate({ to: item.to });
+            }}
+          >
+            <div className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
+              {item.value === "settings-general" ? (
+                <SlidersHorizontal className="size-4" />
+              ) : (
+                <Keyboard className="size-4" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div>{item.title}</div>
+              <div className="text-muted-foreground text-xs font-normal">
+                {item.subtitle}
+              </div>
+            </div>
+          </CommandItem>
+        ))}
+      </CommandGroup>
+    ) : null;
+
   return (
     <CommandDialog
       open={open}
@@ -108,9 +187,16 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
         <CommandInput
           value={search}
           onValueChange={setSearch}
-          placeholder="Type a command or search threads..."
+          placeholder="Search threads, settings, or commands…"
         />
         <CommandList>
+          {settingsFirst ? (
+            <>
+              {settingsNavGroup}
+              <CommandSeparator />
+            </>
+          ) : null}
+
           <CommandGroup heading="Actions">
             {normalizedSearch.length > 0 && (
               <CommandItem
@@ -146,6 +232,13 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
               </div>
             </CommandItem>
           </CommandGroup>
+
+          {!settingsFirst && settingsNavGroup !== null ? (
+            <>
+              <CommandSeparator />
+              {settingsNavGroup}
+            </>
+          ) : null}
 
           {(showThreadsGroup || showNoMatchingThreads || (!hasSession && !isPending)) && (
             <CommandSeparator />
