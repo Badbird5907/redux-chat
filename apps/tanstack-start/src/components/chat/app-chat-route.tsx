@@ -42,8 +42,10 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
       return;
     }
 
-    setRouteSessionKey((current) => current + 1);
-  }, [initialThreadId]);
+    queueMicrotask(() => {
+      setRouteSessionKey((current) => current + 1);
+    });
+  }, [consumeAdoptedThreadNavigation, initialThreadId]);
 
   return (
     <Suspense fallback={null}>
