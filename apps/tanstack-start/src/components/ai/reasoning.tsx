@@ -1,7 +1,7 @@
 "use client";
 
 import { Collapsible } from "@base-ui/react/collapsible";
-import { ChevronDownIcon, LoaderCircleIcon } from "lucide-react";
+import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useContext, useMemo, useState } from "react";
 
@@ -96,13 +96,14 @@ export function ReasoningTrigger({
   return (
     <Collapsible.Trigger
       className={cn(
-        "focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-center justify-between gap-3 rounded-md px-0 py-1.5 text-left text-sm font-medium outline-none focus-visible:ring-[3px]",
+        "focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-center gap-3 rounded-md px-0 py-1.5 text-left text-sm font-medium outline-none focus-visible:ring-[3px]",
         className,
       )}
       {...props}
     >
       <span className="text-muted-foreground flex items-center gap-2">
-        {isStreaming && <LoaderCircleIcon className="size-4 animate-spin" />}
+        {/* {isStreaming && <LoaderCircleIcon className="size-4 animate-spin" />} */}
+        <BrainIcon className="size-4" />
         <span>{label}</span>
       </span>
       <ChevronDownIcon
@@ -149,6 +150,6 @@ function getDefaultReasoningLabel(isStreaming: boolean, duration?: number) {
     const seconds = Math.max(1, Math.round(duration / 1000));
     return `Thought for ${seconds} second${seconds === 1 ? "" : "s"}`;
   }
-
-  return "Thought process";
+  return "Thought for a second"
+  // return "Thought process";
 }

@@ -1,5 +1,4 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
 import {
@@ -14,19 +13,21 @@ import { z } from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import {
-  getChatModelConfig,
   isToolEnabled,
   normalizeMessageSettings,
 } from "@redux/types";
 
 import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
+import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
+import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
 import type { RetrievedChunk } from "@/server/rag/vector-store";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
+import { resolveAiSdkModel } from "@/server/ai/model-runtime";
 
 const requestBody = z.object({
   fileIds: z.array(z.string()),
@@ -193,16 +194,12 @@ function formatChunksAsContext(chunks: RetrievedChunk[]): string {
     "If a chunk's content is not relevant, ignore it.";
 
   const blocks = chunks.map((chunk, index) => {
-    const tag = `[#cite-${index + 1}]`;
-    const locator =
-      chunk.modality === "pdf_page" && chunk.pageNumber !== undefined
-        ? `file: ${chunk.fileName}, page ${chunk.pageNumber}`
-        : `file: ${chunk.fileName}`;
-    const body =
-      chunk.modality === "image"
-        ? "(image — refer to it by file name when relevant)"
-        : (chunk.text ?? "(no text)");
-    return `${tag} ${locator}\n${body}`;
+    return formatProjectKnowledgeChunk(chunk, {
+      tag: `[#cite-${index + 1}]`,
+      includeFilePrefix: true,
+      emptyText: "(no text)",
+      imageText: "(image — refer to it by file name when relevant)",
+    });
   });
 
   return [header, "", ...blocks].join("\n\n");
@@ -223,52 +220,6 @@ function mergeAttachments(
   }
 
   return Array.from(mergedById.values());
-}
-
-function modelSupportsProjectMedia(modelId: string, mimeType: string) {
-  const config = getChatModelConfig(modelId);
-  if (!config) {
-    return false;
-  }
-
-  if (mimeType === "application/pdf") {
-    return config.allowedMimeTypes.includes("pdf");
-  }
-
-  if (mimeType.startsWith("image/")) {
-    return config.allowedMimeTypes.includes("image");
-  }
-
-  return false;
-}
-
-function getProjectMediaAttachmentIds(
-  chunks: RetrievedChunk[],
-  modelId: string,
-): string[] {
-  const attachmentIds: string[] = [];
-  const seen = new Set<string>();
-
-  for (const chunk of chunks) {
-    if (chunk.text?.trim()) {
-      continue;
-    }
-    if (!modelSupportsProjectMedia(modelId, chunk.mimeType)) {
-      continue;
-    }
-    if (seen.has(chunk.attachmentId)) {
-      continue;
-    }
-
-    seen.add(chunk.attachmentId);
-    attachmentIds.push(chunk.attachmentId);
-
-    if (attachmentIds.length >= 2) {
-      break;
-    }
-  }
-
-  return attachmentIds;
 }
 
 function appendAttachmentParts(
@@ -354,6 +305,7 @@ export const Route = createFileRoute("/api/chat/")({
         // RAG context from the project's indexed file library.
         let projectInstructions: string | undefined;
         let projectContextBlock: string | undefined;
+        let projectToolInstruction: string | undefined;
         let chatProjectId: string | undefined;
         let threadUserId: string | undefined;
         try {
@@ -377,6 +329,16 @@ export const Route = createFileRoute("/api/chat/")({
           console.error("Failed to load project instructions", error);
         }
 
+        if (chatProjectId) {
+          projectToolInstruction = [
+            "This chat belongs to a project with an indexed knowledge base.",
+            "When the user asks about project files, PDFs, images, screenshots, uploaded documents, or anything that likely refers to project material, proactively call `search_project_knowledge` before answering.",
+            "If the user's request is ambiguous, underspecified, or you do not know what they are referring to, use `search_project_knowledge` first to ground the conversation in the project knowledge base.",
+            "Do not ask the user to paste, quote, clarify, or re-upload project material until you have first used `search_project_knowledge` and checked its results.",
+            "If the tool returns relevant excerpts or raw files, use them to answer directly.",
+          ].join(" ");
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (chatProjectId && ENABLE_PROJECT_RAG_PREFETCH) {
           const queryText = extractTextFromMessage(getLastUserMessage(messages));
@@ -391,9 +353,10 @@ export const Route = createFileRoute("/api/chat/")({
                 projectContextBlock = formatChunksAsContext(chunks);
 
                 if (lastUserMessageId) {
-                  const projectMediaAttachmentIds = getProjectMediaAttachmentIds(
+                  const projectMediaAttachmentIds = selectProjectMediaAttachmentIds(
                     chunks,
                     settings.model,
+                    { requireMissingText: true },
                   );
 
                   if (projectMediaAttachmentIds.length > 0) {
@@ -455,11 +418,17 @@ export const Route = createFileRoute("/api/chat/")({
         // Prepend the project's shared instructions and any retrieved RAG
         // context as leading system messages. We do this on the model-message
         // array (after conversion) so they never get persisted on the thread.
-        // Order: [projectInstructions, projectContext, ...userMessages]
+        // Order: [projectInstructions, projectToolInstruction, projectContext, ...userMessages]
         if (projectContextBlock) {
           modelMessages.unshift({
             role: "system",
             content: projectContextBlock,
+          });
+        }
+        if (projectToolInstruction) {
+          modelMessages.unshift({
+            role: "system",
+            content: projectToolInstruction,
           });
         }
         if (projectInstructions) {
@@ -480,8 +449,10 @@ export const Route = createFileRoute("/api/chat/")({
         const streamStartTime = Date.now();
         let firstTokenTime: number | null = null;
 
+        const { model: resolvedModel } = resolveAiSdkModel(settings.model);
+
         const result = streamText({
-          model: openai(settings.model),
+          model: resolvedModel,
           messages: modelMessages,
           abortSignal: abortController.signal,
           tools: toolRuntime.tools,
@@ -548,6 +519,7 @@ export const Route = createFileRoute("/api/chat/")({
                 {
                   secret: env.INTERNAL_CONVEX_SECRET,
                   messageId: assistantMessageId,
+                  threadId: threadId,
                 },
               ).then((res) => {
                 if (res) {

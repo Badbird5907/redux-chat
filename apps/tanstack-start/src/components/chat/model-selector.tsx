@@ -11,10 +11,10 @@
 import { Check, ChevronDown } from "lucide-react"
 import { Button } from "@redux/ui/components/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@redux/ui/components/dropdown-menu"
-import type { ModelConfig } from "@/lib/model-config"
+import type { ChatModelConfig } from "@redux/shared/models"
 
 interface ModelSelectorProps {
-  models: ModelConfig[]
+  models: ChatModelConfig[]
   selectedModel: string
   onModelChange: (modelId: string) => void
 }

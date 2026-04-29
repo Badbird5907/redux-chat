@@ -1,4 +1,3 @@
-import type { ModelConfig } from "@/lib/model-config";
 import type React from "react";
 import type { RefObject } from "react";
 import {
@@ -20,6 +19,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
+import type { ChatModelConfig } from "@redux/shared/models";
 import { cn } from "@redux/ui/lib/utils";
 import { ModelSelector } from "@/components/chat/model-selector";
 
@@ -42,7 +42,7 @@ interface ChatInputToolbarProps {
   tokenCount: number;
   showTokenVisualization: boolean;
   onTokenCountClick: () => void;
-  models: ModelConfig[];
+  models: ChatModelConfig[];
   selectedModel: string;
   onModelChange: (modelId: string) => void;
   input: string;

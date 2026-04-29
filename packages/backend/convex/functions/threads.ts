@@ -208,7 +208,6 @@ export const internal_completeStream = backendMutation({
     parts: v.array(v.any()),
   },
   handler: async (ctx, args) => {
-    // Find assistant message
     const assistantMessage = await ctx.db
       .query("messages")
       .filter((q) => q.eq(q.field("messageId"), args.assistantMessageId))
@@ -218,13 +217,11 @@ export const internal_completeStream = backendMutation({
       throw new ConvexError("Assistant message not found");
     }
 
-    // Update the assistant message
     await ctx.db.patch(assistantMessage._id, {
       parts: args.parts as UIMessagePart<UIDataTypes, UITools>[],
       status: "completed",
     });
 
-    // Find thread
     const thread = await ctx.db
       .query("threads")
       .filter((q) => q.eq(q.field("threadId"), args.threadId))
@@ -234,7 +231,6 @@ export const internal_completeStream = backendMutation({
       throw new ConvexError("Thread not found");
     }
 
-    // Update the thread
     await ctx.db.patch(thread._id, {
       status: "completed",
       activeStreamId: undefined,
@@ -303,7 +299,7 @@ export const internal_setActiveStreamId = backendMutation({
 });
 
 export const internal_checkMessageAbort = backendQuery({
-  args: { messageId: v.string() },
+  args: { messageId: v.string(), threadId: v.string() },
   handler: async (ctx, args) => {
     const message = await ctx.db
       .query("messages")
@@ -311,6 +307,14 @@ export const internal_checkMessageAbort = backendQuery({
       .first();
 
     if (!message) {
+      // check if we deleted the thread
+      const thread = await ctx.db
+        .query("threads")
+        .filter((q) => q.eq(q.field("threadId"), args.threadId))
+        .first();
+      if (!thread) {
+        return true;
+      }
       throw new ConvexError("Message not found");
     }
     return message.canceledAt;

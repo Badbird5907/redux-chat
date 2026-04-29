@@ -1,3 +1,5 @@
+import { DEFAULT_CHAT_MODEL_ID, normalizeModelId } from "@redux/shared/models";
+
 export const MESSAGE_TOOL_NAMES = ["search", "analysisWorkspace"] as const;
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
@@ -40,7 +42,7 @@ export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
 };
 
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
-  model: "gpt-5.4-mini",
+  model: DEFAULT_CHAT_MODEL_ID,
   tools: {},
 };
 
@@ -48,10 +50,15 @@ export function normalizeMessageSettings(
   input: MessageSettingsInput | null | undefined,
 ): MessageSettings {
   const rest = input ?? {};
+  const normalizedModel =
+    typeof rest.model === "string"
+      ? normalizeModelId(rest.model) ?? DEFAULT_MESSAGE_SETTINGS.model
+      : DEFAULT_MESSAGE_SETTINGS.model;
 
   return {
     ...DEFAULT_MESSAGE_SETTINGS,
     ...rest,
+    model: normalizedModel,
     tools: normalizeTools(input?.tools),
   };
 }

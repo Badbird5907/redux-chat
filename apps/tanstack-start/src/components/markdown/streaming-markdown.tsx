@@ -10,6 +10,7 @@ import {
   rehypePlugins,
   remarkPlugins,
 } from "./markdown-components";
+import { normalizeMarkdownMathDelimiters } from "./normalize-markdown-math";
 import { parseMarkdownIntoBlocks } from "./parse-markdown-into-blocks";
 import { ShikiCodeBlock } from "./shiki-code-block";
 import { useFrameBufferedValue } from "./use-frame-buffered-value";
@@ -17,12 +18,14 @@ import { useFrameBufferedValue } from "./use-frame-buffered-value";
 interface StreamingMarkdownProps {
   content: string;
   isStreaming?: boolean;
+  reasoning?: boolean;
   className?: string;
 }
 
 interface MarkdownBlockProps {
   content: string;
   isStreaming?: boolean;
+  reasoning?: boolean;
 }
 
 interface CodeBlockProps {
@@ -31,17 +34,23 @@ interface CodeBlockProps {
   info?: string;
   isClosed: boolean;
   isStreaming?: boolean;
+  reasoning?: boolean;
 }
 
 const MemoizedMarkdownBlock = memo(
-  ({ content, isStreaming = false }: MarkdownBlockProps) => {
+  ({ content, isStreaming = false, reasoning = false }: MarkdownBlockProps) => {
     const components = useMemo(
       () => createMarkdownComponents({ isStreaming }),
       [isStreaming],
     );
 
     return (
-      <div className="chat-markdown">
+      <div
+        className={cn(
+          "chat-markdown",
+          reasoning && "chat-markdown--reasoning",
+        )}
+      >
         <ReactMarkdown
           components={components}
           rehypePlugins={rehypePlugins}
@@ -56,7 +65,10 @@ const MemoizedMarkdownBlock = memo(
     // Keep completed blocks frozen once their markdown text stops changing.
     // The streaming hint is only relevant while the block content is still
     // updating, so we intentionally ignore it here.
-    return prevProps.content === nextProps.content;
+    return (
+      prevProps.content === nextProps.content &&
+      prevProps.reasoning === nextProps.reasoning
+    );
   },
 );
 
@@ -68,13 +80,19 @@ const MemoizedCodeBlock = memo(
     info,
     isClosed,
     isStreaming = false,
+    reasoning = false,
   }: CodeBlockProps) => {
     if (isStreaming && !isClosed && code.length === 0) {
       return null;
     }
 
     return (
-      <div className="chat-markdown">
+      <div
+        className={cn(
+          "chat-markdown",
+          reasoning && "chat-markdown--reasoning",
+        )}
+      >
         <ShikiCodeBlock code={code} info={info} isStreaming={isStreaming} />
       </div>
     );
@@ -82,7 +100,8 @@ const MemoizedCodeBlock = memo(
   (prevProps, nextProps) => {
     return (
       prevProps.raw === nextProps.raw &&
-      prevProps.isStreaming === nextProps.isStreaming
+      prevProps.isStreaming === nextProps.isStreaming &&
+      prevProps.reasoning === nextProps.reasoning
     );
   },
 );
@@ -92,9 +111,14 @@ MemoizedCodeBlock.displayName = "MemoizedCodeBlock";
 export function StreamingMarkdown({
   content,
   isStreaming = false,
+  reasoning = false,
   className,
 }: StreamingMarkdownProps) {
-  const renderedContent = useFrameBufferedValue(content, isStreaming);
+  const normalizedContent = useMemo(
+    () => normalizeMarkdownMathDelimiters(content),
+    [content],
+  );
+  const renderedContent = useFrameBufferedValue(normalizedContent, isStreaming);
   const blocks = useMemo(
     () => parseMarkdownIntoBlocks(renderedContent),
     [renderedContent],
@@ -119,6 +143,7 @@ export function StreamingMarkdown({
               isStreaming={isStreamingBlock}
               key={index}
               raw={block.raw}
+              reasoning={reasoning}
             />
           );
         }
@@ -128,6 +153,7 @@ export function StreamingMarkdown({
             content={block.raw}
             isStreaming={isStreamingBlock}
             key={index}
+            reasoning={reasoning}
           />
         );
       })}

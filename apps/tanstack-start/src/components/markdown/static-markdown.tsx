@@ -10,6 +10,7 @@ import {
   rehypePlugins,
   remarkPlugins,
 } from "./markdown-components";
+import { normalizeMarkdownMathDelimiters } from "./normalize-markdown-math";
 
 interface StaticMarkdownProps {
   content: string;
@@ -18,8 +19,12 @@ interface StaticMarkdownProps {
 
 export function StaticMarkdown({ content, className }: StaticMarkdownProps) {
   const components = useMemo(() => createMarkdownComponents(), []);
+  const normalizedContent = useMemo(
+    () => normalizeMarkdownMathDelimiters(content),
+    [content],
+  );
 
-  if (!content) {
+  if (!normalizedContent) {
     return null;
   }
 
@@ -30,7 +35,7 @@ export function StaticMarkdown({ content, className }: StaticMarkdownProps) {
         rehypePlugins={rehypePlugins}
         remarkPlugins={remarkPlugins}
       >
-        {content}
+        {normalizedContent}
       </ReactMarkdown>
     </div>
   );

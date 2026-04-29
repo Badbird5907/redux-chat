@@ -5,6 +5,11 @@ import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import {
+  CHAT_MODELS,
+  getChatModelConfig,
+  isFileAllowedForModel,
+} from "@redux/shared/models";
 import { isToolEnabled } from "@redux/types";
 import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
@@ -14,11 +19,6 @@ import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
 import { submitMessage } from "@/components/chat/use-submit-message";
-import {
-  getChatModelConfig,
-  isFileAllowedForModel,
-  MODELS,
-} from "@/lib/model-config";
 import { useUpload } from "@/lib/silo/react";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
@@ -551,7 +551,7 @@ export function ChatInput({
               tokenCount={tokenCount}
               showTokenVisualization={showTokenVisualization}
               onTokenCountClick={handleTokenCountClick}
-              models={MODELS}
+              models={CHAT_MODELS}
               selectedModel={selectedModel}
               onModelChange={(modelId) => {
                 void onModelChange(modelId);

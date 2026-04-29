@@ -72,7 +72,9 @@ export function AssistantMessageParts({
           key={`${message.id}:reasoning:${isReasoningStreaming ? "streaming" : "done"}`}
         >
           <ReasoningTrigger />
-          <ReasoningContent>{reasoningText}</ReasoningContent>
+          <ReasoningContent>
+            <StreamingMarkdown content={reasoningText} isStreaming={isReasoningStreaming} reasoning />
+          </ReasoningContent>
         </Reasoning>
       ) : null}
 

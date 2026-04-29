@@ -24,10 +24,6 @@ export function ProjectInstructions({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setDraft(instructions ?? "");
-  }, [instructions]);
-
-  useEffect(() => {
     if (editing) {
       textareaRef.current?.focus();
     }
@@ -68,7 +64,10 @@ export function ProjectInstructions({
             size="icon-sm"
             variant="ghost"
             aria-label="Edit instructions"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setDraft(instructions ?? "");
+              setEditing(true);
+            }}
           >
             <Pencil className="size-4" />
           </Button>

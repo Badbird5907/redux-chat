@@ -17,6 +17,19 @@ body {
     @apply text-foreground text-[15px] leading-7 break-words;
   }
 
+  .chat-markdown.chat-markdown--reasoning {
+    @apply text-muted-foreground text-sm leading-7;
+  }
+
+  .chat-markdown.chat-markdown--reasoning .chat-markdown__link {
+    @apply text-muted-foreground hover:text-primary;
+  }
+
+  .chat-markdown.chat-markdown--reasoning :not(pre) > code,
+  .chat-markdown.chat-markdown--reasoning .chat-markdown__inline-code {
+    @apply text-muted-foreground;
+  }
+
   .chat-markdown > :first-child {
     @apply mt-0;
   }

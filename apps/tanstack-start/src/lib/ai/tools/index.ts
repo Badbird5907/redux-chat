@@ -84,7 +84,10 @@ export function createToolRuntime(
   }
 
   if (projectContext) {
-    tools.search_project_knowledge = searchProjectKnowledgeTool(projectContext);
+    tools.search_project_knowledge = searchProjectKnowledgeTool({
+      ...projectContext,
+      modelId: settings.model,
+    });
   }
 
   return {
