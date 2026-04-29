@@ -33,6 +33,7 @@ export async function buildAttachmentUrl(input: {
       fileName: input.fileName,
       isPublic: input.isPublic,
       serveImage: input.serveImage,
+      format: "jpeg"
     });
   }
 
