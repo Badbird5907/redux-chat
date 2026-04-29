@@ -46,6 +46,15 @@ export default function ChatThreadSidebarItem({
   const [isDeleting, setIsDeleting] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  const handleContextMenu = (event: React.MouseEvent<HTMLLIElement>) => {
+    if (isRenaming || isDeleting) {
+      return;
+    }
+
+    event.preventDefault();
+    setMenuOpen(true);
+  };
+
   React.useEffect(() => {
     if (!isRenaming) {
       return;
@@ -117,7 +126,7 @@ export default function ChatThreadSidebarItem({
   };
 
   return (
-    <SidebarMenuItem style={style}>
+    <SidebarMenuItem style={style} onContextMenu={handleContextMenu}>
       {isRenaming ? (
         <div className="flex w-full items-center gap-2 rounded-md px-2 py-1">
           <Input

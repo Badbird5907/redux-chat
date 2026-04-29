@@ -51,6 +51,7 @@ import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
 import { EmptyChat } from "./empty";
 import { ChatInput } from "./input";
+import { rememberAdoptedThreadNavigation } from "./reset-chat";
 import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
 
@@ -387,6 +388,7 @@ export function Chat({
     (id: string) => {
       setCurrentThreadId(id);
       lastMessageCount.current = 0;
+      rememberAdoptedThreadNavigation(id);
       void router.navigate({
         to: "/chat/$id",
         params: { id },

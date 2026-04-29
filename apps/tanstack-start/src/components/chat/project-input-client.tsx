@@ -8,6 +8,7 @@ import { DefaultChatTransport } from "ai";
 
 import { ChatInput } from "@/components/chat/input";
 import { SignedCidProvider } from "./client-id";
+import { rememberAdoptedThreadNavigation } from "./reset-chat";
 import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
 
@@ -47,6 +48,7 @@ function ProjectChatInput({
 
   const handleThreadIdChange = useCallback(
     (id: string) => {
+      rememberAdoptedThreadNavigation(id);
       void router.navigate({
         to: "/chat/$id",
         params: { id },

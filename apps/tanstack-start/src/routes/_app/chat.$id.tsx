@@ -4,8 +4,6 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { fetchAuthQuery } from "@/lib/auth/server";
 import z from "zod";
 
-import { AppChatRoute } from "@/components/chat/app-chat-route";
-
 const loadChat = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
@@ -42,8 +40,5 @@ export const Route = createFileRoute("/_app/chat/$id")({
 });
 
 function ChatPage() {
-  const { id } = Route.useParams();
-  const { messages } = Route.useLoaderData();
-
-  return <AppChatRoute initialThreadId={id} preload={messages} />;
+  return null;
 }

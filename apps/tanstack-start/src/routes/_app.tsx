@@ -1,6 +1,7 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatch, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, FolderKanban } from "lucide-react";
 
+import { AppChatRoute } from "@/components/chat/app-chat-route";
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
 import {
   SidebarProvider,
@@ -33,6 +34,17 @@ export const Route = createFileRoute("/_app")({
   },
   component: AppLayout,
 });
+
+function getChatThreadIdFromPathname(pathname: string) {
+  const chatPrefix = "/chat/";
+
+  if (!pathname.startsWith(chatPrefix)) {
+    return undefined;
+  }
+
+  const threadId = pathname.slice(chatPrefix.length);
+  return threadId.length > 0 ? decodeURIComponent(threadId) : undefined;
+}
 
 function TopLeftActions() {
   const { open: sidebarOpen } = useSidebar();
@@ -76,6 +88,17 @@ function TopLeftActions() {
 
 function AppLayout() {
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const chatMatch = useMatch({
+    from: "/_app/chat/$id",
+    shouldThrow: false,
+  });
+  const desiredChatThreadId = getChatThreadIdFromPathname(pathname);
+  const isChatSurfaceRoute = pathname === "/" || desiredChatThreadId !== undefined;
+  const chatMatchThreadId = chatMatch?.params.id;
+  const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
+  const chatPreload =
+    chatMatchThreadId === chatThreadId ? chatMatch?.loaderData?.messages : undefined;
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
@@ -84,7 +107,14 @@ function AppLayout() {
         <div className="bg-card/80 relative w-full flex-1 overflow-hidden rounded-4xl p-4">
           <TopLeftActions />
           <div className="h-full overflow-hidden">
-            <Outlet />
+            {isChatSurfaceRoute ? (
+              <AppChatRoute
+                initialThreadId={chatThreadId}
+                preload={chatPreload}
+              />
+            ) : (
+              <Outlet />
+            )}
           </div>
         </div>
       </main>
