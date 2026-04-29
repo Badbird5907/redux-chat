@@ -4,7 +4,7 @@ import { baseConfig } from "@redux/eslint-config/base";
 
 export default defineConfig(
   {
-    ignores: ["dist/**"],
+    ignores: ["dist/**", "scripts/**"],
   },
   baseConfig,
 );

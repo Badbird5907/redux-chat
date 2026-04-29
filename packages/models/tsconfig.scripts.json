@@ -1,0 +1,7 @@
+{
+  "extends": "@redux/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["scripts"]
+}
