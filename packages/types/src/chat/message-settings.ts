@@ -52,7 +52,7 @@ export function normalizeMessageSettings(
   const rest = input ?? {};
   const normalizedModel =
     typeof rest.model === "string"
-      ? normalizeModelId(rest.model) ?? DEFAULT_MESSAGE_SETTINGS.model
+      ? (normalizeModelId(rest.model) ?? DEFAULT_MESSAGE_SETTINGS.model)
       : DEFAULT_MESSAGE_SETTINGS.model;
 
   return {

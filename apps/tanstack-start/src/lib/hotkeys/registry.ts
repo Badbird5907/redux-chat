@@ -33,7 +33,8 @@ export const appHotkeyRegistry = defineAppHotkeys({
   },
   "sidebar.toggle": {
     label: "Toggle sidebar",
-    description: "Collapse or expand the app sidebar from anywhere in the shell.",
+    description:
+      "Collapse or expand the app sidebar from anywhere in the shell.",
     category: "Navigation",
     defaultHotkey: "Mod+B",
   },

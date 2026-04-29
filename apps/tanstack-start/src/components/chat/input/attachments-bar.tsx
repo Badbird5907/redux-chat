@@ -1,3 +1,5 @@
+import type { DraftAttachment } from "@/components/chat/use-chat-draft";
+import type { LucideIcon } from "lucide-react";
 import {
   FileSpreadsheet,
   FileText,
@@ -7,7 +9,6 @@ import {
   Presentation,
   X,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 import {
   Tooltip,
@@ -15,8 +16,6 @@ import {
   TooltipTrigger,
 } from "@redux/ui/components/tooltip";
 import { cn } from "@redux/ui/lib/utils";
-
-import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 
 import type { PreviewableFile } from "./types";
 import { isAttachmentExpired } from "./utils";
@@ -185,38 +184,38 @@ export function ChatInputAttachmentsBar({
                     className="border-border bg-muted hover:border-primary relative h-full w-full overflow-hidden rounded-lg border transition-colors"
                     disabled={file.uploading || isExpired}
                   >
-                  {isImage && file.url && !isExpired ? (
-                    <img
-                      src={file.url}
-                      alt={file.fileName}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className={cn(
-                        "flex h-full w-full flex-col items-center justify-center gap-1 p-1.5",
-                        docTileClass,
-                      )}
-                    >
-                      <Icon
-                        className="h-[22px] w-[22px] shrink-0 opacity-90"
-                        aria-hidden
+                    {isImage && file.url && !isExpired ? (
+                      <img
+                        src={file.url}
+                        alt={file.fileName}
+                        className="h-full w-full object-cover"
                       />
-                      <span className="max-w-full truncate px-px text-[9px] font-semibold leading-none tracking-wide">
-                        {badge}
-                      </span>
-                    </div>
-                  )}
-                  {isExpired && !file.uploading && (
-                    <div className="bg-background/85 text-muted-foreground absolute inset-0 flex items-center justify-center text-[10px] font-medium">
-                      Expired
-                    </div>
-                  )}
-                  {file.uploading && (
-                    <div className="bg-background/80 absolute inset-0 flex items-center justify-center">
-                      <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-                    </div>
-                  )}
+                    ) : (
+                      <div
+                        className={cn(
+                          "flex h-full w-full flex-col items-center justify-center gap-1 p-1.5",
+                          docTileClass,
+                        )}
+                      >
+                        <Icon
+                          className="h-[22px] w-[22px] shrink-0 opacity-90"
+                          aria-hidden
+                        />
+                        <span className="max-w-full truncate px-px text-[9px] leading-none font-semibold tracking-wide">
+                          {badge}
+                        </span>
+                      </div>
+                    )}
+                    {isExpired && !file.uploading && (
+                      <div className="bg-background/85 text-muted-foreground absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+                        Expired
+                      </div>
+                    )}
+                    {file.uploading && (
+                      <div className="bg-background/80 absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                      </div>
+                    )}
                   </button>
                 </span>
               </TooltipTrigger>
@@ -224,7 +223,7 @@ export function ChatInputAttachmentsBar({
                 side="top"
                 className="max-w-[min(20rem,calc(100vw-3rem))] px-3 py-1.5 text-left"
               >
-                <span className="wrap-break-word block">{file.fileName}</span>
+                <span className="block wrap-break-word">{file.fileName}</span>
               </TooltipContent>
             </Tooltip>
             {!file.uploading && (

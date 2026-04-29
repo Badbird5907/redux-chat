@@ -1,8 +1,8 @@
 import type * as React from "react";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
-import { Button } from "@redux/ui/components/button";
 
+import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {

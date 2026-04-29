@@ -1,14 +1,20 @@
-"use no memo"; // Opt out of React Compiler - TanStack Virtual uses flushSync internally
+"use no memo";
 
-import { useEffect, useRef, useMemo, useState } from "react";
+// Opt out of React Compiler - TanStack Virtual uses flushSync internally
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePaginatedQuery } from "convex/react";
+
 import { api } from "@redux/backend/convex/_generated/api";
-import { SidebarGroup, SidebarGroupContent } from "@redux/ui/components/sidebar";
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+} from "@redux/ui/components/sidebar";
 import { Skeleton } from "@redux/ui/components/skeleton";
 import Spinner from "@redux/ui/components/spinner";
-import ChatThreadSidebarItem from "./chat-thread";
+
 import { authClient } from "@/lib/auth/client";
+import ChatThreadSidebarItem from "./chat-thread";
 
 type Thread = {
   threadId: string;
@@ -34,7 +40,11 @@ function getDateGroup(timestamp: number): string {
   const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dateOnly = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
 
   if (dateOnly >= today) {
     return "Today";
@@ -57,7 +67,11 @@ function groupThreads(threads: Thread[]): GroupedItem[] {
     const group = getDateGroup(thread.timestamp);
     if (group !== currentGroup) {
       currentGroup = group;
-      items.push({ type: "header", label: group, key: `header-${group}-${thread.threadId}` });
+      items.push({
+        type: "header",
+        label: group,
+        key: `header-${group}-${thread.threadId}`,
+      });
     }
     items.push({ type: "thread", thread, key: thread.threadId });
   }
@@ -82,7 +96,7 @@ export default function ThreadList() {
   const { results, status, loadMore } = usePaginatedQuery(
     api.functions.threads.getThreads,
     mounted && session ? {} : "skip",
-    { initialNumItems: INITIAL_ITEMS }
+    { initialNumItems: INITIAL_ITEMS },
   );
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -95,7 +109,8 @@ export default function ThreadList() {
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
-    count: status === "CanLoadMore" ? groupedItems.length + 1 : groupedItems.length,
+    count:
+      status === "CanLoadMore" ? groupedItems.length + 1 : groupedItems.length,
     getScrollElement: () => parentRef.current,
     getItemKey: (index) => {
       if (index >= groupedItems.length) {
@@ -147,7 +162,9 @@ export default function ThreadList() {
       <SidebarGroup>
         <SidebarGroupContent className="px-2 pt-4">
           <div className="flex items-center justify-center px-2">
-            <p className="text-sm text-muted-foreground">Sign in to view your threads</p>
+            <p className="text-muted-foreground text-sm">
+              Sign in to view your threads
+            </p>
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -169,11 +186,11 @@ export default function ThreadList() {
   }
 
   return (
-    <SidebarGroup className="flex-1 min-h-0">
+    <SidebarGroup className="min-h-0 flex-1">
       <SidebarGroupContent className="h-full">
         <div
           ref={parentRef}
-          className="h-full overflow-y-auto scrollbar-none"
+          className="scrollbar-none h-full overflow-y-auto"
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
@@ -189,7 +206,9 @@ export default function ThreadList() {
             {groupedItems.length === 0 && (
               // no threads found
               <div className="flex items-center justify-center px-2">
-                <p className="text-sm text-muted-foreground">No threads found. Start a new chat!</p>
+                <p className="text-muted-foreground text-sm">
+                  No threads found. Start a new chat!
+                </p>
               </div>
             )}
             {items.map((virtualRow) => {
@@ -232,7 +251,7 @@ export default function ThreadList() {
                     }}
                     className="flex items-center px-2"
                   >
-                    <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-muted-foreground text-xs font-medium">
                       {item.label}
                     </span>
                   </div>

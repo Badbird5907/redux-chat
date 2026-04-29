@@ -1,13 +1,12 @@
 import { api } from "@redux/backend/convex/_generated/api";
 
-import { env } from "@/env";
-import { getInternalConvexClient } from "@/lib/silo/core.server";
-
 import type {
   EmbeddedChunk,
   RetrievedChunk,
   VectorStore,
 } from "./vector-store";
+import { env } from "@/env";
+import { getInternalConvexClient } from "@/lib/silo/core.server";
 
 /**
  * Convex implementation of VectorStore. Talks to the
@@ -26,25 +25,22 @@ export class ConvexVectorStore implements VectorStore {
     chunks: EmbeddedChunk[];
   }): Promise<void> {
     const client = getInternalConvexClient();
-    await client.mutation(
-      api.functions.embeddings.internal_upsertEmbeddings,
-      {
-        secret: env.INTERNAL_CONVEX_SECRET,
-        userId: input.userId,
-        attachmentId: input.attachmentId,
-        chatProjectId: input.chatProjectId,
-        chunks: input.chunks.map((chunk) => ({
-          embeddingId: chunk.embeddingId,
-          chunkIndex: chunk.chunkIndex,
-          modality: chunk.modality,
-          pageNumber: chunk.pageNumber,
-          text: chunk.text,
-          embedding: chunk.embedding,
-          embeddingModel: chunk.embeddingModel,
-          embeddingDims: chunk.embeddingDims,
-        })),
-      },
-    );
+    await client.mutation(api.functions.embeddings.internal_upsertEmbeddings, {
+      secret: env.INTERNAL_CONVEX_SECRET,
+      userId: input.userId,
+      attachmentId: input.attachmentId,
+      chatProjectId: input.chatProjectId,
+      chunks: input.chunks.map((chunk) => ({
+        embeddingId: chunk.embeddingId,
+        chunkIndex: chunk.chunkIndex,
+        modality: chunk.modality,
+        pageNumber: chunk.pageNumber,
+        text: chunk.text,
+        embedding: chunk.embedding,
+        embeddingModel: chunk.embeddingModel,
+        embeddingDims: chunk.embeddingDims,
+      })),
+    });
   }
 
   async search(input: {

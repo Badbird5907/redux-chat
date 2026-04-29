@@ -1,6 +1,5 @@
-import { buildAttachmentUrl } from "@/lib/silo/core.server";
-
 import type { AttachmentSourceRef } from "./types";
+import { buildAttachmentUrl } from "@/lib/silo/core.server";
 
 export interface DownloadedAttachmentSource {
   source: AttachmentSourceRef;

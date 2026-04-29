@@ -1,15 +1,15 @@
 import type { ProviderCatalogMap } from "./catalog";
-import { getProviderModel } from "./catalog";
 import type {
   ModelContextLimits,
   ModelKnowledgeCutoff,
   ModelModalities,
   ModelPricing,
-  ModelSpec,
-  ModelSupports,
   ModelsDevModelCost,
   ModelsDevModelRecord,
+  ModelSpec,
+  ModelSupports,
 } from "./types";
+import { getProviderModel } from "./catalog";
 
 export function getModelSpec(
   providers: ProviderCatalogMap,

@@ -1,20 +1,14 @@
+import type { AppHotkeyBinding, AppHotkeyId } from "@/lib/hotkeys";
 import { useMemo, useState } from "react";
+import { formatForDisplay, useHotkeyRecorder } from "@tanstack/react-hotkeys";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  formatForDisplay,
-  useHotkeyRecorder,
-} from "@tanstack/react-hotkeys";
 import { Pencil, RotateCcw, X } from "lucide-react";
 
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import { Kbd } from "@redux/ui/components/kbd";
 
-import {
-  appHotkeyDefinitions,
-  useHotkeySettings,
-} from "@/lib/hotkeys";
-import type { AppHotkeyBinding, AppHotkeyId } from "@/lib/hotkeys";
+import { appHotkeyDefinitions, useHotkeySettings } from "@/lib/hotkeys";
 
 export const Route = createFileRoute("/settings/hotkeys")({
   component: HotkeysRouteComponent,
@@ -24,7 +18,9 @@ function HotkeysRouteComponent() {
   const { bindings, isCustomized, resetAll, resetBinding, setBinding } =
     useHotkeySettings();
   const [editingId, setEditingId] = useState<AppHotkeyId | null>(null);
-  const [errors, setErrors] = useState<Partial<Record<AppHotkeyId, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<AppHotkeyId, string>>>(
+    {},
+  );
 
   const groupedHotkeys = useMemo(
     () =>
@@ -138,9 +134,10 @@ function HotkeysRouteComponent() {
       {Object.entries(groupedHotkeys).map(([category, definitions]) => (
         <section key={category} className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold">{category}</h2>
-          <div className="divide-border/60 divide-y rounded-lg border border-border/60 bg-card/40">
+          <div className="divide-border/60 border-border/60 bg-card/40 divide-y rounded-lg border">
             {definitions.map((definition) => {
-              const active = editingId === definition.id && recorder.isRecording;
+              const active =
+                editingId === definition.id && recorder.isRecording;
               const currentBinding = bindings[definition.id];
               const currentError = errors[definition.id];
 
@@ -173,7 +170,9 @@ function HotkeysRouteComponent() {
                           : "min-h-7 px-2 py-1 text-xs"
                       }
                     >
-                      {active ? "Press keys…" : formatForDisplay(currentBinding)}
+                      {active
+                        ? "Press keys…"
+                        : formatForDisplay(currentBinding)}
                     </Kbd>
                     <Button
                       variant={active ? "secondary" : "outline"}

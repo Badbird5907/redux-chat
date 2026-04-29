@@ -117,10 +117,11 @@ export interface CuratedModelDefinition {
 }
 
 export interface CuratedProviderBenchmarks {
-  aa: { // artificialanalysis
+  aa: {
+    // artificialanalysis
     id?: string;
     slug?: string;
-  }
+  };
   aaSlug?: string;
 }
 

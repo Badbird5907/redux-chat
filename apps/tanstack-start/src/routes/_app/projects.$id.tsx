@@ -30,9 +30,7 @@ export const Route = createFileRoute("/_app/projects/$id")({
   params: z.object({ id: z.string() }),
   component: ProjectDetailPage,
   head: ({ params }) => ({
-    meta: [
-      { title: params.id ? `Project | Redux Chat` : "Redux Chat" },
-    ],
+    meta: [{ title: params.id ? `Project | Redux Chat` : "Redux Chat" }],
   }),
 });
 
@@ -76,12 +74,7 @@ function ProjectDetailPage() {
         threadsStatus={projectThreads.status}
       />
     );
-  }, [
-    project,
-    projectId,
-    projectThreads.results,
-    projectThreads.status,
-  ]);
+  }, [project, projectId, projectThreads.results, projectThreads.status]);
 
   return (
     <>
@@ -129,9 +122,7 @@ function ProjectSurface({
         <div>
           <h1 className="text-3xl font-semibold">{name}</h1>
           {description && (
-            <p className="text-muted-foreground mt-2 text-sm">
-              {description}
-            </p>
+            <p className="text-muted-foreground mt-2 text-sm">{description}</p>
           )}
         </div>
 

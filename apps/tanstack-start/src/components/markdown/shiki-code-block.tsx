@@ -310,8 +310,7 @@ export function ShikiCodeBlock({
           <code
             className={cn(
               "font-mono text-[13px]",
-              normalizedLanguage !== "text" &&
-                "language-" + normalizedLanguage,
+              normalizedLanguage !== "text" && "language-" + normalizedLanguage,
             )}
           >
             {displayedCode}

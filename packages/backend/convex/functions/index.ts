@@ -1,28 +1,39 @@
-import type { DataModel } from "../_generated/dataModel";
+import type {
+  GenericActionCtx,
+  GenericMutationCtx,
+  GenericQueryCtx,
+} from "convex/server";
+import {
+  customAction,
+  customCtx,
+  customMutation,
+  customQuery,
+} from "convex-helpers/server/customFunctions";
 import { Triggers } from "convex-helpers/server/triggers";
-
-import { customAction, customCtx, customMutation, customQuery } from "convex-helpers/server/customFunctions";
-import { action as rawAction, query as rawQuery, mutation as rawMutation } from "../_generated/server";
-
-import type { GenericActionCtx, GenericMutationCtx,GenericQueryCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
+
+import type { DataModel } from "../_generated/dataModel";
+import {
+  action as rawAction,
+  mutation as rawMutation,
+  query as rawQuery,
+} from "../_generated/server";
 import { backendEnv } from "../env";
 
-const triggers = new Triggers<DataModel>()
+const triggers = new Triggers<DataModel>();
 
 triggers.register("threads", async (ctx, change) => {
   if (change.operation === "update") {
     const newDoc = change.newDoc as unknown;
     if (newDoc && typeof newDoc === "object" && "updatedAt" in newDoc) {
-      const now = Date.now()
+      const now = Date.now();
       const updatedAt = (newDoc as { updatedAt: number }).updatedAt;
       if (updatedAt !== now) {
         await ctx.db.patch(change.id, { updatedAt: now });
       }
     }
   }
-})
-
+});
 
 // Custom query that requires auth and injects ctx.user
 export const query = customQuery(
@@ -50,7 +61,13 @@ export const mutation = customMutation(
 
 const enforceInternalSecret = {
   args: { secret: v.string() },
-  input: (_ctx: GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel> | GenericActionCtx<DataModel>, { secret }: { secret: string }) => {
+  input: (
+    _ctx:
+      | GenericMutationCtx<DataModel>
+      | GenericQueryCtx<DataModel>
+      | GenericActionCtx<DataModel>,
+    { secret }: { secret: string },
+  ) => {
     const env = backendEnv();
     if (secret !== env.INTERNAL_CONVEX_SECRET) {
       throw new ConvexError("Invalid secret");
@@ -61,15 +78,9 @@ const enforceInternalSecret = {
 
 export const backendMutation = customMutation(
   rawMutation,
-  enforceInternalSecret
+  enforceInternalSecret,
 );
 
-export const backendQuery = customQuery(
-  rawQuery,
-  enforceInternalSecret
-);
+export const backendQuery = customQuery(rawQuery, enforceInternalSecret);
 
-export const backendAction = customAction(
-  rawAction,
-  enforceInternalSecret
-);
+export const backendAction = customAction(rawAction, enforceInternalSecret);

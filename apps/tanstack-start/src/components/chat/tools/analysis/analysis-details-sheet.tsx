@@ -1,5 +1,9 @@
 "use client";
 
+import type {
+  AssistantTimelineAnalysisDetails,
+  AssistantTimelineStep,
+} from "@/components/chat/assistant-message-timeline";
 import type { ComponentType, ReactNode } from "react";
 import { useState } from "react";
 import { Code2Icon, FileTextIcon, TerminalSquareIcon } from "lucide-react";
@@ -15,11 +19,6 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import { ShikiCodeBlock } from "@/components/markdown/shiki-code-block";
-
-import type {
-  AssistantTimelineAnalysisDetails,
-  AssistantTimelineStep,
-} from "@/components/chat/assistant-message-timeline";
 
 export function AnalysisDetailsButton({
   details,

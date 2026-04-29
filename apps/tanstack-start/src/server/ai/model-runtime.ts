@@ -1,7 +1,7 @@
 import type { LanguageModel } from "ai";
 
-import { getChatModelConfig, resolveModelRoute } from "@redux/shared/models";
 import type { ChatModelConfig, ModelRouteInfo } from "@redux/shared/models";
+import { getChatModelConfig, resolveModelRoute } from "@redux/shared/models";
 
 import { RUNTIME_PROVIDERS } from "./provider-runtime";
 
@@ -22,8 +22,11 @@ export function resolveAiSdkModel(modelId: string): ResolvedAiSdkModel {
     throw new Error(`Unable to resolve provider route for ${modelConfig.id}`);
   }
 
-  const runtimeProviderKey = route.behavior.runtimeProviderKey ?? route.provider;
-  console.log(`Resolving model runtime for ${modelId} with provider: ${runtimeProviderKey}`)
+  const runtimeProviderKey =
+    route.behavior.runtimeProviderKey ?? route.provider;
+  console.log(
+    `Resolving model runtime for ${modelId} with provider: ${runtimeProviderKey}`,
+  );
   const runtimeProvider = RUNTIME_PROVIDERS[runtimeProviderKey];
   if (!runtimeProvider) {
     throw new Error(`Unsupported runtime provider: ${runtimeProviderKey}`);

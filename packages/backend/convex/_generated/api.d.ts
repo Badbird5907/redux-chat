@@ -8,6 +8,12 @@
  * @module
  */
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
 import type * as auth from "../auth.js";
 import type * as env from "../env.js";
 import type * as functions_attachments from "../functions/attachments.js";
@@ -21,12 +27,6 @@ import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
 import type * as zod from "../zod.js";
-
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;

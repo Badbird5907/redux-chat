@@ -1,11 +1,15 @@
-import { createFileRoute, Link, useNavigate, redirect } from '@tanstack/react-router'
-import { authClient } from '@/lib/auth/client'
-import { useForm } from '@tanstack/react-form'
-import { Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
-import * as z from 'zod'
+import { useForm } from "@tanstack/react-form";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import * as z from "zod";
 
-import { Button } from '@redux/ui/components/button'
+import { Button } from "@redux/ui/components/button";
 import {
   Card,
   CardContent,
@@ -13,34 +17,36 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@redux/ui/components/card'
-import { Field, FieldError, FieldLabel } from '@redux/ui/components/field'
-import { Input } from '@redux/ui/components/input'
+} from "@redux/ui/components/card";
+import { Field, FieldError, FieldLabel } from "@redux/ui/components/field";
+import { Input } from "@redux/ui/components/input";
+
+import { authClient } from "@/lib/auth/client";
 
 const signUpSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-})
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
 
-export const Route = createFileRoute('/auth/sign-up')({
+export const Route = createFileRoute("/auth/sign-up")({
   beforeLoad: ({ context }) => {
     if (context.isAuthenticated) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: '/' })
+      throw redirect({ to: "/" });
     }
   },
   component: SignUpPage,
-})
+});
 
 function SignUpPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const form = useForm({
     defaultValues: {
-      name: '',
-      email: '',
-      password: '',
+      name: "",
+      email: "",
+      password: "",
     },
     validators: {
       onSubmit: signUpSchema,
@@ -52,15 +58,15 @@ function SignUpPage() {
         name: value.name,
         fetchOptions: {
           onSuccess: () => {
-            void navigate({ to: '/' })
+            void navigate({ to: "/" });
           },
           onError: (ctx) => {
-            toast.error(ctx.error.message)
+            toast.error(ctx.error.message);
           },
         },
-      })
+      });
     },
-  })
+  });
 
   return (
     <Card className="w-full">
@@ -71,9 +77,9 @@ function SignUpPage() {
       <CardContent>
         <form
           onSubmit={async (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            await form.handleSubmit()
+            e.preventDefault();
+            e.stopPropagation();
+            await form.handleSubmit();
           }}
           className="space-y-4"
         >
@@ -146,12 +152,12 @@ function SignUpPage() {
       </CardContent>
       <CardFooter className="justify-center">
         <div className="text-muted-foreground text-sm">
-          Already have an account?{' '}
+          Already have an account?{" "}
           <Link to="/auth/sign-in" className="text-primary hover:underline">
             Sign in
           </Link>
         </div>
       </CardFooter>
     </Card>
-  )
+  );
 }

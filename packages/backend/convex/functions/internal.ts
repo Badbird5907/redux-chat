@@ -1,4 +1,1 @@
-export {
-  internalAction,
-  internalMutation,
-} from "../_generated/server";
+export { internalAction, internalMutation } from "../_generated/server";

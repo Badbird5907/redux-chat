@@ -1,9 +1,9 @@
-import { useHotkey } from "@tanstack/react-hotkeys";
-import type { HotkeyCallback, UseHotkeyOptions } from "@tanstack/react-hotkeys";
-
-import { appHotkeyRegistry } from "@/lib/hotkeys/registry";
-import { useResolvedHotkey } from "@/lib/hotkeys/provider";
 import type { AppHotkeyId } from "@/lib/hotkeys/registry";
+import type { HotkeyCallback, UseHotkeyOptions } from "@tanstack/react-hotkeys";
+import { useHotkey } from "@tanstack/react-hotkeys";
+
+import { useResolvedHotkey } from "@/lib/hotkeys/provider";
+import { appHotkeyRegistry } from "@/lib/hotkeys/registry";
 
 export function useAppHotkey(
   id: AppHotkeyId,

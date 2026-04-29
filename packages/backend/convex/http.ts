@@ -1,4 +1,5 @@
 import { httpRouter } from "convex/server";
+
 import { authComponent, initAuth } from "./auth";
 
 const http = httpRouter();

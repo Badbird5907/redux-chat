@@ -1,3 +1,4 @@
+import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import type { ToolSet } from "ai";
 import { webSearch } from "@exalabs/ai-sdk";
 import { tool } from "ai";
@@ -10,7 +11,6 @@ import {
   createSandboxRuntime,
   SANDBOX_UPLOADS_DIR,
 } from "@/lib/ai/tools/sandbox";
-import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import { searchProjectKnowledgeTool } from "@/lib/ai/tools/search-project";
 
 export type { ChatToolAttachment };
@@ -35,9 +35,7 @@ export function createToolRuntime(
   const enabledTools = getEnabledMessageTools(settings.tools);
   const tools: ToolSet = {};
 
-  let sandboxRuntime:
-    | ReturnType<typeof createSandboxRuntime>
-    | undefined;
+  let sandboxRuntime: ReturnType<typeof createSandboxRuntime> | undefined;
 
   if (enabledTools.includes("search")) {
     tools.search = webSearch();

@@ -1,11 +1,12 @@
-import { convexBetterAuthReactStart } from '@convex-dev/better-auth/react-start'
+import { convexBetterAuthReactStart } from "@convex-dev/better-auth/react-start";
 import { getToken as getConvexToken } from "@convex-dev/better-auth/utils";
 import { ConvexHttpClient } from "convex/browser";
-import { ConvexError } from 'convex/values';
+import { ConvexError } from "convex/values";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
-import { env } from '@/env';
+import { env } from "@/env";
+
 // import { env } from '@/env'
 
 const isAuthError = (error: unknown) => {
@@ -19,7 +20,9 @@ const isAuthError = (error: unknown) => {
   return /auth/i.test(message as string);
 };
 
-async function getAuthTokenFromHeaders(headers: Headers): Promise<string | undefined> {
+async function getAuthTokenFromHeaders(
+  headers: Headers,
+): Promise<string | undefined> {
   const mutableHeaders = new Headers(headers);
   mutableHeaders.delete("content-length");
   mutableHeaders.delete("transfer-encoding");
@@ -69,5 +72,5 @@ export const {
   jwtCache: {
     enabled: true,
     isAuthError,
-  }
-})
+  },
+});

@@ -1,4 +1,7 @@
-import type { FileRouter, SiloRouteConfigInput } from "@silo-storage/sdk-server";
+import type {
+  FileRouter,
+  SiloRouteConfigInput,
+} from "@silo-storage/sdk-server";
 import { createSiloUpload } from "@silo-storage/sdk-server";
 import { z } from "zod";
 
@@ -55,7 +58,9 @@ export const fileRouter = {
     })
     .expects(({ input }) => {
       const parsedInput = chatAttachmentInput.parse(input);
-      return getModelAttachmentExpects(parsedInput.modelId) as SiloRouteConfigInput;
+      return getModelAttachmentExpects(
+        parsedInput.modelId,
+      ) as SiloRouteConfigInput;
     })
     .public(false)
     .serveImage(true)

@@ -4,6 +4,7 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
+
 import { Button } from "@redux/ui/components/button";
 import { Input } from "@redux/ui/components/input";
 import { Separator } from "@redux/ui/components/separator";
@@ -20,10 +21,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@redux/ui/components/tooltip";
-
 import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import { useSidebarResize } from "@redux/ui/hooks/use-sidebar-resize";
 import { cn } from "@redux/ui/lib/utils";
+
 import { mergeButtonRefs } from "../lib/merge-button-refs";
 
 const SIDEBAR_CONFIG_KEY = "sidebar:config";
@@ -222,13 +223,8 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offExamples" | "icon" | "none";
 }) {
-  const {
-    isMobile,
-    state,
-    openMobile,
-    setOpenMobile,
-    isDraggingRail,
-  } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, isDraggingRail } =
+    useSidebar();
 
   if (collapsible === "none") {
     return (
@@ -385,7 +381,7 @@ function SidebarRail({
       title="Toggle Sidebar"
       className={cn(
         "absolute inset-y-0 z-20 hidden w-2.5 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-1.25 group-data-[side=right]:left-0 sm:flex",
-        "cursor-col-resize! br-none",
+        "br-none cursor-col-resize!",
         "group-data-[collapsible=offExamples]:translate-x-0",
         "[[data-side=left][data-collapsible=offExamples]_&]:-right-2",
         "[[data-side=right][data-collapsible=offExamples]_&]:-left-2",
@@ -459,7 +455,11 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, style, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({
+  className,
+  style,
+  ...props
+}: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sidebar-content"
@@ -576,11 +576,12 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "ring-sidebar-ring group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground active:bg-sidebar-accent/20 active:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground data-open:hover:bg-sidebar-accent/15 data-open:hover:text-sidebar-foreground peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-active:font-medium [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate cursor-pointer",
+  "ring-sidebar-ring group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground active:bg-sidebar-accent/20 active:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground data-open:hover:bg-sidebar-accent/15 data-open:hover:text-sidebar-foreground peer/menu-button group/menu-button flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-active:font-medium [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
-        default: "group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground",
+        default:
+          "group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground",
         outline:
           "bg-background group-hover/menu-item:bg-sidebar-accent/15 group-hover/menu-item:text-sidebar-foreground shadow-[0_0_0_1px_hsl(var(--sidebar-border))] group-hover/menu-item:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },

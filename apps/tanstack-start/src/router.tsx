@@ -1,10 +1,10 @@
-import { QueryClient, notifyManager } from "@tanstack/react-query";
+import { ConvexQueryClient } from "@convex-dev/react-query";
+import { notifyManager, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
-import { ConvexQueryClient } from "@convex-dev/react-query";
 import SuperJSON from "superjson";
-import { env } from "./env";
 
+import { env } from "./env";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {

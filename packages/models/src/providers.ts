@@ -1,10 +1,9 @@
+import type { ModelsDevProviderCatalog } from "./types";
 import { anthropicModels } from "./generated/anthropic";
 import { googleModels } from "./generated/google";
+import { generatedProviderManifest } from "./generated/manifest";
 import { openaiModels } from "./generated/openai";
 import { openrouterModels } from "./generated/openrouter";
-import { generatedProviderManifest } from "./generated/manifest";
-
-import type { ModelsDevProviderCatalog } from "./types";
 
 export const MODELS_DEV_PROVIDERS = {
   anthropic: anthropicModels,

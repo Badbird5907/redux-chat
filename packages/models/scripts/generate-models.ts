@@ -2,7 +2,12 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PROVIDER_ALLOWLIST = ["anthropic", "google", "openai", "openrouter"] as const;
+const PROVIDER_ALLOWLIST = [
+  "anthropic",
+  "google",
+  "openai",
+  "openrouter",
+] as const;
 
 type ProviderId = (typeof PROVIDER_ALLOWLIST)[number];
 
@@ -66,7 +71,10 @@ async function main() {
     throw new Error(`Failed to fetch models.dev api.json: ${response.status}`);
   }
 
-  const catalogs = (await response.json()) as Record<string, ModelsDevProviderCatalog>;
+  const catalogs = (await response.json()) as Record<
+    string,
+    ModelsDevProviderCatalog
+  >;
 
   await fs.mkdir(outputDir, { recursive: true });
 
@@ -123,7 +131,9 @@ function normalizeProviderCatalog(
   };
 }
 
-function normalizeModelRecord(model: ModelsDevModelRecord): ModelsDevModelRecord {
+function normalizeModelRecord(
+  model: ModelsDevModelRecord,
+): ModelsDevModelRecord {
   return {
     id: model.id,
     name: model.name,
@@ -134,18 +144,26 @@ function normalizeModelRecord(model: ModelsDevModelRecord): ModelsDevModelRecord
     ...(model.structured_output !== undefined
       ? { structured_output: model.structured_output }
       : {}),
-    ...(model.temperature !== undefined ? { temperature: model.temperature } : {}),
+    ...(model.temperature !== undefined
+      ? { temperature: model.temperature }
+      : {}),
     ...(model.knowledge ? { knowledge: model.knowledge } : {}),
     ...(model.release_date ? { release_date: model.release_date } : {}),
     ...(model.last_updated ? { last_updated: model.last_updated } : {}),
-    ...(model.open_weights !== undefined ? { open_weights: model.open_weights } : {}),
-    ...(model.modalities ? { modalities: normalizeModalities(model.modalities) } : {}),
+    ...(model.open_weights !== undefined
+      ? { open_weights: model.open_weights }
+      : {}),
+    ...(model.modalities
+      ? { modalities: normalizeModalities(model.modalities) }
+      : {}),
     ...(model.cost ? { cost: normalizeObject(model.cost) } : {}),
     ...(model.limit ? { limit: normalizeObject(model.limit) } : {}),
   };
 }
 
-function normalizeModalities(modalities: NonNullable<ModelsDevModelRecord["modalities"]>) {
+function normalizeModalities(
+  modalities: NonNullable<ModelsDevModelRecord["modalities"]>,
+) {
   return {
     ...(modalities.input ? { input: [...modalities.input] } : {}),
     ...(modalities.output ? { output: [...modalities.output] } : {}),
@@ -155,8 +173,8 @@ function normalizeModalities(modalities: NonNullable<ModelsDevModelRecord["modal
 function normalizeObject<T extends Record<string, unknown>>(value: T): T {
   const normalizedEntries: [string, unknown][] = [];
 
-  for (const [entryKey, entryValue] of Object.entries(value).sort(([leftKey], [rightKey]) =>
-    leftKey.localeCompare(rightKey),
+  for (const [entryKey, entryValue] of Object.entries(value).sort(
+    ([leftKey], [rightKey]) => leftKey.localeCompare(rightKey),
   )) {
     if (entryValue === undefined) {
       continue;

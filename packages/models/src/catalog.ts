@@ -2,10 +2,12 @@ import type { ModelsDevProviderCatalog } from "./types";
 
 export type ProviderCatalogMap = Record<string, ModelsDevProviderCatalog>;
 
-export function parseRouteId(routeId: string): {
-  provider: string;
-  vendorId: string;
-} | undefined {
+export function parseRouteId(routeId: string):
+  | {
+      provider: string;
+      vendorId: string;
+    }
+  | undefined {
   const separatorIndex = routeId.indexOf(":");
   if (separatorIndex <= 0 || separatorIndex === routeId.length - 1) {
     return undefined;

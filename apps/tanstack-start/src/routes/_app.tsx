@@ -1,9 +1,12 @@
-import { createFileRoute, Link, Outlet, useMatch, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useMatch,
+  useRouterState,
+} from "@tanstack/react-router";
 import { ArrowLeft, FolderKanban } from "lucide-react";
 
-import { AppChatRoute } from "@/components/chat/app-chat-route";
-import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
-import { useCurrentProject } from "@/lib/hooks/use-current-project";
 import {
   SidebarProvider,
   SidebarTrigger,
@@ -15,8 +18,11 @@ import {
   TooltipTrigger,
 } from "@redux/ui/components/tooltip";
 
+import { AppChatRoute } from "@/components/chat/app-chat-route";
+import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
 // import { getToken } from "@/lib/auth/server";
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
+import { useCurrentProject } from "@/lib/hooks/use-current-project";
 import {
   NewChatHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
@@ -93,17 +99,22 @@ function TopLeftActions() {
 
 function AppLayout() {
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
   const chatMatch = useMatch({
     from: "/_app/chat/$id",
     shouldThrow: false,
   });
   const desiredChatThreadId = getChatThreadIdFromPathname(pathname);
-  const isChatSurfaceRoute = pathname === "/" || desiredChatThreadId !== undefined;
+  const isChatSurfaceRoute =
+    pathname === "/" || desiredChatThreadId !== undefined;
   const chatMatchThreadId = chatMatch?.params.id;
   const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
   const chatPreload =
-    chatMatchThreadId === chatThreadId ? chatMatch?.loaderData?.messages : undefined;
+    chatMatchThreadId === chatThreadId
+      ? chatMatch?.loaderData?.messages
+      : undefined;
 
   return (
     <ChatRouteAdoptionProvider>

@@ -1,21 +1,21 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { formatForDisplay } from "@tanstack/react-hotkeys";
-import { CornerDownRight, FolderKanban, Plus, Search } from "lucide-react";
 import { useState } from "react";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { CornerDownRight, FolderKanban, Plus, Search } from "lucide-react";
 
+import { CommandShortcut } from "@redux/ui/components/command";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@redux/ui/components/sidebar";
 
-import { CommandPanel } from "@/components/command";
 import { requestChatReset } from "@/components/chat/reset-chat";
+import { CommandPanel } from "@/components/command";
 import AppSidebar from "@/components/sidebar";
 import ThreadList from "@/components/sidebar/chat/thread-list";
-import { useResolvedHotkey } from "@/lib/hotkeys";
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
-import { CommandShortcut } from "@redux/ui/components/command";
+import { useResolvedHotkey } from "@/lib/hotkeys";
 
 export function AppSidebarPanel() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -82,7 +82,7 @@ export function AppSidebarPanel() {
               {project.project && (
                 <SidebarMenuButton
                   size="sm"
-                  className="ml-8 h-7 w-[calc(100%-2rem)] rounded-md px-2 text-xs font-normal text-muted-foreground hover:bg-muted/50 hover:text-foreground data-active:bg-transparent data-active:text-muted-foreground data-active:font-normal [&_svg]:size-3.5"
+                  className="text-muted-foreground hover:bg-muted/50 hover:text-foreground data-active:text-muted-foreground ml-8 h-7 w-[calc(100%-2rem)] rounded-md px-2 text-xs font-normal data-active:bg-transparent data-active:font-normal [&_svg]:size-3.5"
                   render={
                     <Link
                       to="/projects/$id"

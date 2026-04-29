@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { api } from "@redux/backend/convex/_generated/api";
-import { fetchAuthQuery } from "@/lib/auth/server";
 import z from "zod";
+
+import { api } from "@redux/backend/convex/_generated/api";
+
+import { fetchAuthQuery } from "@/lib/auth/server";
 
 const loadChat = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string() }))

@@ -41,9 +41,7 @@ export function TokenVisualization({
         isExpanded
           ? undefined
           : {
-              height: visualizationHeight
-                ? `${visualizationHeight}px`
-                : "24px",
+              height: visualizationHeight ? `${visualizationHeight}px` : "24px",
               maxHeight: `${24 * 10}px`,
               minHeight: "24px",
             }
@@ -69,10 +67,7 @@ export function TokenVisualization({
                 <span key={`${index}-${partIndex}`}>
                   {part && (
                     <span
-                      className={cn(
-                        "inline-block rounded px-0.5",
-                        colorClass,
-                      )}
+                      className={cn("inline-block rounded px-0.5", colorClass)}
                     >
                       {part}
                     </span>

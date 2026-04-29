@@ -1,8 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router'
-
+import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Button } from "@redux/ui/components/button";
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@redux/ui/components/accordion";
 import { Badge } from "@redux/ui/components/badge";
+import { Button } from "@redux/ui/components/button";
 import {
   Card,
   CardContent,
@@ -11,11 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@redux/ui/components/card";
-import { Input } from "@redux/ui/components/input";
-import { Label } from "@redux/ui/components/label";
 import { Checkbox } from "@redux/ui/components/checkbox";
-import { Separator } from "@redux/ui/components/separator";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@redux/ui/components/accordion";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +26,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
-import { Kbd } from "@redux/ui/components/kbd";
 import {
   Field,
   FieldContent,
@@ -32,16 +33,20 @@ import {
   FieldError,
   FieldLabel,
 } from "@redux/ui/components/field";
-import GithubIcon from "@redux/ui/icons/github";
+import { Input } from "@redux/ui/components/input";
+import { Kbd } from "@redux/ui/components/kbd";
+import { Label } from "@redux/ui/components/label";
+import { Separator } from "@redux/ui/components/separator";
 import Spinner from "@redux/ui/components/spinner";
+import GithubIcon from "@redux/ui/icons/github";
 
-export const Route = createFileRoute('/components')({
+export const Route = createFileRoute("/components")({
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
   return (
-    <div className="container mx-auto py-10 space-y-10">
+    <div className="container mx-auto space-y-10 py-10">
       <div className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">Components</h1>
         <p className="text-muted-foreground">
@@ -61,11 +66,13 @@ function RouteComponent() {
           <Button variant="ghost">Ghost</Button>
           <Button variant="link">Link</Button>
         </div>
-        <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-wrap items-center gap-4">
           <Button size="sm">Small</Button>
           <Button size="default">Default</Button>
           <Button size="lg">Large</Button>
-          <Button size="icon"><GithubIcon className="size-4" /></Button>
+          <Button size="icon">
+            <GithubIcon className="size-4" />
+          </Button>
         </div>
       </section>
 
@@ -84,14 +91,16 @@ function RouteComponent() {
       <Separator />
 
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold tracking-tight">Inputs & Forms</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">
+          Inputs & Forms
+        </h2>
         <div className="grid w-full max-w-sm items-center gap-1.5">
           <Label htmlFor="email">Email</Label>
           <Input type="email" id="email" placeholder="Email" />
         </div>
         <div className="grid w-full max-w-sm items-center gap-1.5">
-            <Label htmlFor="disabled">Disabled</Label>
-            <Input disabled id="disabled" placeholder="Disabled" />
+          <Label htmlFor="disabled">Disabled</Label>
+          <Input disabled id="disabled" placeholder="Disabled" />
         </div>
         <div className="flex items-center space-x-2">
           <Checkbox id="terms" />
@@ -109,7 +118,9 @@ function RouteComponent() {
             <FieldContent>
               <Input placeholder="Enter username" />
             </FieldContent>
-            <FieldDescription>This is your public display name.</FieldDescription>
+            <FieldDescription>
+              This is your public display name.
+            </FieldDescription>
           </Field>
 
           <Field>
@@ -143,30 +154,30 @@ function RouteComponent() {
       </section>
 
       <Separator />
-      
+
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold tracking-tight">Accordion</h2>
-        <Accordion defaultValue={['item-1']} className="w-full max-w-md">
-            <AccordionItem value="item-1">
-                <AccordionTrigger>Is it accessible?</AccordionTrigger>
-                <AccordionContent>
-                Yes. It adheres to the WAI-ARIA design pattern.
-                </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="item-2">
-                <AccordionTrigger>Is it styled?</AccordionTrigger>
-                <AccordionContent>
-                Yes. It comes with default styles that matches the other
-                components&apos; aesthetic.
-                </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="item-3">
-                <AccordionTrigger>Is it animated?</AccordionTrigger>
-                <AccordionContent>
-                Yes. It&apos;s animated by default, but you can disable it if you
-                prefer.
-                </AccordionContent>
-            </AccordionItem>
+        <Accordion defaultValue={["item-1"]} className="w-full max-w-md">
+          <AccordionItem value="item-1">
+            <AccordionTrigger>Is it accessible?</AccordionTrigger>
+            <AccordionContent>
+              Yes. It adheres to the WAI-ARIA design pattern.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-2">
+            <AccordionTrigger>Is it styled?</AccordionTrigger>
+            <AccordionContent>
+              Yes. It comes with default styles that matches the other
+              components&apos; aesthetic.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-3">
+            <AccordionTrigger>Is it animated?</AccordionTrigger>
+            <AccordionContent>
+              Yes. It&apos;s animated by default, but you can disable it if you
+              prefer.
+            </AccordionContent>
+          </AccordionItem>
         </Accordion>
       </section>
 
@@ -175,9 +186,9 @@ function RouteComponent() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold tracking-tight">Dropdown Menu</h2>
         <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" />}>
-          Open Menu
-        </DropdownMenuTrigger>
+          <DropdownMenuTrigger render={<Button variant="outline" />}>
+            Open Menu
+          </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -192,10 +203,12 @@ function RouteComponent() {
       <Separator />
 
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold tracking-tight">Keyboard Shortcuts</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">
+          Keyboard Shortcuts
+        </h2>
         <div className="flex items-center gap-2">
-           <Kbd>Ctrl</Kbd> + <Kbd>C</Kbd>
-           <span className="text-muted-foreground ml-2">to copy</span>
+          <Kbd>Ctrl</Kbd> + <Kbd>C</Kbd>
+          <span className="text-muted-foreground ml-2">to copy</span>
         </div>
       </section>
 
@@ -204,18 +217,18 @@ function RouteComponent() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold tracking-tight">Toasts</h2>
         <Button
-            variant="outline"
-            onClick={() =>
-              toast("Event has been created", {
-                description: "Sunday, December 03, 2023 at 9:00 AM",
-                action: {
-                  label: "Undo",
-                  onClick: () => console.log("Undo"),
-                },
-              })
-            }
-          >
-            Show Toast
+          variant="outline"
+          onClick={() =>
+            toast("Event has been created", {
+              description: "Sunday, December 03, 2023 at 9:00 AM",
+              action: {
+                label: "Undo",
+                onClick: () => console.log("Undo"),
+              },
+            })
+          }
+        >
+          Show Toast
         </Button>
       </section>
 
@@ -233,7 +246,7 @@ function RouteComponent() {
         <h4 className="text-base font-semibold tracking-tight">h4</h4>
         <h5 className="text-sm font-semibold tracking-tight">h5</h5>
         <h6 className="text-xs font-semibold tracking-tight">h6</h6>
-        </div>
+      </div>
     </div>
   );
 }

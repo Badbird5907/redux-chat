@@ -1,6 +1,7 @@
-import { PROVIDERS } from "@redux/shared/models";
-import type { ChatModelConfig } from "@redux/shared/models";
 import type { ComponentType, SVGProps } from "react";
+
+import type { ChatModelConfig } from "@redux/shared/models";
+import { PROVIDERS } from "@redux/shared/models";
 
 import { AnthropicLogo, AnthropicLogoWhite } from "./anthropic";
 import { DeepSeekLogo, DeepSeekLogoWhite } from "./deepseek";
@@ -152,8 +153,6 @@ export function getSharedProviderLogo(providerSlug: string) {
     : undefined;
 }
 
-export function getModelProviderLogo(
-  model: Pick<ChatModelConfig, "maker">,
-) {
+export function getModelProviderLogo(model: Pick<ChatModelConfig, "maker">) {
   return getSharedProviderLogo(model.maker);
 }

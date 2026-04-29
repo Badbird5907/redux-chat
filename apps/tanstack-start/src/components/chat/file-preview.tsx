@@ -1,10 +1,11 @@
-import { X, FileText, ArrowRightLeft, Loader2 } from "lucide-react";
+import { ArrowRightLeft, FileText, Loader2, X } from "lucide-react";
+
+import { Button } from "@redux/ui/components/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
 } from "@redux/ui/components/dialog";
-import { Button } from "@redux/ui/components/button";
 
 interface FilePreviewDialogProps {
   file: {
@@ -77,7 +78,7 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
           </div>
         </DialogHeader>
 
-        <div className="max-h-[calc(90vh-60px)] overflow-auto px-4 pb-4 pt-4">
+        <div className="max-h-[calc(90vh-60px)] overflow-auto px-4 pt-4 pb-4">
           {isImage && file.url && (
             <img
               src={file.url || "/placeholder.svg"}

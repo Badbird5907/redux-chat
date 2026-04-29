@@ -46,10 +46,7 @@ const MemoizedMarkdownBlock = memo(
 
     return (
       <div
-        className={cn(
-          "chat-markdown",
-          reasoning && "chat-markdown--reasoning",
-        )}
+        className={cn("chat-markdown", reasoning && "chat-markdown--reasoning")}
       >
         <ReactMarkdown
           components={components}
@@ -88,10 +85,7 @@ const MemoizedCodeBlock = memo(
 
     return (
       <div
-        className={cn(
-          "chat-markdown",
-          reasoning && "chat-markdown--reasoning",
-        )}
+        className={cn("chat-markdown", reasoning && "chat-markdown--reasoning")}
       >
         <ShikiCodeBlock code={code} info={info} isStreaming={isStreaming} />
       </div>

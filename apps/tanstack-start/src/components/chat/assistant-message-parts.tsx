@@ -1,6 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
+
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -14,9 +15,8 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai/reasoning";
-import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
-
 import { AnalysisDetailsButton } from "@/components/chat/tools/analysis";
+import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 import {
   getAssistantStepIcon,
   getChainOfThoughtHeaderState,

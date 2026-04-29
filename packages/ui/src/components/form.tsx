@@ -8,8 +8,8 @@ import {
   useFormContext,
   useFormState,
 } from "react-hook-form";
-import { Label } from "@redux/ui/components/label";
 
+import { Label } from "@redux/ui/components/label";
 import { cn } from "@redux/ui/lib/utils";
 
 const Form = FormProvider;

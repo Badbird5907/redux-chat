@@ -22,12 +22,11 @@ import {
   CommandShortcut,
 } from "@redux/ui/components/command";
 
-import { setStoredChatDraft } from "@/components/chat/use-chat-draft";
 import { requestChatReset } from "@/components/chat/reset-chat";
+import { setStoredChatDraft } from "@/components/chat/use-chat-draft";
 import { authClient } from "@/lib/auth/client";
 import { useQuery } from "@/lib/hooks/convex";
 import { useAppHotkey } from "@/lib/hotkeys";
-
 import {
   COMMAND_THREAD_RESULT_LIMIT,
   SETTINGS_NAV_ITEMS,
@@ -72,7 +71,9 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
   );
 
   const visibleThreads =
-    normalizedSearch.length > 0 ? (matchingThreads ?? []) : (recentThreads ?? []);
+    normalizedSearch.length > 0
+      ? (matchingThreads ?? [])
+      : (recentThreads ?? []);
 
   const visibleSettingsNav = SETTINGS_NAV_ITEMS.filter((item) =>
     settingsNavMatches(normalizedSearch, item.searchBlob),
@@ -84,9 +85,7 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
 
   const showThreadsGroup = hasSession && visibleThreads.length > 0;
   const showNoMatchingThreads =
-    hasSession &&
-    normalizedSearch.length > 0 &&
-    matchingThreads?.length === 0;
+    hasSession && normalizedSearch.length > 0 && matchingThreads?.length === 0;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -212,14 +211,16 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
             </>
           ) : null}
 
-          {(showThreadsGroup || showNoMatchingThreads || (!hasSession && !isPending)) && (
-            <CommandSeparator />
-          )}
+          {(showThreadsGroup ||
+            showNoMatchingThreads ||
+            (!hasSession && !isPending)) && <CommandSeparator />}
 
           {showThreadsGroup && (
             <CommandGroup
               heading={
-                normalizedSearch.length > 0 ? "Matching Threads" : "Recent Threads"
+                normalizedSearch.length > 0
+                  ? "Matching Threads"
+                  : "Recent Threads"
               }
             >
               {visibleThreads.map((thread) => (

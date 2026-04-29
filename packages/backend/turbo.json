@@ -1,14 +1,12 @@
 {
-    "$schema": "https://turborepo.com/schema.json",
-    "extends": ["//"],
-    "tasks": {
-      "dev": {
-        "dependsOn": [],
-        "persistent": true,
-        "cache": false,
-        "inputs": ["$TURBO_DEFAULT$", "!convex/_generated/**"]
-      }
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "dependsOn": [],
+      "persistent": true,
+      "cache": false,
+      "inputs": ["$TURBO_DEFAULT$", "!convex/_generated/**"]
     }
   }
-  
-  
+}

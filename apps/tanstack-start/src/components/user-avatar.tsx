@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { api } from "@redux/backend/convex/_generated/api";
 import {
   Avatar,
   AvatarFallback,
@@ -7,7 +8,6 @@ import {
 } from "@redux/ui/components/avatar";
 import { cn } from "@redux/ui/lib/utils";
 
-import { api } from "@redux/backend/convex/_generated/api";
 import { useQuery } from "@/lib/hooks/convex";
 
 interface UserAvatarProps {
@@ -17,7 +17,12 @@ interface UserAvatarProps {
   size?: "sm" | "md" | "lg";
 }
 
-export function UserAvatar({ userId = "me", name, className, size }: UserAvatarProps) {
+export function UserAvatar({
+  userId = "me",
+  name,
+  className,
+  size,
+}: UserAvatarProps) {
   const image = useQuery(api.functions.user.getUserImage, { userId });
 
   const initials =

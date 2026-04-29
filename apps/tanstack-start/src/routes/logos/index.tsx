@@ -1,10 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
-import { LOGO_SHOWCASE } from '@/components/logos/registry'
+import { LOGO_SHOWCASE } from "@/components/logos/registry";
 
-export const Route = createFileRoute('/logos/')({
+export const Route = createFileRoute("/logos/")({
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
   return (
@@ -24,16 +24,16 @@ function RouteComponent() {
                 <span className="text-xs text-zinc-500">Color</span>
                 <div
                   className={
-                    surface === 'dark'
-                      ? 'flex h-20 w-full max-w-26 items-center justify-center rounded-lg bg-zinc-950 p-3 ring-1 ring-zinc-800'
-                      : 'flex h-20 w-full max-w-26 items-center justify-center rounded-lg bg-white p-3 shadow-inner'
+                    surface === "dark"
+                      ? "flex h-20 w-full max-w-26 items-center justify-center rounded-lg bg-zinc-950 p-3 ring-1 ring-zinc-800"
+                      : "flex h-20 w-full max-w-26 items-center justify-center rounded-lg bg-white p-3 shadow-inner"
                   }
                 >
                   <Logo
                     className={
-                      surface === 'light'
-                        ? 'max-h-full max-w-full text-zinc-900'
-                        : 'max-h-full max-w-full'
+                      surface === "light"
+                        ? "max-h-full max-w-full text-zinc-900"
+                        : "max-h-full max-w-full"
                     }
                   />
                 </div>
@@ -49,5 +49,5 @@ function RouteComponent() {
         ))}
       </ul>
     </div>
-  )
+  );
 }

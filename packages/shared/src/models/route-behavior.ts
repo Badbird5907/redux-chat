@@ -48,15 +48,17 @@ const PRESENTATION_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ] as const;
 
-const CHAT_ATTACHMENT_KIND_MIME_TYPES: Record<ChatAttachmentKind, readonly string[]> =
-  {
-    image: ["image"],
-    pdf: ["application/pdf"],
-    plain_text: TEXT_ATTACHMENT_MIME_TYPES,
-    office_document: OFFICE_DOCUMENT_MIME_TYPES,
-    spreadsheet: SPREADSHEET_MIME_TYPES,
-    presentation: PRESENTATION_MIME_TYPES,
-  };
+const CHAT_ATTACHMENT_KIND_MIME_TYPES: Record<
+  ChatAttachmentKind,
+  readonly string[]
+> = {
+  image: ["image"],
+  pdf: ["application/pdf"],
+  plain_text: TEXT_ATTACHMENT_MIME_TYPES,
+  office_document: OFFICE_DOCUMENT_MIME_TYPES,
+  spreadsheet: SPREADSHEET_MIME_TYPES,
+  presentation: PRESENTATION_MIME_TYPES,
+};
 
 const CHAT_ATTACHMENT_KIND_EXTENSIONS: Record<
   ChatAttachmentKind,
@@ -225,7 +227,9 @@ export function classifyChatAttachment(input: {
   }
 
   if (
-    TEXT_ATTACHMENT_MIME_TYPES.includes(mimeType as (typeof TEXT_ATTACHMENT_MIME_TYPES)[number])
+    TEXT_ATTACHMENT_MIME_TYPES.includes(
+      mimeType as (typeof TEXT_ATTACHMENT_MIME_TYPES)[number],
+    )
   ) {
     return "plain_text";
   }

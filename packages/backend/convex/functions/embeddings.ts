@@ -157,7 +157,13 @@ export const internal_getAttachmentSummaries = backendQuery({
   handler: async (ctx, args) => {
     const out: Record<
       string,
-      { fileName: string; mimeType: string; accessKey: string; isPublic: boolean; serveImage: boolean }
+      {
+        fileName: string;
+        mimeType: string;
+        accessKey: string;
+        isPublic: boolean;
+        serveImage: boolean;
+      }
     > = {};
 
     for (const attachmentId of args.attachmentIds) {

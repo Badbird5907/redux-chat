@@ -14,11 +14,7 @@ import { useStableClientId } from "./use-stable-client-id";
 
 const EMPTY_CONVEX_MESSAGES: UIMessage[] = [];
 
-function ProjectChatInput({
-  chatProjectId,
-}: {
-  chatProjectId: string;
-}) {
+function ProjectChatInput({ chatProjectId }: { chatProjectId: string }) {
   const router = useRouter();
   const chatSessionId = useStableClientId();
   const { markAdoptedThreadNavigation } = useChatRouteAdoption();
@@ -79,7 +75,9 @@ function ProjectChatInput({
       chatProjectId={chatProjectId}
       setThreadId={handleThreadIdChange}
       sendMessage={sendMessageWithTracking}
-      setOptimisticMessage={() => { /* empty */ }}
+      setOptimisticMessage={() => {
+        /* empty */
+      }}
       messages={messages}
       status={status}
       clientId={chatSessionId}

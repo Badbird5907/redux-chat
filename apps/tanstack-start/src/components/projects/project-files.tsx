@@ -71,7 +71,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
                 aria-label="Upload progress"
                 className="flex-col gap-2"
               >
-                <div className="flex min-w-0 w-full items-center gap-2">
+                <div className="flex w-full min-w-0 items-center gap-2">
                   <ProgressLabel className="text-muted-foreground max-w-[min(100%,20rem)] shrink truncate text-xs font-normal">
                     Uploading
                     {upload.currentUploadingFile

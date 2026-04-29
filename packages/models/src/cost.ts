@@ -1,10 +1,10 @@
-import { getModelSpec } from "./spec";
 import type { ProviderCatalogMap } from "./catalog";
 import type {
   ModelCostBreakdown,
   ModelCostComputationInput,
   ModelPricing,
 } from "./types";
+import { getModelSpec } from "./spec";
 
 // models.dev pricing is expressed in USD per 1M tokens/audio tokens.
 const TOKEN_UNIT = 1_000_000;
