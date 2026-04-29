@@ -29,10 +29,10 @@ export interface ChatInputProps {
 }
 
 export interface PreviewableFile {
-  convertingToPdf?: boolean;
-  convertedToPdf?: boolean;
+  generatingDerivative?: boolean;
   id: string;
   name: string;
   type: string;
   url?: string;
+  usedDerivative?: boolean;
 }

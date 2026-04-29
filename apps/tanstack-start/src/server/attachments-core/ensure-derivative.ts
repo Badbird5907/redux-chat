@@ -13,15 +13,19 @@ import type { AttachmentDerivativeRequest, ReadyAttachmentDerivative } from "./t
 export async function ensureAttachmentDerivative(
   request: AttachmentDerivativeRequest,
 ): Promise<ReadyAttachmentDerivative> {
+  console.log(`Ensuring derivative for ${request.source.fileName} (${request.source.mimeType})`)
   const cached = await getReadyDerivativeRecord(request);
   if (cached) {
+    console.log(`Cached derivative found for ${request.source.fileName} (${request.source.mimeType})`)
     try {
       return await hydrateReadyDerivative(request, cached);
     } catch {
       // stale/malformed cache entry, regenerate below
+      console.log(`Stale/malformed cache entry for ${request.source.fileName} (${request.source.mimeType})`)
     }
+  } else {
+    console.log(`No cached derivative found for ${request.source.fileName} (${request.source.mimeType})`)
   }
-
   try {
     const downloaded = await downloadAttachmentSource(request.source);
     const expiresAt = Date.now() + ATTACHMENT_DERIVATIVE_TTL_MS;

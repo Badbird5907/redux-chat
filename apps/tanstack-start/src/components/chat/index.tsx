@@ -1,6 +1,5 @@
 "use client";
 
-import { isTextUIPart } from "ai";
 import type { UIMessage } from "ai";
 import type { ReactNode } from "react";
 import {
@@ -14,10 +13,11 @@ import {
 import { useChat } from "@ai-sdk/react";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, isTextUIPart } from "ai";
 import {
   ArrowRightLeft,
   CheckIcon,
+  CircleAlert,
   ClockIcon,
   CopyIcon,
   FileText,
@@ -29,7 +29,13 @@ import {
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import {
+  classifyChatAttachment,
+  resolveModelAttachmentDelivery,
+  resolveModelRoute,
+} from "@redux/shared/models";
 import { getChatModelConfig } from "@redux/types";
+import { Card, CardContent } from "@redux/ui/components/card";
 import Spinner from "@redux/ui/components/spinner";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -68,7 +74,9 @@ interface ResolvedAttachment {
   attachmentId: string;
   fileName: string;
   convertingToPdf?: boolean;
+  generatingDerivative?: boolean;
   originalFileName?: string;
+  usedDerivative?: boolean;
   mimeType: string;
   size: number;
   expiresAt?: number;
@@ -79,14 +87,23 @@ interface ResolvedAttachment {
 interface MessageAttachmentSummary {
   attachmentId: string;
   convertingToPdf?: boolean;
+  generatingDerivative?: boolean;
   fileName: string;
   originalFileName?: string;
+  usedDerivative?: boolean;
   mimeType: string;
   size: number;
   expiresAt?: number;
   expired?: boolean;
   url?: string;
 }
+
+type ChatMessageWithThreadMetadata = UIMessage & {
+  error?: string;
+  model?: string;
+  parentId?: string;
+  status?: "generating" | "completed" | "failed";
+};
 
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
@@ -97,6 +114,56 @@ function attachmentDisplayName(a: {
   originalFileName?: string;
 }) {
   return a.originalFileName ?? a.fileName;
+}
+
+function didUseDerivative(attachment: {
+  originalFileName?: string;
+  usedDerivative?: boolean;
+}) {
+  return attachment.usedDerivative ?? attachment.originalFileName !== undefined;
+}
+
+function isGeneratingDerivative(attachment: {
+  convertingToPdf?: boolean;
+  generatingDerivative?: boolean;
+  originalFileName?: string;
+  usedDerivative?: boolean;
+}) {
+  return (
+    (attachment.generatingDerivative ?? attachment.convertingToPdf) === true &&
+    !didUseDerivative(attachment)
+  );
+}
+
+function modelUsesDerivativeForAttachment(
+  modelId: string | undefined,
+  attachment: Pick<MessageAttachmentSummary, "fileName" | "mimeType">,
+) {
+  if (!modelId) {
+    return false;
+  }
+
+  const route = resolveModelRoute(modelId);
+  if (!route) {
+    return false;
+  }
+
+  const deliveryMode = resolveModelAttachmentDelivery(route.id, {
+    name: attachment.fileName,
+    type: attachment.mimeType,
+  });
+  if (!deliveryMode) {
+    return false;
+  }
+
+  if (deliveryMode !== "native") {
+    return true;
+  }
+
+  return (
+    classifyChatAttachment(attachment) === "pdf" &&
+    !route.modalities.input.includes("pdf")
+  );
 }
 
 function MessageStatsBar({
@@ -337,7 +404,7 @@ export function Chat({
           console.log("prepareReconnectToStreamRequest", currentThreadId);
           return {
             api: `/api/chat/${currentThreadId}/stream`,
-          }
+          };
         },
       }),
     [currentThreadId],
@@ -347,7 +414,7 @@ export function Chat({
     id: chatInstanceId,
     messages: initialMessages,
     transport,
-    
+
     onError: (error) => {
       locallyStartedStreamRef.current = false;
       console.error("Chat error:", error);
@@ -512,12 +579,12 @@ export function Chat({
 
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{
-    convertingToPdf?: boolean;
-    convertedToPdf?: boolean;
+    generatingDerivative?: boolean;
     id: string;
     name: string;
     type: string;
     url?: string;
+    usedDerivative?: boolean;
   } | null>(null);
   const [resolvedMessageAttachments, setResolvedMessageAttachments] = useState<
     Record<string, ResolvedAttachment>
@@ -552,6 +619,23 @@ export function Chat({
         return;
       }
       map.set(message.messageId, message.attachments);
+    });
+    return map;
+  }, [convexMessages]);
+
+  const assistantModelByParentMessageId = useMemo(() => {
+    const map = new Map<string, string>();
+    convexMessages?.forEach((message) => {
+      const messageWithMetadata = message as ChatMessageWithThreadMetadata;
+      if (
+        messageWithMetadata.role !== "assistant" ||
+        typeof messageWithMetadata.parentId !== "string" ||
+        typeof messageWithMetadata.model !== "string"
+      ) {
+        return;
+      }
+
+      map.set(messageWithMetadata.parentId, messageWithMetadata.model);
     });
     return map;
   }, [convexMessages]);
@@ -593,6 +677,8 @@ export function Chat({
                 attachmentId: attachment.attachmentId,
                 fileName: attachment.fileName,
                 originalFileName: attachment.originalFileName,
+                usedDerivative:
+                  attachment.originalFileName !== undefined ? true : undefined,
                 mimeType: attachment.mimeType,
                 size: attachment.size,
                 expiresAt: attachment.expiresAt,
@@ -629,7 +715,7 @@ export function Chat({
         >
           <div className="mx-auto w-full max-w-3xl">
             {!currentThreadId && finalMessages.length === 0 ? (
-              emptyContent ?? (
+              (emptyContent ?? (
                 <EmptyChat
                   threadId={currentThreadId}
                   chatProjectId={effectiveChatProjectId}
@@ -640,195 +726,247 @@ export function Chat({
                   setOptimisticMessage={(m) => setOptimisticMessage(m)}
                   settings={settings}
                 />
-              )
+              ))
             ) : (
               <div className="flex flex-col gap-8">
-                {finalMessages.map((message: UIMessage, i) => {
-                  const textContent = message.parts.reduce<string>(
-                    (content, part: UIMessage["parts"][number]) => {
-                    if (!isTextUIPart(part)) {
-                      return content;
-                    }
+                {finalMessages.map(
+                  (message: ChatMessageWithThreadMetadata, i) => {
+                    const textContent = message.parts.reduce<string>(
+                      (content, part: UIMessage["parts"][number]) => {
+                        if (!isTextUIPart(part)) {
+                          return content;
+                        }
 
-                    return content + part.text;
-                    },
-                    "",
-                  );
-                  // Check if this is the last assistant message and we're streaming
-                  const isLastMessage = i === messages.length - 1;
-                  const isStreamingAssistant =
-                    status === "streaming" &&
-                    message.role === "assistant" &&
-                    isLastMessage;
-                  const messageStats = messageStatsMap.get(message.id);
-                  const isHovered = hoveredMessageId === message.id;
-                  const persistedAttachments: MessageAttachmentSummary[] =
-                    messageAttachmentsByMessageId
-                      .get(message.id)
-                      ?.map((attachment) => ({
-                        ...attachment,
-                        fileName:
-                          resolvedMessageAttachments[attachment.attachmentId]
-                            ?.fileName ?? attachment.fileName,
-                        originalFileName:
-                          resolvedMessageAttachments[attachment.attachmentId]
-                            ?.originalFileName ?? attachment.originalFileName,
-                        mimeType:
-                          resolvedMessageAttachments[attachment.attachmentId]
-                            ?.mimeType ?? attachment.mimeType,
-                        size:
-                          resolvedMessageAttachments[attachment.attachmentId]
-                            ?.size ?? attachment.size,
-                        expired:
-                          resolvedMessageAttachments[attachment.attachmentId]
-                            ?.expired ??
-                          isAttachmentExpired(attachment.expiresAt),
-                        expiresAt:
-                          resolvedMessageAttachments[attachment.attachmentId]
-                            ?.expiresAt ?? attachment.expiresAt,
-                        url:
-                          resolvedMessageAttachments[attachment.attachmentId]
-                            ?.url ?? attachment.url,
-                      })) ?? [];
-                  const messageMetadata = (
-                    "metadata" in message ? message.metadata : undefined
-                  ) as { attachments?: MessageAttachmentSummary[] } | undefined;
-                  const optimisticAttachments =
-                    persistedAttachments.length === 0 &&
-                    messageMetadata &&
-                    typeof messageMetadata === "object" &&
-                    Array.isArray(messageMetadata.attachments)
-                      ? messageMetadata.attachments
-                      : [];
-                  const attachmentsToRender =
-                    persistedAttachments.length > 0
-                      ? persistedAttachments
-                      : optimisticAttachments;
+                        return content + part.text;
+                      },
+                      "",
+                    );
+                    // Check if this is the last assistant message and we're streaming
+                    const isLastMessage = i === messages.length - 1;
+                    const isStreamingAssistant =
+                      status === "streaming" &&
+                      message.role === "assistant" &&
+                      isLastMessage;
+                    const messageStats = messageStatsMap.get(message.id);
+                    const isHovered = hoveredMessageId === message.id;
+                    const isFailedMessage = message.status === "failed";
+                    const responseModel = assistantModelByParentMessageId.get(
+                      message.id,
+                    );
+                    const persistedAttachments: MessageAttachmentSummary[] =
+                      messageAttachmentsByMessageId
+                        .get(message.id)
+                        ?.map((attachment) => ({
+                          ...attachment,
+                          fileName:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.fileName ?? attachment.fileName,
+                          generatingDerivative:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.generatingDerivative ??
+                            attachment.generatingDerivative,
+                          originalFileName:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.originalFileName ?? attachment.originalFileName,
+                          usedDerivative:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.usedDerivative ??
+                            attachment.usedDerivative ??
+                            modelUsesDerivativeForAttachment(
+                              responseModel,
+                              attachment,
+                            ),
+                          mimeType:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.mimeType ?? attachment.mimeType,
+                          size:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.size ?? attachment.size,
+                          expired:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.expired ??
+                            isAttachmentExpired(attachment.expiresAt),
+                          expiresAt:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.expiresAt ?? attachment.expiresAt,
+                          url:
+                            resolvedMessageAttachments[attachment.attachmentId]
+                              ?.url ?? attachment.url,
+                        })) ?? [];
+                    const messageMetadata = (
+                      "metadata" in message ? message.metadata : undefined
+                    ) as
+                      | { attachments?: MessageAttachmentSummary[] }
+                      | undefined;
+                    const optimisticAttachments =
+                      persistedAttachments.length === 0 &&
+                      messageMetadata &&
+                      typeof messageMetadata === "object" &&
+                      Array.isArray(messageMetadata.attachments)
+                        ? messageMetadata.attachments
+                        : [];
+                    const attachmentsToRender =
+                      persistedAttachments.length > 0
+                        ? persistedAttachments
+                        : optimisticAttachments;
 
-                  return (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex w-full",
-                        message.role === "user"
-                          ? "justify-end"
-                          : "justify-start",
-                      )}
-                      onMouseEnter={() =>
-                        message.role === "assistant" &&
-                        setHoveredMessageId(message.id)
-                      }
-                      onMouseLeave={() => setHoveredMessageId(null)}
-                    >
+                    return (
                       <div
+                        key={message.id}
                         className={cn(
-                          "rounded-lg px-4 py-2",
+                          "flex w-full",
                           message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "w-full",
+                            ? "justify-end"
+                            : "justify-start",
                         )}
+                        onMouseEnter={() =>
+                          message.role === "assistant" &&
+                          setHoveredMessageId(message.id)
+                        }
+                        onMouseLeave={() => setHoveredMessageId(null)}
                       >
-                        {!message.parts.length && (
-                          <Spinner className="size-4" />
-                        )}
-                        {message.role === "assistant" ? (
-                          <AssistantMessageParts
-                            isLastMessage={isLastMessage}
-                            isStreaming={isStreamingAssistant}
-                            message={message}
-                          />
-                        ) : (
-                          <StaticMarkdown content={textContent} />
-                        )}
-                        {attachmentsToRender.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {attachmentsToRender.map((attachment) => {
-                              const isImage =
-                                attachment.mimeType.startsWith("image/");
-                              const isExpired =
-                                attachment.expired ??
-                                isAttachmentExpired(attachment.expiresAt);
-                              const convertedToPdf =
-                                attachment.originalFileName !== undefined;
-                              const convertingToPdf =
-                                attachment.convertingToPdf === true &&
-                                !convertedToPdf;
-                              return (
-                                <button
-                                  key={attachment.attachmentId}
-                                  type="button"
-                                  onClick={() =>
-                                    (convertingToPdf ||
-                                      (attachment.url && !isExpired)) &&
-                                    setPreviewFile({
-                                      id: attachment.attachmentId,
-                                      name: attachmentDisplayName(attachment),
-                                      type: attachment.mimeType,
-                                      url: attachment.url,
-                                      convertingToPdf,
-                                      convertedToPdf,
-                                    })
-                                  }
-                                  className={cn(
-                                    "border-border bg-background/70 relative flex items-center gap-2 rounded-xl border px-3 py-2 text-left",
-                                    (convertingToPdf ||
-                                      (attachment.url && !isExpired)) &&
-                                      "hover:border-primary transition-colors",
-                                    isExpired &&
-                                      "text-muted-foreground opacity-70",
+                        <div
+                          className={cn(
+                            "rounded-lg px-4 py-2",
+                            message.role === "user"
+                              ? "bg-primary text-primary-foreground"
+                              : "w-full",
+                          )}
+                        >
+                          {!message.parts.length && !isFailedMessage && (
+                            <Spinner className="size-4" />
+                          )}
+                          {isFailedMessage ? (
+                            <Card
+                              size="sm"
+                              className="border-destructive/40 bg-destructive/10 text-destructive ring-destructive/20 w-full gap-2 py-3 shadow-none"
+                            >
+                              <CardContent className="flex items-start gap-3 px-3">
+                                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                                <div className="min-w-0 space-y-1">
+                                  <p className="font-medium">
+                                    Message generation failed
+                                  </p>
+                                  {message.error && (
+                                    <p className="text-destructive/80 wrap-break-word">
+                                      {message.error}
+                                    </p>
                                   )}
-                                >
-                                  {(convertedToPdf || convertingToPdf) && (
-                                    <span
-                                      aria-hidden
-                                      className="text-muted-foreground pointer-events-none absolute bottom-2 left-2 rounded bg-background/90 p-px shadow-sm"
-                                      style={{ transform: "translateX(-6px) translateY(5px)" }}
-                                      title="Converted to PDF"
-                                    >
-                                      {convertedToPdf && <ArrowRightLeft className="h-3 w-3" />}
-                                      {convertingToPdf && <Loader2 className="h-3 w-3 animate-spin" />}
-                                    </span>
-                                  )}
-                                  {isImage && attachment.url && !isExpired ? (
-                                    <img
-                                      src={attachment.url}
-                                      alt={attachmentDisplayName(attachment)}
-                                      className="h-10 w-10 rounded object-cover"
-                                    />
-                                  ) : (
-                                    <FileText className="h-4 w-4 shrink-0" />
-                                  )}
-                                  <div className="min-w-0">
-                                    <span className="block max-w-48 truncate text-sm">
-                                      {attachmentDisplayName(attachment)}
-                                    </span>
-                                    {isExpired && (
-                                      <span className="text-muted-foreground block text-xs">
-                                        Expired
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ) : message.role === "assistant" ? (
+                            <AssistantMessageParts
+                              isLastMessage={isLastMessage}
+                              isStreaming={isStreamingAssistant}
+                              message={message}
+                            />
+                          ) : (
+                            <StaticMarkdown content={textContent} />
+                          )}
+                          {attachmentsToRender.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {attachmentsToRender.map((attachment) => {
+                                const isImage =
+                                  attachment.mimeType.startsWith("image/");
+                                const isExpired =
+                                  attachment.expired ??
+                                  isAttachmentExpired(attachment.expiresAt);
+                                const usedDerivative =
+                                  didUseDerivative(attachment);
+                                const generatingDerivative =
+                                  isGeneratingDerivative(attachment);
+                                return (
+                                  <button
+                                    key={attachment.attachmentId}
+                                    type="button"
+                                    onClick={() =>
+                                      (generatingDerivative ||
+                                        (attachment.url && !isExpired)) &&
+                                      setPreviewFile({
+                                        id: attachment.attachmentId,
+                                        name: attachmentDisplayName(attachment),
+                                        type: attachment.mimeType,
+                                        url: attachment.url,
+                                        generatingDerivative,
+                                        usedDerivative,
+                                      })
+                                    }
+                                    className={cn(
+                                      "border-border bg-background/70 relative flex items-center gap-2 rounded-xl border px-3 py-2 text-left",
+                                      (generatingDerivative ||
+                                        (attachment.url && !isExpired)) &&
+                                        "hover:border-primary transition-colors",
+                                      isExpired &&
+                                        "text-muted-foreground opacity-70",
+                                    )}
+                                  >
+                                    {(usedDerivative ||
+                                      generatingDerivative) && (
+                                      <span
+                                        aria-hidden
+                                        className="text-muted-foreground bg-background/90 pointer-events-none absolute bottom-2 left-2 rounded p-px shadow-sm"
+                                        style={{
+                                          transform:
+                                            "translateX(-6px) translateY(5px)",
+                                        }}
+                                        title={
+                                          generatingDerivative
+                                            ? "Preparing derivative"
+                                            : "Used derivative"
+                                        }
+                                      >
+                                        {usedDerivative && (
+                                          <ArrowRightLeft className="h-3 w-3" />
+                                        )}
+                                        {generatingDerivative && (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        )}
                                       </span>
                                     )}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {/* <span className="text-xs text-muted-foreground">
+                                    {isImage && attachment.url && !isExpired ? (
+                                      <img
+                                        src={attachment.url}
+                                        alt={attachmentDisplayName(attachment)}
+                                        className="h-10 w-10 rounded object-cover"
+                                      />
+                                    ) : (
+                                      <FileText className="h-4 w-4 shrink-0" />
+                                    )}
+                                    <div className="min-w-0">
+                                      <span className="block max-w-48 truncate text-sm">
+                                        {attachmentDisplayName(attachment)}
+                                      </span>
+                                      {isExpired && (
+                                        <span className="text-muted-foreground block text-xs">
+                                          Expired
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {/* <span className="text-xs text-muted-foreground">
                           {message.id}
                         </span> */}
-                        {/* Show stats bar for assistant messages on hover - always render to prevent layout shift */}
-                        {message.role === "assistant" && (
-                          <MessageStatsBar
-                            stats={messageStats}
-                            isVisible={isHovered}
-                            content={textContent}
-                            isStreaming={isStreamingAssistant && isLastMessage}
-                          />
-                        )}
+                          {/* Show stats bar for assistant messages on hover - always render to prevent layout shift */}
+                          {message.role === "assistant" && (
+                            <MessageStatsBar
+                              stats={messageStats}
+                              isVisible={isHovered}
+                              content={textContent}
+                              isStreaming={
+                                isStreamingAssistant && isLastMessage
+                              }
+                            />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  },
+                )}
               </div>
             )}
           </div>

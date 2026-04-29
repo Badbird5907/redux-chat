@@ -7,6 +7,7 @@ import { estimateTokenCount, splitByTokens } from "tokenx";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   CHAT_MODELS,
+  classifyChatAttachment,
   getChatModelConfig,
   isFileAllowedForModel,
   resolveModelAttachmentDelivery,
@@ -145,6 +146,35 @@ export function ChatInput({
     currentModelConfig.accept.length > 0 &&
     settingsReady &&
     draftReady;
+
+  const attachmentUsesDerivative = useCallback(
+    (attachment: { fileName: string; mimeType: string }) => {
+      if (!currentModelRoute) {
+        return false;
+      }
+
+      const deliveryMode = resolveModelAttachmentDelivery(
+        currentModelRoute.id,
+        {
+          name: attachment.fileName,
+          type: attachment.mimeType,
+        },
+      );
+      if (!deliveryMode) {
+        return false;
+      }
+
+      if (deliveryMode !== "native") {
+        return true;
+      }
+
+      return (
+        classifyChatAttachment(attachment) === "pdf" &&
+        !currentModelRoute.modalities.input.includes("pdf")
+      );
+    },
+    [currentModelRoute],
+  );
 
   const openFilePicker = useCallback(() => {
     if (!canUploadFiles) {
@@ -340,19 +370,13 @@ export function ChatInput({
       setIsExpanded(false);
     }
 
-    const attachmentsNeedingConversion = currentModelRoute
-      ? currentAttachments.filter(
-          (attachment) =>
-            resolveModelAttachmentDelivery(currentModelRoute.id, {
-              name: attachment.fileName,
-              type: attachment.mimeType,
-            }) === "convert_to_pdf",
-        )
-      : [];
+    const attachmentsUsingDerivative = currentAttachments.filter(
+      attachmentUsesDerivative,
+    );
 
-    if (attachmentsNeedingConversion.length > 0) {
+    if (attachmentsUsingDerivative.length > 0) {
       toast(
-        "Converting attached files to PDF for model compatibility. Please wait.",
+        "Preparing attached files for model compatibility. Please wait.",
       );
     }
 
@@ -369,7 +393,7 @@ export function ChatInput({
         ),
         attachmentMetadata: currentAttachments.map((attachment) => ({
           attachmentId: attachment.attachmentId,
-          convertingToPdf: attachmentsNeedingConversion.some(
+          generatingDerivative: attachmentsUsingDerivative.some(
             (candidate) => candidate.attachmentId === attachment.attachmentId,
           ),
           fileName: attachment.fileName,
@@ -391,27 +415,7 @@ export function ChatInput({
       );
       console.error("Failed to send message:", error);
     }
-  }, [
-    attachments,
-    chatProjectId,
-    clearDraft,
-    clientId,
-    convexMessages,
-    createMessage,
-    draftReady,
-    input,
-    isExpanded,
-    allocateSignedIds,
-    sendMessage,
-    setAttachments,
-    setOptimisticMessage,
-    setThreadId,
-    settings,
-    settingsReady,
-    status,
-    threadId,
-    currentModelRoute,
-  ]);
+  }, [attachments, attachmentUsesDerivative, chatProjectId, clearDraft, clientId, convexMessages, createMessage, draftReady, input, isExpanded, allocateSignedIds, sendMessage, setAttachments, setOptimisticMessage, setThreadId, settings, settingsReady, status, threadId]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

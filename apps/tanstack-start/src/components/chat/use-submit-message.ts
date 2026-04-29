@@ -14,6 +14,7 @@ interface SubmitMessageParams {
   attachmentMetadata?: {
     attachmentId: string;
     convertingToPdf?: boolean;
+    generatingDerivative?: boolean;
     fileName: string;
     mimeType: string;
     size: number;

@@ -1,3 +1,4 @@
+import type { RetrievedChunk } from "@/server/rag/vector-store";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
@@ -12,10 +13,7 @@ import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
-import {
-  isToolEnabled,
-  normalizeMessageSettings,
-} from "@redux/types";
+import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
 
 import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
@@ -23,13 +21,12 @@ import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-fo
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
-import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
-import { retrieveProjectContext } from "@/server/rag/retrieve";
-import type { RetrievedChunk } from "@/server/rag/vector-store";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
 import { resolveAiSdkModel } from "@/server/ai/model-runtime";
+import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
+import { retrieveProjectContext } from "@/server/rag/retrieve";
 
 const requestBody = z.object({
   fileIds: z.array(z.string()),
@@ -257,6 +254,22 @@ function getToolAttachments(
   }));
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown chat stream error";
+  }
+}
+
 export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
@@ -281,297 +294,331 @@ export const Route = createFileRoute("/api/chat/")({
           isSearchEnabled,
         });
 
-        const attachmentsByMessageId =
-          await getAttachmentsByMessageId(threadId);
-        const lastUserMessageId = getLastUserMessageId(messages);
-
-        // If this thread belongs to a Project, fetch its shared instructions
-        // and prepend them as a system message to the model. Also retrieve
-        // RAG context from the project's indexed file library.
-        let projectInstructions: string | undefined;
-        let projectContextBlock: string | undefined;
-        let projectToolInstruction: string | undefined;
-        let chatProjectId: string | undefined;
-        let threadUserId: string | undefined;
-        try {
-          const thread = await fetchAuthQuery(
-            api.functions.threads.getThread,
-            { threadId },
-          );
-          if (thread?.chatProjectId) {
-            threadUserId = thread.userId;
-            chatProjectId = thread.chatProjectId;
-            const project = await fetchAuthQuery(
-              api.functions.projects.getProject,
-              { projectId: thread.chatProjectId },
-            );
-            const instructions = project?.instructions?.trim();
-            if (instructions) {
-              projectInstructions = instructions;
-            }
-          }
-        } catch (error) {
-          console.error("Failed to load project instructions", error);
-        }
-
-        if (chatProjectId) {
-          projectToolInstruction = [
-            "This chat belongs to a project with an indexed knowledge base.",
-            "When the user asks about project files, PDFs, images, screenshots, uploaded documents, or anything that likely refers to project material, proactively call `search_project_knowledge` before answering.",
-            "If the user's request is ambiguous, underspecified, or you do not know what they are referring to, use `search_project_knowledge` first to ground the conversation in the project knowledge base.",
-            "Do not ask the user to paste, quote, clarify, or re-upload project material until you have first used `search_project_knowledge` and checked its results.",
-            "If the tool returns relevant excerpts or raw files, use them to answer directly.",
-          ].join("\n");
-        }
-
-        // #region project rag stuff
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (chatProjectId && ENABLE_PROJECT_RAG_PREFETCH) {
-          const queryText = extractTextFromMessage(getLastUserMessage(messages));
-          if (queryText) {
-            try {
-              const { chunks } = await retrieveProjectContext({
-                chatProjectId,
-                query: queryText,
-                k: 6,
-              });
-              if (chunks.length > 0) {
-                projectContextBlock = formatChunksAsContext(chunks);
-
-                if (lastUserMessageId) {
-                  const projectMediaAttachmentIds = selectProjectMediaAttachmentIds(
-                    chunks,
-                    settings.model,
-                    { requireMissingText: true },
-                  );
-
-                  if (projectMediaAttachmentIds.length > 0) {
-                    attachmentsByMessageId.set(
-                      lastUserMessageId,
-                      mergeAttachments(
-                        attachmentsByMessageId.get(lastUserMessageId),
-                        await resolveModelAttachments(projectMediaAttachmentIds),
-                      ),
-                    );
-                  }
-                }
-              }
-            } catch (error) {
-              console.error("RAG retrieval failed", error);
-            }
-          }
-        }
-        // #endregion project rag stuff
-
-        if (lastUserMessageId && fileIds.length > 0) {
-          attachmentsByMessageId.set(
-            lastUserMessageId,
-            mergeAttachments(
-              attachmentsByMessageId.get(lastUserMessageId),
-              await resolveModelAttachments(fileIds),
-            ),
-          );
-        }
-
-        const toolRuntime = createToolRuntime(settings, {
-          attachments: getToolAttachments(attachmentsByMessageId),
-          projectContext:
-            chatProjectId && threadUserId
-              ? {
-                  chatProjectId,
-                  userId: threadUserId,
-                }
-              : undefined,
-        });
-        let didCleanupTools = false;
-        const cleanupTools = async () => {
-          if (didCleanupTools) {
-            return;
+        let cleanupTools: (() => Promise<void>) | undefined;
+        const reportStreamFailure = async (error: unknown) => {
+          const errorMessage = getErrorMessage(error).slice(0, 1000);
+          try {
+            await fetchAuthMutation(api.functions.threads.internal_failStream, {
+              secret: env.INTERNAL_CONVEX_SECRET,
+              threadId,
+              assistantMessageId,
+              error: errorMessage,
+            });
+          } catch (reportError) {
+            console.error("Failed to mark chat stream as failed", reportError);
           }
 
-          didCleanupTools = true;
-          await toolRuntime.cleanup();
+          return errorMessage;
         };
 
-        const resolvedModel = resolveAiSdkModel(settings.model);
-        const messagesWithAttachments = await materializeAttachmentsForRoute(
-          resolvedModel.route,
-          messages,
-          attachmentsByMessageId,
-        );
+        try {
+          const attachmentsByMessageId =
+            await getAttachmentsByMessageId(threadId);
+          const lastUserMessageId = getLastUserMessageId(messages);
 
-        // Convert to model messages format
-        const modelMessages = await convertToModelMessages(
-          messagesWithAttachments,
-        );
+          // If this thread belongs to a Project, fetch its shared instructions
+          // and prepend them as a system message to the model. Also retrieve
+          // RAG context from the project's indexed file library.
+          let projectInstructions: string | undefined;
+          let projectContextBlock: string | undefined;
+          let projectToolInstruction: string | undefined;
+          let chatProjectId: string | undefined;
+          let threadUserId: string | undefined;
+          try {
+            const thread = await fetchAuthQuery(
+              api.functions.threads.getThread,
+              { threadId },
+            );
+            if (thread?.chatProjectId) {
+              threadUserId = thread.userId;
+              chatProjectId = thread.chatProjectId;
+              const project = await fetchAuthQuery(
+                api.functions.projects.getProject,
+                { projectId: thread.chatProjectId },
+              );
+              const instructions = project?.instructions?.trim();
+              if (instructions) {
+                projectInstructions = instructions;
+              }
+            }
+          } catch (error) {
+            console.error("Failed to load project instructions", error);
+          }
 
-        // Prepend the project's shared instructions and any retrieved RAG
-        // context as leading system messages. We do this on the model-message
-        // array (after conversion) so they never get persisted on the thread.
-        // Order: [projectInstructions, projectToolInstruction, projectContext, ...userMessages]
-        if (projectContextBlock) {
-          modelMessages.unshift({
-            role: "system",
-            content: projectContextBlock,
-          });
-        }
-        if (projectToolInstruction) {
-          modelMessages.unshift({
-            role: "system",
-            content: projectToolInstruction,
-          });
-        }
-        if (projectInstructions) {
-          modelMessages.unshift({
-            role: "system",
-            content: projectInstructions,
-          });
-        }
+          if (chatProjectId) {
+            projectToolInstruction = [
+              "This chat belongs to a project with an indexed knowledge base.",
+              "When the user asks about project files, PDFs, images, screenshots, uploaded documents, or anything that likely refers to project material, proactively call `search_project_knowledge` before answering.",
+              "If the user's request is ambiguous, underspecified, or you do not know what they are referring to, use `search_project_knowledge` first to ground the conversation in the project knowledge base.",
+              "Do not ask the user to paste, quote, clarify, or re-upload project material until you have first used `search_project_knowledge` and checked its results.",
+              "If the tool returns relevant excerpts or raw files, use them to answer directly.",
+            ].join("\n");
+          }
 
-        console.log("modelMessages");
-        console.dir(modelMessages, { depth: Infinity });
-        console.log("------------");
+          // #region project rag stuff
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if (chatProjectId && ENABLE_PROJECT_RAG_PREFETCH) {
+            const queryText = extractTextFromMessage(
+              getLastUserMessage(messages),
+            );
+            if (queryText) {
+              try {
+                const { chunks } = await retrieveProjectContext({
+                  chatProjectId,
+                  query: queryText,
+                  k: 6,
+                });
+                if (chunks.length > 0) {
+                  projectContextBlock = formatChunksAsContext(chunks);
 
-        const abortController = new AbortController();
-        console.log("abortController", abortController);
+                  if (lastUserMessageId) {
+                    const projectMediaAttachmentIds =
+                      selectProjectMediaAttachmentIds(chunks, settings.model, {
+                        requireMissingText: true,
+                      });
 
-        // Track generation timing stats
-        const streamStartTime = Date.now();
-        let firstTokenTime: number | null = null;
-
-        const result = streamText({
-          model: resolvedModel.model,
-          messages: modelMessages,
-          abortSignal: abortController.signal,
-          tools: toolRuntime.tools,
-          experimental_transform: smoothStream({ // this makes client md rendering way smoother and performant
-            delayInMs: 20,
-            chunking: "word",
-          }),
-          stopWhen: stepCountIs(15),
-          onFinish: async ({ usage }) => {
-            try {
-              const usageData =
-                usage.inputTokens !== undefined &&
-                usage.outputTokens !== undefined &&
-                usage.totalTokens !== undefined
-                  ? {
-                      promptTokens: usage.inputTokens,
-                      responseTokens: usage.outputTokens,
-                      totalTokens: usage.totalTokens,
+                    if (projectMediaAttachmentIds.length > 0) {
+                      attachmentsByMessageId.set(
+                        lastUserMessageId,
+                        mergeAttachments(
+                          attachmentsByMessageId.get(lastUserMessageId),
+                          await resolveModelAttachments(
+                            projectMediaAttachmentIds,
+                          ),
+                        ),
+                      );
                     }
-                  : undefined;
+                  }
+                }
+              } catch (error) {
+                console.error("RAG retrieval failed", error);
+              }
+            }
+          }
+          // #endregion project rag stuff
 
-              // Calculate generation stats
-              const totalDurationMs = Date.now() - streamStartTime;
-              const timeToFirstTokenMs = firstTokenTime
-                ? firstTokenTime - streamStartTime
-                : totalDurationMs;
-              const outputTokens = usage.outputTokens ?? 0;
-              const tokensPerSecond =
-                totalDurationMs > 0
-                  ? (outputTokens / totalDurationMs) * 1000
-                  : 0;
+          if (lastUserMessageId && fileIds.length > 0) {
+            attachmentsByMessageId.set(
+              lastUserMessageId,
+              mergeAttachments(
+                attachmentsByMessageId.get(lastUserMessageId),
+                await resolveModelAttachments(fileIds),
+              ),
+            );
+          }
 
-              const generationStats = {
-                timeToFirstTokenMs,
-                totalDurationMs,
-                tokensPerSecond,
-              };
+          const toolRuntime = createToolRuntime(settings, {
+            attachments: getToolAttachments(attachmentsByMessageId),
+            projectContext:
+              chatProjectId && threadUserId
+                ? {
+                    chatProjectId,
+                    userId: threadUserId,
+                  }
+                : undefined,
+          });
+          let didCleanupTools = false;
+          cleanupTools = async () => {
+            if (didCleanupTools) {
+              return;
+            }
 
-              // Save the completed response to Convex
+            didCleanupTools = true;
+            await toolRuntime.cleanup();
+          };
+
+          const resolvedModel = resolveAiSdkModel(settings.model);
+          const messagesWithAttachments = await materializeAttachmentsForRoute(
+            resolvedModel.route,
+            messages,
+            attachmentsByMessageId,
+          );
+
+          // Convert to model messages format
+          const modelMessages = await convertToModelMessages(
+            messagesWithAttachments,
+          );
+
+          // Prepend the project's shared instructions and any retrieved RAG
+          // context as leading system messages. We do this on the model-message
+          // array (after conversion) so they never get persisted on the thread.
+          // Order: [projectInstructions, projectToolInstruction, projectContext, ...userMessages]
+          if (projectContextBlock) {
+            modelMessages.unshift({
+              role: "system",
+              content: projectContextBlock,
+            });
+          }
+          if (projectToolInstruction) {
+            modelMessages.unshift({
+              role: "system",
+              content: projectToolInstruction,
+            });
+          }
+          if (projectInstructions) {
+            modelMessages.unshift({
+              role: "system",
+              content: projectInstructions,
+            });
+          }
+
+          console.log("modelMessages");
+          console.dir(modelMessages, { depth: Infinity });
+          console.log("------------");
+
+          const abortController = new AbortController();
+          console.log("abortController", abortController);
+
+          // Track generation timing stats
+          const streamStartTime = Date.now();
+          let firstTokenTime: number | null = null;
+
+          const result = streamText({
+            model: resolvedModel.model,
+            messages: modelMessages,
+            abortSignal: abortController.signal,
+            tools: toolRuntime.tools,
+            experimental_transform: smoothStream({
+              // this makes client md rendering way smoother and performant
+              delayInMs: 20,
+              chunking: "word",
+            }),
+            stopWhen: stepCountIs(15),
+            onFinish: async ({ usage }) => {
+              try {
+                const usageData =
+                  usage.inputTokens !== undefined &&
+                  usage.outputTokens !== undefined &&
+                  usage.totalTokens !== undefined
+                    ? {
+                        promptTokens: usage.inputTokens,
+                        responseTokens: usage.outputTokens,
+                        totalTokens: usage.totalTokens,
+                      }
+                    : undefined;
+
+                // Calculate generation stats
+                const totalDurationMs = Date.now() - streamStartTime;
+                const timeToFirstTokenMs = firstTokenTime
+                  ? firstTokenTime - streamStartTime
+                  : totalDurationMs;
+                const outputTokens = usage.outputTokens ?? 0;
+                const tokensPerSecond =
+                  totalDurationMs > 0
+                    ? (outputTokens / totalDurationMs) * 1000
+                    : 0;
+
+                const generationStats = {
+                  timeToFirstTokenMs,
+                  totalDurationMs,
+                  tokensPerSecond,
+                };
+
+                // Save the completed response to Convex
+                await fetchAuthMutation(
+                  api.functions.threads.internal_updateMessageUsage,
+                  {
+                    secret: env.INTERNAL_CONVEX_SECRET,
+                    messageId: assistantMessageId,
+                    usage: usageData ?? {
+                      promptTokens: 0,
+                      responseTokens: 0,
+                      totalTokens: 0,
+                    },
+                    generationStats,
+                  },
+                );
+              } finally {
+                await cleanupTools?.();
+              }
+            },
+            onChunk: () => {
+              // Track time to first token
+              firstTokenTime ??= Date.now();
+              throttle(() => {
+                // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
+                void fetchAuthQuery(
+                  api.functions.threads.internal_checkMessageAbort,
+                  {
+                    secret: env.INTERNAL_CONVEX_SECRET,
+                    messageId: assistantMessageId,
+                    threadId: threadId,
+                  },
+                ).then((res) => {
+                  if (res) {
+                    abortController.abort();
+                    return;
+                  }
+                });
+              }, 1000);
+            },
+            onAbort: () => {
+              console.log("Stream aborted");
+              void cleanupTools?.();
+            },
+          });
+
+          console.log("stream started");
+          return result.toUIMessageStreamResponse({
+            originalMessages: messages,
+            sendReasoning: true,
+            sendSources: true,
+            generateMessageId: () => assistantMessageId,
+            onError: (error) => {
+              const errorMessage = getErrorMessage(error).slice(0, 1000);
+              void reportStreamFailure(error);
+              void cleanupTools?.();
+              return errorMessage;
+            },
+            messageMetadata: ({ part }) => {
+              if (part.type === "start") {
+                return { createdAt: Date.now() };
+              }
+            },
+            onFinish: async ({ messages: finishedMessages }) => {
+              const last = finishedMessages[finishedMessages.length - 1];
+              const parts = last?.parts ?? [];
               await fetchAuthMutation(
-                api.functions.threads.internal_updateMessageUsage,
+                api.functions.threads.internal_completeStream,
                 {
                   secret: env.INTERNAL_CONVEX_SECRET,
-                  messageId: assistantMessageId,
-                  usage: usageData ?? {
-                    promptTokens: 0,
-                    responseTokens: 0,
-                    totalTokens: 0,
-                  },
-                  generationStats,
+                  threadId: threadId,
+                  assistantMessageId: assistantMessageId,
+                  parts,
                 },
               );
-            } finally {
-              await cleanupTools();
-            }
-          },
-          onChunk: () => {
-            // Track time to first token
-            firstTokenTime ??= Date.now();
-            throttle(() => {
-              // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
-              void fetchAuthQuery(
-                api.functions.threads.internal_checkMessageAbort,
+            },
+            consumeSseStream: async ({ stream }) => {
+              const streamId = generateId();
+              const { publisher, subscriber } = createUpstashPubSub();
+              const streamContext = createResumableStreamContext({
+                waitUntil,
+                publisher,
+                subscriber,
+              });
+              await streamContext.createNewResumableStream(
+                streamId,
+                () => stream,
+              );
+
+              console.log("Setting activeStreamId with clientId:", clientId);
+              await fetchAuthMutation(
+                api.functions.threads.internal_setActiveStreamId,
                 {
                   secret: env.INTERNAL_CONVEX_SECRET,
-                  messageId: assistantMessageId,
                   threadId: threadId,
+                  streamId,
+                  clientId,
                 },
-              ).then((res) => {
-                if (res) {
-                  abortController.abort();
-                  return;
-                }
-              });
-            }, 1000);
-          },
-          onAbort: () => {
-            console.log("Stream aborted");
-            void cleanupTools();
-          },
-        });
-
-        console.log("stream started");
-        return result.toUIMessageStreamResponse({
-          originalMessages: messages,
-          sendReasoning: true,
-          sendSources: true,
-          generateMessageId: () => assistantMessageId,
-          messageMetadata: ({ part }) => {
-            if (part.type === "start") {
-              return { createdAt: Date.now() };
-            }
-          },
-          onFinish: async ({ messages: finishedMessages }) => {
-            const last = finishedMessages[finishedMessages.length - 1];
-            const parts = last?.parts ?? [];
-            await fetchAuthMutation(
-              api.functions.threads.internal_completeStream,
-              {
-                secret: env.INTERNAL_CONVEX_SECRET,
-                threadId: threadId,
-                assistantMessageId: assistantMessageId,
-                parts,
-              },
-            );
-          },
-          consumeSseStream: async ({ stream }) => {
-            const streamId = generateId();
-            const { publisher, subscriber } = createUpstashPubSub();
-            const streamContext = createResumableStreamContext({
-              waitUntil,
-              publisher,
-              subscriber,
-            });
-            await streamContext.createNewResumableStream(
-              streamId,
-              () => stream,
-            );
-
-            console.log("Setting activeStreamId with clientId:", clientId);
-            await fetchAuthMutation(
-              api.functions.threads.internal_setActiveStreamId,
-              {
-                secret: env.INTERNAL_CONVEX_SECRET,
-                threadId: threadId,
-                streamId,
-                clientId,
-              },
-            );
-          },
-        });
+              );
+            },
+          });
+        } catch (error) {
+          console.error("Chat route failed", error);
+          await cleanupTools?.();
+          await reportStreamFailure(error);
+          throw error;
+        }
       },
     },
   },

@@ -243,6 +243,47 @@ export const internal_completeStream = backendMutation({
   },
 });
 
+export const internal_failStream = backendMutation({
+  args: {
+    threadId: v.string(),
+    assistantMessageId: v.string(),
+    error: v.string(),
+  },
+  handler: async (ctx, args) => { // we errored
+    const assistantMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q
+          .eq("threadId", args.threadId)
+          .eq("messageId", args.assistantMessageId),
+      )
+      .first();
+
+    if (assistantMessage) {
+      await ctx.db.patch(assistantMessage._id, {
+        status: "failed",
+        error: args.error,
+      });
+    }
+
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+
+    if (thread) {
+      await ctx.db.patch(thread._id, {
+        status: "completed",
+        activeStreamId: undefined,
+        activeStreamClientId: undefined,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return { success: assistantMessage !== null };
+  },
+});
+
 export const internal_updateMessageUsage = backendMutation({
   args: {
     messageId: v.string(),

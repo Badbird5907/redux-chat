@@ -1,6 +1,6 @@
 import mammoth from "mammoth";
-import * as XLSX from "xlsx";
 import { extractText as extractPdfText } from "unpdf";
+import * as XLSX from "xlsx";
 
 import type { AttachmentDerivativeKind, AttachmentSourceRef } from "./types";
 
@@ -106,7 +106,10 @@ function summarizeDelimitedSpreadsheet(
 
 function summarizeWorkbook(source: AttachmentSourceRef, bytes: ArrayBuffer) {
   const workbook = XLSX.read(Buffer.from(bytes), { type: "buffer" });
-  const blocks: string[] = [`File: ${source.fileName}`, `Type: ${source.mimeType}`];
+  const blocks: string[] = [
+    `File: ${source.fileName}`,
+    `Type: ${source.mimeType}`,
+  ];
 
   const sheetNames = workbook.SheetNames.slice(0, MAX_SPREADSHEET_SHEETS);
   for (const sheetName of sheetNames) {
@@ -148,6 +151,22 @@ async function extractPdfToText(bytes: ArrayBuffer) {
   );
 }
 
+export async function extractPdfTextDerivative(input: {
+  source: AttachmentSourceRef;
+  bytes: ArrayBuffer;
+}) {
+  const text = await extractPdfToText(input.bytes);
+  const normalizedText = withTruncationNotice(input.source, "pdf_text", text);
+
+  return {
+    kind: "pdf_text" as const,
+    mimeType: "text/plain" as const,
+    fileName: `${input.source.fileName}.txt`,
+    textChunks: chunkNormalizedText(normalizedText),
+    charCount: normalizedText.length,
+  };
+}
+
 export async function extractTextDerivative(input: {
   source: AttachmentSourceRef;
   kind: Exclude<AttachmentDerivativeKind, "converted_pdf">;
@@ -177,8 +196,7 @@ export async function extractTextDerivative(input: {
     }
 
     case "pdf_text":
-      text = await extractPdfToText(bytes);
-      break;
+      return extractPdfTextDerivative({ source, bytes });
   }
 
   const normalizedText = withTruncationNotice(source, kind, text);

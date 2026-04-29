@@ -2,8 +2,9 @@ import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 
 import type { ModelRouteInfo } from "@redux/shared/models";
 
-import { ensureAttachmentDerivative } from "../attachments-core/ensure-derivative";
 import type { AttachmentSourceRef } from "../attachments-core/types";
+import { ensureAttachmentDerivative } from "../attachments-core/ensure-derivative";
+import { extractPdfTextDerivative } from "../attachments-core/extract-text";
 import { planChatAttachment } from "./plan";
 
 export interface ChatAttachmentRecord extends AttachmentSourceRef {
@@ -33,7 +34,35 @@ function formatInlineAttachmentText(input: {
   ].join("\n");
 }
 
-export async function materializeAttachmentsForRoute<TMessage extends ChatRequestMessageLike>(
+function routeSupportsPdfFiles(route: ModelRouteInfo) {
+  return route.modalities.input.includes("pdf");
+}
+
+async function downloadBytes(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download converted PDF: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return response.arrayBuffer();
+}
+
+function toInlineTextPart(input: {
+  fileName: string;
+  mimeType: string;
+  textChunks: string[];
+}): UIMessagePart<UIDataTypes, UITools> {
+  return {
+    type: "text",
+    text: formatInlineAttachmentText(input),
+  };
+}
+
+export async function materializeAttachmentsForRoute<
+  TMessage extends ChatRequestMessageLike,
+>(
   route: ModelRouteInfo,
   messages: TMessage[],
   attachmentsByMessageId: Map<string, ChatAttachmentRecord[]>,
@@ -41,6 +70,8 @@ export async function materializeAttachmentsForRoute<TMessage extends ChatReques
   if (attachmentsByMessageId.size === 0) {
     return messages;
   }
+
+  const supportsPdfFiles = routeSupportsPdfFiles(route);
 
   return Promise.all(
     messages.map(async (message) => {
@@ -57,13 +88,37 @@ export async function materializeAttachmentsForRoute<TMessage extends ChatReques
 
       for (const attachment of attachments) {
         const plan = planChatAttachment(route, attachment);
-        if (plan.deliveryMode === "native") { // model supports it
+        if (
+          plan.deliveryMode === "native" &&
+          !(plan.kind === "pdf" && !supportsPdfFiles)
+        ) {
           materializedParts.push({
             type: "file",
             mediaType: attachment.mimeType,
             url: attachment.url,
             filename: attachment.fileName,
           });
+          continue;
+        }
+
+        if (plan.kind === "pdf" && !supportsPdfFiles) {
+          const derivative = await ensureAttachmentDerivative({
+            source: attachment,
+            kind: "pdf_text",
+          });
+          if (derivative.kind === "converted_pdf") {
+            throw new Error(
+              `Expected extracted PDF text for ${attachment.fileName}, received a PDF derivative instead`,
+            );
+          }
+
+          materializedParts.push(
+            toInlineTextPart({
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              textChunks: derivative.textChunks,
+            }),
+          );
           continue;
         }
 
@@ -79,6 +134,26 @@ export async function materializeAttachmentsForRoute<TMessage extends ChatReques
         });
 
         if (derivative.kind === "converted_pdf") {
+          if (!supportsPdfFiles) {
+            const pdfText = await extractPdfTextDerivative({
+              source: {
+                ...attachment,
+                fileName: derivative.fileName,
+                mimeType: derivative.mimeType,
+              },
+              bytes: await downloadBytes(derivative.url),
+            });
+
+            materializedParts.push(
+              toInlineTextPart({
+                fileName: derivative.fileName,
+                mimeType: derivative.mimeType,
+                textChunks: pdfText.textChunks,
+              }),
+            );
+            continue;
+          }
+
           materializedParts.push({
             type: "file",
             mediaType: "application/pdf",
@@ -88,14 +163,13 @@ export async function materializeAttachmentsForRoute<TMessage extends ChatReques
           continue;
         }
 
-        materializedParts.push({
-          type: "text",
-          text: formatInlineAttachmentText({
+        materializedParts.push(
+          toInlineTextPart({
             fileName: attachment.fileName,
             mimeType: attachment.mimeType,
             textChunks: derivative.textChunks,
           }),
-        });
+        );
       }
 
       return {

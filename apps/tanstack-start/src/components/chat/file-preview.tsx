@@ -1,4 +1,4 @@
-import { X, FileText, ArrowRightLeft } from "lucide-react";
+import { X, FileText, ArrowRightLeft, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,12 +8,12 @@ import { Button } from "@redux/ui/components/button";
 
 interface FilePreviewDialogProps {
   file: {
-    // convertingToPdf?: boolean;
-    convertedToPdf?: boolean;
+    generatingDerivative?: boolean;
     id: string;
     name: string;
     type: string;
     url?: string;
+    usedDerivative?: boolean;
   } | null;
   onClose: () => void;
 }
@@ -42,16 +42,25 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
                 {file.name}
               </span>
             </div>
-            {file.convertedToPdf && (
+            {(file.usedDerivative === true ||
+              file.generatingDerivative === true) && (
               <div className="text-muted-foreground mt-2 max-w-none space-y-1.5 text-xs leading-relaxed">
                 <p className="flex items-start gap-2">
-                  <ArrowRightLeft
-                    className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0"
-                    aria-hidden
-                  />
+                  {file.generatingDerivative ? (
+                    <Loader2
+                      className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin"
+                      aria-hidden
+                    />
+                  ) : (
+                    <ArrowRightLeft
+                      className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0"
+                      aria-hidden
+                    />
+                  )}
                   <span>
-                    This file was automatically converted to PDF for model
-                    compatibility.
+                    {file.generatingDerivative
+                      ? "This file is being prepared for model compatibility."
+                      : "This file was automatically converted into a format that the model can use."}
                   </span>
                 </p>
                 <p>
