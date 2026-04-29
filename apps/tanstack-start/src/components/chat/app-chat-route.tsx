@@ -3,10 +3,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Chat } from ".";
 
-import {
-  consumeAdoptedThreadNavigation,
-  RESET_CHAT_EVENT,
-} from "@/components/chat/reset-chat";
+import { useChatRouteAdoption } from "@/components/chat/chat-route-adoption";
+import { RESET_CHAT_EVENT } from "@/components/chat/reset-chat";
 
 const ChatRouteClient = lazy(() => import("@/components/chat/route-client"));
 
@@ -19,6 +17,7 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
   const [chatResetKey, setChatResetKey] = useState(0);
   const [routeSessionKey, setRouteSessionKey] = useState(0);
   const previousThreadIdRef = useRef(initialThreadId);
+  const { consumeAdoptedThreadNavigation } = useChatRouteAdoption();
 
   useEffect(() => {
     const handleChatReset = () => {

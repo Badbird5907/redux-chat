@@ -428,6 +428,18 @@ export const Route = createFileRoute("/api/chat/")({
           };
 
           const resolvedModel = resolveAiSdkModel(settings.model);
+          const runtimeProviderKey =
+            resolvedModel.route.behavior.runtimeProviderKey ??
+            resolvedModel.route.provider;
+          const providerOptions =
+            runtimeProviderKey === "openai" &&
+            resolvedModel.route.supports.reasoning
+              ? {
+                  openai: {
+                    reasoningEffort: "minimal" as const,
+                  },
+                }
+              : undefined;
           const messagesWithAttachments = await materializeAttachmentsForRoute(
             resolvedModel.route,
             messages,
@@ -476,6 +488,7 @@ export const Route = createFileRoute("/api/chat/")({
           const result = streamText({
             model: resolvedModel.model,
             messages: modelMessages,
+            providerOptions,
             abortSignal: abortController.signal,
             tools: toolRuntime.tools,
             experimental_transform: smoothStream({

@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useMatch, useRouterState } from "@tansta
 import { ArrowLeft, FolderKanban } from "lucide-react";
 
 import { AppChatRoute } from "@/components/chat/app-chat-route";
+import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
 import {
   SidebarProvider,
@@ -101,23 +102,25 @@ function AppLayout() {
     chatMatchThreadId === chatThreadId ? chatMatch?.loaderData?.messages : undefined;
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
-      <AppSidebarPanel />
-      <main className="flex h-screen w-screen flex-col p-2">
-        <div className="bg-card/80 relative w-full flex-1 overflow-hidden rounded-4xl p-4">
-          <TopLeftActions />
-          <div className="h-full overflow-hidden">
-            {isChatSurfaceRoute ? (
-              <AppChatRoute
-                initialThreadId={chatThreadId}
-                preload={chatPreload}
-              />
-            ) : (
-              <Outlet />
-            )}
+    <ChatRouteAdoptionProvider>
+      <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+        <AppSidebarPanel />
+        <main className="flex h-screen w-screen flex-col p-2">
+          <div className="bg-card/80 relative w-full flex-1 overflow-hidden rounded-4xl p-4">
+            <TopLeftActions />
+            <div className="h-full overflow-hidden">
+              {isChatSurfaceRoute ? (
+                <AppChatRoute
+                  initialThreadId={chatThreadId}
+                  preload={chatPreload}
+                />
+              ) : (
+                <Outlet />
+              )}
+            </div>
           </div>
-        </div>
-      </main>
-    </SidebarProvider>
+        </main>
+      </SidebarProvider>
+    </ChatRouteAdoptionProvider>
   );
 }

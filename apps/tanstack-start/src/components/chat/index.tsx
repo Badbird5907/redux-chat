@@ -49,9 +49,9 @@ import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { StaticMarkdown } from "@/components/markdown/static-markdown";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
+import { useChatRouteAdoption } from "./chat-route-adoption";
 import { EmptyChat } from "./empty";
 import { ChatInput } from "./input";
-import { rememberAdoptedThreadNavigation } from "./reset-chat";
 import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
 
@@ -99,12 +99,76 @@ interface MessageAttachmentSummary {
   url?: string;
 }
 
+type PersistedChatMessage =
+  (typeof api.functions.threads.getThreadMessages)["_returnType"][number];
+
 type ChatMessageWithThreadMetadata = UIMessage & {
   error?: string;
   model?: string;
   parentId?: string;
   status?: "generating" | "completed" | "failed";
 };
+
+function toChatUIMessage(
+  message: PersistedChatMessage,
+): ChatMessageWithThreadMetadata {
+  const metadata =
+    "attachments" in message && Array.isArray(message.attachments)
+      ? {
+          attachments: message.attachments,
+        }
+      : undefined;
+
+  return {
+    id: message.id,
+    role: message.role,
+    parts: message.parts as UIMessage["parts"],
+    metadata,
+    error: "error" in message ? message.error : undefined,
+    model: "model" in message ? message.model : undefined,
+    parentId: "parentId" in message ? message.parentId : undefined,
+    status: "status" in message ? message.status : undefined,
+  };
+}
+
+function haveEquivalentMessageStructure(
+  left: UIMessage[],
+  right: UIMessage[],
+) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((message, index) => {
+    const other = right[index];
+
+    if (!other) {
+      return false;
+    }
+
+    if (message.id !== other.id || message.role !== other.role) {
+      return false;
+    }
+
+    if (message.parts.length !== other.parts.length) {
+      return false;
+    }
+
+    return message.parts.every((part, partIndex) => {
+      const otherPart = other.parts[partIndex];
+
+      if (!otherPart || part.type !== otherPart.type) {
+        return false;
+      }
+
+      if ("text" in part || "text" in otherPart) {
+        return "text" in part && "text" in otherPart && part.text === otherPart.text;
+      }
+
+      return true;
+    });
+  });
+}
 
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
@@ -345,6 +409,9 @@ export function Chat({
   const [optimisticMessage, setOptimisticMessage] = useState<
     UIMessage | undefined
   >(undefined);
+  const [pendingAssistantMessageId, setPendingAssistantMessageId] = useState<
+    string | undefined
+  >(undefined);
   const [initialThreadScrollReady, setInitialThreadScrollReady] = useState(
     () => !initialThreadId,
   );
@@ -372,6 +439,8 @@ export function Chat({
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
   const locallyCompletedStreamRef = useRef(false);
   const locallyStartedStreamRef = useRef(false);
+  const lastSyncedMessagesRef = useRef<UIMessage[]>([]);
+  const { markAdoptedThreadNavigation } = useChatRouteAdoption();
   const {
     settings,
     baselineSettings,
@@ -382,20 +451,22 @@ export function Chat({
   } = useChatSettings(currentThreadId);
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
 
-  const [initialMessages] = useState(() => preload ?? []);
+  const [initialMessages] = useState<ChatMessageWithThreadMetadata[]>(() =>
+    (preload ?? []).map(toChatUIMessage),
+  );
 
   const handleThreadIdChange = useCallback(
     (id: string) => {
       setCurrentThreadId(id);
       lastMessageCount.current = 0;
-      rememberAdoptedThreadNavigation(id);
+      markAdoptedThreadNavigation(id);
       void router.navigate({
         to: "/chat/$id",
         params: { id },
         replace: true,
       });
     },
-    [router],
+    [markAdoptedThreadNavigation, router],
   );
 
   const transport = useMemo(
@@ -412,7 +483,7 @@ export function Chat({
     [currentThreadId],
   );
 
-  const { messages, status, sendMessage, setMessages, resumeStream } = useChat({
+  const { messages, status, sendMessage, setMessages, resumeStream } = useChat<ChatMessageWithThreadMetadata>({
     id: chatInstanceId,
     messages: initialMessages,
     transport,
@@ -433,16 +504,53 @@ export function Chat({
     (
       message: {
         text: string;
-        id?: string;
+        messageId?: string;
         metadata?: Record<string, unknown>;
       },
       options?: { body?: object },
     ) => {
       locallyStartedStreamRef.current = true;
       locallyCompletedStreamRef.current = false;
+
+      const userMessageId = message.messageId;
+
+      if (userMessageId) {
+        setMessages((currentMessages) => {
+          if (
+            currentMessages.some(
+              (currentMessage) => currentMessage.id === userMessageId,
+            )
+          ) {
+            return currentMessages;
+          }
+
+          return [
+            ...currentMessages,
+            {
+              id: userMessageId,
+              role: "user",
+              parts: [{ type: "text", text: message.text }],
+              metadata: message.metadata,
+            },
+          ];
+        });
+      }
+
+      const assistantMessageId =
+        options?.body &&
+        typeof options.body === "object" &&
+        "assistantMessageId" in options.body &&
+        typeof options.body.assistantMessageId === "string"
+          ? options.body.assistantMessageId
+          : undefined;
+
+      if (assistantMessageId) {
+        setPendingAssistantMessageId(assistantMessageId);
+      }
+
       void sendMessage(message, options);
     },
-    [sendMessage],
+    [sendMessage, setMessages],
   );
 
   useEffect(() => {
@@ -463,9 +571,13 @@ export function Chat({
         return;
       }
 
+      locallyStartedStreamRef.current = false;
+      locallyCompletedStreamRef.current = false;
       setCurrentThreadId(initialThreadId);
       setOptimisticMessage(undefined);
+      setPendingAssistantMessageId(undefined);
       lastMessageCount.current = 0;
+      lastSyncedMessagesRef.current = [];
 
       if (status === "ready" && !initialThreadId) {
         setMessages([]);
@@ -489,8 +601,12 @@ export function Chat({
         return;
       }
 
+      locallyStartedStreamRef.current = false;
+      locallyCompletedStreamRef.current = false;
       setOptimisticMessage(undefined);
+      setPendingAssistantMessageId(undefined);
       lastMessageCount.current = 0;
+      lastSyncedMessagesRef.current = [];
       setMessages([]);
     });
 
@@ -538,8 +654,12 @@ export function Chat({
     void resumeStream();
   }, [activeStreamInfo, resumeStream, status, chatSessionId]);
 
-  const convexUIMessages = useMemo(() => {
-    return convexMessages?.filter((m) => m.status !== "generating") ?? [];
+  const convexUIMessages = useMemo<ChatMessageWithThreadMetadata[]>(() => {
+    return (
+      convexMessages
+        ?.filter((message) => message.status !== "generating")
+        .map(toChatUIMessage) ?? []
+    );
   }, [convexMessages]);
 
   // Update message count tracking during streaming
@@ -550,19 +670,62 @@ export function Chat({
   }, [status, messages.length]);
 
   useEffect(() => {
-    if (
-      status !== "streaming" &&
-      !activeStreamInfo?.streamId &&
-      convexUIMessages.length > 0
-    ) {
-      // Only sync if Convex has caught up (has at least as many messages as we had during streaming)
-      if (convexUIMessages.length >= lastMessageCount.current) {
-        console.log("Syncing messages (n,e)", convexUIMessages, messages);
-        setMessages(convexUIMessages);
-      }
+    if (!optimisticMessage) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- messages intentionally excluded to prevent infinite loop
-  }, [activeStreamInfo?.streamId, convexUIMessages, status, setMessages]);
+
+    if (messages.some((message) => message.id === optimisticMessage.id)) {
+      setOptimisticMessage(undefined);
+    }
+  }, [messages, optimisticMessage]);
+
+  useEffect(() => {
+    if (!pendingAssistantMessageId) {
+      return;
+    }
+
+    if (
+      messages.some(
+        (message) =>
+          message.role === "assistant" && message.id === pendingAssistantMessageId,
+      ) ||
+      status === "error"
+    ) {
+      setPendingAssistantMessageId(undefined);
+    }
+  }, [messages, pendingAssistantMessageId, status]);
+
+  useEffect(() => {
+    if (
+      status !== "ready" ||
+      activeStreamInfo?.streamId ||
+      convexUIMessages.length === 0 ||
+      locallyStartedStreamRef.current ||
+      locallyCompletedStreamRef.current
+    ) {
+      return;
+    }
+
+    // Only sync if Convex has caught up and would actually change the local message list.
+    if (convexUIMessages.length < lastMessageCount.current) {
+      return;
+    }
+
+    if (
+      haveEquivalentMessageStructure(convexUIMessages, lastSyncedMessagesRef.current)
+    ) {
+      return;
+    }
+
+    if (haveEquivalentMessageStructure(convexUIMessages, messages)) {
+      lastSyncedMessagesRef.current = convexUIMessages;
+      return;
+    }
+
+    console.log("Syncing messages (n,e)", convexUIMessages, messages);
+    lastSyncedMessagesRef.current = convexUIMessages;
+    setMessages(convexUIMessages);
+  }, [activeStreamInfo?.streamId, convexUIMessages, messages, status, setMessages]);
 
   // Create a map of message stats from convexMessages
   const messageStatsMap = useMemo(() => {
@@ -593,15 +756,31 @@ export function Chat({
   >({});
 
   const finalMessages = useMemo(() => {
-    if (optimisticMessage) {
-      const first = messages[0];
-      if (first?.role === "user" && first.id === optimisticMessage.id) {
-        return messages;
-      }
-      return [...messages, optimisticMessage];
+    const nextMessages: ChatMessageWithThreadMetadata[] = [...messages];
+
+    if (
+      optimisticMessage &&
+      !nextMessages.some((message) => message.id === optimisticMessage.id)
+    ) {
+      nextMessages.push(optimisticMessage);
     }
-    return messages;
-  }, [messages, optimisticMessage]);
+
+    if (
+      pendingAssistantMessageId &&
+      !nextMessages.some(
+        (message) =>
+          message.role === "assistant" && message.id === pendingAssistantMessageId,
+      )
+    ) {
+      nextMessages.push({
+        id: pendingAssistantMessageId,
+        role: "assistant",
+        parts: [],
+      });
+    }
+
+    return nextMessages;
+  }, [messages, optimisticMessage, pendingAssistantMessageId]);
 
   const shouldInitializeInitialThreadScroll =
     Boolean(initialThreadId) &&
@@ -744,9 +923,9 @@ export function Chat({
                       "",
                     );
                     // Check if this is the last assistant message and we're streaming
-                    const isLastMessage = i === messages.length - 1;
+                    const isLastMessage = i === finalMessages.length - 1;
                     const isStreamingAssistant =
-                      status === "streaming" &&
+                      (status === "streaming" || status === "submitted") &&
                       message.role === "assistant" &&
                       isLastMessage;
                     const messageStats = messageStatsMap.get(message.id);

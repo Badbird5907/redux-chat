@@ -38,7 +38,11 @@ interface SubmitMessageParams {
   }>;
   setOptimisticMessage: (message: UIMessage) => void;
   sendMessage: (
-    message: { text: string; id?: string; metadata?: Record<string, unknown> },
+    message: {
+      text: string;
+      messageId?: string;
+      metadata?: Record<string, unknown>;
+    },
     options?: { body?: object },
   ) => void;
   convexMessages: UIMessage[];
@@ -162,7 +166,7 @@ export async function submitMessage({
   // The assistant message ID is passed in the body for the streaming response
   void sendMessage(
     {
-      id: threadInfo.userMessageId,
+      messageId: threadInfo.userMessageId,
       text: messageContent,
       metadata: {
         assistantMessageId: threadInfo.assistantMessageId,
