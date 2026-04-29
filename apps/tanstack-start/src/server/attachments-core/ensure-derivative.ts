@@ -1,3 +1,7 @@
+import type {
+  AttachmentDerivativeRequest,
+  ReadyAttachmentDerivative,
+} from "./types";
 import {
   getReadyDerivativeRecord,
   hydrateReadyDerivative,
@@ -8,23 +12,30 @@ import { convertAttachmentToPdf } from "./convert-pdf";
 import { downloadAttachmentSource } from "./download";
 import { extractTextDerivative } from "./extract-text";
 import { ATTACHMENT_DERIVATIVE_TTL_MS } from "./policy";
-import type { AttachmentDerivativeRequest, ReadyAttachmentDerivative } from "./types";
 
 export async function ensureAttachmentDerivative(
   request: AttachmentDerivativeRequest,
 ): Promise<ReadyAttachmentDerivative> {
-  console.log(`Ensuring derivative for ${request.source.fileName} (${request.source.mimeType})`)
+  console.log(
+    `Ensuring derivative for ${request.source.fileName} (${request.source.mimeType})`,
+  );
   const cached = await getReadyDerivativeRecord(request);
   if (cached) {
-    console.log(`Cached derivative found for ${request.source.fileName} (${request.source.mimeType})`)
+    console.log(
+      `Cached derivative found for ${request.source.fileName} (${request.source.mimeType})`,
+    );
     try {
       return await hydrateReadyDerivative(request, cached);
     } catch {
       // stale/malformed cache entry, regenerate below
-      console.log(`Stale/malformed cache entry for ${request.source.fileName} (${request.source.mimeType})`)
+      console.log(
+        `Stale/malformed cache entry for ${request.source.fileName} (${request.source.mimeType})`,
+      );
     }
   } else {
-    console.log(`No cached derivative found for ${request.source.fileName} (${request.source.mimeType})`)
+    console.log(
+      `No cached derivative found for ${request.source.fileName} (${request.source.mimeType})`,
+    );
   }
   try {
     const downloaded = await downloadAttachmentSource(request.source);
@@ -37,18 +48,18 @@ export async function ensureAttachmentDerivative(
         expiresAt,
       });
 
-    await storeReadyPdfDerivative(request, {
-      accessKey: pdf.accessKey,
-      environmentId: request.source.environmentId,
-      expiresAt: pdf.expiresAt,
-      fileId: pdf.fileId,
-      fileKeyId: pdf.fileKeyId,
-      fileName: pdf.fileName,
-      isPublic: false,
-      kind: "converted_pdf",
-      mimeType: pdf.mimeType,
-      projectId: request.source.projectId,
-      serveImage: false,
+      await storeReadyPdfDerivative(request, {
+        accessKey: pdf.accessKey,
+        environmentId: request.source.environmentId,
+        expiresAt: pdf.expiresAt,
+        fileId: pdf.fileId,
+        fileKeyId: pdf.fileKeyId,
+        fileName: pdf.fileName,
+        isPublic: false,
+        kind: "converted_pdf",
+        mimeType: pdf.mimeType,
+        projectId: request.source.projectId,
+        serveImage: false,
       });
 
       return {

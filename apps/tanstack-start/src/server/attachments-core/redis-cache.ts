@@ -33,6 +33,7 @@ export interface CachedTextChunks {
 
 export interface CachedPdfDerivative extends CachedDerivativeBase {
   accessKey: string;
+  charCount?: number;
   environmentId: string;
   fileId?: string;
   fileKeyId: string;
@@ -63,7 +64,10 @@ export function buildDerivativeSourceSignature(
 }
 
 function getDerivativeSignatureHash(sourceSignature: string) {
-  return createHash("sha256").update(sourceSignature).digest("hex").slice(0, 20);
+  return createHash("sha256")
+    .update(sourceSignature)
+    .digest("hex")
+    .slice(0, 20);
 }
 
 function getDerivativeMetadataKey(request: AttachmentDerivativeRequest) {
@@ -84,9 +88,7 @@ function getDerivativeTtlSeconds() {
   return Math.ceil(ATTACHMENT_DERIVATIVE_TTL_MS / 1000);
 }
 
-function isCachedTextDerivative(
-  value: unknown,
-): value is CachedTextDerivative {
+function isCachedTextDerivative(value: unknown): value is CachedTextDerivative {
   return (
     !!value &&
     typeof value === "object" &&
@@ -132,7 +134,9 @@ function isCachedTextChunks(value: unknown): value is CachedTextChunks {
 export async function getCachedDerivative(
   request: AttachmentDerivativeRequest,
 ): Promise<CachedDerivative | null> {
-  const metadata = await getRedis().get<unknown>(getDerivativeMetadataKey(request));
+  const metadata = await getRedis().get<unknown>(
+    getDerivativeMetadataKey(request),
+  );
   if (request.kind === "converted_pdf") {
     return isCachedPdfDerivative(metadata) ? metadata : null;
   }
@@ -143,7 +147,9 @@ export async function getCachedDerivative(
 export async function getCachedTextChunks(
   request: AttachmentDerivativeRequest,
 ) {
-  const chunks = await getRedis().get<unknown>(getDerivativeTextKey(request));
+  const key = getDerivativeTextKey(request);
+  console.log(`Getting text chunks for ${key}`);
+  const chunks = await getRedis().get<unknown>(key);
   if (!isCachedTextChunks(chunks)) {
     return null;
   }
@@ -153,7 +159,10 @@ export async function getCachedTextChunks(
 
 export async function setCachedTextDerivative(
   request: AttachmentDerivativeRequest,
-  derivative: Omit<CachedTextDerivative, "attachmentId" | "derivativeVersion" | "sourceSignature">,
+  derivative: Omit<
+    CachedTextDerivative,
+    "attachmentId" | "derivativeVersion" | "sourceSignature"
+  >,
   chunks: string[],
 ) {
   const metadataKey = getDerivativeMetadataKey(request);
@@ -180,21 +189,40 @@ export async function setCachedTextDerivative(
 
 export async function setCachedPdfDerivative(
   request: AttachmentDerivativeRequest,
-  derivative: Omit<CachedPdfDerivative, "attachmentId" | "derivativeVersion" | "sourceSignature">,
+  derivative: Omit<
+    CachedPdfDerivative,
+    "attachmentId" | "derivativeVersion" | "sourceSignature"
+  >,
+  textChunks?: string[],
 ) {
   const metadataKey = getDerivativeMetadataKey(request);
+  const textKey = getDerivativeTextKey(request);
   const sourceSignature = buildDerivativeSourceSignature(request);
+  const ttlSeconds = getDerivativeTtlSeconds();
 
-  await getRedis().set(
-    metadataKey,
-    {
-      ...derivative,
-      attachmentId: request.source.attachmentId,
-      derivativeVersion: ATTACHMENT_DERIVATIVE_VERSION,
-      sourceSignature,
-    } satisfies CachedPdfDerivative,
-    { ex: getDerivativeTtlSeconds() },
-  );
+  await Promise.all([
+    getRedis().set(
+      metadataKey,
+      {
+        ...derivative,
+        attachmentId: request.source.attachmentId,
+        derivativeVersion: ATTACHMENT_DERIVATIVE_VERSION,
+        sourceSignature,
+      } satisfies CachedPdfDerivative,
+      { ex: ttlSeconds },
+    ),
+    ...(textChunks
+      ? [
+          getRedis().set(
+            textKey,
+            { chunks: textChunks } satisfies CachedTextChunks,
+            {
+              ex: ttlSeconds,
+            },
+          ),
+        ]
+      : []),
+  ]);
 }
 
 export function hydrateCachedTextDerivative(input: {
@@ -211,6 +239,7 @@ export function hydrateCachedTextDerivative(input: {
 export function hydrateCachedPdfDerivative(input: {
   derivative: CachedPdfDerivative;
   url: string;
+  textChunks?: string[];
 }): ReadyPdfDerivative {
   return {
     kind: "converted_pdf",
@@ -219,5 +248,7 @@ export function hydrateCachedPdfDerivative(input: {
     url: input.url,
     accessKey: input.derivative.accessKey,
     fileKeyId: input.derivative.fileKeyId,
+    textChunks: input.textChunks,
+    charCount: input.derivative.charCount,
   };
 }

@@ -1,7 +1,6 @@
+import type { AttachmentSourceRef } from "./types";
 import { env } from "@/env";
 import { buildAttachmentUrl, getSiloCore } from "@/lib/silo/core.server";
-
-import type { AttachmentSourceRef } from "./types";
 
 function replaceExtension(fileName: string, nextExtension: string) {
   return fileName.replace(/\.[^.]+$/, "") + nextExtension;
@@ -15,7 +14,9 @@ export async function convertAttachmentToPdf(input: {
   if (!env.DOCUMENT_CONVERTER_URL || !env.DOCUMENT_CONVERTER_BASIC_AUTH) {
     throw new Error("Document converter is not configured");
   }
-  console.log(`Converting ${input.source.fileName} (${input.source.mimeType}) to PDF`)
+  console.log(
+    `Converting ${input.source.fileName} (${input.source.mimeType}) to PDF`,
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const timeoutMs = env.DOCUMENT_CONVERTER_TIMEOUT_MS ?? 40_000;
@@ -41,7 +42,9 @@ export async function convertAttachmentToPdf(input: {
         signal: abortController.signal,
       },
     );
-    console.log(`PDF conversion response: ${response.status} ${response.statusText}`)
+    console.log(
+      `PDF conversion response: ${response.status} ${response.statusText}`,
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -67,8 +70,8 @@ export async function convertAttachmentToPdf(input: {
         serveImage: false,
       },
     });
-    console.log(`Uploading converted PDF to Silo`)
-    console.log(`Upload URL: ${prepared.file.uploadUrl}`)
+    console.log(`Uploading converted PDF to Silo`);
+    console.log(`Upload URL: ${prepared.file.uploadUrl}`);
 
     const uploadResponse = await fetch(prepared.file.uploadUrl, {
       method: "PUT",
@@ -84,7 +87,7 @@ export async function convertAttachmentToPdf(input: {
       );
     }
 
-    console.log(`Uploaded converted PDF to Silo`)
+    console.log(`Uploaded converted PDF to Silo`);
     const url = await buildAttachmentUrl({
       accessKey: prepared.file.accessKey,
       fileName,

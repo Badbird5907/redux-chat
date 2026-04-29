@@ -121,7 +121,7 @@ export const ROUTE_PROVIDER_DEFAULTS: Record<string, RouteProviderDefaults> = {
         image: "native",
         pdf: "native",
         plain_text: "inline_text",
-        office_document: "convert_to_pdf",
+        office_document: "inline_text",
         spreadsheet: "inline_text",
         presentation: "convert_to_pdf",
       },

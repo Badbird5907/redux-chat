@@ -36,6 +36,10 @@ export interface ReadyPdfDerivative {
   url: string;
   accessKey: string;
   fileKeyId: string;
+  textChunks?: string[];
+  charCount?: number;
 }
 
-export type ReadyAttachmentDerivative = ReadyTextDerivative | ReadyPdfDerivative;
+export type ReadyAttachmentDerivative =
+  | ReadyTextDerivative
+  | ReadyPdfDerivative;

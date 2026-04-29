@@ -3,6 +3,7 @@ import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import type { ModelRouteInfo } from "@redux/shared/models";
 
 import type { AttachmentSourceRef } from "../attachments-core/types";
+import { storeReadyPdfDerivativeText } from "../attachments-core/cache";
 import { ensureAttachmentDerivative } from "../attachments-core/ensure-derivative";
 import { extractPdfTextDerivative } from "../attachments-core/extract-text";
 import { planChatAttachment } from "./plan";
@@ -135,6 +136,17 @@ export async function materializeAttachmentsForRoute<
 
         if (derivative.kind === "converted_pdf") {
           if (!supportsPdfFiles) {
+            if (derivative.textChunks && derivative.textChunks.length > 0) {
+              materializedParts.push(
+                toInlineTextPart({
+                  fileName: derivative.fileName,
+                  mimeType: derivative.mimeType,
+                  textChunks: derivative.textChunks,
+                }),
+              );
+              continue;
+            }
+
             const pdfText = await extractPdfTextDerivative({
               source: {
                 ...attachment,
@@ -143,6 +155,17 @@ export async function materializeAttachmentsForRoute<
               },
               bytes: await downloadBytes(derivative.url),
             });
+
+            await storeReadyPdfDerivativeText(
+              {
+                source: attachment,
+                kind: "converted_pdf",
+              },
+              {
+                charCount: pdfText.charCount,
+                textChunks: pdfText.textChunks,
+              },
+            );
 
             materializedParts.push(
               toInlineTextPart({

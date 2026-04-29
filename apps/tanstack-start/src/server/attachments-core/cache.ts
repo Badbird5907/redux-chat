@@ -1,6 +1,8 @@
+import type {
+  AttachmentDerivativeRequest,
+  ReadyAttachmentDerivative,
+} from "./types";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
-
-import type { AttachmentDerivativeRequest, ReadyAttachmentDerivative } from "./types";
 import {
   getCachedDerivative,
   getCachedTextChunks,
@@ -41,10 +43,15 @@ export async function hydrateReadyDerivative(
       isPublic: derivative.isPublic,
       serveImage: derivative.serveImage,
     });
+    const textChunks =
+      derivative.charCount !== undefined
+        ? await getCachedTextChunks(request)
+        : undefined;
 
     return hydrateCachedPdfDerivative({
       derivative,
       url: pdfUrl,
+      textChunks: textChunks ?? undefined,
     });
   }
 
@@ -100,4 +107,36 @@ export async function storeReadyPdfDerivative(
   },
 ) {
   await setCachedPdfDerivative(request, derivative);
+}
+
+export async function storeReadyPdfDerivativeText(
+  request: AttachmentDerivativeRequest,
+  derivative: {
+    charCount: number;
+    textChunks: string[];
+  },
+) {
+  const cached = await getReadyDerivativeRecord(request);
+  if (cached?.kind !== "converted_pdf") {
+    return;
+  }
+
+  await setCachedPdfDerivative(
+    request,
+    {
+      accessKey: cached.accessKey,
+      charCount: derivative.charCount,
+      environmentId: cached.environmentId,
+      expiresAt: cached.expiresAt,
+      fileId: cached.fileId,
+      fileKeyId: cached.fileKeyId,
+      fileName: cached.fileName,
+      isPublic: cached.isPublic,
+      kind: "converted_pdf",
+      mimeType: "application/pdf",
+      projectId: cached.projectId,
+      serveImage: cached.serveImage,
+    },
+    derivative.textChunks,
+  );
 }
