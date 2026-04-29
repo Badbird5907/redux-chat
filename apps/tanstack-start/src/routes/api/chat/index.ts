@@ -1,4 +1,5 @@
 import type { RetrievedChunk } from "@/server/rag/vector-store";
+import type { OpenAILanguageModelResponsesOptions } from "@ai-sdk/openai";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
@@ -436,8 +437,9 @@ export const Route = createFileRoute("/api/chat/")({
             resolvedModel.route.supports.reasoning
               ? {
                   openai: {
-                    reasoningEffort: "minimal" as const,
-                  },
+                    reasoningEffort: "medium", // TODO: we will set reasoning effort
+                    reasoningSummary: "auto", // we want reasoning!!
+                  } satisfies OpenAILanguageModelResponsesOptions,
                 }
               : undefined;
           const messagesWithAttachments = await materializeAttachmentsForRoute(

@@ -157,7 +157,7 @@ function haveEquivalentMessageStructure(
     return message.parts.every((part, partIndex) => {
       const otherPart = other.parts[partIndex];
 
-      if (!otherPart || part.type !== otherPart.type) {
+      if (part.type !== otherPart?.type) {
         return false;
       }
 

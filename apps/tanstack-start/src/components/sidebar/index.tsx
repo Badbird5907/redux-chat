@@ -10,7 +10,6 @@ import {
 } from "@redux/ui/components/sidebar";
 
 import { AppSidebarFooter } from "@/components/sidebar/footer";
-import { requestChatReset } from "@/components/chat/reset-chat";
 
 export default function AppSidebar({
   children,
@@ -30,7 +29,6 @@ export default function AppSidebar({
           <Link
             to="/"
             className="inline-block text-xl font-bold"
-            onClick={requestChatReset}
           >
             <h1>
               <span className="font-audiowide">
