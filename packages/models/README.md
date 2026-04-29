@@ -1,6 +1,6 @@
 # @redux/models
 
-Static, tree-shakable model metadata sourced from [models.dev](https://models.dev/).
+Static model metadata sourced from [models.dev](https://models.dev/).
 
 ## What it provides
 
@@ -20,6 +20,24 @@ This runs `packages/models/scripts/generate-models.ts`, fetches the latest
 the generated provider modules under `src/generated`.
 
 ## Tree-shaking
+
+The package is configured with `"sideEffects": false`, so bundlers can remove
+unused exports and unused provider modules.
+
+What is tree-shakable today:
+
+- importing helpers like `calculateModelCost` does not pull provider catalogs
+- importing a provider subpath like `@redux/models/openai` only pulls that
+  provider's catalog
+
+What is **not** tree-shakable today:
+
+- individual models inside a provider catalog are emitted as one object literal,
+  so importing `anthropicModels` includes the whole Anthropic catalog in the
+  bundle
+
+If we want per-model tree-shaking, we should change generation to emit one
+export per model (or one file per model) instead of one giant provider object.
 
 Import a provider subpath when you only need a single provider catalog:
 

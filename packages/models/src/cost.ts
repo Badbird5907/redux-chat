@@ -6,6 +6,7 @@ import type {
   ModelPricing,
 } from "./types";
 
+// models.dev pricing is expressed in USD per 1M tokens/audio tokens.
 const TOKEN_UNIT = 1_000_000;
 
 export function calculateModelCost(
