@@ -6,6 +6,7 @@ import { Collapsible } from "@base-ui/react/collapsible";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 
 import { cn } from "@redux/ui/lib/utils";
+import { Shimmer } from "@/components/ai/shimmer";
 
 interface ReasoningContextValue {
   duration?: number;
@@ -106,7 +107,13 @@ export function ReasoningTrigger({
       <span className="text-muted-foreground flex items-center gap-2">
         {/* {isStreaming && <LoaderCircleIcon className="size-4 animate-spin" />} */}
         <BrainIcon className="size-4" />
-        <span>{label}</span>
+        {isStreaming && typeof label === "string" ? (
+          <Shimmer as="span" className="text-sm" duration={1.8}>
+            {label}
+          </Shimmer>
+        ) : (
+          <span>{label}</span>
+        )}
       </span>
       <ChevronDownIcon
         className={cn(

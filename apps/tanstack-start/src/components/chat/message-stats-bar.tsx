@@ -83,30 +83,28 @@ export const MessageStatsBar = memo(function MessageStatsBar({
       </div>
 
       {model && (
-        <span className="flex items-center gap-1">
+        <span className={cn("flex items-center gap-1", actionsDisabled && "hidden")}>
           {getChatModelConfig(model)?.name}
         </span>
       )}
-
       {generationStats && (
-        <span className="flex items-center gap-1">
-          <ZapIcon className="size-3.5" />
-          {generationStats.tokensPerSecond.toFixed(2)} tok/sec
-        </span>
-      )}
+        <>
+          <span className="flex items-center gap-1">
+            <ZapIcon className="size-3.5" />
+            {generationStats.tokensPerSecond.toFixed(2)} tok/sec
+          </span>
+          <span className="flex items-center gap-1">
+            <ClockIcon className="size-3.5" />
+            TTFT: {(generationStats.timeToFirstTokenMs / 1000).toFixed(2)} sec
+          </span>
 
-      {generationStats && (
-        <span className="flex items-center gap-1">
-          <ClockIcon className="size-3.5" />
-          TTFT: {(generationStats.timeToFirstTokenMs / 1000).toFixed(2)} sec
-        </span>
-      )}
-
-      {usage && (
-        <span className="flex items-center gap-1">
-          <WholeWord className="size-3.5" />
-          {usage.responseTokens} tokens
-        </span>
+          {usage && (
+            <span className="flex items-center gap-1">
+              <WholeWord className="size-3.5" />
+              {usage.responseTokens} tokens
+            </span>
+          )}
+        </>
       )}
     </div>
   );

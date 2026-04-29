@@ -59,8 +59,7 @@ const requestBody = z.object({
 
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
 
-const ENABLE_PROJECT_RAG_PREFETCH = false; // do we eagerly retrieve project context?
-// maybe sell under "smarter projects"
+const ENABLE_PROJECT_RAG_PREFETCH = true;
 
 interface ModelAttachment {
   attachmentId: string;
@@ -477,10 +476,6 @@ export const Route = createFileRoute("/api/chat/")({
               content: projectInstructions,
             });
           }
-
-          console.log("modelMessages");
-          console.dir(modelMessages, { depth: Infinity });
-          console.log("------------");
 
           const abortController = new AbortController();
           console.log("abortController", abortController);

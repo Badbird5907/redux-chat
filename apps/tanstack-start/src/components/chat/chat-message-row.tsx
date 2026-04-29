@@ -341,11 +341,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
               title="Regenerate"
               type="button"
-              disabled={controlsDisabled || !visibleAssistantForUser}
-              onClick={() =>
-                visibleAssistantForUser &&
-                onRegenerateMessage(visibleAssistantForUser)
-              }
+              disabled={controlsDisabled}
+              onClick={() => onRegenerateMessage(message)}
             >
               <RefreshCwIcon className="size-4" />
             </button>

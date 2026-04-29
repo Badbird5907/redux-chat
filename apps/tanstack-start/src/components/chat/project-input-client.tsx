@@ -35,7 +35,7 @@ function ProjectChatInput({ chatProjectId }: { chatProjectId: string }) {
     [],
   );
 
-  const { messages, status, sendMessage } = useChat({
+  const { messages, status, sendMessage, setMessages } = useChat({
     id: chatSessionId,
     transport,
     onError: (error) => {
@@ -59,14 +59,38 @@ function ProjectChatInput({ chatProjectId }: { chatProjectId: string }) {
     (
       message: {
         text: string;
-        id?: string;
+        messageId?: string;
         metadata?: Record<string, unknown>;
       },
       options?: { body?: object },
     ) => {
+      const userMessageId = message.messageId;
+
+      if (userMessageId) {
+        setMessages((currentMessages) => {
+          if (
+            currentMessages.some(
+              (currentMessage) => currentMessage.id === userMessageId,
+            )
+          ) {
+            return currentMessages;
+          }
+
+          return [
+            ...currentMessages,
+            {
+              id: userMessageId,
+              role: "user",
+              parts: [{ type: "text", text: message.text }],
+              metadata: message.metadata,
+            },
+          ];
+        });
+      }
+
       void sendMessage(message, options);
     },
-    [sendMessage],
+    [sendMessage, setMessages],
   );
 
   return (

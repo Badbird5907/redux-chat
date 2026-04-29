@@ -34,6 +34,7 @@ export function AssistantMessageParts({
 }) {
   const { reasoningText, steps, textContent } =
     normalizeAssistantMessage(message);
+  const hasTimelineReasoning = steps.some((step) => step.kind === "reasoning");
   const isReasoningStreaming =
     isStreaming && message.parts.at(-1)?.type === "reasoning";
   const defaultChainOpen =
@@ -43,7 +44,7 @@ export function AssistantMessageParts({
 
   return (
     <>
-      {reasoningText ? (
+      {reasoningText && !hasTimelineReasoning ? (
         <Reasoning
           className="mb-3"
           defaultOpen={isReasoningStreaming}

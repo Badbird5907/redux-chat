@@ -710,11 +710,20 @@ export function useChatSession({
 
   const regenerateMessage = useCallback(
     async (message: ChatMessageWithThreadMetadata) => {
-      if (
-        !currentThreadId ||
-        status !== "ready" ||
-        message.role !== "assistant"
-      ) {
+      if (!currentThreadId || status !== "ready") {
+        return;
+      }
+
+      const assistantMessage =
+        message.role === "assistant"
+          ? message
+          : visibleBranchMessages.find(
+              (candidate) =>
+                candidate.role === "assistant" &&
+                candidate.parentId === message.id,
+            );
+
+      if (!assistantMessage) {
         return;
       }
 
@@ -725,14 +734,14 @@ export function useChatSession({
 
       const branchInfo = await regenerateAssistantMessageBranch({
         threadId: currentThreadId,
-        fromMessageId: message.id,
+        fromMessageId: assistantMessage.id,
         assistantMessageId: assistantMessageId.str,
         model: settings.model,
         settings,
       });
 
       const messageIndex = visibleBranchMessages.findIndex(
-        (candidate) => candidate.id === message.id,
+        (candidate) => candidate.id === assistantMessage.id,
       );
       const messagesForAPI = visibleBranchMessages
         .slice(
@@ -750,7 +759,7 @@ export function useChatSession({
       locallyCompletedStreamRef.current = false;
 
       await regenerate({
-        messageId: message.id,
+        messageId: assistantMessage.id,
         body: {
           threadId: branchInfo.threadId,
           assistantMessageId: branchInfo.assistantMessageId,
