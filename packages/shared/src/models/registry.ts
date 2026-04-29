@@ -1,11 +1,16 @@
 import { lookupMimeTypeFromFile } from "@silo-storage/mime-types";
 
 import {
-  buildAcceptedFileTypes,
-  buildAllowedMimeTypes,
   expandAllowedMimeTypes,
 } from "./attachments";
 import { PROVIDERS } from "./curated";
+import {
+  getRouteAcceptedExtensions,
+  getRouteAcceptedMimeTypes,
+  getRouteAttachmentBehavior,
+  mergeModelRouteBehavior,
+  resolveAttachmentDeliveryMode,
+} from "./route-behavior";
 import { createModelRouteInfo, getTokenLensProvider } from "./tokenlens";
 import type {
   CanonicalCuratedModelDefinition,
@@ -13,6 +18,7 @@ import type {
   ChatModelConfig,
   ModelProviderInfo,
   ModelProviderRouteId,
+  ModelRouteBehavior,
   ModelRouteInfo,
 } from "./types";
 
@@ -37,9 +43,15 @@ export const CURATED_MODELS: CanonicalCuratedModelDefinition[] = PROVIDERS.flatM
 );
 
 const ROUTE_TO_MODEL_ID = new Map<ModelProviderRouteId, CanonicalModelId>();
+const ROUTE_BEHAVIOR_OVERRIDES = new Map<ModelProviderRouteId, ModelRouteBehavior>();
+
 for (const model of CURATED_MODELS) {
   for (const providerId of model.providerIds) {
     ROUTE_TO_MODEL_ID.set(providerId, model.id);
+    const routeBehavior = model.routeBehavior?.[providerId];
+    if (routeBehavior) {
+      ROUTE_BEHAVIOR_OVERRIDES.set(providerId, routeBehavior);
+    }
   }
 }
 
@@ -55,6 +67,10 @@ export const MODEL_ROUTES: ModelRouteInfo[] = Array.from(
     return {
       ...route,
       canonicalModelId: ROUTE_TO_MODEL_ID.get(route.id),
+      behavior: mergeModelRouteBehavior(
+        route.provider,
+        ROUTE_BEHAVIOR_OVERRIDES.get(route.id),
+      ),
     };
   });
 
@@ -72,12 +88,11 @@ export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.map((model) => {
     throw new Error(`Missing default provider route for ${model.id}`);
   }
 
-  const allowedMimeTypes = defaultRoute.supports.attachments
-    ? buildAllowedMimeTypes(defaultRoute.modalities, model.attachments)
-    : [];
-  const accept = defaultRoute.supports.attachments
-    ? buildAcceptedFileTypes(defaultRoute.modalities, model.attachments)
-    : [];
+  const allowedMimeTypes = getRouteAcceptedMimeTypes(
+    defaultRoute,
+    model.attachments,
+  );
+  const accept = getRouteAcceptedExtensions(defaultRoute, model.attachments);
 
   return {
     id: model.id,
@@ -88,6 +103,8 @@ export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.map((model) => {
     defaultProviderId,
     accept,
     allowedMimeTypes,
+    acceptedChatExtensions: accept,
+    acceptedChatMimeTypes: allowedMimeTypes,
     maxFiles:
       allowedMimeTypes.length > 0 ? (model.attachments?.maxFiles ?? 4) : undefined,
     knowledgeCutoff: defaultRoute.knowledgeCutoff,
@@ -204,4 +221,28 @@ export function isFileAllowedForModel(
 
   const inferredMimeType = lookupMimeTypeFromFile(file.name, file.type);
   return inferredMimeType ? expandedMimeTypes.includes(inferredMimeType) : false;
+}
+
+export function getModelRouteBehavior(routeId: string) {
+  const route = getModelRoute(routeId);
+  return route ? getRouteAttachmentBehavior(route) : undefined;
+}
+
+export function getAttachmentDeliveryPolicy(routeId: string) {
+  return getModelRouteBehavior(routeId)?.attachmentPolicy;
+}
+
+export function resolveModelAttachmentDelivery(
+  routeId: string,
+  file: { name: string; type: string },
+) {
+  const route = getModelRoute(routeId);
+  if (!route) {
+    return undefined;
+  }
+
+  return resolveAttachmentDeliveryMode(route, {
+    fileName: file.name,
+    mimeType: file.type,
+  });
 }

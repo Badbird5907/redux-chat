@@ -65,6 +65,7 @@ interface MessageStats {
 interface ResolvedAttachment {
   attachmentId: string;
   fileName: string;
+  originalFileName?: string;
   mimeType: string;
   size: number;
   expiresAt?: number;
@@ -75,6 +76,7 @@ interface ResolvedAttachment {
 interface MessageAttachmentSummary {
   attachmentId: string;
   fileName: string;
+  originalFileName?: string;
   mimeType: string;
   size: number;
   expiresAt?: number;
@@ -84,6 +86,13 @@ interface MessageAttachmentSummary {
 
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
+}
+
+function attachmentDisplayName(a: {
+  fileName: string;
+  originalFileName?: string;
+}) {
+  return a.originalFileName ?? a.fileName;
 }
 
 function MessageStatsBar({
@@ -503,6 +512,7 @@ export function Chat({
     name: string;
     type: string;
     url?: string;
+    convertedToPdf?: boolean;
   } | null>(null);
   const [resolvedMessageAttachments, setResolvedMessageAttachments] = useState<
     Record<string, ResolvedAttachment>
@@ -577,6 +587,7 @@ export function Chat({
               {
                 attachmentId: attachment.attachmentId,
                 fileName: attachment.fileName,
+                originalFileName: attachment.originalFileName,
                 mimeType: attachment.mimeType,
                 size: attachment.size,
                 expiresAt: attachment.expiresAt,
@@ -651,6 +662,9 @@ export function Chat({
                       .get(message.id)
                       ?.map((attachment) => ({
                         ...attachment,
+                        originalFileName:
+                          resolvedMessageAttachments[attachment.attachmentId]
+                            ?.originalFileName ?? attachment.originalFileName,
                         expired:
                           resolvedMessageAttachments[attachment.attachmentId]
                             ?.expired ??
@@ -729,9 +743,12 @@ export function Chat({
                                     !isExpired &&
                                     setPreviewFile({
                                       id: attachment.attachmentId,
-                                      name: attachment.fileName,
+                                      name: attachmentDisplayName(attachment),
                                       type: attachment.mimeType,
                                       url: attachment.url,
+                                      convertedToPdf:
+                                        attachment.originalFileName !==
+                                        undefined,
                                     })
                                   }
                                   className={cn(
@@ -746,7 +763,7 @@ export function Chat({
                                   {isImage && attachment.url && !isExpired ? (
                                     <img
                                       src={attachment.url}
-                                      alt={attachment.fileName}
+                                      alt={attachmentDisplayName(attachment)}
                                       className="h-10 w-10 rounded object-cover"
                                     />
                                   ) : (
@@ -754,7 +771,7 @@ export function Chat({
                                   )}
                                   <div className="min-w-0">
                                     <span className="block max-w-48 truncate text-sm">
-                                      {attachment.fileName}
+                                      {attachmentDisplayName(attachment)}
                                     </span>
                                     {isExpired && (
                                       <span className="text-muted-foreground block text-xs">

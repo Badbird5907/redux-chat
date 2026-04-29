@@ -1,6 +1,17 @@
 export type CanonicalModelId = `${string}/${string}`;
 export type ModelProviderRouteId = `${string}:${string}`;
 export type AllowedMimeType = string;
+export type ChatAttachmentKind =
+  | "image"
+  | "pdf"
+  | "plain_text"
+  | "office_document"
+  | "spreadsheet"
+  | "presentation";
+export type ChatAttachmentDeliveryMode =
+  | "native"
+  | "inline_text"
+  | "convert_to_pdf";
 
 export interface ModelKnowledgeCutoff {
   raw: string;
@@ -46,6 +57,16 @@ export interface ModelProviderInfo {
   modelIds: CanonicalModelId[];
 }
 
+export interface ChatAttachmentPolicy {
+  defaults?: Partial<Record<ChatAttachmentKind, ChatAttachmentDeliveryMode>>;
+  overrides?: Partial<Record<string, ChatAttachmentDeliveryMode>>;
+}
+
+export interface ModelRouteBehavior {
+  runtimeProviderKey?: string;
+  attachmentPolicy?: ChatAttachmentPolicy;
+}
+
 export interface ModelRouteInfo {
   id: ModelProviderRouteId;
   provider: string;
@@ -61,6 +82,7 @@ export interface ModelRouteInfo {
   releasedAt?: string;
   verifiedAt?: string;
   canonicalModelId?: CanonicalModelId;
+  behavior: ModelRouteBehavior;
 }
 
 export interface ChatModelBenchmarks {
@@ -84,6 +106,7 @@ export interface CuratedModelDefinition {
   name?: string;
   benchmarks?: ChatModelBenchmarks;
   attachments?: CuratedAttachmentOverride;
+  routeBehavior?: Partial<Record<ModelProviderRouteId, ModelRouteBehavior>>;
   custom?: Record<string, unknown>;
 }
 
@@ -118,6 +141,8 @@ export interface ChatModelConfig {
   defaultProviderId: ModelProviderRouteId;
   accept: string[];
   allowedMimeTypes: AllowedMimeType[];
+  acceptedChatExtensions: string[];
+  acceptedChatMimeTypes: AllowedMimeType[];
   maxFiles?: number;
   knowledgeCutoff?: ModelKnowledgeCutoff;
   supports: ModelSupports;

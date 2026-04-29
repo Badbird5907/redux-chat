@@ -6,6 +6,11 @@ packages:
 catalog:
   '@better-auth/cli': 1.4.21
   '@eslint/js': ^9.39.4
+  '@silo-storage/sdk-core': ^0.2.8
+  '@silo-storage/mime-types': ^0.2.8
+  '@silo-storage/sdk-react': ^0.2.8
+  '@silo-storage/sdk-server': ^0.2.8
+  '@silo-storage/sdk-tanstack-start': ^0.2.8
   '@tailwindcss/postcss': ^4.2.4
   '@tailwindcss/vite': ^4.2.4
   '@tanstack/react-form': ^1.29.1

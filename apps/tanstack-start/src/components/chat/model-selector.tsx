@@ -1,13 +1,3 @@
-/**
- * ModelSelector Component
- *
- * This is a standalone, easily replaceable component for model selection.
- * To replace it:
- * 1. Create your own component with the same props interface
- * 2. Import your component instead of this one
- * 3. Ensure it maintains the selectedModel and onModelChange props
- */
-
 import { Check, ChevronDown } from "lucide-react"
 import { Button } from "@redux/ui/components/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@redux/ui/components/dropdown-menu"

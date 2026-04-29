@@ -28,6 +28,7 @@ import type { RetrievedChunk } from "@/server/rag/vector-store";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
 import { resolveAiSdkModel } from "@/server/ai/model-runtime";
+import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 
 const requestBody = z.object({
   fileIds: z.array(z.string()),
@@ -66,7 +67,13 @@ interface ModelAttachment {
   attachmentId: string;
   fileName: string;
   mimeType: string;
+  size: number;
   url: string;
+  accessKey: string;
+  isPublic: boolean;
+  serveImage: boolean;
+  projectId: string;
+  environmentId: string;
 }
 
 async function resolveModelAttachments(attachmentIds: string[]) {
@@ -84,20 +91,26 @@ async function resolveModelAttachments(attachmentIds: string[]) {
   return Promise.all(
     attachments
       .filter((attachment) => !attachment.expired)
-      .map(
-        async (attachment): Promise<ModelAttachment> => ({
-          attachmentId: attachment.attachmentId,
-          fileName: attachment.fileName,
-          mimeType: attachment.mimeType,
-          url: await buildAttachmentUrl({
-            accessKey: attachment.accessKey,
-            fileName: attachment.fileName,
-            mimeType: attachment.mimeType,
-            isPublic: attachment.isPublic,
-            serveImage: attachment.serveImage,
-          }),
-        }),
-      ),
+          .map(
+            async (attachment): Promise<ModelAttachment> => ({
+              attachmentId: attachment.attachmentId,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              size: attachment.size,
+              url: await buildAttachmentUrl({
+                accessKey: attachment.accessKey,
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+                isPublic: attachment.isPublic,
+                serveImage: attachment.serveImage,
+              }),
+              accessKey: attachment.accessKey,
+              isPublic: attachment.isPublic,
+              serveImage: attachment.serveImage,
+              projectId: attachment.projectId,
+              environmentId: attachment.environmentId,
+            }),
+          ),
   );
 }
 
@@ -220,39 +233,6 @@ function mergeAttachments(
   }
 
   return Array.from(mergedById.values());
-}
-
-function appendAttachmentParts(
-  messages: ChatRequestMessage[],
-  attachmentsByMessageId: Map<string, ModelAttachment[]>,
-) {
-  if (attachmentsByMessageId.size === 0) {
-    return messages;
-  }
-
-  return messages.map((message) => {
-    if (message.role !== "user") {
-      return message;
-    }
-
-    const attachments = attachmentsByMessageId.get(message.id);
-    if (!attachments?.length) {
-      return message;
-    }
-
-    return {
-      ...message,
-      parts: [
-        ...message.parts,
-        ...attachments.map((attachment) => ({
-          type: "file" as const,
-          mediaType: attachment.mimeType,
-          url: attachment.url,
-          filename: attachment.fileName,
-        })),
-      ],
-    };
-  });
 }
 
 function getToolAttachments(
@@ -386,10 +366,6 @@ export const Route = createFileRoute("/api/chat/")({
           );
         }
 
-        const messagesWithAttachments = appendAttachmentParts(
-          messages,
-          attachmentsByMessageId,
-        );
         const toolRuntime = createToolRuntime(settings, {
           attachments: getToolAttachments(attachmentsByMessageId),
           projectContext:
@@ -409,6 +385,13 @@ export const Route = createFileRoute("/api/chat/")({
           didCleanupTools = true;
           await toolRuntime.cleanup();
         };
+
+        const resolvedModel = resolveAiSdkModel(settings.model);
+        const messagesWithAttachments = await materializeAttachmentsForRoute(
+          resolvedModel.route,
+          messages,
+          attachmentsByMessageId,
+        );
 
         // Convert to model messages format
         const modelMessages = await convertToModelMessages(
@@ -449,10 +432,8 @@ export const Route = createFileRoute("/api/chat/")({
         const streamStartTime = Date.now();
         let firstTokenTime: number | null = null;
 
-        const { model: resolvedModel } = resolveAiSdkModel(settings.model);
-
         const result = streamText({
-          model: resolvedModel,
+          model: resolvedModel.model,
           messages: modelMessages,
           abortSignal: abortController.signal,
           tools: toolRuntime.tools,

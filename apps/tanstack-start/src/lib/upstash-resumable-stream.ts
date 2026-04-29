@@ -8,7 +8,7 @@ export const createUpstashPubSub = () => {
       return Promise.resolve();
     },
     publish: async (channel: string, message: string) => {
-      console.log("Publishing message to channel:", channel, message);
+      // console.log("Publishing message to channel:", channel, message);
       return redis.publish(channel, JSON.stringify(message));
     },
     set: async (key: string, value: string, options) => {

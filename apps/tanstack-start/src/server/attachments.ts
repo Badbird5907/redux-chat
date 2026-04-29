@@ -39,6 +39,7 @@ export const resolveAttachments = createServerFn({ method: "POST" })
         return {
           attachmentId: attachment.attachmentId,
           fileName: attachment.fileName,
+          originalFileName: attachment.originalFileName,
           mimeType: attachment.mimeType,
           size: attachment.size,
           expiresAt: attachment.expiresAt,

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
@@ -37,6 +38,11 @@ const AuthRoute = AuthRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogosIndexRoute = LogosIndexRouteImport.update({
+  id: '/logos/',
+  path: '/logos/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/logos/': typeof LogosIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/': typeof AppIndexRoute
+  '/logos': typeof LogosIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
+  '/logos/': typeof LogosIndexRoute
   '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/logos/'
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/auth/sign-up'
     | '/'
+    | '/logos'
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/auth/sign-up'
     | '/_app/'
+    | '/logos/'
     | '/_app/chat/$id'
     | '/_app/projects/$id'
     | '/api/auth/$'
@@ -207,6 +219,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
   ApiUploadRoute: typeof ApiUploadRoute
+  LogosIndexRoute: typeof LogosIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logos/': {
+      id: '/logos/'
+      path: '/logos'
+      fullPath: '/logos/'
+      preLoaderRoute: typeof LogosIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -359,6 +379,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
   ApiUploadRoute: ApiUploadRoute,
+  LogosIndexRoute: LogosIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,

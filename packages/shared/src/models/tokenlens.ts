@@ -9,7 +9,6 @@ import type {
   ModelModalities,
   ModelPricing,
   ModelProviderRouteId,
-  ModelRouteInfo,
   ModelSupports,
 } from "./types";
 
@@ -79,7 +78,21 @@ export function getTokenLensProvider(providerId: string) {
 
 export function createModelRouteInfo(
   routeId: ModelProviderRouteId,
-): ModelRouteInfo | undefined {
+): {
+  id: ModelProviderRouteId;
+  provider: string;
+  providerName: string;
+  vendorId: string;
+  displayName: string;
+  pricing: ModelPricing;
+  context: ModelContextLimits;
+  modalities: ModelModalities;
+  supports: ModelSupports;
+  source: string;
+  knowledgeCutoff?: ModelKnowledgeCutoff;
+  releasedAt?: string;
+  verifiedAt?: string;
+} | undefined {
   const parsed = parseRouteId(routeId);
   if (!parsed) {
     return undefined;

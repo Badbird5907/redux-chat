@@ -50,6 +50,7 @@ export function createSandboxRuntime(options: {
         const content = await response.arrayBuffer();
 
         await sandbox.files.write(filePath, content);
+        // TODO: maybe download these files on the sandbox rather than thru vercel
         syncedAttachments.push({
           attachmentId: attachment.attachmentId,
           fileName: attachment.fileName,

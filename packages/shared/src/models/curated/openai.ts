@@ -1,10 +1,5 @@
 import type { CuratedProviderDefinition } from "../types";
 
-const DOC_MIME_TYPES = [
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-] as const;
-
 export const OPENAI_PROVIDER: CuratedProviderDefinition = {
   slug: "openai",
   name: "OpenAI",
@@ -21,8 +16,6 @@ export const OPENAI_PROVIDER: CuratedProviderDefinition = {
       },
       attachments: {
         maxFiles: 4,
-        extraAccept: [".doc", ".docx"],
-        extraMimeTypes: [...DOC_MIME_TYPES],
       },
     },
   ],
