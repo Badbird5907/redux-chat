@@ -17,7 +17,10 @@ import {
 
 // import { getToken } from "@/lib/auth/server";
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
-import { SidebarToggleHotkeyRegistration } from "@/lib/hotkeys";
+import {
+  NewChatHotkeyRegistration,
+  SidebarToggleHotkeyRegistration,
+} from "@/lib/hotkeys";
 import { getSidebarConfig } from "@/server/cookie";
 
 export const Route = createFileRoute("/_app")({
@@ -105,6 +108,7 @@ function AppLayout() {
   return (
     <ChatRouteAdoptionProvider>
       <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+        <NewChatHotkeyRegistration />
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
         <main className="flex h-screen w-screen flex-col p-2">

@@ -1,7 +1,7 @@
 import { useMatch } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import { useQuery } from "@/lib/hooks/convex";
 
 export function useCurrentProject() {
   const chatMatch = useMatch({ from: "/_app/chat/$id", shouldThrow: false });
@@ -23,7 +23,8 @@ export function useCurrentProject() {
   const threadId = chatMatch?.params.id;
   const thread = useQuery(
     api.functions.threads.getThread,
-    threadId ? { threadId } : "skip",
+    { threadId: threadId ?? "" },
+    { skip: !threadId },
   );
 
   const projectIdFromRoute = projectDetailMatch?.params.id;
@@ -32,7 +33,8 @@ export function useCurrentProject() {
 
   const project = useQuery(
     api.functions.projects.getProject,
-    projectId ? { projectId } : "skip",
+    { projectId: projectId ?? "" },
+    { skip: !projectId },
   );
 
   return {

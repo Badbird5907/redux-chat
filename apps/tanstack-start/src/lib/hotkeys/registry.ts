@@ -37,6 +37,12 @@ export const appHotkeyRegistry = defineAppHotkeys({
     category: "Navigation",
     defaultHotkey: "Mod+B",
   },
+  "chat.new": {
+    label: "New chat",
+    description: "Open a fresh chat on the home route.",
+    category: "Navigation",
+    defaultHotkey: "Mod+Shift+O",
+  },
 });
 
 export type AppHotkeyId = keyof typeof appHotkeyRegistry;

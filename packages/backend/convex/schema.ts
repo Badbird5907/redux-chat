@@ -74,10 +74,17 @@ export default defineSchema({
     threadId: v.string(),
     userId: v.string(),
     name: v.string(),
+    /** Sidebar title provenance — drives typewriter UX for AI-generated titles. */
+    titleSource: v.optional(
+      v.union(v.literal("user"), v.literal("generated")),
+    ),
+    /** Latest time an AI/regenerated title was applied; cleared when the user edits the title. */
+    titleGeneratedAt: v.optional(v.number()),
     status: threadStatus,
     settings: messageSettings,
     activeStreamId: v.optional(v.string()),
     activeStreamClientId: v.optional(v.string()), // Client session ID that initiated the active stream
+    deadMessageCheckSchedulerId: v.optional(v.id("_scheduled_functions")),
     updatedAt: v.number(),
     // Optional FK to user-facing projects table (distinct from Silo's projectId on attachments)
     chatProjectId: v.optional(v.string()),

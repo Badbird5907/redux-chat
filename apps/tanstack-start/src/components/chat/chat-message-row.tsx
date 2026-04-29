@@ -16,6 +16,7 @@ import { cn } from "@redux/ui/lib/utils";
 
 import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
 import { StaticMarkdown } from "@/components/markdown/static-markdown";
+import { normalizeAssistantMessage } from "./assistant-message-timeline";
 
 import { MessageStatsBar } from "./message-stats-bar";
 import type {
@@ -87,6 +88,26 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   const isFailedMessage = message.status === "failed";
   const responseModel = assistantModelByParentMessageId.get(message.id);
+  const normalizedAssistantMessage = useMemo(
+    () => (message.role === "assistant" ? normalizeAssistantMessage(message) : null),
+    [message],
+  );
+  const hasRenderableAssistantContent = useMemo(() => {
+    if (!normalizedAssistantMessage) {
+      return false;
+    }
+
+    return (
+      normalizedAssistantMessage.textContent.trim().length > 0 ||
+      Boolean(normalizedAssistantMessage.reasoningText) ||
+      normalizedAssistantMessage.steps.length > 0
+    );
+  }, [normalizedAssistantMessage]);
+  const showStreamingPlaceholder =
+    message.role === "assistant" &&
+    isStreamingAssistant &&
+    !isFailedMessage &&
+    !hasRenderableAssistantContent;
 
   const persistedAttachments: MessageAttachmentSummary[] = useMemo(() => {
     return (
@@ -167,7 +188,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             : "w-full",
         )}
       >
-        {!message.parts.length && !isFailedMessage && (
+        {(!message.parts.length || showStreamingPlaceholder) && !isFailedMessage && (
           <Spinner className="size-4" />
         )}
         {isFailedMessage ? (

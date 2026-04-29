@@ -13,6 +13,8 @@ import { authClient } from "@/lib/auth/client";
 type Thread = {
   threadId: string;
   name: string;
+  titleSource?: "user" | "generated";
+  titleGeneratedAt?: number;
   timestamp: number;
   status: "generating" | "completed";
   _creationTime: number;
@@ -255,6 +257,8 @@ export default function ThreadList() {
                   <ChatThreadSidebarItem
                     threadId={item.thread.threadId}
                     threadName={item.thread.name}
+                    titleSource={item.thread.titleSource}
+                    titleGeneratedAt={item.thread.titleGeneratedAt}
                     timestamp={item.thread.timestamp}
                     status={item.thread.status}
                   />

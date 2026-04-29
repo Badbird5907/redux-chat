@@ -2,16 +2,35 @@ import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { Buffer } from "buffer/";
+import type { GenericMutationCtx } from "convex/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 
 import { internal } from "../_generated/api";
+import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { backendEnv } from "../env";
 import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
 import { internalAction, internalMutation } from "./internal";
+
+async function cleanupInactiveStreamThread(
+  ctx: GenericMutationCtx<DataModel>,
+  thread: Doc<"threads">,
+) {
+  if (thread.deadMessageCheckSchedulerId) {
+    await ctx.scheduler.cancel(thread.deadMessageCheckSchedulerId);
+  }
+
+  await ctx.db.patch(thread._id, {
+    activeStreamId: undefined,
+    activeStreamClientId: undefined,
+    deadMessageCheckSchedulerId: undefined,
+    status: "completed",
+    updatedAt: Date.now(),
+  });
+}
 
 export const getThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -29,6 +48,8 @@ export const getThreads = query({
     const page = results.page.map((thread) => ({
       threadId: (thread.threadId as string | undefined) ?? thread._id,
       name: thread.name,
+      titleSource: thread.titleSource,
+      titleGeneratedAt: thread.titleGeneratedAt,
       timestamp: thread.updatedAt,
       status: thread.status,
       _creationTime: thread._creationTime,
@@ -68,6 +89,8 @@ export const searchThreads = query({
     return filteredThreads.slice(0, limit).map((thread) => ({
       threadId: (thread.threadId as string | undefined) ?? thread._id,
       name: thread.name,
+      titleSource: thread.titleSource,
+      titleGeneratedAt: thread.titleGeneratedAt,
       timestamp: thread.updatedAt,
       status: thread.status,
       _creationTime: thread._creationTime,
@@ -122,11 +145,7 @@ export const abortStream = mutation({
       canceledAt: Date.now(),
       status: "completed", // not failed
     });
-    await ctx.db.patch(thread._id, {
-      activeStreamId: undefined,
-      activeStreamClientId: undefined,
-      status: "completed",
-    });
+    await cleanupInactiveStreamThread(ctx, thread);
 
     return { success: true };
   },
@@ -232,12 +251,7 @@ export const internal_completeStream = backendMutation({
       throw new ConvexError("Thread not found");
     }
 
-    await ctx.db.patch(thread._id, {
-      status: "completed",
-      activeStreamId: undefined,
-      activeStreamClientId: undefined,
-      updatedAt: Date.now(),
-    });
+    await cleanupInactiveStreamThread(ctx, thread);
 
     return { success: true };
   },
@@ -272,12 +286,7 @@ export const internal_failStream = backendMutation({
       .first();
 
     if (thread) {
-      await ctx.db.patch(thread._id, {
-        status: "completed",
-        activeStreamId: undefined,
-        activeStreamClientId: undefined,
-        updatedAt: Date.now(),
-      });
+      await cleanupInactiveStreamThread(ctx, thread);
     }
 
     return { success: assistantMessage !== null };
@@ -467,6 +476,7 @@ export const sendMessage = mutation({
 
     let threadId = args.threadId;
     let createdNewThread = false;
+    let threadDbId: Id<"threads">;
     const parentId: string | undefined = undefined;
     const depth = 0;
     const siblingIndex = 0;
@@ -498,7 +508,7 @@ export const sendMessage = mutation({
         }
       }
 
-      await ctx.db.insert("threads", {
+      threadDbId = await ctx.db.insert("threads", {
         threadId,
         userId: ctx.userId,
         name: "New Thread",
@@ -517,10 +527,16 @@ export const sendMessage = mutation({
         throw new ConvexError("Thread not found");
       }
 
+      threadDbId = thread._id;
+      if (thread.deadMessageCheckSchedulerId) {
+        await ctx.scheduler.cancel(thread.deadMessageCheckSchedulerId);
+      }
+
       // Update thread status
       await ctx.db.patch(thread._id, {
         status: "generating",
         updatedAt: Date.now(),
+        deadMessageCheckSchedulerId: undefined,
       });
     }
 
@@ -559,6 +575,19 @@ export const sendMessage = mutation({
       model: args.model,
     });
 
+    const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
+      10 * 60 * 1000,
+      internal.functions.threads.internal_checkMessageDead,
+      {
+        threadId,
+        messageId: assistantMsgId,
+      },
+    );
+
+    await ctx.db.patch(threadDbId, {
+      deadMessageCheckSchedulerId,
+    });
+
     const userPrompt = extractUserPrompt(
       args.userMessage.parts as UIMessagePart<UIDataTypes, UITools>[],
     );
@@ -582,11 +611,46 @@ export const sendMessage = mutation({
   },
 });
 
+export const internal_checkMessageDead = internalMutation({
+  args: {
+    threadId: v.string(),
+    messageId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+    if (!thread || thread.status === "completed") return true;
+
+    const message = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q.eq("threadId", args.threadId).eq("messageId", args.messageId),
+      )
+      .first();
+    if (!message || message.canceledAt || message.status !== "generating") {
+      return true;
+    }
+
+    await ctx.db.patch(message._id, {
+      status: "failed",
+      error: "Stream timed out",
+    });
+
+    await cleanupInactiveStreamThread(ctx, thread);
+
+    return true;
+  },
+});
+
 export const internal_setThreadTitle = internalMutation({
   args: {
     threadId: v.string(),
     generated: v.boolean(),
     title: v.string(),
+    /** When true, replace the stored name even if it was already customized. */
+    forceOverwrite: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const thread = await ctx.db
@@ -594,13 +658,26 @@ export const internal_setThreadTitle = internalMutation({
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .first();
 
-    if (!thread || (thread.name !== "New Thread" && args.generated)) {
+    if (!thread) {
       return;
     }
 
+    const userChosenTitleLocked =
+      !args.forceOverwrite &&
+      args.generated &&
+      (thread.titleSource === "user" ||
+        (thread.titleSource === undefined && thread.name !== "New Thread"));
+
+    if (userChosenTitleLocked) {
+      return;
+    }
+
+    const now = Date.now();
     await ctx.db.patch(thread._id, {
       name: args.title,
-      updatedAt: Date.now(),
+      // updatedAt: now,
+      titleSource: "generated",
+      titleGeneratedAt: now,
     });
   },
 });
@@ -609,6 +686,7 @@ export const internal_generateThreadTitle = internalAction({
   args: {
     threadId: v.string(),
     prompt: v.string(),
+    forceOverwrite: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const env = backendEnv();
@@ -639,6 +717,7 @@ export const internal_generateThreadTitle = internalAction({
           threadId: args.threadId,
           generated: true,
           title,
+          forceOverwrite: args.forceOverwrite,
         },
       );
     } catch (error) {
@@ -685,6 +764,51 @@ export const updateThreadSettings = mutation({
   },
 });
 
+export const regenerateThreadTitle = mutation({
+  args: { threadId: v.string() },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+
+    if (thread?.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
+    }
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
+
+    const userMessages = messages.filter((m) => m.role === "user");
+    userMessages.sort((a, b) => {
+      const t = a._creationTime - b._creationTime;
+      return t !== 0 ? t : a.messageId.localeCompare(b.messageId);
+    });
+
+    const firstUserMessage = userMessages[0];
+
+    const prompt =
+      firstUserMessage &&
+      extractUserPrompt(
+        firstUserMessage.parts as UIMessagePart<UIDataTypes, UITools>[],
+      );
+
+    if (!prompt) {
+      throw new ConvexError("No message text found to generate a title from");
+    }
+
+    await ctx.scheduler.runAfter(0, internal.functions.threads.internal_generateThreadTitle, {
+      threadId: args.threadId,
+      prompt,
+      forceOverwrite: true,
+    });
+
+    return { scheduled: true as const };
+  },
+});
+
 export const updateThreadName = mutation({
   args: {
     threadId: v.string(),
@@ -712,6 +836,8 @@ export const updateThreadName = mutation({
     await ctx.db.patch(thread._id, {
       name,
       updatedAt: Date.now(),
+      titleSource: "user",
+      titleGeneratedAt: undefined,
     });
 
     return { name };

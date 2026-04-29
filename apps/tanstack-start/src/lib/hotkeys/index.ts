@@ -8,6 +8,7 @@ export {
   useHotkeySettings,
   useResolvedHotkey,
 } from "@/lib/hotkeys/provider";
+export { NewChatHotkeyRegistration } from "@/lib/hotkeys/new-chat-hotkey";
 export { SidebarToggleHotkeyRegistration } from "@/lib/hotkeys/sidebar-toggle-hotkey";
 export { useAppHotkey } from "@/lib/hotkeys/use-app-hotkey";
 export type {

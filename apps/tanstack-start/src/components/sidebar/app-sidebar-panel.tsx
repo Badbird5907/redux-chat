@@ -21,6 +21,7 @@ export function AppSidebarPanel() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [commandOpen, setCommandOpen] = useState(false);
   const commandHotkey = useResolvedHotkey("command.open");
+  const newChatHotkey = useResolvedHotkey("chat.new");
 
   const isNewChatActive = pathname === "/";
   const isProjectsActive =
@@ -48,6 +49,9 @@ export function AppSidebarPanel() {
               >
                 <Plus />
                 <span>New Chat</span>
+                <CommandShortcut className="opacity-0 transition-opacity group-hover/menu-item:opacity-100">
+                  {formatForDisplay(newChatHotkey)}
+                </CommandShortcut>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

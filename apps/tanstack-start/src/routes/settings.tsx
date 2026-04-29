@@ -3,7 +3,10 @@ import { useState } from "react";
 
 import { CommandPanel } from "@/components/command";
 import { SettingsSidebarPanel } from "@/components/settings/sidebar-panel";
-import { SidebarToggleHotkeyRegistration } from "@/lib/hotkeys";
+import {
+  NewChatHotkeyRegistration,
+  SidebarToggleHotkeyRegistration,
+} from "@/lib/hotkeys";
 import { getSidebarConfig } from "@/server/cookie";
 import {
   SidebarProvider,
@@ -48,6 +51,7 @@ function SettingsLayout() {
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
       <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
+      <NewChatHotkeyRegistration />
       <SidebarToggleHotkeyRegistration />
       <SettingsSidebarPanel />
       <main className="flex h-screen w-screen flex-col p-2">
