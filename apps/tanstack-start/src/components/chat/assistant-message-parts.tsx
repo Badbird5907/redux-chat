@@ -1,6 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
+import { isReasoningUIPart, isToolUIPart } from "ai";
 
 import {
   ChainOfThought,
@@ -40,7 +41,32 @@ export function AssistantMessageParts({
   const defaultChainOpen =
     isLastMessage &&
     steps.some((step) => step.status === "active" || step.status === "error");
+  const hasActiveMessagePart = message.parts.some((part) => {
+    if (isReasoningUIPart(part)) {
+      return part.state === "streaming";
+    }
+
+    if (isToolUIPart(part)) {
+      return (
+        part.state === "input-streaming" ||
+        part.state === "input-available" ||
+        part.state === "approval-requested" ||
+        part.state === "approval-responded"
+      );
+    }
+
+    return false;
+  });
+  const isChainActive =
+    isLastMessage &&
+    steps.length > 0 &&
+    (isStreaming || hasActiveMessagePart || textContent.trim().length === 0);
   const headerState = getChainOfThoughtHeaderState(steps);
+  const headerStatus = isChainActive ? "active" : headerState.status;
+  const activeStepId =
+    [...steps].reverse().find((step) => step.status === "active")?.id ??
+    [...steps].reverse().find((step) => step.status === "pending")?.id ??
+    (isChainActive ? steps.at(-1)?.id : undefined);
 
   return (
     <>
@@ -70,8 +96,8 @@ export function AssistantMessageParts({
         >
           <ChainOfThoughtHeader
             icon={headerState.icon}
-            shimmer={headerState.status === "active"}
-            status={headerState.status}
+            shimmer={isChainActive || headerStatus === "active"}
+            status={headerStatus}
           >
             {headerState.label}
           </ChainOfThoughtHeader>
@@ -82,9 +108,19 @@ export function AssistantMessageParts({
                 icon={getAssistantStepIcon(step)}
                 key={step.id}
                 label={step.label}
-                shimmer={step.kind === "tool" && step.status === "active"}
-                status={step.status}
+                shimmer={step.id === activeStepId}
+                status={step.id === activeStepId ? "active" : step.status}
               >
+                {step.kind === "reasoning" && step.content ? (
+                  <div className="border-border/80 text-muted-foreground max-h-48 overflow-y-auto border-l pl-4 pr-2 text-sm">
+                    <StreamingMarkdown
+                      content={step.content}
+                      isStreaming={step.status === "active"}
+                      reasoning
+                    />
+                  </div>
+                ) : null}
+
                 {step.searchResults?.length ? (
                   <ChainOfThoughtSearchResults>
                     {step.searchResults.map((result) => (

@@ -35,6 +35,22 @@ const useChainOfThought = () => {
   return context;
 };
 
+function renderShimmerableLabel(label: ReactNode, shimmer: boolean) {
+  if (!shimmer) {
+    return label;
+  }
+
+  if (typeof label === "string" || typeof label === "number") {
+    return (
+      <Shimmer as="span" className="text-sm" duration={1.8}>
+        {String(label)}
+      </Shimmer>
+    );
+  }
+
+  return label;
+}
+
 export type ChainOfThoughtProps = ComponentProps<"div"> & {
   open?: boolean;
   defaultOpen?: boolean;
@@ -107,17 +123,11 @@ export const ChainOfThoughtHeader = memo(
           <span
             className={cn(
               "text-left",
-              status === "active" && "text-foreground",
+              (status === "active" || shimmer) && "text-foreground",
               status === "error" && "text-destructive",
             )}
           >
-            {typeof children === "string" && shimmer ? (
-              <Shimmer as="span" className="text-sm" duration={1.8}>
-                {children}
-              </Shimmer>
-            ) : (
-              (children ?? "Thought Process")
-            )}
+            {renderShimmerableLabel(children ?? "Thought Process", shimmer)}
           </span>
           <ChevronDownIcon
             className={cn(
@@ -178,15 +188,7 @@ export const ChainOfThoughtStep = memo(
         <div className="bg-border absolute top-7 bottom-0 left-1/2 -mx-px w-px" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
-        <div>
-          {typeof label === "string" && shimmer ? (
-            <Shimmer as="span" className="text-sm" duration={1.8}>
-              {label}
-            </Shimmer>
-          ) : (
-            label
-          )}
-        </div>
+        <div>{renderShimmerableLabel(label, shimmer)}</div>
         {description && (
           <div className="text-muted-foreground text-xs">{description}</div>
         )}

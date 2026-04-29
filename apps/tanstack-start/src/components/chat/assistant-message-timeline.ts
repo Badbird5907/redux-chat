@@ -14,6 +14,7 @@ export interface AssistantTimelineSearchResult {
 
 export interface AssistantTimelineStep {
   analysisDetails?: AssistantTimelineAnalysisDetails;
+  content?: string;
   description?: string;
   id: string;
   kind: "reasoning" | "source" | "tool";
@@ -73,12 +74,12 @@ export function normalizeAssistantMessage(
 
   if (reasoningText && hasToolOrSourceActivity) {
     steps.push({
-      description: summarizeText(reasoningText),
+      content: reasoningText,
       id: `${message.id}:reasoning`,
       kind: "reasoning",
       label: "Thinking",
       rawPartIds: reasoningParts.map(({ id }) => id),
-      status: isLastReasoningPartStreaming(message.parts)
+      status: (isLastReasoningPartStreaming(message.parts))
         ? "active"
         : "complete",
       summary: "Thinking through the response",

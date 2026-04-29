@@ -1282,7 +1282,6 @@ export const deleteThread = mutation({
 export const getThreadStreamId = query({
   args: { threadId: v.string() },
   handler: async (ctx, args) => {
-    console.log("filtering by threadId", args.threadId);
     const thread = await ctx.db
       .query("threads")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
