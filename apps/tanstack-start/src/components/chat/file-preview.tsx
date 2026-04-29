@@ -8,11 +8,12 @@ import { Button } from "@redux/ui/components/button";
 
 interface FilePreviewDialogProps {
   file: {
+    // convertingToPdf?: boolean;
+    convertedToPdf?: boolean;
     id: string;
     name: string;
     type: string;
     url?: string;
-    convertedToPdf?: boolean;
   } | null;
   onClose: () => void;
 }

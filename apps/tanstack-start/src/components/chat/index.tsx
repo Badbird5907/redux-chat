@@ -21,6 +21,7 @@ import {
   ClockIcon,
   CopyIcon,
   FileText,
+  Loader2,
   RefreshCwIcon,
   WholeWord,
   ZapIcon,
@@ -66,6 +67,7 @@ interface MessageStats {
 interface ResolvedAttachment {
   attachmentId: string;
   fileName: string;
+  convertingToPdf?: boolean;
   originalFileName?: string;
   mimeType: string;
   size: number;
@@ -76,6 +78,7 @@ interface ResolvedAttachment {
 
 interface MessageAttachmentSummary {
   attachmentId: string;
+  convertingToPdf?: boolean;
   fileName: string;
   originalFileName?: string;
   mimeType: string;
@@ -509,11 +512,12 @@ export function Chat({
 
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{
+    convertingToPdf?: boolean;
+    convertedToPdf?: boolean;
     id: string;
     name: string;
     type: string;
     url?: string;
-    convertedToPdf?: boolean;
   } | null>(null);
   const [resolvedMessageAttachments, setResolvedMessageAttachments] = useState<
     Record<string, ResolvedAttachment>
@@ -606,7 +610,7 @@ export function Chat({
     return () => {
       cancelled = true;
     };
-  }, [attachmentIds, resolveAttachmentsFn]);
+  }, [attachmentIds, resolveAttachmentsFn, status]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -663,19 +667,28 @@ export function Chat({
                       .get(message.id)
                       ?.map((attachment) => ({
                         ...attachment,
+                        fileName:
+                          resolvedMessageAttachments[attachment.attachmentId]
+                            ?.fileName ?? attachment.fileName,
                         originalFileName:
                           resolvedMessageAttachments[attachment.attachmentId]
                             ?.originalFileName ?? attachment.originalFileName,
+                        mimeType:
+                          resolvedMessageAttachments[attachment.attachmentId]
+                            ?.mimeType ?? attachment.mimeType,
+                        size:
+                          resolvedMessageAttachments[attachment.attachmentId]
+                            ?.size ?? attachment.size,
                         expired:
                           resolvedMessageAttachments[attachment.attachmentId]
                             ?.expired ??
                           isAttachmentExpired(attachment.expiresAt),
                         expiresAt:
-                          attachment.expiresAt ??
                           resolvedMessageAttachments[attachment.attachmentId]
-                            ?.expiresAt,
-                        url: resolvedMessageAttachments[attachment.attachmentId]
-                          ?.url,
+                            ?.expiresAt ?? attachment.expiresAt,
+                        url:
+                          resolvedMessageAttachments[attachment.attachmentId]
+                            ?.url ?? attachment.url,
                       })) ?? [];
                   const messageMetadata = (
                     "metadata" in message ? message.metadata : undefined
@@ -737,38 +750,43 @@ export function Chat({
                                 isAttachmentExpired(attachment.expiresAt);
                               const convertedToPdf =
                                 attachment.originalFileName !== undefined;
+                              const convertingToPdf =
+                                attachment.convertingToPdf === true &&
+                                !convertedToPdf;
                               return (
                                 <button
                                   key={attachment.attachmentId}
                                   type="button"
                                   onClick={() =>
-                                    attachment.url &&
-                                    !isExpired &&
+                                    (convertingToPdf ||
+                                      (attachment.url && !isExpired)) &&
                                     setPreviewFile({
                                       id: attachment.attachmentId,
                                       name: attachmentDisplayName(attachment),
                                       type: attachment.mimeType,
                                       url: attachment.url,
+                                      convertingToPdf,
                                       convertedToPdf,
                                     })
                                   }
                                   className={cn(
                                     "border-border bg-background/70 relative flex items-center gap-2 rounded-xl border px-3 py-2 text-left",
-                                    attachment.url &&
-                                      !isExpired &&
+                                    (convertingToPdf ||
+                                      (attachment.url && !isExpired)) &&
                                       "hover:border-primary transition-colors",
                                     isExpired &&
                                       "text-muted-foreground opacity-70",
                                   )}
                                 >
-                                  {convertedToPdf && (
+                                  {(convertedToPdf || convertingToPdf) && (
                                     <span
                                       aria-hidden
                                       className="text-muted-foreground pointer-events-none absolute bottom-2 left-2 rounded bg-background/90 p-px shadow-sm"
                                       style={{ transform: "translateX(-6px) translateY(5px)" }}
                                       title="Converted to PDF"
                                     >
-                                      <ArrowRightLeft className="h-3 w-3" />
+                                      {convertedToPdf && <ArrowRightLeft className="h-3 w-3" />}
+                                      {convertingToPdf && <Loader2 className="h-3 w-3 animate-spin" />}
                                     </span>
                                   )}
                                   {isImage && attachment.url && !isExpired ? (

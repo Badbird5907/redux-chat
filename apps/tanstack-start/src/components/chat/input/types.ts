@@ -29,6 +29,8 @@ export interface ChatInputProps {
 }
 
 export interface PreviewableFile {
+  convertingToPdf?: boolean;
+  convertedToPdf?: boolean;
   id: string;
   name: string;
   type: string;

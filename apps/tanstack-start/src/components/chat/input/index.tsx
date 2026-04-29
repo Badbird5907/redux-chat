@@ -9,6 +9,8 @@ import {
   CHAT_MODELS,
   getChatModelConfig,
   isFileAllowedForModel,
+  resolveModelAttachmentDelivery,
+  resolveModelRoute,
 } from "@redux/shared/models";
 import { isToolEnabled } from "@redux/types";
 import { useSidebar } from "@redux/ui/components/sidebar";
@@ -134,6 +136,7 @@ export function ChatInput({
     settings.tools.analysisWorkspace?.syncUploads !== false;
   const showErrorBorder = status === "error";
   const currentModelConfig = getChatModelConfig(selectedModel);
+  const currentModelRoute = resolveModelRoute(selectedModel);
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
   const isSubmitting = status === "streaming" || status === "submitted";
   const canUploadFiles =
@@ -337,6 +340,22 @@ export function ChatInput({
       setIsExpanded(false);
     }
 
+    const attachmentsNeedingConversion = currentModelRoute
+      ? currentAttachments.filter(
+          (attachment) =>
+            resolveModelAttachmentDelivery(currentModelRoute.id, {
+              name: attachment.fileName,
+              type: attachment.mimeType,
+            }) === "convert_to_pdf",
+        )
+      : [];
+
+    if (attachmentsNeedingConversion.length > 0) {
+      toast(
+        "Converting attached files to PDF for model compatibility. Please wait.",
+      );
+    }
+
     try {
       await submitMessage({
         messageContent: input,
@@ -350,6 +369,9 @@ export function ChatInput({
         ),
         attachmentMetadata: currentAttachments.map((attachment) => ({
           attachmentId: attachment.attachmentId,
+          convertingToPdf: attachmentsNeedingConversion.some(
+            (candidate) => candidate.attachmentId === attachment.attachmentId,
+          ),
           fileName: attachment.fileName,
           mimeType: attachment.mimeType,
           size: attachment.size,
@@ -388,6 +410,7 @@ export function ChatInput({
     settingsReady,
     status,
     threadId,
+    currentModelRoute,
   ]);
 
   const handleKeyDown = useCallback(

@@ -13,6 +13,7 @@ interface SubmitMessageParams {
   attachmentIds?: string[];
   attachmentMetadata?: {
     attachmentId: string;
+    convertingToPdf?: boolean;
     fileName: string;
     mimeType: string;
     size: number;
