@@ -31,20 +31,6 @@ const embeddingStatus = v.union(
   v.literal("failed"),
 );
 
-const attachmentDerivativeStatus = v.union(
-  v.literal("queued"),
-  v.literal("processing"),
-  v.literal("ready"),
-  v.literal("failed"),
-);
-
-const attachmentDerivativeKind = v.union(
-  v.literal("normalized_text"),
-  v.literal("converted_pdf"),
-  v.literal("pdf_text"),
-  v.literal("spreadsheet_text"),
-);
-
 const embeddingModality = v.union(
   v.literal("text"),
   v.literal("image"),
@@ -194,41 +180,4 @@ export default defineSchema({
       dimensions: 3072,
       filterFields: ["chatProjectId"],
     }),
-
-  attachmentDerivatives: defineTable({
-    derivativeId: v.string(),
-    attachmentId: v.string(),
-    kind: attachmentDerivativeKind,
-    version: v.string(),
-    status: attachmentDerivativeStatus,
-    sourceSignature: v.string(),
-    mimeType: v.string(),
-    fileName: v.string(),
-    charCount: v.optional(v.number()),
-    pageCount: v.optional(v.number()),
-    error: v.optional(v.string()),
-    outputProjectId: v.optional(v.string()),
-    outputEnvironmentId: v.optional(v.string()),
-    outputAccessKey: v.optional(v.string()),
-    outputFileKeyId: v.optional(v.string()),
-    outputFileId: v.optional(v.string()),
-    outputIsPublic: v.optional(v.boolean()),
-    outputServeImage: v.optional(v.boolean()),
-    expiresAt: v.optional(v.number()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_derivativeId", ["derivativeId"])
-    .index("by_attachmentId", ["attachmentId"])
-    .index("by_attachmentId_kind", ["attachmentId", "kind"])
-    .index("by_status", ["status"]),
-
-  attachmentDerivativeTextChunks: defineTable({
-    derivativeId: v.string(),
-    chunkIndex: v.number(),
-    text: v.string(),
-    createdAt: v.number(),
-  })
-    .index("by_derivativeId", ["derivativeId"])
-    .index("by_derivativeId_chunkIndex", ["derivativeId", "chunkIndex"]),
 });

@@ -13,6 +13,8 @@ export function planChatAttachment(
   route: ModelRouteInfo,
   attachment: Pick<AttachmentSourceRef, "fileName" | "mimeType">,
 ): PlannedChatAttachment {
+  // this function essentially categorizes the attachment
+  // and figures out if the model can use it natively (ex. a pdf file) or if it needs to be converted to a pdf
   const kind = classifyChatAttachment({
     fileName: attachment.fileName,
     mimeType: attachment.mimeType,

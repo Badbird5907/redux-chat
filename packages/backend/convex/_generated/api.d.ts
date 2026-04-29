@@ -10,7 +10,6 @@
 
 import type * as auth from "../auth.js";
 import type * as env from "../env.js";
-import type * as functions_attachmentDerivatives from "../functions/attachmentDerivatives.js";
 import type * as functions_attachments from "../functions/attachments.js";
 import type * as functions_defaultMessageSettings from "../functions/defaultMessageSettings.js";
 import type * as functions_embeddings from "../functions/embeddings.js";
@@ -32,7 +31,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   env: typeof env;
-  "functions/attachmentDerivatives": typeof functions_attachmentDerivatives;
   "functions/attachments": typeof functions_attachments;
   "functions/defaultMessageSettings": typeof functions_defaultMessageSettings;
   "functions/embeddings": typeof functions_embeddings;

@@ -23,6 +23,7 @@ import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-fo
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
+import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
 import type { RetrievedChunk } from "@/server/rag/vector-store";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
@@ -88,29 +89,33 @@ async function resolveModelAttachments(attachmentIds: string[]) {
     },
   );
 
+  const servingAttachments = await Promise.all(
+    attachments.map((attachment) => resolveServingAttachment(attachment)),
+  );
+
   return Promise.all(
-    attachments
+    servingAttachments
       .filter((attachment) => !attachment.expired)
-          .map(
-            async (attachment): Promise<ModelAttachment> => ({
-              attachmentId: attachment.attachmentId,
-              fileName: attachment.fileName,
-              mimeType: attachment.mimeType,
-              size: attachment.size,
-              url: await buildAttachmentUrl({
-                accessKey: attachment.accessKey,
-                fileName: attachment.fileName,
-                mimeType: attachment.mimeType,
-                isPublic: attachment.isPublic,
-                serveImage: attachment.serveImage,
-              }),
-              accessKey: attachment.accessKey,
-              isPublic: attachment.isPublic,
-              serveImage: attachment.serveImage,
-              projectId: attachment.projectId,
-              environmentId: attachment.environmentId,
-            }),
-          ),
+      .map(
+        async (attachment): Promise<ModelAttachment> => ({
+          attachmentId: attachment.attachmentId,
+          fileName: attachment.fileName,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          url: await buildAttachmentUrl({
+            accessKey: attachment.accessKey,
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            isPublic: attachment.isPublic,
+            serveImage: attachment.serveImage,
+          }),
+          accessKey: attachment.accessKey,
+          isPublic: attachment.isPublic,
+          serveImage: attachment.serveImage,
+          projectId: attachment.projectId,
+          environmentId: attachment.environmentId,
+        }),
+      ),
   );
 }
 
@@ -316,9 +321,10 @@ export const Route = createFileRoute("/api/chat/")({
             "If the user's request is ambiguous, underspecified, or you do not know what they are referring to, use `search_project_knowledge` first to ground the conversation in the project knowledge base.",
             "Do not ask the user to paste, quote, clarify, or re-upload project material until you have first used `search_project_knowledge` and checked its results.",
             "If the tool returns relevant excerpts or raw files, use them to answer directly.",
-          ].join(" ");
+          ].join("\n");
         }
 
+        // #region project rag stuff
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (chatProjectId && ENABLE_PROJECT_RAG_PREFETCH) {
           const queryText = extractTextFromMessage(getLastUserMessage(messages));
@@ -355,6 +361,7 @@ export const Route = createFileRoute("/api/chat/")({
             }
           }
         }
+        // #endregion project rag stuff
 
         if (lastUserMessageId && fileIds.length > 0) {
           attachmentsByMessageId.set(

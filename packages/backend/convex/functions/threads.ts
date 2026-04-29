@@ -9,7 +9,7 @@ import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
-import { attachDraftAttachmentsToMessage, mergedAttachmentServingRow } from "./attachments";
+import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
 import { internalAction, internalMutation } from "./internal";
 
@@ -175,47 +175,22 @@ export const getThreadMessages = query({
       }[]
     >();
 
-    const now = Date.now();
+    for (const attachment of allAttachments) {
+      if (!attachment.messageId) {
+        continue;
+      }
 
-    const attachmentRowsPending = Promise.all(
-      allAttachments.flatMap((attachment) => {
-        if (!attachment.messageId) {
-          return [];
-        }
-
-        return [
-          (async () => {
-            const merged = await mergedAttachmentServingRow(
-              ctx,
-              attachment,
-              now,
-            );
-            return {
-              messageId: attachment.messageId ?? "",
-              row: {
-                attachmentId: merged.attachmentId,
-                fileName: merged.fileName,
-                ...(merged.originalFileName !== undefined
-                  ? { originalFileName: merged.originalFileName }
-                  : {}),
-                mimeType: merged.mimeType,
-                size: merged.size,
-                serveImage: merged.serveImage,
-                isPublic: merged.isPublic,
-                expiresAt: merged.expiresAt,
-              },
-            };
-          })(),
-        ];
-      }),
-    );
-
-    const attachmentRows = await attachmentRowsPending;
-
-    for (const { messageId, row } of attachmentRows) {
-      const existing = attachmentsByMessageId.get(messageId) ?? [];
-      existing.push(row);
-      attachmentsByMessageId.set(messageId, existing);
+      const existing = attachmentsByMessageId.get(attachment.messageId) ?? [];
+      existing.push({
+        attachmentId: attachment.attachmentId,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+        serveImage: attachment.serveImage,
+        isPublic: attachment.isPublic,
+        expiresAt: attachment.expiresAt,
+      });
+      attachmentsByMessageId.set(attachment.messageId, existing);
     }
 
     return allMessages.map((m) => ({

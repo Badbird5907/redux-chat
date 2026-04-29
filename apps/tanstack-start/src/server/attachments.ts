@@ -5,6 +5,7 @@ import { api } from "@redux/backend/convex/_generated/api";
 
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl, getSiloCore } from "@/lib/silo/core.server";
+import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 
 export const resolveAttachments = createServerFn({ method: "POST" })
   .inputValidator(
@@ -24,8 +25,12 @@ export const resolveAttachments = createServerFn({ method: "POST" })
       },
     );
 
+    const servingAttachments = await Promise.all(
+      attachments.map((attachment) => resolveServingAttachment(attachment)),
+    );
+
     return Promise.all(
-      attachments.map(async (attachment) => {
+      servingAttachments.map(async (attachment) => {
         const url = attachment.expired
           ? undefined
           : await buildAttachmentUrl({

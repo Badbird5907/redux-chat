@@ -1,0 +1,2 @@
+export const ATTACHMENT_DERIVATIVE_VERSION = "v1";
+export const ATTACHMENT_DERIVATIVE_TTL_MS = 36 * 60 * 60 * 1000;

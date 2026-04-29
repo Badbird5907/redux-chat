@@ -2,9 +2,7 @@ import type { GenericMutationCtx } from "convex/server";
 import { createSiloCoreFromToken } from "@silo-storage/sdk-core";
 import { ConvexError, v } from "convex/values";
 
-import type { DataModel, Doc } from "../_generated/dataModel";
-// eslint-disable-next-line no-restricted-imports
-import type { QueryCtx } from "../_generated/server";
+import type { DataModel } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
 import { backendMutation, mutation, query } from "./index";
@@ -12,12 +10,6 @@ import { internalAction, internalMutation } from "./internal";
 
 type AttachmentMutationCtx = GenericMutationCtx<DataModel> & {
   userId: string;
-};
-
-type UsableConvertedPdfDerivative = Doc<"attachmentDerivatives"> & {
-  outputAccessKey: string;
-  outputEnvironmentId: string;
-  outputFileKeyId: string;
 };
 
 const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
@@ -35,115 +27,6 @@ function createBackendSiloCore() {
 
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
-}
-
-function combinedExpiry(
-  attachmentExpiresAt: number | undefined,
-  derivativeExpiresAt: number | undefined,
-): number | undefined {
-  if (attachmentExpiresAt === undefined) {
-    return derivativeExpiresAt;
-  }
-  if (derivativeExpiresAt === undefined) {
-    return attachmentExpiresAt;
-  }
-  return Math.min(attachmentExpiresAt, derivativeExpiresAt);
-}
-
-function isUsableConvertedPdfDerivative(
-  derivative: Doc<"attachmentDerivatives">,
-  now: number,
-): derivative is UsableConvertedPdfDerivative {
-  return (
-    derivative.status === "ready" &&
-    derivative.outputAccessKey !== undefined &&
-    derivative.outputEnvironmentId !== undefined &&
-    derivative.outputFileKeyId !== undefined &&
-    (derivative.expiresAt === undefined || derivative.expiresAt > now)
-  );
-}
-
-async function newestUsableConvertedPdfDerivative(
-  ctx: QueryCtx,
-  attachmentId: string,
-  now: number,
-) {
-  const derivatives = await ctx.db
-    .query("attachmentDerivatives")
-    .withIndex("by_attachmentId_kind", (q) =>
-      q.eq("attachmentId", attachmentId).eq("kind", "converted_pdf"),
-    )
-    .collect();
-
-  const ready = derivatives.filter((derivative) =>
-    isUsableConvertedPdfDerivative(derivative, now),
-  );
-
-  if (ready.length === 0) {
-    return null;
-  }
-
-  ready.sort((a, b) => b.updatedAt - a.updatedAt);
-  return ready[0] ?? null;
-}
-
-export async function mergedAttachmentServingRow(
-  ctx: QueryCtx,
-  attachment: Doc<"attachments">,
-  now: number,
-) {
-  const pdf = await newestUsableConvertedPdfDerivative(
-    ctx,
-    attachment.attachmentId,
-    now,
-  );
-
-  const blendedExpiresAt = pdf
-    ? combinedExpiry(attachment.expiresAt, pdf.expiresAt)
-    : attachment.expiresAt;
-
-  const expired = isAttachmentExpired(blendedExpiresAt, now);
-
-  if (pdf) {
-    return {
-      attachmentId: attachment.attachmentId,
-      threadId: attachment.threadId,
-      messageId: attachment.messageId,
-      status: attachment.status,
-      projectId: attachment.projectId,
-      environmentId: pdf.outputEnvironmentId,
-      accessKey: pdf.outputAccessKey,
-      fileKeyId: pdf.outputFileKeyId,
-      fileId: pdf.outputFileId,
-      fileName: pdf.fileName,
-      originalFileName: attachment.fileName,
-      mimeType: pdf.mimeType,
-      size: attachment.size,
-      isPublic: pdf.outputIsPublic ?? attachment.isPublic,
-      serveImage: pdf.outputServeImage ?? attachment.serveImage,
-      expiresAt: blendedExpiresAt,
-      expired,
-    };
-  }
-
-  return {
-    attachmentId: attachment.attachmentId,
-    threadId: attachment.threadId,
-    messageId: attachment.messageId,
-    status: attachment.status,
-    projectId: attachment.projectId,
-    environmentId: attachment.environmentId,
-    accessKey: attachment.accessKey,
-    fileKeyId: attachment.fileKeyId,
-    fileId: attachment.fileId,
-    fileName: attachment.fileName,
-    mimeType: attachment.mimeType,
-    size: attachment.size,
-    isPublic: attachment.isPublic,
-    serveImage: attachment.serveImage,
-    expiresAt: attachment.expiresAt,
-    expired,
-  };
 }
 
 export async function attachDraftAttachmentsToMessage(
@@ -291,7 +174,24 @@ export const listByIds = query({
           return null;
         }
 
-        return mergedAttachmentServingRow(ctx, attachment, now);
+        return {
+          attachmentId: attachment.attachmentId,
+          threadId: attachment.threadId,
+          messageId: attachment.messageId,
+          status: attachment.status,
+          projectId: attachment.projectId,
+          environmentId: attachment.environmentId,
+          accessKey: attachment.accessKey,
+          fileKeyId: attachment.fileKeyId,
+          fileId: attachment.fileId,
+          fileName: attachment.fileName,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          isPublic: attachment.isPublic,
+          serveImage: attachment.serveImage,
+          expiresAt: attachment.expiresAt,
+          expired: isAttachmentExpired(attachment.expiresAt, now),
+        };
       }),
     );
 

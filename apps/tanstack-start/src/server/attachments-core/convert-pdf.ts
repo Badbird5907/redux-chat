@@ -1,5 +1,5 @@
 import { env } from "@/env";
-import { getSiloCore } from "@/lib/silo/core.server";
+import { buildAttachmentUrl, getSiloCore } from "@/lib/silo/core.server";
 
 import type { AttachmentSourceRef } from "./types";
 
@@ -10,6 +10,7 @@ function replaceExtension(fileName: string, nextExtension: string) {
 export async function convertAttachmentToPdf(input: {
   source: AttachmentSourceRef;
   bytes: ArrayBuffer;
+  expiresAt: number;
 }) {
   if (!env.DOCUMENT_CONVERTER_URL || !env.DOCUMENT_CONVERTER_BASIC_AUTH) {
     throw new Error("Document converter is not configured");
@@ -55,6 +56,9 @@ export async function convertAttachmentToPdf(input: {
     const prepared = await siloCore.prepareUpload({
       uploadStrategy: "self",
       uploadMethod: "put",
+      fileExpiry: {
+        expiresAt: new Date(input.expiresAt),
+      },
       file: {
         fileName,
         size: pdfBytes.byteLength,
@@ -81,6 +85,13 @@ export async function convertAttachmentToPdf(input: {
     }
 
     console.log(`Uploaded converted PDF to Silo`)
+    const url = await buildAttachmentUrl({
+      accessKey: prepared.file.accessKey,
+      fileName,
+      mimeType: "application/pdf",
+      isPublic: false,
+      serveImage: false,
+    });
 
     return {
       kind: "converted_pdf" as const,
@@ -91,7 +102,8 @@ export async function convertAttachmentToPdf(input: {
       fileId: undefined,
       expiresAt: prepared.file.expiresAt
         ? new Date(prepared.file.expiresAt).getTime()
-        : undefined,
+        : input.expiresAt,
+      url,
     };
   } finally {
     clearTimeout(timeout);

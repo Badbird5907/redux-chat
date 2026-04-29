@@ -57,7 +57,7 @@ export async function materializeAttachmentsForRoute<TMessage extends ChatReques
 
       for (const attachment of attachments) {
         const plan = planChatAttachment(route, attachment);
-        if (plan.deliveryMode === "native") {
+        if (plan.deliveryMode === "native") { // model supports it
           materializedParts.push({
             type: "file",
             mediaType: attachment.mimeType,

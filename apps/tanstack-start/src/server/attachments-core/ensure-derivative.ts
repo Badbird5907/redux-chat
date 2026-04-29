@@ -1,17 +1,13 @@
-import { buildAttachmentUrl } from "@/lib/silo/core.server";
-
 import {
-  beginDerivativeProcessing,
   getReadyDerivativeRecord,
   hydrateReadyDerivative,
-  markDerivativeFailed,
-  markPdfDerivativeReady,
-  markTextDerivativeReady,
-  replaceDerivativeTextChunks,
+  storeReadyPdfDerivative,
+  storeReadyTextDerivative,
 } from "./cache";
 import { convertAttachmentToPdf } from "./convert-pdf";
 import { downloadAttachmentSource } from "./download";
 import { extractTextDerivative } from "./extract-text";
+import { ATTACHMENT_DERIVATIVE_TTL_MS } from "./policy";
 import type { AttachmentDerivativeRequest, ReadyAttachmentDerivative } from "./types";
 
 export async function ensureAttachmentDerivative(
@@ -19,54 +15,43 @@ export async function ensureAttachmentDerivative(
 ): Promise<ReadyAttachmentDerivative> {
   const cached = await getReadyDerivativeRecord(request);
   if (cached) {
-    return hydrateReadyDerivative(cached);
+    try {
+      return await hydrateReadyDerivative(request, cached);
+    } catch {
+      // stale/malformed cache entry, regenerate below
+    }
   }
-
-  const processing = await beginDerivativeProcessing(request, {
-    mimeType:
-      request.kind === "converted_pdf" ? "application/pdf" : "text/plain",
-    fileName:
-      request.kind === "converted_pdf"
-        ? request.source.fileName.replace(/\.[^.]+$/, ".pdf")
-        : `${request.source.fileName}.txt`,
-  });
 
   try {
     const downloaded = await downloadAttachmentSource(request.source);
+    const expiresAt = Date.now() + ATTACHMENT_DERIVATIVE_TTL_MS;
 
     if (request.kind === "converted_pdf") {
-      const pdf = await convertAttachmentToPdf({ // TODO: write a server wrapping libreoffice that just takes in a URL instead of bytes
+      const pdf = await convertAttachmentToPdf({
         source: request.source,
         bytes: downloaded.bytes,
+        expiresAt,
       });
 
-      await markPdfDerivativeReady({
-        derivativeId: processing.derivativeId,
-        mimeType: pdf.mimeType,
-        fileName: pdf.fileName,
-        outputProjectId: request.source.projectId,
-        outputEnvironmentId: request.source.environmentId,
-        outputAccessKey: pdf.accessKey,
-        outputFileKeyId: pdf.fileKeyId,
-        outputFileId: pdf.fileId,
-        outputIsPublic: false,
-        outputServeImage: false,
-        expiresAt: pdf.expiresAt,
-      });
-
-      const url = await buildAttachmentUrl({
-        accessKey: pdf.accessKey,
-        fileName: pdf.fileName,
-        mimeType: pdf.mimeType,
-        isPublic: false,
-        serveImage: false,
+    await storeReadyPdfDerivative(request, {
+      accessKey: pdf.accessKey,
+      environmentId: request.source.environmentId,
+      expiresAt: pdf.expiresAt,
+      fileId: pdf.fileId,
+      fileKeyId: pdf.fileKeyId,
+      fileName: pdf.fileName,
+      isPublic: false,
+      kind: "converted_pdf",
+      mimeType: pdf.mimeType,
+      projectId: request.source.projectId,
+      serveImage: false,
       });
 
       return {
         kind: "converted_pdf",
         mimeType: "application/pdf",
         fileName: pdf.fileName,
-        url,
+        url: pdf.url,
         accessKey: pdf.accessKey,
         fileKeyId: pdf.fileKeyId,
       };
@@ -78,15 +63,13 @@ export async function ensureAttachmentDerivative(
       bytes: downloaded.bytes,
     });
 
-    await replaceDerivativeTextChunks(
-      processing.derivativeId,
-      textDerivative.textChunks,
-    );
-    await markTextDerivativeReady({
-      derivativeId: processing.derivativeId,
-      mimeType: textDerivative.mimeType,
-      fileName: textDerivative.fileName,
+    await storeReadyTextDerivative(request, {
       charCount: textDerivative.charCount,
+      expiresAt,
+      fileName: textDerivative.fileName,
+      kind: textDerivative.kind,
+      mimeType: "text/plain",
+      textChunks: textDerivative.textChunks,
     });
 
     return {
@@ -97,7 +80,6 @@ export async function ensureAttachmentDerivative(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown derivative error";
-    await markDerivativeFailed(processing.derivativeId, message.slice(0, 1000));
     throw new Error(`Failed to process ${request.source.fileName}: ${message}`);
   }
 }
