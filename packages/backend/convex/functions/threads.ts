@@ -1,15 +1,15 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
+import type { GenericMutationCtx } from "convex/server";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { Buffer } from "buffer/";
-import type { GenericMutationCtx } from "convex/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 
-import { internal } from "../_generated/api";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
 import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
@@ -263,7 +263,8 @@ export const internal_failStream = backendMutation({
     assistantMessageId: v.string(),
     error: v.string(),
   },
-  handler: async (ctx, args) => { // we errored
+  handler: async (ctx, args) => {
+    // we errored
     const assistantMessage = await ctx.db
       .query("messages")
       .withIndex("by_threadId_messageId", (q) =>
@@ -611,6 +612,137 @@ export const sendMessage = mutation({
   },
 });
 
+export const regenerateMessage = mutation({
+  args: {
+    threadId: v.string(),
+    fromAssistantMessageId: v.string(),
+    assistantMessageId: v.string(),
+    model: v.string(),
+    settings: v.object({
+      model: v.string(),
+      tools: v.object({
+        search: v.optional(v.object({})),
+        analysisWorkspace: v.optional(
+          v.object({
+            syncUploads: v.optional(v.boolean()),
+          }),
+        ),
+      }),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const [assistantMsgId, assistantSig] = args.assistantMessageId.split(":");
+    if (!assistantMsgId || !assistantSig) {
+      throw new ConvexError("Invalid assistantMessageId or signature");
+    }
+    const assistantVerified = await verifySignature(
+      assistantMsgId,
+      assistantSig,
+    );
+    if (!assistantVerified) {
+      throw new ConvexError("Invalid assistant message signature");
+    }
+
+    const thread = await ctx.db
+      .query("threads")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .first();
+    if (thread?.userId !== ctx.userId) {
+      throw new ConvexError("Thread not found");
+    }
+
+    const sourceAssistantMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q
+          .eq("threadId", args.threadId)
+          .eq("messageId", args.fromAssistantMessageId),
+      )
+      .first();
+    if (
+      !sourceAssistantMessage ||
+      sourceAssistantMessage.role !== "assistant"
+    ) {
+      throw new ConvexError("Assistant message not found");
+    }
+    if (!sourceAssistantMessage.parentId) {
+      throw new ConvexError("Assistant message is missing its parent");
+    }
+
+    const parentUserMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q
+          .eq("threadId", args.threadId)
+          .eq("messageId", sourceAssistantMessage.parentId ?? ""),
+      )
+      .first();
+    if (!parentUserMessage || parentUserMessage.role !== "user") {
+      throw new ConvexError("Parent user message not found");
+    }
+
+    const siblingMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_parentId", (q) =>
+        q.eq("parentId", parentUserMessage.messageId),
+      )
+      .collect();
+    const siblingIndex =
+      siblingMessages.reduce(
+        (maxSiblingIndex, message) =>
+          Math.max(maxSiblingIndex, message.siblingIndex),
+        -1,
+      ) + 1;
+
+    if (thread.deadMessageCheckSchedulerId) {
+      await ctx.scheduler.cancel(thread.deadMessageCheckSchedulerId);
+    }
+
+    const normalizedSettings = normalizeMessageSettings(args.settings);
+    await ctx.db.patch(thread._id, {
+      status: "generating",
+      updatedAt: Date.now(),
+      settings: normalizedSettings,
+      deadMessageCheckSchedulerId: undefined,
+    });
+
+    await ctx.db.insert("messages", {
+      threadId: args.threadId,
+      messageId: assistantMsgId,
+      parentId: parentUserMessage.messageId,
+      role: "assistant",
+      parts: [],
+      status: "generating",
+      depth: sourceAssistantMessage.depth,
+      siblingIndex,
+      mutation: {
+        type: "regeneration",
+        fromMessageId: sourceAssistantMessage.messageId,
+      },
+      model: args.model,
+    });
+
+    const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
+      10 * 60 * 1000,
+      internal.functions.threads.internal_checkMessageDead,
+      {
+        threadId: args.threadId,
+        messageId: assistantMsgId,
+      },
+    );
+
+    await ctx.db.patch(thread._id, {
+      deadMessageCheckSchedulerId,
+    });
+
+    return {
+      threadId: args.threadId,
+      assistantMessageId: assistantMsgId,
+      parentMessageId: parentUserMessage.messageId,
+    };
+  },
+});
+
 export const internal_checkMessageDead = internalMutation({
   args: {
     threadId: v.string(),
@@ -799,11 +931,15 @@ export const regenerateThreadTitle = mutation({
       throw new ConvexError("No message text found to generate a title from");
     }
 
-    await ctx.scheduler.runAfter(0, internal.functions.threads.internal_generateThreadTitle, {
-      threadId: args.threadId,
-      prompt,
-      forceOverwrite: true,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.functions.threads.internal_generateThreadTitle,
+      {
+        threadId: args.threadId,
+        prompt,
+        forceOverwrite: true,
+      },
+    );
 
     return { scheduled: true as const };
   },

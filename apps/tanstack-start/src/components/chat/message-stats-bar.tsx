@@ -20,11 +20,15 @@ export const MessageStatsBar = memo(function MessageStatsBar({
   isVisible,
   content,
   isStreaming,
+  canRegenerate,
+  onRegenerate,
 }: {
   stats: MessageStats | undefined;
   isVisible: boolean;
   content?: string;
   isStreaming: boolean;
+  canRegenerate: boolean;
+  onRegenerate?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -68,11 +72,13 @@ export const MessageStatsBar = memo(function MessageStatsBar({
         </button>
         <button
           className={cn(
-            "hover:bg-muted rounded p-2 transition-colors",
+            "hover:bg-muted rounded p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50",
             isStreaming && "hidden",
           )}
           title="Regenerate"
           type="button"
+          onClick={onRegenerate}
+          disabled={!canRegenerate}
         >
           <RefreshCwIcon className="size-4" />
         </button>

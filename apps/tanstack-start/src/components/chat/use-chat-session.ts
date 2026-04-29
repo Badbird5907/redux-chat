@@ -1,31 +1,29 @@
 import type { UIMessage } from "ai";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { DefaultChatTransport } from "ai";
+import { useMutation } from "convex/react";
+import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
-import { useQuery } from "@/lib/hooks/convex";
-import { resolveAttachments } from "@/server/attachments";
-import { useChatRouteAdoption } from "./chat-route-adoption";
 import type {
   ChatMessageWithThreadMetadata,
+  MessageAttachmentSummary,
   MessageStats,
   ResolvedAttachment,
-  MessageAttachmentSummary,
 } from "./chat-types";
+import { useSignedCid } from "@/components/chat/client-id";
+import { useQuery } from "@/lib/hooks/convex";
+import { resolveAttachments } from "@/server/attachments";
 import {
   haveEquivalentMessageStructure,
+  projectVisibleMessages,
   toChatUIMessage,
 } from "./chat-message-utils";
+import { useChatRouteAdoption } from "./chat-route-adoption";
 import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
 
@@ -46,6 +44,10 @@ export function useChatSession({
   );
 
   const lastMessageCount = useRef(0);
+  const { allocate: allocateSignedIds } = useSignedCid();
+  const createRegeneratedMessage = useMutation(
+    api.functions.threads.regenerateMessage,
+  );
 
   const [optimisticMessage, setOptimisticMessage] = useState<
     UIMessage | undefined
@@ -122,23 +124,29 @@ export function useChatSession({
     [currentThreadId],
   );
 
-  const { messages, status, sendMessage, setMessages, resumeStream } =
-    useChat<ChatMessageWithThreadMetadata>({
-      id: chatInstanceId,
-      messages: initialMessages,
-      transport,
+  const {
+    messages,
+    status,
+    sendMessage,
+    setMessages,
+    resumeStream,
+    regenerate,
+  } = useChat<ChatMessageWithThreadMetadata>({
+    id: chatInstanceId,
+    messages: initialMessages,
+    transport,
 
-      onError: (error) => {
-        locallyStartedStreamRef.current = false;
-        console.error("Chat error:", error);
-      },
-      onFinish: (message) => {
-        console.log("Finish:", message);
-        locallyStartedStreamRef.current = false;
-        locallyCompletedStreamRef.current =
-          !message.isAbort && !message.isDisconnect && !message.isError;
-      },
-    });
+    onError: (error) => {
+      locallyStartedStreamRef.current = false;
+      console.error("Chat error:", error);
+    },
+    onFinish: (message) => {
+      console.log("Finish:", message);
+      locallyStartedStreamRef.current = false;
+      locallyCompletedStreamRef.current =
+        !message.isAbort && !message.isDisconnect && !message.isError;
+    },
+  });
 
   const sendMessageWithTracking = useCallback(
     (
@@ -294,13 +302,16 @@ export function useChatSession({
     void resumeStream();
   }, [activeStreamInfo, resumeStream, status, chatSessionId]);
 
-  const convexUIMessages = useMemo<ChatMessageWithThreadMetadata[]>(() => {
-    return (
-      convexMessages
-        ?.filter((message) => message.status !== "generating")
-        .map(toChatUIMessage) ?? []
+  const projectedPersistedMessages = useMemo(() => {
+    return projectVisibleMessages(
+      convexMessages?.filter((message) => message.status !== "generating") ??
+        [],
     );
   }, [convexMessages]);
+
+  const convexUIMessages = useMemo<ChatMessageWithThreadMetadata[]>(() => {
+    return projectedPersistedMessages.map(toChatUIMessage);
+  }, [projectedPersistedMessages]);
 
   useEffect(() => {
     if (status === "streaming") {
@@ -375,7 +386,10 @@ export function useChatSession({
     }
 
     if (
-      haveEquivalentMessageStructure(convexUIMessages, lastSyncedMessagesRef.current)
+      haveEquivalentMessageStructure(
+        convexUIMessages,
+        lastSyncedMessagesRef.current,
+      )
     ) {
       return;
     }
@@ -388,7 +402,72 @@ export function useChatSession({
     console.log("Syncing messages (n,e)", convexUIMessages, messages);
     lastSyncedMessagesRef.current = convexUIMessages;
     setMessages(convexUIMessages);
-  }, [activeStreamInfo?.streamId, convexUIMessages, messages, status, setMessages]);
+  }, [
+    activeStreamInfo?.streamId,
+    convexUIMessages,
+    messages,
+    status,
+    setMessages,
+  ]);
+
+  const regenerateMessageWithTracking = useCallback(
+    async (messageId: string) => {
+      if (!currentThreadId || status !== "ready") {
+        return;
+      }
+
+      try {
+        const [assistantMessageId] = await allocateSignedIds(1);
+        if (!assistantMessageId) {
+          throw new Error("Failed to get assistant message ID");
+        }
+
+        const regeneration = await createRegeneratedMessage({
+          threadId: currentThreadId,
+          fromAssistantMessageId: messageId,
+          assistantMessageId: assistantMessageId.str,
+          model: settings.model,
+          settings,
+        });
+
+        locallyStartedStreamRef.current = true;
+        locallyCompletedStreamRef.current = false;
+        setPendingAssistantMessageId(regeneration.assistantMessageId);
+
+        await regenerate({
+          messageId,
+          body: {
+            threadId: regeneration.threadId,
+            assistantMessageId: regeneration.assistantMessageId,
+            fileIds: [],
+            settings,
+            model: settings.model,
+            id: regeneration.threadId,
+            clientId: chatSessionId,
+          },
+        });
+      } catch (error) {
+        locallyStartedStreamRef.current = false;
+        locallyCompletedStreamRef.current = false;
+        setPendingAssistantMessageId(undefined);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to regenerate message",
+        );
+        console.error("Failed to regenerate message:", error);
+      }
+    },
+    [
+      allocateSignedIds,
+      chatSessionId,
+      createRegeneratedMessage,
+      currentThreadId,
+      regenerate,
+      settings,
+      status,
+    ],
+  );
 
   const messageStatsMap = useMemo(() => {
     const map = new Map<string, MessageStats>();
@@ -469,7 +548,7 @@ export function useChatSession({
 
   const assistantModelByParentMessageId = useMemo(() => {
     const map = new Map<string, string>();
-    convexMessages?.forEach((message) => {
+    projectedPersistedMessages.forEach((message) => {
       const messageWithMetadata = message as ChatMessageWithThreadMetadata;
       if (
         messageWithMetadata.role !== "assistant" ||
@@ -482,7 +561,7 @@ export function useChatSession({
       map.set(messageWithMetadata.parentId, messageWithMetadata.model);
     });
     return map;
-  }, [convexMessages]);
+  }, [projectedPersistedMessages]);
 
   const attachmentIds = useMemo(
     () =>
@@ -550,6 +629,7 @@ export function useChatSession({
     messages,
     status,
     sendMessageWithTracking,
+    regenerateMessageWithTracking,
     setOptimisticMessage,
     convexUIMessages,
     finalMessages,

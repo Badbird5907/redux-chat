@@ -2,17 +2,17 @@
 
 import type { UIMessage } from "ai";
 import type { ComponentProps, ReactNode } from "react";
-import { useCallback, memo } from "react";
+import { memo, useCallback } from "react";
 
 import type { ChatMessageRowProps } from "./chat-message-row";
-import { EmptyChat } from "./empty";
-import { ChatMessageRow } from "./chat-message-row";
 import type {
   ChatMessageWithThreadMetadata,
   MessageAttachmentSummary,
   MessageStats,
   ResolvedAttachment,
 } from "./chat-types";
+import { ChatMessageRow } from "./chat-message-row";
+import { EmptyChat } from "./empty";
 
 interface ChatMessageListProps {
   currentThreadId: string | undefined;
@@ -33,6 +33,7 @@ interface ChatMessageListProps {
   messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
   assistantModelByParentMessageId: Map<string, string>;
   setPreviewFile: ChatMessageRowProps["onAttachmentPreview"];
+  onRegenerateMessage: (messageId: string) => void;
 }
 
 export const ChatMessageList = memo(function ChatMessageList({
@@ -54,6 +55,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   messageAttachmentsByMessageId,
   assistantModelByParentMessageId,
   setPreviewFile,
+  onRegenerateMessage,
 }: ChatMessageListProps) {
   const handleHoverChange = useCallback(
     (id: string | null) => {
@@ -84,9 +86,7 @@ export const ChatMessageList = memo(function ChatMessageList({
           {finalMessages.map((message, index) => (
             <ChatMessageRow
               key={message.id}
-              assistantModelByParentMessageId={
-                assistantModelByParentMessageId
-              }
+              assistantModelByParentMessageId={assistantModelByParentMessageId}
               index={index}
               isHovered={hoveredMessageId === message.id}
               message={message}
@@ -94,6 +94,7 @@ export const ChatMessageList = memo(function ChatMessageList({
               messageStats={messageStatsMap.get(message.id)}
               onAttachmentPreview={setPreviewFile}
               onHoverChange={handleHoverChange}
+              onRegenerateMessage={onRegenerateMessage}
               resolvedMessageAttachments={resolvedMessageAttachments}
               status={status}
               totalCount={totalCount}

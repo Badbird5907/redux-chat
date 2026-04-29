@@ -11,10 +11,9 @@ import {
   ConversationScrollButton,
 } from "@/components/ai/conversation";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
-
-import { ChatInput } from "./input";
 import { ChatMessageList } from "./chat-message-list";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
+import { ChatInput } from "./input";
 import { useChatSession } from "./use-chat-session";
 
 export function Chat({
@@ -37,6 +36,7 @@ export function Chat({
     messages,
     status,
     sendMessageWithTracking,
+    regenerateMessageWithTracking,
     setOptimisticMessage,
     convexUIMessages,
     finalMessages,
@@ -86,6 +86,7 @@ export function Chat({
             messageAttachmentsByMessageId={messageAttachmentsByMessageId}
             messageStatsMap={messageStatsMap}
             resolvedMessageAttachments={resolvedMessageAttachments}
+            onRegenerateMessage={regenerateMessageWithTracking}
             sendMessageWithTracking={sendMessageWithTracking}
             setHoveredMessageId={setHoveredMessageId}
             setOptimisticMessage={setOptimisticMessage}

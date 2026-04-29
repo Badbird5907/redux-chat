@@ -34,6 +34,76 @@ export function toChatUIMessage(
   };
 }
 
+export function projectVisibleMessages(messages: PersistedChatMessage[]) {
+  const orderedMessages = [...messages].sort((left, right) => {
+    const createdAtDelta = left._creationTime - right._creationTime;
+    if (createdAtDelta !== 0) {
+      return createdAtDelta;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+
+  const latestAssistantByParentId = new Map<string, PersistedChatMessage>();
+
+  for (const message of orderedMessages) {
+    if (message.role !== "assistant" || typeof message.parentId !== "string") {
+      continue;
+    }
+
+    const existing = latestAssistantByParentId.get(message.parentId);
+    if (
+      !existing ||
+      message.siblingIndex > existing.siblingIndex ||
+      (message.siblingIndex === existing.siblingIndex &&
+        message._creationTime > existing._creationTime)
+    ) {
+      latestAssistantByParentId.set(message.parentId, message);
+    }
+  }
+
+  const visibleMessages: PersistedChatMessage[] = [];
+  const appendedAssistantIds = new Set<string>();
+
+  for (const message of orderedMessages) {
+    if (message.role === "assistant" && typeof message.parentId === "string") {
+      continue;
+    }
+
+    visibleMessages.push(message);
+
+    if (message.role !== "user") {
+      continue;
+    }
+
+    const latestAssistant = latestAssistantByParentId.get(message.id);
+    if (!latestAssistant) {
+      continue;
+    }
+
+    visibleMessages.push(latestAssistant);
+    appendedAssistantIds.add(latestAssistant.id);
+  }
+
+  for (const message of orderedMessages) {
+    if (
+      message.role !== "assistant" ||
+      typeof message.parentId !== "string" ||
+      appendedAssistantIds.has(message.id)
+    ) {
+      continue;
+    }
+
+    if (latestAssistantByParentId.get(message.parentId)?.id !== message.id) {
+      continue;
+    }
+
+    visibleMessages.push(message);
+  }
+
+  return visibleMessages;
+}
+
 export function haveEquivalentMessageStructure(
   left: UIMessage[],
   right: UIMessage[],
@@ -65,7 +135,9 @@ export function haveEquivalentMessageStructure(
       }
 
       if ("text" in part || "text" in otherPart) {
-        return "text" in part && "text" in otherPart && part.text === otherPart.text;
+        return (
+          "text" in part && "text" in otherPart && part.text === otherPart.text
+        );
       }
 
       return true;
@@ -73,7 +145,10 @@ export function haveEquivalentMessageStructure(
   });
 }
 
-export function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
+export function isAttachmentExpired(
+  expiresAt: number | undefined,
+  now = Date.now(),
+) {
   return expiresAt !== undefined && expiresAt <= now;
 }
 

@@ -54,6 +54,7 @@ const requestBody = z.object({
   model: z.string(),
   id: z.string(),
   trigger: z.enum(["submit-message", "regenerate-message"]),
+  messageId: z.string().optional(),
   clientId: z.string().optional(),
 });
 
@@ -282,7 +283,9 @@ export const Route = createFileRoute("/api/chat/")({
           assistantMessageId,
           messages,
           fileIds,
+          messageId,
           clientId,
+          trigger,
           settings: rawSettings,
         } = parsedBody;
         const settings = normalizeMessageSettings(rawSettings);
@@ -291,6 +294,8 @@ export const Route = createFileRoute("/api/chat/")({
           threadId,
           assistantMessageId,
           clientId,
+          trigger,
+          messageId,
           model: settings.model,
           isSearchEnabled,
         });

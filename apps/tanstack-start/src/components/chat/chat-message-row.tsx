@@ -3,28 +3,21 @@
 import type { UIMessage } from "ai";
 import { memo, useMemo } from "react";
 import { isTextUIPart } from "ai";
-import {
-  ArrowRightLeft,
-  CircleAlert,
-  FileText,
-  Loader2,
-} from "lucide-react";
+import { ArrowRightLeft, CircleAlert, FileText, Loader2 } from "lucide-react";
 
 import { Card, CardContent } from "@redux/ui/components/card";
 import Spinner from "@redux/ui/components/spinner";
 import { cn } from "@redux/ui/lib/utils";
 
-import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
-import { StaticMarkdown } from "@/components/markdown/static-markdown";
-import { normalizeAssistantMessage } from "./assistant-message-timeline";
-
-import { MessageStatsBar } from "./message-stats-bar";
 import type {
   ChatMessageWithThreadMetadata,
   MessageAttachmentSummary,
   MessageStats,
   ResolvedAttachment,
 } from "./chat-types";
+import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
+import { StaticMarkdown } from "@/components/markdown/static-markdown";
+import { normalizeAssistantMessage } from "./assistant-message-timeline";
 import {
   attachmentDisplayName,
   didUseDerivative,
@@ -32,6 +25,7 @@ import {
   isGeneratingDerivative,
   modelUsesDerivativeForAttachment,
 } from "./chat-message-utils";
+import { MessageStatsBar } from "./message-stats-bar";
 
 export interface ChatMessageRowProps {
   message: ChatMessageWithThreadMetadata;
@@ -44,6 +38,7 @@ export interface ChatMessageRowProps {
   resolvedMessageAttachments: Record<string, ResolvedAttachment>;
   messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
   assistantModelByParentMessageId: Map<string, string>;
+  onRegenerateMessage?: (messageId: string) => void;
   onAttachmentPreview: (
     file: {
       generatingDerivative?: boolean;
@@ -67,16 +62,20 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   resolvedMessageAttachments,
   messageAttachmentsByMessageId,
   assistantModelByParentMessageId,
+  onRegenerateMessage,
   onAttachmentPreview,
 }: ChatMessageRowProps) {
   const textContent = useMemo(
     () =>
-      message.parts.reduce<string>((content, part: UIMessage["parts"][number]) => {
-        if (!isTextUIPart(part)) {
-          return content;
-        }
-        return content + part.text;
-      }, ""),
+      message.parts.reduce<string>(
+        (content, part: UIMessage["parts"][number]) => {
+          if (!isTextUIPart(part)) {
+            return content;
+          }
+          return content + part.text;
+        },
+        "",
+      ),
     [message.parts],
   );
 
@@ -89,7 +88,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const isFailedMessage = message.status === "failed";
   const responseModel = assistantModelByParentMessageId.get(message.id);
   const normalizedAssistantMessage = useMemo(
-    () => (message.role === "assistant" ? normalizeAssistantMessage(message) : null),
+    () =>
+      message.role === "assistant" ? normalizeAssistantMessage(message) : null,
     [message],
   );
   const hasRenderableAssistantContent = useMemo(() => {
@@ -111,39 +111,37 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   const persistedAttachments: MessageAttachmentSummary[] = useMemo(() => {
     return (
-      messageAttachmentsByMessageId
-        .get(message.id)
-        ?.map((attachment) => ({
-          ...attachment,
-          fileName:
-            resolvedMessageAttachments[attachment.attachmentId]?.fileName ??
-            attachment.fileName,
-          generatingDerivative:
-            resolvedMessageAttachments[attachment.attachmentId]
-              ?.generatingDerivative ?? attachment.generatingDerivative,
-          originalFileName:
-            resolvedMessageAttachments[attachment.attachmentId]
-              ?.originalFileName ?? attachment.originalFileName,
-          usedDerivative:
-            resolvedMessageAttachments[attachment.attachmentId]?.usedDerivative ??
-            attachment.usedDerivative ??
-            modelUsesDerivativeForAttachment(responseModel, attachment),
-          mimeType:
-            resolvedMessageAttachments[attachment.attachmentId]?.mimeType ??
-            attachment.mimeType,
-          size:
-            resolvedMessageAttachments[attachment.attachmentId]?.size ??
-            attachment.size,
-          expired:
-            resolvedMessageAttachments[attachment.attachmentId]?.expired ??
-            isAttachmentExpired(attachment.expiresAt),
-          expiresAt:
-            resolvedMessageAttachments[attachment.attachmentId]?.expiresAt ??
-            attachment.expiresAt,
-          url:
-            resolvedMessageAttachments[attachment.attachmentId]?.url ??
-            attachment.url,
-        })) ?? []
+      messageAttachmentsByMessageId.get(message.id)?.map((attachment) => ({
+        ...attachment,
+        fileName:
+          resolvedMessageAttachments[attachment.attachmentId]?.fileName ??
+          attachment.fileName,
+        generatingDerivative:
+          resolvedMessageAttachments[attachment.attachmentId]
+            ?.generatingDerivative ?? attachment.generatingDerivative,
+        originalFileName:
+          resolvedMessageAttachments[attachment.attachmentId]
+            ?.originalFileName ?? attachment.originalFileName,
+        usedDerivative:
+          resolvedMessageAttachments[attachment.attachmentId]?.usedDerivative ??
+          attachment.usedDerivative ??
+          modelUsesDerivativeForAttachment(responseModel, attachment),
+        mimeType:
+          resolvedMessageAttachments[attachment.attachmentId]?.mimeType ??
+          attachment.mimeType,
+        size:
+          resolvedMessageAttachments[attachment.attachmentId]?.size ??
+          attachment.size,
+        expired:
+          resolvedMessageAttachments[attachment.attachmentId]?.expired ??
+          isAttachmentExpired(attachment.expiresAt),
+        expiresAt:
+          resolvedMessageAttachments[attachment.attachmentId]?.expiresAt ??
+          attachment.expiresAt,
+        url:
+          resolvedMessageAttachments[attachment.attachmentId]?.url ??
+          attachment.url,
+      })) ?? []
     );
   }, [
     message.id,
@@ -168,6 +166,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     persistedAttachments.length > 0
       ? persistedAttachments
       : optimisticAttachments;
+  const canRegenerate =
+    message.role === "assistant" && isLastMessage && status === "ready";
 
   return (
     <div
@@ -188,9 +188,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             : "w-full",
         )}
       >
-        {(!message.parts.length || showStreamingPlaceholder) && !isFailedMessage && (
-          <Spinner className="size-4" />
-        )}
+        {(!message.parts.length || showStreamingPlaceholder) &&
+          !isFailedMessage && <Spinner className="size-4" />}
         {isFailedMessage ? (
           <Card
             size="sm"
@@ -260,9 +259,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                           : "Used derivative"
                       }
                     >
-                      {usedDerivative && (
-                        <ArrowRightLeft className="h-3 w-3" />
-                      )}
+                      {usedDerivative && <ArrowRightLeft className="h-3 w-3" />}
                       {generatingDerivative && (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       )}
@@ -298,6 +295,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             isVisible={isHovered}
             content={textContent}
             isStreaming={isStreamingAssistant && isLastMessage}
+            canRegenerate={canRegenerate}
+            onRegenerate={
+              onRegenerateMessage
+                ? () => onRegenerateMessage(message.id)
+                : undefined
+            }
           />
         )}
       </div>
