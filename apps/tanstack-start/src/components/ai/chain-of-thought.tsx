@@ -185,16 +185,7 @@ export const ChainOfThoughtStep = memo(
           )}
         </div>
         {description && (
-          <div className="text-muted-foreground text-xs">
-            {/* {typeof description === "string" && shimmer ? (
-              <Shimmer as="span" className="text-xs" duration={1.8}>
-                {description}
-              </Shimmer>
-            ) : (
-              description
-            )} */}
-            {description}
-          </div>
+          <div className="text-muted-foreground text-xs">{description}</div>
         )}
         {children}
       </div>

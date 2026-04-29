@@ -674,9 +674,21 @@ export function Chat({
       return;
     }
 
-    if (messages.some((message) => message.id === optimisticMessage.id)) {
-      setOptimisticMessage(undefined);
+    if (!messages.some((message) => message.id === optimisticMessage.id)) {
+      return;
     }
+
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setOptimisticMessage(undefined);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [messages, optimisticMessage]);
 
   useEffect(() => {
@@ -684,15 +696,28 @@ export function Chat({
       return;
     }
 
-    if (
+    const shouldClear =
       messages.some(
         (message) =>
-          message.role === "assistant" && message.id === pendingAssistantMessageId,
-      ) ||
-      status === "error"
-    ) {
-      setPendingAssistantMessageId(undefined);
+          message.role === "assistant" &&
+          message.id === pendingAssistantMessageId,
+      ) || status === "error";
+
+    if (!shouldClear) {
+      return;
     }
+
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setPendingAssistantMessageId(undefined);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [messages, pendingAssistantMessageId, status]);
 
   useEffect(() => {
