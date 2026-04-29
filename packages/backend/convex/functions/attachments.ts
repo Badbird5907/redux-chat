@@ -3,6 +3,7 @@ import { createSiloCoreFromToken } from "@silo-storage/sdk-core";
 import { ConvexError, v } from "convex/values";
 
 import type { DataModel, Doc } from "../_generated/dataModel";
+// eslint-disable-next-line no-restricted-imports
 import type { QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
@@ -11,6 +12,12 @@ import { internalAction, internalMutation } from "./internal";
 
 type AttachmentMutationCtx = GenericMutationCtx<DataModel> & {
   userId: string;
+};
+
+type UsableConvertedPdfDerivative = Doc<"attachmentDerivatives"> & {
+  outputAccessKey: string;
+  outputEnvironmentId: string;
+  outputFileKeyId: string;
 };
 
 const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
@@ -43,6 +50,19 @@ function combinedExpiry(
   return Math.min(attachmentExpiresAt, derivativeExpiresAt);
 }
 
+function isUsableConvertedPdfDerivative(
+  derivative: Doc<"attachmentDerivatives">,
+  now: number,
+): derivative is UsableConvertedPdfDerivative {
+  return (
+    derivative.status === "ready" &&
+    derivative.outputAccessKey !== undefined &&
+    derivative.outputEnvironmentId !== undefined &&
+    derivative.outputFileKeyId !== undefined &&
+    (derivative.expiresAt === undefined || derivative.expiresAt > now)
+  );
+}
+
 async function newestUsableConvertedPdfDerivative(
   ctx: QueryCtx,
   attachmentId: string,
@@ -55,11 +75,8 @@ async function newestUsableConvertedPdfDerivative(
     )
     .collect();
 
-  const ready = derivatives.filter(
-    (d) =>
-      d.status === "ready" &&
-      d.outputAccessKey !== undefined &&
-      (d.expiresAt === undefined || d.expiresAt > now),
+  const ready = derivatives.filter((derivative) =>
+    isUsableConvertedPdfDerivative(derivative, now),
   );
 
   if (ready.length === 0) {
@@ -67,7 +84,7 @@ async function newestUsableConvertedPdfDerivative(
   }
 
   ready.sort((a, b) => b.updatedAt - a.updatedAt);
-  return ready[0]!;
+  return ready[0] ?? null;
 }
 
 export async function mergedAttachmentServingRow(
@@ -81,35 +98,29 @@ export async function mergedAttachmentServingRow(
     now,
   );
 
-  const pdfUsable =
-    pdf !== null &&
-    pdf.outputAccessKey !== undefined &&
-    pdf.outputEnvironmentId !== undefined &&
-    pdf.outputFileKeyId !== undefined;
-
-  const blendedExpiresAt = pdfUsable
-    ? combinedExpiry(attachment.expiresAt, pdf!.expiresAt)
+  const blendedExpiresAt = pdf
+    ? combinedExpiry(attachment.expiresAt, pdf.expiresAt)
     : attachment.expiresAt;
 
   const expired = isAttachmentExpired(blendedExpiresAt, now);
 
-  if (pdfUsable) {
+  if (pdf) {
     return {
       attachmentId: attachment.attachmentId,
       threadId: attachment.threadId,
       messageId: attachment.messageId,
       status: attachment.status,
       projectId: attachment.projectId,
-      environmentId: pdf!.outputEnvironmentId!,
-      accessKey: pdf!.outputAccessKey!,
-      fileKeyId: pdf!.outputFileKeyId!,
-      fileId: pdf!.outputFileId,
-      fileName: pdf!.fileName,
+      environmentId: pdf.outputEnvironmentId,
+      accessKey: pdf.outputAccessKey,
+      fileKeyId: pdf.outputFileKeyId,
+      fileId: pdf.outputFileId,
+      fileName: pdf.fileName,
       originalFileName: attachment.fileName,
-      mimeType: pdf!.mimeType,
+      mimeType: pdf.mimeType,
       size: attachment.size,
-      isPublic: pdf!.outputIsPublic ?? attachment.isPublic,
-      serveImage: pdf!.outputServeImage ?? attachment.serveImage,
+      isPublic: pdf.outputIsPublic ?? attachment.isPublic,
+      serveImage: pdf.outputServeImage ?? attachment.serveImage,
       expiresAt: blendedExpiresAt,
       expired,
     };

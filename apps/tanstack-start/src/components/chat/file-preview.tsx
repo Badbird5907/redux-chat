@@ -1,4 +1,4 @@
-import { X, FileText } from "lucide-react";
+import { X, FileText, ArrowRightLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,20 +37,27 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <FileText className="text-muted-foreground h-4 w-4 shrink-0" />
-              <span className="text-foreground truncate text-sm font-medium">
+              <span className="text-foreground min-w-0 truncate text-sm font-medium">
                 {file.name}
               </span>
             </div>
             {file.convertedToPdf && (
-              <>
-                <p className="text-muted-foreground mt-1.5 max-w-none text-xs leading-relaxed">
-                  This file was automatically converted to PDF for model
-                  compatibility.
+              <div className="text-muted-foreground mt-2 max-w-none space-y-1.5 text-xs leading-relaxed">
+                <p className="flex items-start gap-2">
+                  <ArrowRightLeft
+                    className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0"
+                    aria-hidden
+                  />
+                  <span>
+                    This file was automatically converted to PDF for model
+                    compatibility.
+                  </span>
                 </p>
-                <p className="text-muted-foreground mt-1.5 max-w-none text-xs leading-relaxed">
-                  Use models that natively support {extension} files for best results.
+                <p>
+                  Use models that natively support {extension} files for best
+                  results.
                 </p>
-              </>
+              </div>
             )}
           </div>
           <div className="shrink-0 self-start">

@@ -16,6 +16,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { DefaultChatTransport } from "ai";
 import {
+  ArrowRightLeft,
   CheckIcon,
   ClockIcon,
   CopyIcon,
@@ -734,6 +735,8 @@ export function Chat({
                               const isExpired =
                                 attachment.expired ??
                                 isAttachmentExpired(attachment.expiresAt);
+                              const convertedToPdf =
+                                attachment.originalFileName !== undefined;
                               return (
                                 <button
                                   key={attachment.attachmentId}
@@ -746,13 +749,11 @@ export function Chat({
                                       name: attachmentDisplayName(attachment),
                                       type: attachment.mimeType,
                                       url: attachment.url,
-                                      convertedToPdf:
-                                        attachment.originalFileName !==
-                                        undefined,
+                                      convertedToPdf,
                                     })
                                   }
                                   className={cn(
-                                    "border-border bg-background/70 flex items-center gap-2 rounded-xl border px-3 py-2 text-left",
+                                    "border-border bg-background/70 relative flex items-center gap-2 rounded-xl border px-3 py-2 text-left",
                                     attachment.url &&
                                       !isExpired &&
                                       "hover:border-primary transition-colors",
@@ -760,6 +761,16 @@ export function Chat({
                                       "text-muted-foreground opacity-70",
                                   )}
                                 >
+                                  {convertedToPdf && (
+                                    <span
+                                      aria-hidden
+                                      className="text-muted-foreground pointer-events-none absolute bottom-2 left-2 rounded bg-background/90 p-px shadow-sm"
+                                      style={{ transform: "translateX(-6px) translateY(5px)" }}
+                                      title="Converted to PDF"
+                                    >
+                                      <ArrowRightLeft className="h-3 w-3" />
+                                    </span>
+                                  )}
                                   {isImage && attachment.url && !isExpired ? (
                                     <img
                                       src={attachment.url}
