@@ -1,15 +1,28 @@
 {
-  "name": "@redux/shared",
+  "name": "@redux/models",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
     },
-    "./models": {
-      "types": "./dist/models/index.d.ts",
-      "default": "./src/models/index.ts"
+    "./anthropic": {
+      "types": "./dist/generated/anthropic.d.ts",
+      "default": "./src/generated/anthropic.ts"
+    },
+    "./google": {
+      "types": "./dist/generated/google.d.ts",
+      "default": "./src/generated/google.ts"
+    },
+    "./openai": {
+      "types": "./dist/generated/openai.d.ts",
+      "default": "./src/generated/openai.ts"
+    },
+    "./openrouter": {
+      "types": "./dist/generated/openrouter.d.ts",
+      "default": "./src/generated/openrouter.ts"
     }
   },
   "license": "MIT",
@@ -19,11 +32,8 @@
     "dev": "tsc",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
+    "models:generate": "tsx scripts/generate-models.ts",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
-  },
-  "dependencies": {
-    "@redux/models": "workspace:*",
-    "@silo-storage/mime-types": "catalog:"
   },
   "devDependencies": {
     "@redux/eslint-config": "workspace:*",
@@ -32,6 +42,7 @@
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:"
   },
   "prettier": "@redux/prettier-config"

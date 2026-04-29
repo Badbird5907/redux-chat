@@ -1,4 +1,11 @@
 import { lookupMimeTypeFromFile } from "@silo-storage/mime-types";
+import {
+  calculateModelCost,
+  calculateModelCostFromUsage,
+  getModelSpec,
+  getProviderCatalog,
+  MODELS_DEV_PROVIDERS,
+} from "@redux/models";
 
 import {
   expandAllowedMimeTypes,
@@ -11,7 +18,6 @@ import {
   mergeModelRouteBehavior,
   resolveAttachmentDeliveryMode,
 } from "./route-behavior";
-import { createModelRouteInfo, getTokenLensProvider } from "./tokenlens";
 import type {
   CanonicalCuratedModelDefinition,
   CanonicalModelId,
@@ -59,7 +65,7 @@ export const MODEL_ROUTES: ModelRouteInfo[] = Array.from(
   new Set(CURATED_MODELS.flatMap((model) => model.providerIds)),
 )
   .map((routeId) => {
-    const route = createModelRouteInfo(routeId);
+    const route = getModelSpec(MODELS_DEV_PROVIDERS, routeId);
     if (!route) {
       throw new Error(`Unknown model route: ${routeId}`);
     }
@@ -113,8 +119,11 @@ export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.map((model) => {
       attachments: allowedMimeTypes.length > 0,
     },
     costs: defaultRoute.pricing,
+    pricingMetadata: defaultRoute.pricingMetadata,
     context: defaultRoute.context,
     modalities: defaultRoute.modalities,
+    releasedAt: defaultRoute.releasedAt,
+    verifiedAt: defaultRoute.verifiedAt,
     benchmarks: model.benchmarks,
     custom: model.custom,
   };
@@ -131,7 +140,7 @@ export const MODEL_PROVIDERS: ModelProviderInfo[] = Array.from(
   new Set(MODEL_ROUTES.map((route) => route.provider)),
 )
   .map((providerId) => {
-    const provider = getTokenLensProvider(providerId);
+    const provider = getProviderCatalog(MODELS_DEV_PROVIDERS, providerId);
     if (!provider) {
       throw new Error(`Unknown model provider: ${providerId}`);
     }
@@ -149,6 +158,7 @@ export const MODEL_PROVIDERS: ModelProviderInfo[] = Array.from(
       id: provider.id,
       name: provider.name,
       api: provider.api,
+      npm: provider.npm,
       doc: provider.doc,
       env: provider.env,
       routeIds: routes.map((route) => route.id),
@@ -246,3 +256,5 @@ export function resolveModelAttachmentDelivery(
     mimeType: file.type,
   });
 }
+
+export { calculateModelCost, calculateModelCostFromUsage };

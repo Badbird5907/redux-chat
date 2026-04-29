@@ -483,6 +483,33 @@ importers:
         specifier: 'catalog:'
         version: 5.9.3
 
+  packages/models:
+    devDependencies:
+      '@redux/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint
+      '@redux/prettier-config':
+        specifier: workspace:*
+        version: link:../../tooling/prettier
+      '@redux/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/typescript
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.6.0
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4(jiti@2.6.1)
+      prettier:
+        specifier: 'catalog:'
+        version: 3.8.3
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
   packages/redis:
     dependencies:
       '@t3-oss/env-core':
@@ -519,12 +546,12 @@ importers:
 
   packages/shared:
     dependencies:
+      '@redux/models':
+        specifier: workspace:*
+        version: link:../models
       '@silo-storage/mime-types':
         specifier: 'catalog:'
         version: 0.2.9
-      '@tokenlens/models':
-        specifier: 1.3.0
-        version: 1.3.0
     devDependencies:
       '@redux/eslint-config':
         specifier: workspace:*
@@ -4118,12 +4145,6 @@ packages:
     resolution: {integrity: sha512-olW33+Cn+bsCsZKPwEGhlkqS6w3M2slFv11JIobdnCFKMLG97oAI2kWKdx5/zsywTL8flpnoIgaZZPlQTFYhdQ==}
     engines: {node: '>=20.19'}
     hasBin: true
-
-  '@tokenlens/core@1.3.0':
-    resolution: {integrity: sha512-d8YNHNC+q10bVpi95fELJwJyPVf1HfvBEI18eFQxRSZTdByXrP+f/ZtlhSzkx0Jl0aEmYVeBA5tPeeYRioLViQ==}
-
-  '@tokenlens/models@1.3.0':
-    resolution: {integrity: sha512-9mx7ZGeewW4ndXAiD7AT1bbCk4OpJeortbjHHyNkgap+pMPPn1chY6R5zqe1ggXIUzZ2l8VOAKfPqOvpcrisJw==}
 
   '@turbo/darwin-64@2.9.6':
     resolution: {integrity: sha512-X/56SnVXIQZBLKwniGTwEQTGmtE5brSACnKMBWpY3YafuxVYefrC2acamfjgxP7BG5w3I+6jf0UrLoSzgPcSJg==}
@@ -10450,12 +10471,6 @@ snapshots:
   '@tanstack/virtual-core@3.14.0': {}
 
   '@tanstack/virtual-file-routes@1.161.7': {}
-
-  '@tokenlens/core@1.3.0': {}
-
-  '@tokenlens/models@1.3.0':
-    dependencies:
-      '@tokenlens/core': 1.3.0
 
   '@turbo/darwin-64@2.9.6':
     optional: true

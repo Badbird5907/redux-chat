@@ -5,6 +5,8 @@ export {
   CHAT_MODELS,
   CURATED_MODELS,
   DEFAULT_CHAT_MODEL_ID,
+  calculateModelCost,
+  calculateModelCostFromUsage,
   getAttachmentDeliveryPolicy,
   getChatModelConfig,
   getModelAttachmentExpects,
