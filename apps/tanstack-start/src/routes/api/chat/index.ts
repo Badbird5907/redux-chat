@@ -296,8 +296,10 @@ export const Route = createFileRoute("/api/chat/")({
         });
 
         let cleanupTools: (() => Promise<void>) | undefined;
+        let streamFailureMessage: string | undefined;
         const reportStreamFailure = async (error: unknown) => {
           const errorMessage = getErrorMessage(error).slice(0, 1000);
+          streamFailureMessage = errorMessage;
           try {
             await fetchAuthMutation(api.functions.threads.internal_failStream, {
               secret: env.INTERNAL_CONVEX_SECRET,
@@ -499,6 +501,9 @@ export const Route = createFileRoute("/api/chat/")({
               chunking: "word",
             }),
             stopWhen: stepCountIs(15),
+            onError: async ({ error }) => {
+              await reportStreamFailure(error);
+            },
             onFinish: async ({ usage }) => {
               try {
                 const usageData =
@@ -581,6 +586,7 @@ export const Route = createFileRoute("/api/chat/")({
             generateMessageId: () => assistantMessageId,
             onError: (error) => {
               const errorMessage = getErrorMessage(error).slice(0, 1000);
+              streamFailureMessage = errorMessage;
               void reportStreamFailure(error);
               void cleanupTools?.();
               return errorMessage;
@@ -591,6 +597,12 @@ export const Route = createFileRoute("/api/chat/")({
               }
             },
             onFinish: async ({ messages: finishedMessages }) => {
+              if (streamFailureMessage) {
+                await reportStreamFailure(streamFailureMessage);
+                await cleanupTools?.();
+                return;
+              }
+
               const last = finishedMessages[finishedMessages.length - 1];
               const parts = last?.parts ?? [];
               await fetchAuthMutation(
@@ -623,6 +635,7 @@ export const Route = createFileRoute("/api/chat/")({
                   secret: env.INTERNAL_CONVEX_SECRET,
                   threadId: threadId,
                   streamId,
+                  messageId: assistantMessageId,
                   clientId,
                 },
               );

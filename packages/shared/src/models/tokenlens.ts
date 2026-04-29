@@ -98,6 +98,7 @@ export function createModelRouteInfo(
     return undefined;
   }
 
+  console.log(`Looking for model ${parsed.vendorId} on provider ${parsed.provider}`);
   const provider = TOKENLENS_PROVIDERS[parsed.provider];
   const model = provider?.models[parsed.vendorId];
   if (!provider || !model) {

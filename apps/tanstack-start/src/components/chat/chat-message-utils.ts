@@ -26,10 +26,21 @@ export function toChatUIMessage(
     id: message.id,
     role: message.role,
     parts: message.parts as UIMessage["parts"],
+    attachments:
+      "attachments" in message && Array.isArray(message.attachments)
+        ? message.attachments
+        : undefined,
+    createdAt:
+      "_creationTime" in message && typeof message._creationTime === "number"
+        ? message._creationTime
+        : undefined,
+    depth: "depth" in message ? message.depth : undefined,
     metadata,
     error: "error" in message ? message.error : undefined,
     model: "model" in message ? message.model : undefined,
+    mutation: "mutation" in message ? message.mutation : undefined,
     parentId: "parentId" in message ? message.parentId : undefined,
+    siblingIndex: "siblingIndex" in message ? message.siblingIndex : undefined,
     status: "status" in message ? message.status : undefined,
   };
 }
@@ -65,7 +76,9 @@ export function haveEquivalentMessageStructure(
       }
 
       if ("text" in part || "text" in otherPart) {
-        return "text" in part && "text" in otherPart && part.text === otherPart.text;
+        return (
+          "text" in part && "text" in otherPart && part.text === otherPart.text
+        );
       }
 
       return true;
@@ -73,7 +86,10 @@ export function haveEquivalentMessageStructure(
   });
 }
 
-export function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
+export function isAttachmentExpired(
+  expiresAt: number | undefined,
+  now = Date.now(),
+) {
   return expiresAt !== undefined && expiresAt <= now;
 }
 

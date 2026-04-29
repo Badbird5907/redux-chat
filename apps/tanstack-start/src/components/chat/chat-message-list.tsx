@@ -2,17 +2,17 @@
 
 import type { UIMessage } from "ai";
 import type { ComponentProps, ReactNode } from "react";
-import { useCallback, memo } from "react";
+import { memo, useCallback } from "react";
 
 import type { ChatMessageRowProps } from "./chat-message-row";
-import { EmptyChat } from "./empty";
-import { ChatMessageRow } from "./chat-message-row";
 import type {
   ChatMessageWithThreadMetadata,
   MessageAttachmentSummary,
   MessageStats,
   ResolvedAttachment,
 } from "./chat-types";
+import { ChatMessageRow } from "./chat-message-row";
+import { EmptyChat } from "./empty";
 
 interface ChatMessageListProps {
   currentThreadId: string | undefined;
@@ -32,6 +32,10 @@ interface ChatMessageListProps {
   resolvedMessageAttachments: Record<string, ResolvedAttachment>;
   messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
   assistantModelByParentMessageId: Map<string, string>;
+  allBranchMessages: ChatMessageWithThreadMetadata[];
+  onRegenerateMessage: (message: ChatMessageWithThreadMetadata) => void;
+  onSelectBranch: (messageId: string) => void;
+  onStartEditMessage: (messageId: string) => void;
   setPreviewFile: ChatMessageRowProps["onAttachmentPreview"];
 }
 
@@ -53,6 +57,10 @@ export const ChatMessageList = memo(function ChatMessageList({
   resolvedMessageAttachments,
   messageAttachmentsByMessageId,
   assistantModelByParentMessageId,
+  allBranchMessages,
+  onRegenerateMessage,
+  onSelectBranch,
+  onStartEditMessage,
   setPreviewFile,
 }: ChatMessageListProps) {
   const handleHoverChange = useCallback(
@@ -84,16 +92,19 @@ export const ChatMessageList = memo(function ChatMessageList({
           {finalMessages.map((message, index) => (
             <ChatMessageRow
               key={message.id}
-              assistantModelByParentMessageId={
-                assistantModelByParentMessageId
-              }
+              assistantModelByParentMessageId={assistantModelByParentMessageId}
+              allBranchMessages={allBranchMessages}
               index={index}
               isHovered={hoveredMessageId === message.id}
               message={message}
+              visibleMessages={finalMessages}
               messageAttachmentsByMessageId={messageAttachmentsByMessageId}
               messageStats={messageStatsMap.get(message.id)}
               onAttachmentPreview={setPreviewFile}
               onHoverChange={handleHoverChange}
+              onRegenerateMessage={onRegenerateMessage}
+              onSelectBranch={onSelectBranch}
+              onStartEditMessage={onStartEditMessage}
               resolvedMessageAttachments={resolvedMessageAttachments}
               status={status}
               totalCount={totalCount}

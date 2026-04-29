@@ -75,14 +75,14 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(),
     /** Sidebar title provenance — drives typewriter UX for AI-generated titles. */
-    titleSource: v.optional(
-      v.union(v.literal("user"), v.literal("generated")),
-    ),
+    titleSource: v.optional(v.union(v.literal("user"), v.literal("generated"))),
     /** Latest time an AI/regenerated title was applied; cleared when the user edits the title. */
     titleGeneratedAt: v.optional(v.number()),
     status: threadStatus,
     settings: messageSettings,
+    selectedLeafMessageId: v.optional(v.string()),
     activeStreamId: v.optional(v.string()),
+    activeStreamMessageId: v.optional(v.string()),
     activeStreamClientId: v.optional(v.string()), // Client session ID that initiated the active stream
     deadMessageCheckSchedulerId: v.optional(v.id("_scheduled_functions")),
     updatedAt: v.number(),
@@ -123,6 +123,7 @@ export default defineSchema({
   })
     .index("by_threadId", ["threadId"])
     .index("by_threadId_messageId", ["threadId", "messageId"])
+    .index("by_threadId_parentId", ["threadId", "parentId", "siblingIndex"])
     .index("by_parentId", ["parentId", "siblingIndex"]),
 
   attachments: defineTable({

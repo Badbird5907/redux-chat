@@ -16,6 +16,7 @@ export interface DraftAttachment {
   fileName: string;
   mimeType: string;
   size: number;
+  source?: "draft" | "retained";
   url?: string;
   uploading: boolean;
   expiresAt?: number;
@@ -114,6 +115,7 @@ interface UseChatDraftOptions {
   baselineSettings: MessageSettings;
   settingsReady: boolean;
   restoreSettings: (settings: MessageSettings) => void;
+  persistDraft?: boolean;
 }
 
 export function useChatDraft({
@@ -122,6 +124,7 @@ export function useChatDraft({
   baselineSettings,
   settingsReady,
   restoreSettings,
+  persistDraft = true,
 }: UseChatDraftOptions) {
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
@@ -158,6 +161,12 @@ export function useChatDraft({
     let cancelled = false;
 
     async function loadDraft() {
+      if (!persistDraft) {
+        setLoadedScopeKey(scopeKey);
+        setIsReady(true);
+        return;
+      }
+
       setIsReady(false);
       setLoadedScopeKey(null);
 
@@ -266,10 +275,17 @@ export function useChatDraft({
     return () => {
       cancelled = true;
     };
-  }, [resolveAttachmentsFn, restoreSettings, scopeKey, settingsReady]);
+  }, [
+    persistDraft,
+    resolveAttachmentsFn,
+    restoreSettings,
+    scopeKey,
+    settingsReady,
+  ]);
 
   useEffect(() => {
     if (
+      !persistDraft ||
       !isReady ||
       !settingsReady ||
       loadedScopeKey !== scopeKey ||
@@ -315,6 +331,7 @@ export function useChatDraft({
     baselineSettings,
     isReady,
     loadedScopeKey,
+    persistDraft,
     scopeKey,
     settings,
     settingsReady,
@@ -327,6 +344,10 @@ export function useChatDraft({
     }
 
     const handleDraftUpdated: EventListener = (event) => {
+      if (!persistDraft) {
+        return;
+      }
+
       const customEvent = event as CustomEvent<{ scopeKey?: string }>;
       if (customEvent.detail.scopeKey !== scopeKey) {
         return;
@@ -360,7 +381,7 @@ export function useChatDraft({
     return () => {
       window.removeEventListener(DRAFT_UPDATED_EVENT, handleDraftUpdated);
     };
-  }, [restoreSettings, scopeKey]);
+  }, [persistDraft, restoreSettings, scopeKey]);
 
   const appendAttachment = useCallback((attachment: DraftAttachment) => {
     setAttachments((previous) => [...previous, attachment]);
@@ -384,11 +405,17 @@ export function useChatDraft({
 
   const removeAttachment = useCallback(
     async (attachmentId: string) => {
-      await deleteDraftAttachmentFn({
-        data: {
-          attachmentId,
-        },
-      });
+      const attachment = attachments.find(
+        (candidate) => candidate.attachmentId === attachmentId,
+      );
+
+      if (attachment?.source !== "retained") {
+        await deleteDraftAttachmentFn({
+          data: {
+            attachmentId,
+          },
+        });
+      }
 
       setAttachments((previous) =>
         previous.filter(
@@ -396,7 +423,7 @@ export function useChatDraft({
         ),
       );
     },
-    [deleteDraftAttachmentFn],
+    [attachments, deleteDraftAttachmentFn],
   );
 
   const clearDraft = useCallback(() => {

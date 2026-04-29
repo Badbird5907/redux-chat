@@ -29,6 +29,7 @@ interface SubmitMessageParams {
     assistantMessageId: string;
     model: string;
     settings: MessageSettings;
+    parentMessageId?: string;
     attachmentIds?: string[];
     chatProjectId?: string;
   }) => Promise<{
@@ -46,6 +47,7 @@ interface SubmitMessageParams {
     options?: { body?: object },
   ) => void;
   convexMessages: UIMessage[];
+  parentMessageId?: string;
 }
 
 export async function submitMessage({
@@ -62,6 +64,7 @@ export async function submitMessage({
   setOptimisticMessage,
   sendMessage,
   convexMessages,
+  parentMessageId,
 }: SubmitMessageParams): Promise<void> {
   const start = performance.now();
 
@@ -92,6 +95,7 @@ export async function submitMessage({
       assistantMessageId: assistantMessageId.str,
       model: settings.model,
       settings,
+      parentMessageId,
       attachmentIds,
       chatProjectId,
     });

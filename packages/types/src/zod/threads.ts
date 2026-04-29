@@ -69,6 +69,7 @@ export const threadSchema = z.object({
     tools: messageToolsSchema,
   }),
 
+  selectedLeafMessageId: z.string().optional(),
   updatedAt: z.number(),
 });
 

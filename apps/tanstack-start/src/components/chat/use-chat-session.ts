@@ -1,31 +1,31 @@
 import type { UIMessage } from "ai";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { DefaultChatTransport } from "ai";
+import { useMutation } from "convex/react";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
-import { useQuery } from "@/lib/hooks/convex";
-import { resolveAttachments } from "@/server/attachments";
-import { useChatRouteAdoption } from "./chat-route-adoption";
 import type {
   ChatMessageWithThreadMetadata,
+  MessageAttachmentSummary,
   MessageStats,
   ResolvedAttachment,
-  MessageAttachmentSummary,
 } from "./chat-types";
+import { useQuery } from "@/lib/hooks/convex";
+import { resolveAttachments } from "@/server/attachments";
+import {
+  getDeepestLeafForBranch,
+  getVisibleBranchMessages,
+} from "./chat-branching";
 import {
   haveEquivalentMessageStructure,
   toChatUIMessage,
 } from "./chat-message-utils";
+import { useChatRouteAdoption } from "./chat-route-adoption";
+import { useSignedCid } from "./client-id";
 import { useChatSettings } from "./use-chat-settings";
 import { useStableClientId } from "./use-stable-client-id";
 
@@ -66,13 +66,13 @@ export function useChatSession({
     },
   );
 
-  const threadForProject = useQuery(
+  const thread = useQuery(
     api.functions.threads.getThread,
     { threadId: currentThreadId ?? "" },
-    { skip: !currentThreadId || Boolean(chatProjectId) },
+    { skip: !currentThreadId },
   );
   const effectiveChatProjectId =
-    chatProjectId ?? threadForProject?.chatProjectId ?? undefined;
+    chatProjectId ?? thread?.chatProjectId ?? undefined;
 
   const chatSessionId = useStableClientId();
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
@@ -89,9 +89,22 @@ export function useChatSession({
     updateSettings,
   } = useChatSettings(currentThreadId);
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
+  const selectThreadBranchMutation = useMutation(
+    api.functions.threads.selectThreadBranch,
+  );
+  const editUserMessageBranch = useMutation(
+    api.functions.threads.editUserMessageBranch,
+  );
+  const regenerateAssistantMessageBranch = useMutation(
+    api.functions.threads.regenerateAssistantMessageBranch,
+  );
+  const { allocate: allocateSignedIds } = useSignedCid();
+  const [editingMessageId, setEditingMessageId] = useState<string | undefined>(
+    undefined,
+  );
 
   const [initialMessages] = useState<ChatMessageWithThreadMetadata[]>(() =>
-    (preload ?? []).map(toChatUIMessage),
+    getVisibleBranchMessages((preload ?? []).map(toChatUIMessage), undefined),
   );
 
   const handleThreadIdChange = useCallback(
@@ -122,23 +135,29 @@ export function useChatSession({
     [currentThreadId],
   );
 
-  const { messages, status, sendMessage, setMessages, resumeStream } =
-    useChat<ChatMessageWithThreadMetadata>({
-      id: chatInstanceId,
-      messages: initialMessages,
-      transport,
+  const {
+    messages,
+    status,
+    sendMessage,
+    regenerate,
+    setMessages,
+    resumeStream,
+  } = useChat<ChatMessageWithThreadMetadata>({
+    id: chatInstanceId,
+    messages: initialMessages,
+    transport,
 
-      onError: (error) => {
-        locallyStartedStreamRef.current = false;
-        console.error("Chat error:", error);
-      },
-      onFinish: (message) => {
-        console.log("Finish:", message);
-        locallyStartedStreamRef.current = false;
-        locallyCompletedStreamRef.current =
-          !message.isAbort && !message.isDisconnect && !message.isError;
-      },
-    });
+    onError: (error) => {
+      locallyStartedStreamRef.current = false;
+      console.error("Chat error:", error);
+    },
+    onFinish: (message) => {
+      console.log("Finish:", message);
+      locallyStartedStreamRef.current = false;
+      locallyCompletedStreamRef.current =
+        !message.isAbort && !message.isDisconnect && !message.isError;
+    },
+  });
 
   const sendMessageWithTracking = useCallback(
     (
@@ -259,7 +278,9 @@ export function useChatSession({
     api.functions.threads.getThreadStreamId,
     { threadId: currentThreadId ?? "" },
     { skip: !currentThreadId },
-  ) as { streamId: string; clientId: string | undefined } | undefined;
+  ) as
+    | { streamId: string; messageId?: string; clientId: string | undefined }
+    | undefined;
 
   useEffect(() => {
     if (
@@ -294,13 +315,22 @@ export function useChatSession({
     void resumeStream();
   }, [activeStreamInfo, resumeStream, status, chatSessionId]);
 
-  const convexUIMessages = useMemo<ChatMessageWithThreadMetadata[]>(() => {
-    return (
-      convexMessages
-        ?.filter((message) => message.status !== "generating")
-        .map(toChatUIMessage) ?? []
-    );
+  const allBranchMessages = useMemo<ChatMessageWithThreadMetadata[]>(() => {
+    return convexMessages?.map(toChatUIMessage) ?? [];
   }, [convexMessages]);
+
+  const visibleBranchMessages = useMemo<ChatMessageWithThreadMetadata[]>(() => {
+    return getVisibleBranchMessages(
+      allBranchMessages,
+      thread?.selectedLeafMessageId,
+    );
+  }, [allBranchMessages, thread?.selectedLeafMessageId]);
+
+  const convexUIMessages = useMemo<ChatMessageWithThreadMetadata[]>(() => {
+    return visibleBranchMessages.filter(
+      (message) => message.status !== "generating",
+    );
+  }, [visibleBranchMessages]);
 
   useEffect(() => {
     if (status === "streaming") {
@@ -375,7 +405,10 @@ export function useChatSession({
     }
 
     if (
-      haveEquivalentMessageStructure(convexUIMessages, lastSyncedMessagesRef.current)
+      haveEquivalentMessageStructure(
+        convexUIMessages,
+        lastSyncedMessagesRef.current,
+      )
     ) {
       return;
     }
@@ -388,7 +421,13 @@ export function useChatSession({
     console.log("Syncing messages (n,e)", convexUIMessages, messages);
     lastSyncedMessagesRef.current = convexUIMessages;
     setMessages(convexUIMessages);
-  }, [activeStreamInfo?.streamId, convexUIMessages, messages, status, setMessages]);
+  }, [
+    activeStreamInfo?.streamId,
+    convexUIMessages,
+    messages,
+    status,
+    setMessages,
+  ]);
 
   const messageStatsMap = useMemo(() => {
     const map = new Map<string, MessageStats>();
@@ -498,6 +537,245 @@ export function useChatSession({
     [convexMessages],
   );
 
+  const selectBranch = useCallback(
+    async (messageId: string) => {
+      if (!currentThreadId || status !== "ready") {
+        return;
+      }
+
+      const leafMessageId =
+        getDeepestLeafForBranch(allBranchMessages, messageId) ?? messageId;
+
+      await selectThreadBranchMutation({
+        threadId: currentThreadId,
+        leafMessageId,
+      });
+
+      const nextVisibleMessages = getVisibleBranchMessages(
+        allBranchMessages,
+        leafMessageId,
+      ).filter((message) => message.status !== "generating");
+
+      locallyStartedStreamRef.current = false;
+      locallyCompletedStreamRef.current = false;
+      setOptimisticMessage(undefined);
+      setPendingAssistantMessageId(undefined);
+      lastMessageCount.current = nextVisibleMessages.length;
+      lastSyncedMessagesRef.current = nextVisibleMessages;
+      setMessages(nextVisibleMessages);
+    },
+    [
+      allBranchMessages,
+      currentThreadId,
+      selectThreadBranchMutation,
+      setMessages,
+      status,
+    ],
+  );
+
+  const startEditMessage = useCallback(
+    (messageId: string) => {
+      if (status !== "ready") {
+        return;
+      }
+
+      setEditingMessageId(messageId);
+    },
+    [status],
+  );
+
+  const cancelEditMessage = useCallback(() => {
+    setEditingMessageId(undefined);
+  }, []);
+
+  const editMessage = useMemo(
+    () =>
+      editingMessageId
+        ? visibleBranchMessages.find(
+            (message) => message.id === editingMessageId,
+          )
+        : undefined,
+    [editingMessageId, visibleBranchMessages],
+  );
+
+  const submitEditedMessage = useCallback(
+    async (payload: {
+      draftAttachmentIds: string[];
+      retainedAttachmentIds: string[];
+      attachmentMetadata: {
+        attachmentId: string;
+        convertingToPdf?: boolean;
+        generatingDerivative?: boolean;
+        fileName: string;
+        mimeType: string;
+        size: number;
+        expiresAt?: number;
+        url?: string;
+      }[];
+      text: string;
+    }) => {
+      if (!currentThreadId || !editMessage || status !== "ready") {
+        return;
+      }
+
+      const [userMessageId, assistantMessageId] = await allocateSignedIds(2);
+      if (!userMessageId || !assistantMessageId) {
+        throw new Error("Failed to get message IDs");
+      }
+
+      const branchInfo = await editUserMessageBranch({
+        threadId: currentThreadId,
+        fromMessageId: editMessage.id,
+        userMessage: {
+          parts: [{ type: "text" as const, text: payload.text }],
+        },
+        userMessageId: userMessageId.str,
+        assistantMessageId: assistantMessageId.str,
+        model: settings.model,
+        settings,
+        retainedAttachmentIds: payload.retainedAttachmentIds,
+        draftAttachmentIds: payload.draftAttachmentIds,
+      });
+
+      const editIndex = visibleBranchMessages.findIndex(
+        (message) => message.id === editMessage.id,
+      );
+      const messagesForAPI = visibleBranchMessages
+        .slice(0, editIndex < 0 ? visibleBranchMessages.length : editIndex)
+        .map((message) => ({
+          id: message.id,
+          role: message.role,
+          parts: message.parts,
+        }));
+
+      const editedUserMessage: ChatMessageWithThreadMetadata = {
+        id: branchInfo.userMessageId,
+        role: "user",
+        parts: [{ type: "text", text: payload.text }],
+        metadata: {
+          attachments: payload.attachmentMetadata,
+        },
+      };
+
+      const localMessages = [
+        ...messagesForAPI.map((message) => ({
+          ...message,
+        })),
+        editedUserMessage,
+      ] satisfies ChatMessageWithThreadMetadata[];
+
+      locallyStartedStreamRef.current = true;
+      locallyCompletedStreamRef.current = false;
+      setOptimisticMessage(undefined);
+      setPendingAssistantMessageId(branchInfo.assistantMessageId);
+      lastMessageCount.current = localMessages.length;
+      lastSyncedMessagesRef.current = localMessages;
+      setMessages(localMessages);
+
+      await regenerate({
+        messageId: branchInfo.userMessageId,
+        body: {
+          threadId: branchInfo.threadId,
+          assistantMessageId: branchInfo.assistantMessageId,
+          messages: [
+            ...messagesForAPI,
+            {
+              id: branchInfo.userMessageId,
+              role: "user" as const,
+              parts: [{ type: "text" as const, text: payload.text }],
+            },
+          ],
+          fileIds: payload.draftAttachmentIds,
+          settings,
+          model: settings.model,
+          id: branchInfo.threadId,
+          clientId: chatSessionId,
+          trigger: "regenerate-message" as const,
+        },
+      });
+    },
+    [
+      allocateSignedIds,
+      chatSessionId,
+      currentThreadId,
+      editMessage,
+      editUserMessageBranch,
+      regenerate,
+      setMessages,
+      settings,
+      status,
+      visibleBranchMessages,
+    ],
+  );
+
+  const regenerateMessage = useCallback(
+    async (message: ChatMessageWithThreadMetadata) => {
+      if (
+        !currentThreadId ||
+        status !== "ready" ||
+        message.role !== "assistant"
+      ) {
+        return;
+      }
+
+      const [assistantMessageId] = await allocateSignedIds(1);
+      if (!assistantMessageId) {
+        throw new Error("Failed to get assistant message ID");
+      }
+
+      const branchInfo = await regenerateAssistantMessageBranch({
+        threadId: currentThreadId,
+        fromMessageId: message.id,
+        assistantMessageId: assistantMessageId.str,
+        model: settings.model,
+        settings,
+      });
+
+      const messageIndex = visibleBranchMessages.findIndex(
+        (candidate) => candidate.id === message.id,
+      );
+      const messagesForAPI = visibleBranchMessages
+        .slice(
+          0,
+          messageIndex < 0 ? visibleBranchMessages.length : messageIndex,
+        )
+        .map((candidate) => ({
+          id: candidate.id,
+          role: candidate.role,
+          parts: candidate.parts,
+        }));
+
+      setPendingAssistantMessageId(branchInfo.assistantMessageId);
+      locallyStartedStreamRef.current = true;
+      locallyCompletedStreamRef.current = false;
+
+      await regenerate({
+        messageId: message.id,
+        body: {
+          threadId: branchInfo.threadId,
+          assistantMessageId: branchInfo.assistantMessageId,
+          messages: messagesForAPI,
+          fileIds: [],
+          settings,
+          model: settings.model,
+          id: branchInfo.threadId,
+          clientId: chatSessionId,
+          trigger: "regenerate-message" as const,
+        },
+      });
+    },
+    [
+      allocateSignedIds,
+      chatSessionId,
+      currentThreadId,
+      regenerate,
+      regenerateAssistantMessageBranch,
+      settings,
+      status,
+      visibleBranchMessages,
+    ],
+  );
+
   useEffect(() => {
     if (attachmentIds.length === 0) {
       return;
@@ -552,7 +830,14 @@ export function useChatSession({
     sendMessageWithTracking,
     setOptimisticMessage,
     convexUIMessages,
+    allBranchMessages,
     finalMessages,
+    selectBranch,
+    startEditMessage,
+    cancelEditMessage,
+    editMessage,
+    submitEditedMessage,
+    regenerateMessage,
     shouldInitializeInitialThreadScroll,
     handleInitialThreadScrollReady,
     messageStatsMap,

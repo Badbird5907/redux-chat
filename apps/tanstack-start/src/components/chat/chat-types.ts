@@ -49,8 +49,18 @@ export type PersistedChatMessage =
   (typeof api.functions.threads.getThreadMessages)["_returnType"][number];
 
 export type ChatMessageWithThreadMetadata = UIMessage & {
+  attachments?: MessageAttachmentSummary[];
+  createdAt?: number;
+  depth?: number;
   error?: string;
   model?: string;
+  mutation?: PersistedChatMessage["mutation"];
   parentId?: string;
+  siblingIndex?: number;
   status?: "generating" | "completed" | "failed";
 };
+
+export interface BranchGroup {
+  currentIndex: number;
+  siblings: ChatMessageWithThreadMetadata[];
+}

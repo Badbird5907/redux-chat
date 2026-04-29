@@ -2,6 +2,8 @@ import type { UIMessage } from "ai";
 
 import type { MessageSettings, MessageSettingsPatch } from "@redux/types";
 
+import type { ChatMessageWithThreadMetadata } from "../chat-types";
+
 export interface ChatInputProps {
   threadId?: string;
   /**
@@ -12,7 +14,11 @@ export interface ChatInputProps {
   chatProjectId?: string;
   setThreadId: (threadId: string) => void;
   sendMessage: (
-    message: { text: string; id?: string; metadata?: Record<string, unknown> },
+    message: {
+      text: string;
+      messageId?: string;
+      metadata?: Record<string, unknown>;
+    },
     options?: { body?: object },
   ) => void;
   setOptimisticMessage: (message: UIMessage | undefined) => void;
@@ -26,6 +32,23 @@ export interface ChatInputProps {
   onModelChange: (modelId: string) => Promise<MessageSettings>;
   onSettingsChange: (patch: MessageSettingsPatch) => Promise<MessageSettings>;
   restoreSettings: (settings: MessageSettings) => void;
+  editMessage?: ChatMessageWithThreadMetadata;
+  onCancelEdit?: () => void;
+  onSubmitEdit?: (payload: {
+    draftAttachmentIds: string[];
+    retainedAttachmentIds: string[];
+    attachmentMetadata: {
+      attachmentId: string;
+      convertingToPdf?: boolean;
+      generatingDerivative?: boolean;
+      fileName: string;
+      mimeType: string;
+      size: number;
+      expiresAt?: number;
+      url?: string;
+    }[];
+    text: string;
+  }) => Promise<void>;
 }
 
 export interface PreviewableFile {

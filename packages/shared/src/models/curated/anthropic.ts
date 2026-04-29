@@ -8,14 +8,14 @@ export const ANTHROPIC_PROVIDER: CuratedProviderDefinition = {
   },
   models: [
     {
-      id: "claude-3-5-sonnet",
-      name: "Claude 3.5 Sonnet",
-      providerIds: ["anthropic:claude-3-5-sonnet-20241022"],
-      defaultProviderId: "anthropic:claude-3-5-sonnet-20241022",
+      id: "claude-sonnet-4-20250514",
+      name: "Claude Sonnet 4",
+      providerIds: ["anthropic:claude-sonnet-4-20250514"],
+      defaultProviderId: "anthropic:claude-sonnet-4-20250514",
       benchmarks: {
         aa: {
           id: "0a603978-03b9-4f47-a273-2f7fd969be85",
-          slug: "claude-35-sonnet",
+          slug: "claude-sonnet-4",
         },
       },
       attachments: {

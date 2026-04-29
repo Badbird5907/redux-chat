@@ -8,23 +8,25 @@ import {
   CircleAlert,
   FileText,
   Loader2,
+  PencilIcon,
+  RefreshCwIcon,
 } from "lucide-react";
 
 import { Card, CardContent } from "@redux/ui/components/card";
 import Spinner from "@redux/ui/components/spinner";
 import { cn } from "@redux/ui/lib/utils";
 
-import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
-import { StaticMarkdown } from "@/components/markdown/static-markdown";
-import { normalizeAssistantMessage } from "./assistant-message-timeline";
-
-import { MessageStatsBar } from "./message-stats-bar";
 import type {
   ChatMessageWithThreadMetadata,
   MessageAttachmentSummary,
   MessageStats,
   ResolvedAttachment,
 } from "./chat-types";
+import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
+import { StaticMarkdown } from "@/components/markdown/static-markdown";
+import { normalizeAssistantMessage } from "./assistant-message-timeline";
+import { BranchSwitcher } from "./branch-switcher";
+import { getSiblingBranchGroup } from "./chat-branching";
 import {
   attachmentDisplayName,
   didUseDerivative,
@@ -32,11 +34,13 @@ import {
   isGeneratingDerivative,
   modelUsesDerivativeForAttachment,
 } from "./chat-message-utils";
+import { MessageStatsBar } from "./message-stats-bar";
 
 export interface ChatMessageRowProps {
   message: ChatMessageWithThreadMetadata;
   index: number;
   totalCount: number;
+  visibleMessages: ChatMessageWithThreadMetadata[];
   status: string;
   messageStats?: MessageStats;
   isHovered: boolean;
@@ -44,6 +48,10 @@ export interface ChatMessageRowProps {
   resolvedMessageAttachments: Record<string, ResolvedAttachment>;
   messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
   assistantModelByParentMessageId: Map<string, string>;
+  allBranchMessages: ChatMessageWithThreadMetadata[];
+  onRegenerateMessage: (message: ChatMessageWithThreadMetadata) => void;
+  onSelectBranch: (messageId: string) => void;
+  onStartEditMessage: (messageId: string) => void;
   onAttachmentPreview: (
     file: {
       generatingDerivative?: boolean;
@@ -60,6 +68,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   message,
   index,
   totalCount,
+  visibleMessages,
   status,
   messageStats,
   isHovered,
@@ -67,16 +76,23 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   resolvedMessageAttachments,
   messageAttachmentsByMessageId,
   assistantModelByParentMessageId,
+  allBranchMessages,
+  onRegenerateMessage,
+  onSelectBranch,
+  onStartEditMessage,
   onAttachmentPreview,
 }: ChatMessageRowProps) {
   const textContent = useMemo(
     () =>
-      message.parts.reduce<string>((content, part: UIMessage["parts"][number]) => {
-        if (!isTextUIPart(part)) {
-          return content;
-        }
-        return content + part.text;
-      }, ""),
+      message.parts.reduce<string>(
+        (content, part: UIMessage["parts"][number]) => {
+          if (!isTextUIPart(part)) {
+            return content;
+          }
+          return content + part.text;
+        },
+        "",
+      ),
     [message.parts],
   );
 
@@ -89,7 +105,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const isFailedMessage = message.status === "failed";
   const responseModel = assistantModelByParentMessageId.get(message.id);
   const normalizedAssistantMessage = useMemo(
-    () => (message.role === "assistant" ? normalizeAssistantMessage(message) : null),
+    () =>
+      message.role === "assistant" ? normalizeAssistantMessage(message) : null,
     [message],
   );
   const hasRenderableAssistantContent = useMemo(() => {
@@ -108,42 +125,52 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     isStreamingAssistant &&
     !isFailedMessage &&
     !hasRenderableAssistantContent;
+  const branchGroup = getSiblingBranchGroup(allBranchMessages, message.id);
+  const visibleAssistantForUser =
+    message.role === "user"
+      ? visibleMessages.find(
+          (candidate) =>
+            candidate.role === "assistant" && candidate.parentId === message.id,
+        )
+      : undefined;
+  const assistantBranchGroup = visibleAssistantForUser
+    ? getSiblingBranchGroup(allBranchMessages, visibleAssistantForUser.id)
+    : undefined;
+  const controlsDisabled = status === "streaming" || status === "submitted";
 
   const persistedAttachments: MessageAttachmentSummary[] = useMemo(() => {
     return (
-      messageAttachmentsByMessageId
-        .get(message.id)
-        ?.map((attachment) => ({
-          ...attachment,
-          fileName:
-            resolvedMessageAttachments[attachment.attachmentId]?.fileName ??
-            attachment.fileName,
-          generatingDerivative:
-            resolvedMessageAttachments[attachment.attachmentId]
-              ?.generatingDerivative ?? attachment.generatingDerivative,
-          originalFileName:
-            resolvedMessageAttachments[attachment.attachmentId]
-              ?.originalFileName ?? attachment.originalFileName,
-          usedDerivative:
-            resolvedMessageAttachments[attachment.attachmentId]?.usedDerivative ??
-            attachment.usedDerivative ??
-            modelUsesDerivativeForAttachment(responseModel, attachment),
-          mimeType:
-            resolvedMessageAttachments[attachment.attachmentId]?.mimeType ??
-            attachment.mimeType,
-          size:
-            resolvedMessageAttachments[attachment.attachmentId]?.size ??
-            attachment.size,
-          expired:
-            resolvedMessageAttachments[attachment.attachmentId]?.expired ??
-            isAttachmentExpired(attachment.expiresAt),
-          expiresAt:
-            resolvedMessageAttachments[attachment.attachmentId]?.expiresAt ??
-            attachment.expiresAt,
-          url:
-            resolvedMessageAttachments[attachment.attachmentId]?.url ??
-            attachment.url,
-        })) ?? []
+      messageAttachmentsByMessageId.get(message.id)?.map((attachment) => ({
+        ...attachment,
+        fileName:
+          resolvedMessageAttachments[attachment.attachmentId]?.fileName ??
+          attachment.fileName,
+        generatingDerivative:
+          resolvedMessageAttachments[attachment.attachmentId]
+            ?.generatingDerivative ?? attachment.generatingDerivative,
+        originalFileName:
+          resolvedMessageAttachments[attachment.attachmentId]
+            ?.originalFileName ?? attachment.originalFileName,
+        usedDerivative:
+          resolvedMessageAttachments[attachment.attachmentId]?.usedDerivative ??
+          attachment.usedDerivative ??
+          modelUsesDerivativeForAttachment(responseModel, attachment),
+        mimeType:
+          resolvedMessageAttachments[attachment.attachmentId]?.mimeType ??
+          attachment.mimeType,
+        size:
+          resolvedMessageAttachments[attachment.attachmentId]?.size ??
+          attachment.size,
+        expired:
+          resolvedMessageAttachments[attachment.attachmentId]?.expired ??
+          isAttachmentExpired(attachment.expiresAt),
+        expiresAt:
+          resolvedMessageAttachments[attachment.attachmentId]?.expiresAt ??
+          attachment.expiresAt,
+        url:
+          resolvedMessageAttachments[attachment.attachmentId]?.url ??
+          attachment.url,
+      })) ?? []
     );
   }, [
     message.id,
@@ -175,48 +202,51 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         "flex w-full",
         message.role === "user" ? "justify-end" : "justify-start",
       )}
-      onMouseEnter={() =>
-        message.role === "assistant" && onHoverChange(message.id)
-      }
+      onMouseEnter={() => onHoverChange(message.id)}
       onMouseLeave={() => onHoverChange(null)}
     >
       <div
         className={cn(
-          "rounded-lg px-4 py-2",
           message.role === "user"
-            ? "bg-primary text-primary-foreground"
+            ? "flex max-w-full flex-col items-end"
             : "w-full",
         )}
       >
-        {(!message.parts.length || showStreamingPlaceholder) && !isFailedMessage && (
-          <Spinner className="size-4" />
-        )}
-        {isFailedMessage ? (
-          <Card
-            size="sm"
-            className="border-destructive/40 bg-destructive/10 text-destructive ring-destructive/20 w-full gap-2 py-3 shadow-none"
-          >
-            <CardContent className="flex items-start gap-3 px-3">
-              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-              <div className="min-w-0 space-y-1">
-                <p className="font-medium">Message generation failed</p>
-                {message.error && (
-                  <p className="text-destructive/80 wrap-break-word">
-                    {message.error}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ) : message.role === "assistant" ? (
-          <AssistantMessageParts
-            isLastMessage={isLastMessage}
-            isStreaming={isStreamingAssistant}
-            message={message}
-          />
-        ) : (
-          <StaticMarkdown content={textContent} />
-        )}
+        <div
+          className={cn(
+            "rounded-lg px-4 py-2",
+            message.role === "user" && "bg-primary text-primary-foreground",
+          )}
+        >
+          {(!message.parts.length || showStreamingPlaceholder) &&
+            !isFailedMessage && <Spinner className="size-4" />}
+          {isFailedMessage ? (
+            <Card
+              size="sm"
+              className="border-destructive/40 bg-destructive/10 text-destructive ring-destructive/20 w-full gap-2 py-3 shadow-none"
+            >
+              <CardContent className="flex items-start gap-3 px-3">
+                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium">Message generation failed</p>
+                  {message.error && (
+                    <p className="text-destructive/80 wrap-break-word">
+                      {message.error}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : message.role === "assistant" ? (
+            <AssistantMessageParts
+              isLastMessage={isLastMessage}
+              isStreaming={isStreamingAssistant}
+              message={message}
+            />
+          ) : (
+            <StaticMarkdown content={textContent} />
+          )}
+        </div>
         {attachmentsToRender.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {attachmentsToRender.map((attachment) => {
@@ -260,9 +290,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                           : "Used derivative"
                       }
                     >
-                      {usedDerivative && (
-                        <ArrowRightLeft className="h-3 w-3" />
-                      )}
+                      {usedDerivative && <ArrowRightLeft className="h-3 w-3" />}
                       {generatingDerivative && (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       )}
@@ -292,12 +320,53 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             })}
           </div>
         )}
+        {message.role === "user" && (
+          <div
+            className={cn(
+              "text-muted-foreground mt-2 flex min-h-[32px] items-center justify-end gap-1 text-xs transition-opacity duration-200",
+              isHovered ? "opacity-100" : "opacity-0",
+            )}
+          >
+            <BranchSwitcher
+              branchGroup={branchGroup}
+              disabled={controlsDisabled}
+              onSelectBranch={onSelectBranch}
+            />
+            <BranchSwitcher
+              branchGroup={assistantBranchGroup}
+              disabled={controlsDisabled}
+              onSelectBranch={onSelectBranch}
+            />
+            <button
+              className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
+              title="Regenerate"
+              type="button"
+              disabled={controlsDisabled || !visibleAssistantForUser}
+              onClick={() =>
+                visibleAssistantForUser &&
+                onRegenerateMessage(visibleAssistantForUser)
+              }
+            >
+              <RefreshCwIcon className="size-4" />
+            </button>
+            <button
+              className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
+              title="Edit"
+              type="button"
+              disabled={controlsDisabled}
+              onClick={() => onStartEditMessage(message.id)}
+            >
+              <PencilIcon className="size-4" />
+            </button>
+          </div>
+        )}
         {message.role === "assistant" && (
           <MessageStatsBar
             stats={messageStats}
             isVisible={isHovered}
             content={textContent}
-            isStreaming={isStreamingAssistant && isLastMessage}
+            actionsDisabled={controlsDisabled}
+            onRegenerate={() => onRegenerateMessage(message)}
           />
         )}
       </div>

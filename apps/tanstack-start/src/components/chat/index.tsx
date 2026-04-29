@@ -11,10 +11,9 @@ import {
   ConversationScrollButton,
 } from "@/components/ai/conversation";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
-
-import { ChatInput } from "./input";
 import { ChatMessageList } from "./chat-message-list";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
+import { ChatInput } from "./input";
 import { useChatSession } from "./use-chat-session";
 
 export function Chat({
@@ -39,7 +38,14 @@ export function Chat({
     sendMessageWithTracking,
     setOptimisticMessage,
     convexUIMessages,
+    allBranchMessages,
     finalMessages,
+    selectBranch,
+    startEditMessage,
+    cancelEditMessage,
+    editMessage,
+    submitEditedMessage,
+    regenerateMessage,
     shouldInitializeInitialThreadScroll,
     handleInitialThreadScrollReady,
     messageStatsMap,
@@ -75,6 +81,7 @@ export function Chat({
         >
           <ChatMessageList
             assistantModelByParentMessageId={assistantModelByParentMessageId}
+            allBranchMessages={allBranchMessages}
             chatSessionId={chatSessionId}
             convexUIMessages={convexUIMessages}
             currentThreadId={currentThreadId}
@@ -86,7 +93,10 @@ export function Chat({
             messageAttachmentsByMessageId={messageAttachmentsByMessageId}
             messageStatsMap={messageStatsMap}
             resolvedMessageAttachments={resolvedMessageAttachments}
+            onRegenerateMessage={regenerateMessage}
             sendMessageWithTracking={sendMessageWithTracking}
+            onSelectBranch={selectBranch}
+            onStartEditMessage={startEditMessage}
             setHoveredMessageId={setHoveredMessageId}
             setOptimisticMessage={setOptimisticMessage}
             setPreviewFile={setPreviewFile}
@@ -113,6 +123,9 @@ export function Chat({
         onModelChange={setModel}
         onSettingsChange={updateSettings}
         restoreSettings={restoreSettings}
+        editMessage={editMessage}
+        onCancelEdit={cancelEditMessage}
+        onSubmitEdit={submitEditedMessage}
       />
 
       <FilePreviewDialog

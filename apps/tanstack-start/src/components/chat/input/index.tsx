@@ -1,6 +1,8 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isTextUIPart } from "ai";
 import { useMutation } from "convex/react";
+import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
@@ -45,6 +47,9 @@ export function ChatInput({
   onModelChange,
   onSettingsChange,
   restoreSettings,
+  editMessage,
+  onCancelEdit,
+  onSubmitEdit,
 }: ChatInputProps) {
   const {
     text: input,
@@ -62,6 +67,7 @@ export function ChatInput({
     baselineSettings,
     settingsReady,
     restoreSettings,
+    persistDraft: !editMessage,
   });
   const [previewFile, setPreviewFile] = useState<PreviewableFile | null>(null);
   const [showTokenVisualization, setShowTokenVisualization] = useState(false);
@@ -82,6 +88,41 @@ export function ChatInput({
       toast.error(error.message);
     },
   });
+  const editingMessageIdRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!editMessage || editingMessageIdRef.current === editMessage.id) {
+      return;
+    }
+
+    editingMessageIdRef.current = editMessage.id;
+    setInput(
+      editMessage.parts
+        .filter(isTextUIPart)
+        .map((part) => part.text)
+        .join(""),
+    );
+    setAttachments(
+      (editMessage.attachments ?? []).map((attachment) => ({
+        attachmentId: attachment.attachmentId,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+        expiresAt: attachment.expiresAt,
+        source: "retained" as const,
+        uploading: false,
+        url: attachment.url,
+      })),
+    );
+  }, [editMessage, setAttachments, setInput]);
+
+  useEffect(() => {
+    if (editMessage) {
+      return;
+    }
+
+    editingMessageIdRef.current = undefined;
+  }, [editMessage]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -375,39 +416,65 @@ export function ChatInput({
     );
 
     if (attachmentsUsingDerivative.length > 0) {
-      toast(
-        "Preparing attached files for model compatibility. Please wait.",
-      );
+      toast("Preparing attached files for model compatibility. Please wait.");
     }
 
     try {
-      await submitMessage({
-        messageContent: input,
-        threadId,
-        chatProjectId,
-        setThreadId,
-        settings,
-        clientId,
-        attachmentIds: currentAttachments.map(
-          (attachment) => attachment.attachmentId,
-        ),
-        attachmentMetadata: currentAttachments.map((attachment) => ({
-          attachmentId: attachment.attachmentId,
-          generatingDerivative: attachmentsUsingDerivative.some(
-            (candidate) => candidate.attachmentId === attachment.attachmentId,
+      if (editMessage && threadId) {
+        const retainedAttachmentIds = currentAttachments
+          .filter((attachment) => attachment.source === "retained")
+          .map((attachment) => attachment.attachmentId);
+        const draftAttachmentIds = currentAttachments
+          .filter((attachment) => attachment.source !== "retained")
+          .map((attachment) => attachment.attachmentId);
+
+        await onSubmitEdit?.({
+          retainedAttachmentIds,
+          draftAttachmentIds,
+          text: input,
+          attachmentMetadata: currentAttachments.map((attachment) => ({
+            attachmentId: attachment.attachmentId,
+            generatingDerivative: attachmentsUsingDerivative.some(
+              (candidate) => candidate.attachmentId === attachment.attachmentId,
+            ),
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            size: attachment.size,
+            expiresAt: attachment.expiresAt,
+            url: attachment.url,
+          })),
+        });
+        onCancelEdit?.();
+      } else {
+        await submitMessage({
+          messageContent: input,
+          threadId,
+          chatProjectId,
+          setThreadId,
+          settings,
+          clientId,
+          attachmentIds: currentAttachments.map(
+            (attachment) => attachment.attachmentId,
           ),
-          fileName: attachment.fileName,
-          mimeType: attachment.mimeType,
-          size: attachment.size,
-          expiresAt: attachment.expiresAt,
-          url: attachment.url,
-        })),
-        allocateSignedIds,
-        createMessage,
-        setOptimisticMessage,
-        sendMessage,
-        convexMessages,
-      });
+          attachmentMetadata: currentAttachments.map((attachment) => ({
+            attachmentId: attachment.attachmentId,
+            generatingDerivative: attachmentsUsingDerivative.some(
+              (candidate) => candidate.attachmentId === attachment.attachmentId,
+            ),
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            size: attachment.size,
+            expiresAt: attachment.expiresAt,
+            url: attachment.url,
+          })),
+          allocateSignedIds,
+          createMessage,
+          setOptimisticMessage,
+          sendMessage,
+          convexMessages,
+          parentMessageId: _messages.at(-1)?.id,
+        });
+      }
       clearDraft();
     } catch (error) {
       toast.error(
@@ -415,7 +482,31 @@ export function ChatInput({
       );
       console.error("Failed to send message:", error);
     }
-  }, [attachments, attachmentUsesDerivative, chatProjectId, clearDraft, clientId, convexMessages, createMessage, draftReady, input, isExpanded, allocateSignedIds, sendMessage, setAttachments, setOptimisticMessage, setThreadId, settings, settingsReady, status, threadId]);
+  }, [
+    _messages,
+    attachments,
+    attachmentUsesDerivative,
+    chatProjectId,
+    clearDraft,
+    clientId,
+    convexMessages,
+    createMessage,
+    draftReady,
+    editMessage,
+    input,
+    isExpanded,
+    allocateSignedIds,
+    onCancelEdit,
+    onSubmitEdit,
+    sendMessage,
+    setAttachments,
+    setOptimisticMessage,
+    setThreadId,
+    settings,
+    settingsReady,
+    status,
+    threadId,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -513,10 +604,7 @@ export function ChatInput({
           "fixed flex justify-center transition-all duration-300",
           isExpanded
             ? "inset-4 z-50"
-            : cn(
-                "right-0 bottom-6 left-0 px-4",
-                fixedInputDesktopLeft,
-              ),
+            : cn("right-0 bottom-6 left-0 px-4", fixedInputDesktopLeft),
         )}
       >
         <div
@@ -534,6 +622,22 @@ export function ChatInput({
               showErrorBorder && "border-destructive",
             )}
           >
+            {editMessage && (
+              <div className="border-border bg-muted/40 flex items-center justify-between border-b px-4 py-2 text-sm">
+                <span className="text-muted-foreground">Editing message</span>
+                <button
+                  type="button"
+                  className="hover:bg-muted rounded p-1 transition-colors"
+                  onClick={() => {
+                    clearDraft();
+                    onCancelEdit?.();
+                  }}
+                  title="Cancel edit"
+                >
+                  <XIcon className="size-4" />
+                </button>
+              </div>
+            )}
             <ChatInputAttachmentsBar
               attachments={attachments}
               onPreview={setPreviewFile}
@@ -568,9 +672,7 @@ export function ChatInput({
               }}
               canUploadFiles={canUploadFiles}
               isSearchEnabled={isSearchEnabled}
-              onToggleSearch={() =>
-                handleSearchEnabledChange(!isSearchEnabled)
-              }
+              onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}
               isContentOverflowing={isContentOverflowing}
               isExpanded={isExpanded}
