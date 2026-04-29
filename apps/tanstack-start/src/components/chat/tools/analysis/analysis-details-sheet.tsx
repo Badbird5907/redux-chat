@@ -19,7 +19,7 @@ import { ShikiCodeBlock } from "@/components/markdown/shiki-code-block";
 import type {
   AssistantTimelineAnalysisDetails,
   AssistantTimelineStep,
-} from "./assistant-message-timeline";
+} from "@/components/chat/assistant-message-timeline";
 
 export function AnalysisDetailsButton({
   details,

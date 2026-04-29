@@ -16,7 +16,7 @@ import {
 } from "@/components/ai/reasoning";
 import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 
-import { AnalysisDetailsButton } from "./analysis-details-sheet";
+import { AnalysisDetailsButton } from "@/components/chat/tools/analysis";
 import {
   getAssistantStepIcon,
   getChainOfThoughtHeaderState,
