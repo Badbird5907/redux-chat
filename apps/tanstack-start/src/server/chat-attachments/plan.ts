@@ -15,6 +15,7 @@ export function planChatAttachment(
 ): PlannedChatAttachment {
   // this function essentially categorizes the attachment
   // and figures out if the model can use it natively (ex. a pdf file) or if it needs to be converted to a pdf
+  // we can skip inline_text for text attachments as that's common sense
   const kind = classifyChatAttachment({
     fileName: attachment.fileName,
     mimeType: attachment.mimeType,

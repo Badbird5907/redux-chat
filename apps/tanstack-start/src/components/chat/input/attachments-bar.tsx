@@ -151,6 +151,8 @@ export function ChatInputAttachmentsBar({
     return null;
   }
 
+  // TODO: in the future once the model selector is implemented
+  // show a badge for files that may need to be converted etc
   return (
     <div className="flex flex-wrap gap-2 px-4 pt-3">
       {attachments.map((file) => {
