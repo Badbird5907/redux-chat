@@ -1,4 +1,5 @@
 import type { Publisher, Subscriber } from "resumable-stream";
+
 import { redis as getRedis } from "@redux/redis";
 
 export const createUpstashPubSub = () => {
@@ -12,7 +13,11 @@ export const createUpstashPubSub = () => {
       return redis.publish(channel, JSON.stringify(message));
     },
     set: async (key: string, value: string, options) => {
-      return redis.set(key, value, options?.EX ? { ex: options.EX } : undefined);
+      return redis.set(
+        key,
+        value,
+        options?.EX ? { ex: options.EX } : undefined,
+      );
     },
     get: async (key: string) => {
       return redis.get(key);
@@ -31,7 +36,9 @@ export const createUpstashPubSub = () => {
     subscribe: (channel: string, callback: (message: string) => void) => {
       const subscription = redis.subscribe<unknown>([channel]);
       subscription.on("message", ({ message }) => {
-        callback(typeof message === "string" ? message : JSON.stringify(message));
+        callback(
+          typeof message === "string" ? message : JSON.stringify(message),
+        );
       });
       subscriptions.set(channel, subscription);
       return Promise.resolve();

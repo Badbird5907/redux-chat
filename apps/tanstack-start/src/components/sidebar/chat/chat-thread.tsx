@@ -49,7 +49,9 @@ export default function ChatThreadSidebarItem({
   const routerState = useRouterState();
   const isActive = routerState.location.pathname === `/chat/${threadId}`;
   const renameThread = useMutation(api.functions.threads.updateThreadName);
-  const regenerateThreadTitle = useMutation(api.functions.threads.regenerateThreadTitle);
+  const regenerateThreadTitle = useMutation(
+    api.functions.threads.regenerateThreadTitle,
+  );
   const deleteThread = useMutation(api.functions.threads.deleteThread);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [isRenaming, setIsRenaming] = React.useState(false);
@@ -174,7 +176,9 @@ export default function ChatThreadSidebarItem({
         await router.navigate({ to: "/" });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete thread");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete thread",
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -216,7 +220,9 @@ export default function ChatThreadSidebarItem({
       skipRemoteTitleRevealRef.current = true;
       setIsRenaming(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to rename thread");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to rename thread",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -254,7 +260,7 @@ export default function ChatThreadSidebarItem({
       ) : (
         <SidebarMenuButton
           isActive={isActive}
-          className="w-full data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted"
+          className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
           render={
             <Link to={`/chat/$id`} params={{ id: threadId }} preload="intent" />
           }
@@ -263,9 +269,7 @@ export default function ChatThreadSidebarItem({
         </SidebarMenuButton>
       )}
       {status === "generating" && (
-        <div
-          className="text-sidebar-foreground ring-sidebar-ring absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-opacity group-hover/menu-item:opacity-0 peer-data-[size=sm]/menu-button:top-1 peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 md:after:hidden"
-        >
+        <div className="text-sidebar-foreground ring-sidebar-ring absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-opacity group-hover/menu-item:opacity-0 group-data-[collapsible=icon]:hidden peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 md:after:hidden">
           <Spinner />
         </div>
       )}
@@ -277,7 +281,7 @@ export default function ChatThreadSidebarItem({
               showOnHover={status === "completed"}
               className={
                 status === "generating"
-                  ? "group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-foreground md:opacity-0"
+                  ? "peer-data-active/menu-button:text-foreground group-hover/menu-item:opacity-100 md:opacity-0"
                   : "peer-data-active/menu-button:text-foreground"
               }
             />
@@ -302,7 +306,9 @@ export default function ChatThreadSidebarItem({
             disabled={isDeleting || isRegeneratingTitle}
           >
             <RotateCw className="size-4" />
-            <span>{isRegeneratingTitle ? "Regenerating…" : "Regenerate title"}</span>
+            <span>
+              {isRegeneratingTitle ? "Regenerating…" : "Regenerate title"}
+            </span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

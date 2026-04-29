@@ -1,13 +1,17 @@
-import * as React from 'react'
-import { createFileRoute, Link, useNavigate, redirect } from '@tanstack/react-router'
-import { authClient } from '@/lib/auth/client'
-import { useForm } from '@tanstack/react-form'
-import { Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
-import * as z from 'zod'
+import * as React from "react";
+import { useForm } from "@tanstack/react-form";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import * as z from "zod";
 
-import { Badge } from '@redux/ui/components/badge'
-import { Button } from '@redux/ui/components/button'
+import { Badge } from "@redux/ui/components/badge";
+import { Button } from "@redux/ui/components/button";
 import {
   Card,
   CardContent,
@@ -15,38 +19,42 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@redux/ui/components/card'
-import { Field, FieldError, FieldLabel } from '@redux/ui/components/field'
-import { Input } from '@redux/ui/components/input'
-import { Separator } from '@redux/ui/components/separator'
-import GithubIcon from '@redux/ui/icons/github'
+} from "@redux/ui/components/card";
+import { Field, FieldError, FieldLabel } from "@redux/ui/components/field";
+import { Input } from "@redux/ui/components/input";
+import { Separator } from "@redux/ui/components/separator";
+import GithubIcon from "@redux/ui/icons/github";
+
+import { authClient } from "@/lib/auth/client";
 
 const signInSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-})
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
 
-export const Route = createFileRoute('/auth/sign-in')({
+export const Route = createFileRoute("/auth/sign-in")({
   beforeLoad: ({ context }) => {
     if (context.isAuthenticated) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: '/' })
+      throw redirect({ to: "/" });
     }
   },
   component: SignInPage,
-})
+});
 
 function SignInPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [lastUsed] = React.useState<string | null>(() =>
-    typeof window === 'undefined' ? null : localStorage.getItem('last-used-provider'),
-  )
-  const [isGitHubLoading, setIsGitHubLoading] = React.useState(false)
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem("last-used-provider"),
+  );
+  const [isGitHubLoading, setIsGitHubLoading] = React.useState(false);
 
   const form = useForm({
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
     validators: {
       onSubmit: signInSchema,
@@ -57,33 +65,33 @@ function SignInPage() {
         password: value.password,
         fetchOptions: {
           onSuccess: () => {
-            localStorage.setItem('last-used-provider', 'email')
-            void navigate({ to: '/' })
+            localStorage.setItem("last-used-provider", "email");
+            void navigate({ to: "/" });
           },
           onError: (ctx) => {
-            toast.error(ctx.error.message)
+            toast.error(ctx.error.message);
           },
         },
-      })
+      });
     },
-  })
+  });
 
   const handleGitHubSignIn = async () => {
-    setIsGitHubLoading(true)
+    setIsGitHubLoading(true);
     await authClient.signIn.social({
-      provider: 'github',
-      callbackURL: '/',
+      provider: "github",
+      callbackURL: "/",
       fetchOptions: {
         onSuccess: () => {
-          localStorage.setItem('last-used-provider', 'github')
+          localStorage.setItem("last-used-provider", "github");
         },
         onError: (ctx) => {
-          toast.error(ctx.error.message)
-          setIsGitHubLoading(false)
+          toast.error(ctx.error.message);
+          setIsGitHubLoading(false);
         },
       },
-    })
-  }
+    });
+  };
 
   return (
     <Card className="w-full">
@@ -108,8 +116,11 @@ function SignInPage() {
             )}
             Sign in with GitHub
           </Button>
-          {lastUsed === 'github' && (
-            <Badge variant="outline" className="absolute -right-2 -top-2 bg-muted">
+          {lastUsed === "github" && (
+            <Badge
+              variant="outline"
+              className="bg-muted absolute -top-2 -right-2"
+            >
               Last Used
             </Badge>
           )}
@@ -123,9 +134,9 @@ function SignInPage() {
 
         <form
           onSubmit={async (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            await form.handleSubmit()
+            e.preventDefault();
+            e.stopPropagation();
+            await form.handleSubmit();
           }}
           className="space-y-4"
         >
@@ -155,7 +166,7 @@ function SignInPage() {
                   <FieldLabel>Password</FieldLabel>
                   <Link
                     to="/auth/forgot-password"
-                    className="text-sm text-muted-foreground hover:underline"
+                    className="text-muted-foreground text-sm hover:underline"
                   >
                     Forgot password?
                   </Link>
@@ -188,12 +199,12 @@ function SignInPage() {
       </CardContent>
       <CardFooter className="justify-center">
         <div className="text-muted-foreground text-sm">
-          Don&apos;t have an account?{' '}
+          Don&apos;t have an account?{" "}
           <Link to="/auth/sign-up" className="text-primary hover:underline">
             Sign up
           </Link>
         </div>
       </CardFooter>
     </Card>
-  )
+  );
 }

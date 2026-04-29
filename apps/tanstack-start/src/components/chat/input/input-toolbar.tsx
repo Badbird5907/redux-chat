@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react";
 
+import type { ChatModelConfig } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import {
   DropdownMenu,
@@ -19,8 +20,8 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
-import type { ChatModelConfig } from "@redux/shared/models";
 import { cn } from "@redux/ui/lib/utils";
+
 import { ModelSelector } from "@/components/chat/model-selector";
 
 interface ChatInputToolbarProps {

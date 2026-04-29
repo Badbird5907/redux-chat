@@ -22,9 +22,5 @@ export function useIsMobile() {
     return window.innerWidth < MOBILE_BREAKPOINT;
   }, []);
 
-  return React.useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    () => false,
-  );
+  return React.useSyncExternalStore(subscribe, getSnapshot, () => false);
 }

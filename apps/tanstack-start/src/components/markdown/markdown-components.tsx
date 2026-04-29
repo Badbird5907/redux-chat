@@ -1,11 +1,10 @@
-import { Children, cloneElement, isValidElement } from "react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import type { Components, ExtraProps, Options } from "react-markdown";
+import { Children, cloneElement, isValidElement } from "react";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
 
-import { cn } from "@redux/ui/lib/utils";
 import {
   Table,
   TableBody,
@@ -16,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@redux/ui/components/table";
+import { cn } from "@redux/ui/lib/utils";
 
 import { ShikiCodeBlock } from "./shiki-code-block";
 
@@ -87,7 +87,10 @@ export function createMarkdownComponents({
       }
 
       return (
-        <code {...props} className={cn("chat-markdown__inline-code", className)}>
+        <code
+          {...props}
+          className={cn("chat-markdown__inline-code", className)}
+        >
           {children}
         </code>
       );

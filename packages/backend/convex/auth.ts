@@ -12,19 +12,18 @@ import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
 
-const authFunctions: AuthFunctions = internal.auth
+const authFunctions: AuthFunctions = internal.auth;
 export const authComponent = createClient<DataModel, typeof authSchema>(
   components.betterAuth,
   {
     authFunctions,
-    triggers: {
-    },
+    triggers: {},
     local: {
       schema: authSchema,
     },
   },
 );
-export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi(); 
+export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
   const env = backendEnv();
@@ -32,7 +31,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     database: authComponent.adapter(ctx),
     baseURL: env.SITE_URL,
     secret: env.AUTH_SECRET,
-    
+
     plugins: [
       // oAuthProxy({
       //   productionURL: env.BASE_URL,

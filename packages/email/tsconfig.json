@@ -1,9 +1,9 @@
 {
   "extends": "@redux/tsconfig/compiled-package.json",
   "include": ["."],
-	"exclude": ["dist", "build", "node_modules"],
-	"compilerOptions": {
-		"strict": true,
-		"jsx": "react-jsx"
-	}
+  "exclude": ["dist", "build", "node_modules"],
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx"
+  }
 }

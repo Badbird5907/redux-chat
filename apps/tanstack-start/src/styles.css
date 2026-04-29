@@ -130,7 +130,7 @@ body {
   }
 
   .chat-markdown__link {
-    @apply text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-primary;
+    @apply text-foreground decoration-border hover:text-primary underline underline-offset-4 transition-colors;
   }
 
   .chat-markdown .task-list-item {

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
 import { useRouter } from "@tanstack/react-router";
+import { useMutation } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -125,7 +125,9 @@ export function NewProjectDialog({
           </div>
         </div>
         <DialogFooter>
-          <DialogClose render={<Button variant="ghost" disabled={submitting} />}>
+          <DialogClose
+            render={<Button variant="ghost" disabled={submitting} />}
+          >
             Cancel
           </DialogClose>
           <Button

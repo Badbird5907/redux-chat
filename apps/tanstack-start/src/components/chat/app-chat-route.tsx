@@ -1,9 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { Chat } from ".";
+import { AnimatePresence, motion } from "motion/react";
 
+import type { Chat } from ".";
 import { useChatRouteAdoption } from "@/components/chat/chat-route-adoption";
 import { RESET_CHAT_EVENT } from "@/components/chat/reset-chat";
 
@@ -61,7 +61,10 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
         transition={{ duration: 0.1, ease: "easeOut" }}
       >
         <Suspense fallback={null}>
-          <ChatRouteClient initialThreadId={initialThreadId} preload={preload} />
+          <ChatRouteClient
+            initialThreadId={initialThreadId}
+            preload={preload}
+          />
         </Suspense>
       </motion.div>
     </AnimatePresence>

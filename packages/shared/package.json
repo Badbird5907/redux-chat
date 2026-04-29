@@ -22,8 +22,8 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@silo-storage/mime-types": "catalog:",
-    "@tokenlens/models": "1.3.0"
+    "@redux/models": "workspace:*",
+    "@silo-storage/mime-types": "catalog:"
   },
   "devDependencies": {
     "@redux/eslint-config": "workspace:*",

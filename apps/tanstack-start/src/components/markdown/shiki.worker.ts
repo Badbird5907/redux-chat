@@ -1,22 +1,23 @@
-import { createBundledHighlighter, createSingletonShorthands } from "shiki/core";
+import {
+  createBundledHighlighter,
+  createSingletonShorthands,
+} from "shiki/core";
 import { createOnigurumaEngine } from "shiki/engine/oniguruma";
 
+import type { MarkdownLanguageId, MarkdownThemeId } from "./shiki-config";
+import type {
+  HighlightErrorMessage,
+  HighlightSuccessMessage,
+  WorkerRequestMessage,
+} from "./shiki-worker-types";
 import {
   isMarkdownLanguage,
   isPlainTextLanguage,
   LANGUAGE_LOADERS,
   PRELOADED_LANGUAGES,
   THEME_IDS,
-  THEME_LOADERS
-  
-  
+  THEME_LOADERS,
 } from "./shiki-config";
-import type {MarkdownLanguageId, MarkdownThemeId} from "./shiki-config";
-import type {
-  HighlightErrorMessage,
-  HighlightSuccessMessage,
-  WorkerRequestMessage,
-} from "./shiki-worker-types";
 
 type MarkdownHighlighter = Awaited<ReturnType<typeof singletonGetHighlighter>>;
 
@@ -122,9 +123,7 @@ async function handleHighlightMessage(
       requestId: message.requestId,
       cacheKey: message.cacheKey,
       error:
-        error instanceof Error
-          ? error.message
-          : "Unknown Shiki worker error",
+        error instanceof Error ? error.message : "Unknown Shiki worker error",
     };
     workerScope.postMessage(response);
   }

@@ -11,7 +11,7 @@ export const env = createEnv({
       .enum(["development", "production", "test"])
       .default("development"),
     UPSTASH_REDIS_REST_URL: z.url(),
-    UPSTASH_REDIS_REST_TOKEN: z.string()
+    UPSTASH_REDIS_REST_TOKEN: z.string(),
   },
   /**
    * Specify your client-side environment variables schema here.

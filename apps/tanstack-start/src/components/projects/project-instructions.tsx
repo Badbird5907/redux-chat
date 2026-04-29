@@ -39,9 +39,7 @@ export function ProjectInstructions({
       setEditing(false);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to save instructions",
+        error instanceof Error ? error.message : "Failed to save instructions",
       );
     } finally {
       setSaving(false);

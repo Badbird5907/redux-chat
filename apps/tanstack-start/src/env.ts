@@ -22,7 +22,11 @@ export const env = createEnv({
     OPENROUTER_API_KEY: z.string().min(1),
     DOCUMENT_CONVERTER_URL: z.string().min(1),
     DOCUMENT_CONVERTER_BASIC_AUTH: z.string().min(1),
-    DOCUMENT_CONVERTER_TIMEOUT_MS: z.coerce.number().int().positive().default(40000),
+    DOCUMENT_CONVERTER_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(40000),
     GEMINI_API_KEY: z.string().min(1),
     AA_API_KEY: z.string().min(1),
   },

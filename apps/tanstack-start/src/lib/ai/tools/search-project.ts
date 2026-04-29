@@ -4,17 +4,15 @@ import { z } from "zod";
 import { api } from "@redux/backend/convex/_generated/api";
 
 import { env } from "@/env";
-import {
-  formatProjectKnowledgeChunk,
-} from "@/lib/ai/tools/project-knowledge-format";
-import {
-  buildAttachmentUrl,
-  getInternalConvexClient,
-} from "@/lib/silo/core.server";
+import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
 import {
   selectProjectMediaAttachmentIds,
   toProjectToolModelOutputPart,
 } from "@/lib/ai/tools/project-knowledge-media";
+import {
+  buildAttachmentUrl,
+  getInternalConvexClient,
+} from "@/lib/silo/core.server";
 import { retrieveProjectContextForUser } from "@/server/rag/retrieve";
 
 async function resolveAttachmentUrls(attachmentIds: string[]) {
@@ -69,7 +67,9 @@ type SearchProjectToolContext = {
   modelId: string;
 };
 
-export const searchProjectKnowledgeTool = (projectContext: SearchProjectToolContext) => {
+export const searchProjectKnowledgeTool = (
+  projectContext: SearchProjectToolContext,
+) => {
   return tool({
     description: [
       "Search the current project's indexed file library for relevant context.",
@@ -115,9 +115,11 @@ export const searchProjectKnowledgeTool = (projectContext: SearchProjectToolCont
       };
     },
     toModelOutput: async ({ output }) => {
-      const content: (| { type: "text"; text: string }
+      const content: (
+        | { type: "text"; text: string }
         | { type: "file-url"; url: string }
-        | { type: "image-url"; url: string })[] = [];
+        | { type: "image-url"; url: string }
+      )[] = [];
 
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!output || typeof output !== "object" || !("results" in output)) {
@@ -156,11 +158,13 @@ export const searchProjectKnowledgeTool = (projectContext: SearchProjectToolCont
         results.flatMap((result) =>
           typeof result.attachmentId === "string" &&
           typeof result.mimeType === "string"
-            ? [{
-                attachmentId: result.attachmentId,
-                mimeType: result.mimeType,
-                text: result.text,
-              }]
+            ? [
+                {
+                  attachmentId: result.attachmentId,
+                  mimeType: result.mimeType,
+                  text: result.text,
+                },
+              ]
             : [],
         ),
         projectContext.modelId,

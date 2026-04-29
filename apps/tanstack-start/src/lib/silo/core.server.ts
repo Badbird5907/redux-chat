@@ -1,5 +1,5 @@
-import { ConvexHttpClient } from "convex/browser";
 import { createSiloCoreFromToken } from "@silo-storage/sdk-core";
+import { ConvexHttpClient } from "convex/browser";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
@@ -33,7 +33,7 @@ export async function buildAttachmentUrl(input: {
       fileName: input.fileName,
       isPublic: input.isPublic,
       serveImage: input.serveImage,
-      format: "jpeg"
+      format: "jpeg",
     });
   }
 
@@ -62,8 +62,11 @@ export async function createUploadedAttachmentRecord(input: {
   expiresAt?: number;
 }) {
   const client = getInternalConvexClient();
-  return client.mutation(api.functions.attachments.internal_createUploadedAttachment, {
-    secret: env.INTERNAL_CONVEX_SECRET,
-    ...input,
-  });
+  return client.mutation(
+    api.functions.attachments.internal_createUploadedAttachment,
+    {
+      secret: env.INTERNAL_CONVEX_SECRET,
+      ...input,
+    },
+  );
 }

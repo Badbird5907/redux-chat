@@ -1,10 +1,9 @@
 import { api } from "@redux/backend/convex/_generated/api";
 
+import type { RetrievedChunk } from "./vector-store";
 import { fetchAuthQuery } from "@/lib/auth/server";
-
 import { embedTexts } from "./embed-client";
 import { getVectorStore } from "./index";
-import type { RetrievedChunk } from "./vector-store";
 
 export interface RetrieveProjectContextInput {
   chatProjectId: string;

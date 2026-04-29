@@ -1,3 +1,5 @@
+import type { ModelsDevModelCost } from "@redux/models";
+
 export type CanonicalModelId = `${string}/${string}`;
 export type ModelProviderRouteId = `${string}:${string}`;
 export type AllowedMimeType = string;
@@ -26,6 +28,8 @@ export interface ModelPricing {
   reasoning?: number;
   cacheRead?: number;
   cacheWrite?: number;
+  inputAudio?: number;
+  outputAudio?: number;
 }
 
 export interface ModelSupports {
@@ -51,6 +55,7 @@ export interface ModelProviderInfo {
   id: string;
   name: string;
   api?: string;
+  npm?: string;
   doc: string;
   env: readonly string[];
   routeIds: ModelProviderRouteId[];
@@ -74,6 +79,7 @@ export interface ModelRouteInfo {
   vendorId: string;
   displayName: string;
   pricing: ModelPricing;
+  pricingMetadata?: ModelsDevModelCost;
   context: ModelContextLimits;
   modalities: ModelModalities;
   supports: ModelSupports;
@@ -111,10 +117,11 @@ export interface CuratedModelDefinition {
 }
 
 export interface CuratedProviderBenchmarks {
-  aa: { // artificialanalysis
+  aa: {
+    // artificialanalysis
     id?: string;
     slug?: string;
-  }
+  };
   aaSlug?: string;
 }
 
@@ -147,8 +154,11 @@ export interface ChatModelConfig {
   knowledgeCutoff?: ModelKnowledgeCutoff;
   supports: ModelSupports;
   costs: ModelPricing;
+  pricingMetadata?: ModelsDevModelCost;
   context: ModelContextLimits;
   modalities: ModelModalities;
+  releasedAt?: string;
+  verifiedAt?: string;
   benchmarks?: ChatModelBenchmarks;
   custom?: Record<string, unknown>;
 }

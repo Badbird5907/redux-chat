@@ -1,9 +1,10 @@
 "use client";
 
-import { cn } from "@redux/ui/lib/utils";
-import { motion } from "motion/react";
 import type { CSSProperties } from "react";
 import { memo, useMemo } from "react";
+import { motion } from "motion/react";
+
+import { cn } from "@redux/ui/lib/utils";
 
 const shimmerMotionComponents = {
   div: motion.div,
@@ -41,7 +42,7 @@ const ShimmerComponent = ({
 
   const dynamicSpread = useMemo(
     () => children.length * spread,
-    [children, spread]
+    [children, spread],
   );
 
   return (
@@ -49,8 +50,8 @@ const ShimmerComponent = ({
       animate={{ backgroundPosition: "0% center" }}
       className={cn(
         "relative inline-block bg-size-[250%_100%,auto] bg-clip-text text-transparent",
-        "[--bg:linear-gradient(90deg,#0000_calc(50%-var(--spread)),var(--color-background),#0000_calc(50%+var(--spread)))] [background-repeat:no-repeat,padding-box]",
-        className
+        "[background-repeat:no-repeat,padding-box] [--bg:linear-gradient(90deg,#0000_calc(50%-var(--spread)),var(--color-background),#0000_calc(50%+var(--spread)))]",
+        className,
       )}
       initial={{ backgroundPosition: "100% center" }}
       style={

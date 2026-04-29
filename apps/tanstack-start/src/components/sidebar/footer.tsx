@@ -3,7 +3,6 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { LogIn, LogOut, Settings } from "lucide-react";
 
 import { Button, buttonVariants } from "@redux/ui/components/button";
-import { cn } from "@redux/ui/lib/utils";
 import {
   Drawer,
   DrawerClose,
@@ -21,9 +20,10 @@ import {
 } from "@redux/ui/components/dropdown-menu";
 import { Skeleton } from "@redux/ui/components/skeleton";
 import { useIsMobile } from "@redux/ui/hooks/use-mobile";
+import { cn } from "@redux/ui/lib/utils";
 
-import { authClient } from "@/lib/auth/client";
 import { UserInfo } from "@/components/user-info";
+import { authClient } from "@/lib/auth/client";
 
 export const AppSidebarFooter = () => {
   const { data: session, isPending } = authClient.useSession();

@@ -13,7 +13,7 @@ export const OPENAI_PROVIDER: CuratedProviderDefinition = {
       defaultProviderId: "openai:gpt-5-mini", //"openrouter:openai/gpt-5-mini",
       benchmarks: {
         aa: { id: "29855680-7469-43eb-8b88-cd3fb1d99da3", slug: "gpt-5-mini" },
-      }
+      },
     },
   ],
 };

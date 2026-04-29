@@ -10,10 +10,11 @@ import {
 import AppSidebar from "@/components/sidebar";
 
 export function SettingsSidebarPanel() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
 
-  const isGeneralActive =
-    pathname === "/settings" || pathname === "/settings/";
+  const isGeneralActive = pathname === "/settings" || pathname === "/settings/";
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
 
   return (

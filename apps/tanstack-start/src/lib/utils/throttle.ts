@@ -30,36 +30,38 @@ throttledProcessData('Data 3');
 ```
 */
 export function throttle<T extends (...arguments_: unknown[]) => unknown>(
-	function_: T,
-	wait: number
+  function_: T,
+  wait: number,
 ): T {
-	if (typeof function_ !== 'function') {
-		throw new TypeError(`Expected the first argument to be a \`function\`, got \`${typeof function_}\`.`);
-	}
+  if (typeof function_ !== "function") {
+    throw new TypeError(
+      `Expected the first argument to be a \`function\`, got \`${typeof function_}\`.`,
+    );
+  }
 
-	// TODO: Add `wait` validation too in the next major version.
+  // TODO: Add `wait` validation too in the next major version.
 
-	let timeoutId: ReturnType<typeof setTimeout> | undefined;
-	let lastCallTime = 0;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let lastCallTime = 0;
 
-	return function throttled(
-		this: ThisParameterType<T>,
-		...arguments_: Parameters<T>
-	) {
-		clearTimeout(timeoutId);
+  return function throttled(
+    this: ThisParameterType<T>,
+    ...arguments_: Parameters<T>
+  ) {
+    clearTimeout(timeoutId);
 
-		const now = Date.now();
-		const timeSinceLastCall = now - lastCallTime;
-		const delayForNextCall = wait - timeSinceLastCall;
+    const now = Date.now();
+    const timeSinceLastCall = now - lastCallTime;
+    const delayForNextCall = wait - timeSinceLastCall;
 
-		if (delayForNextCall <= 0) {
-			lastCallTime = now;
-			function_.apply(this, arguments_);
-		} else {
-			timeoutId = setTimeout(() => {
-				lastCallTime = Date.now();
-				function_.apply(this, arguments_);
-			}, delayForNextCall);
-		}
-	} as T;
+    if (delayForNextCall <= 0) {
+      lastCallTime = now;
+      function_.apply(this, arguments_);
+    } else {
+      timeoutId = setTimeout(() => {
+        lastCallTime = Date.now();
+        function_.apply(this, arguments_);
+      }, delayForNextCall);
+    }
+  } as T;
 }

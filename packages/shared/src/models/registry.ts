@@ -1,17 +1,13 @@
 import { lookupMimeTypeFromFile } from "@silo-storage/mime-types";
 
 import {
-  expandAllowedMimeTypes,
-} from "./attachments";
-import { PROVIDERS } from "./curated";
-import {
-  getRouteAcceptedExtensions,
-  getRouteAcceptedMimeTypes,
-  getRouteAttachmentBehavior,
-  mergeModelRouteBehavior,
-  resolveAttachmentDeliveryMode,
-} from "./route-behavior";
-import { createModelRouteInfo, getTokenLensProvider } from "./tokenlens";
+  calculateModelCost,
+  calculateModelCostFromUsage,
+  getModelSpec,
+  getProviderCatalog,
+  MODELS_DEV_PROVIDERS,
+} from "@redux/models";
+
 import type {
   CanonicalCuratedModelDefinition,
   CanonicalModelId,
@@ -21,6 +17,15 @@ import type {
   ModelRouteBehavior,
   ModelRouteInfo,
 } from "./types";
+import { expandAllowedMimeTypes } from "./attachments";
+import { PROVIDERS } from "./curated";
+import {
+  getRouteAcceptedExtensions,
+  getRouteAcceptedMimeTypes,
+  getRouteAttachmentBehavior,
+  mergeModelRouteBehavior,
+  resolveAttachmentDeliveryMode,
+} from "./route-behavior";
 
 export { PROVIDERS };
 
@@ -31,8 +36,8 @@ function toCanonicalModelId(
   return `${providerSlug}/${modelId}`;
 }
 
-export const CURATED_MODELS: CanonicalCuratedModelDefinition[] = PROVIDERS.flatMap(
-  (provider) =>
+export const CURATED_MODELS: CanonicalCuratedModelDefinition[] =
+  PROVIDERS.flatMap((provider) =>
     provider.models.map((model) => ({
       ...model,
       id: toCanonicalModelId(provider.slug, model.id),
@@ -40,10 +45,13 @@ export const CURATED_MODELS: CanonicalCuratedModelDefinition[] = PROVIDERS.flatM
       providerName: provider.name,
       providerBenchmarks: provider.benchmarks,
     })),
-);
+  );
 
 const ROUTE_TO_MODEL_ID = new Map<ModelProviderRouteId, CanonicalModelId>();
-const ROUTE_BEHAVIOR_OVERRIDES = new Map<ModelProviderRouteId, ModelRouteBehavior>();
+const ROUTE_BEHAVIOR_OVERRIDES = new Map<
+  ModelProviderRouteId,
+  ModelRouteBehavior
+>();
 
 for (const model of CURATED_MODELS) {
   for (const providerId of model.providerIds) {
@@ -57,22 +65,21 @@ for (const model of CURATED_MODELS) {
 
 export const MODEL_ROUTES: ModelRouteInfo[] = Array.from(
   new Set(CURATED_MODELS.flatMap((model) => model.providerIds)),
-)
-  .map((routeId) => {
-    const route = createModelRouteInfo(routeId);
-    if (!route) {
-      throw new Error(`Unknown model route: ${routeId}`);
-    }
+).map((routeId) => {
+  const route = getModelSpec(MODELS_DEV_PROVIDERS, routeId);
+  if (!route) {
+    throw new Error(`Unknown model route: ${routeId}`);
+  }
 
-    return {
-      ...route,
-      canonicalModelId: ROUTE_TO_MODEL_ID.get(route.id),
-      behavior: mergeModelRouteBehavior(
-        route.provider,
-        ROUTE_BEHAVIOR_OVERRIDES.get(route.id),
-      ),
-    };
-  });
+  return {
+    ...route,
+    canonicalModelId: ROUTE_TO_MODEL_ID.get(route.id),
+    behavior: mergeModelRouteBehavior(
+      route.provider,
+      ROUTE_BEHAVIOR_OVERRIDES.get(route.id),
+    ),
+  };
+});
 
 const MODEL_ROUTE_BY_ID = new Map(
   MODEL_ROUTES.map((route) => [route.id, route] as const),
@@ -106,15 +113,20 @@ export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.map((model) => {
     acceptedChatExtensions: accept,
     acceptedChatMimeTypes: allowedMimeTypes,
     maxFiles:
-      allowedMimeTypes.length > 0 ? (model.attachments?.maxFiles ?? 4) : undefined,
+      allowedMimeTypes.length > 0
+        ? (model.attachments?.maxFiles ?? 4)
+        : undefined,
     knowledgeCutoff: defaultRoute.knowledgeCutoff,
     supports: {
       ...defaultRoute.supports,
       attachments: allowedMimeTypes.length > 0,
     },
     costs: defaultRoute.pricing,
+    pricingMetadata: defaultRoute.pricingMetadata,
     context: defaultRoute.context,
     modalities: defaultRoute.modalities,
+    releasedAt: defaultRoute.releasedAt,
+    verifiedAt: defaultRoute.verifiedAt,
     benchmarks: model.benchmarks,
     custom: model.custom,
   };
@@ -129,32 +141,32 @@ export const DEFAULT_CHAT_MODEL_ID: CanonicalModelId =
 
 export const MODEL_PROVIDERS: ModelProviderInfo[] = Array.from(
   new Set(MODEL_ROUTES.map((route) => route.provider)),
-)
-  .map((providerId) => {
-    const provider = getTokenLensProvider(providerId);
-    if (!provider) {
-      throw new Error(`Unknown model provider: ${providerId}`);
-    }
+).map((providerId) => {
+  const provider = getProviderCatalog(MODELS_DEV_PROVIDERS, providerId);
+  if (!provider) {
+    throw new Error(`Unknown model provider: ${providerId}`);
+  }
 
-    const routes = MODEL_ROUTES.filter((route) => route.provider === providerId);
-    const modelIds = Array.from(
-      new Set(
-        routes.flatMap((route) =>
-          route.canonicalModelId ? [route.canonicalModelId] : [],
-        ),
+  const routes = MODEL_ROUTES.filter((route) => route.provider === providerId);
+  const modelIds = Array.from(
+    new Set(
+      routes.flatMap((route) =>
+        route.canonicalModelId ? [route.canonicalModelId] : [],
       ),
-    );
+    ),
+  );
 
-    return {
-      id: provider.id,
-      name: provider.name,
-      api: provider.api,
-      doc: provider.doc,
-      env: provider.env,
-      routeIds: routes.map((route) => route.id),
-      modelIds,
-    };
-  });
+  return {
+    id: provider.id,
+    name: provider.name,
+    api: provider.api,
+    npm: provider.npm,
+    doc: provider.doc,
+    env: provider.env,
+    routeIds: routes.map((route) => route.id),
+    modelIds,
+  };
+});
 
 export function normalizeModelId(
   modelId: string,
@@ -172,7 +184,9 @@ export function normalizeModelId(
     ?.canonicalModelId;
 }
 
-export function getChatModelConfig(modelId: string): ChatModelConfig | undefined {
+export function getChatModelConfig(
+  modelId: string,
+): ChatModelConfig | undefined {
   const canonicalModelId = normalizeModelId(modelId);
   return canonicalModelId ? CHAT_MODEL_BY_ID.get(canonicalModelId) : undefined;
 }
@@ -220,7 +234,9 @@ export function isFileAllowedForModel(
   }
 
   const inferredMimeType = lookupMimeTypeFromFile(file.name, file.type);
-  return inferredMimeType ? expandedMimeTypes.includes(inferredMimeType) : false;
+  return inferredMimeType
+    ? expandedMimeTypes.includes(inferredMimeType)
+    : false;
 }
 
 export function getModelRouteBehavior(routeId: string) {
@@ -246,3 +262,5 @@ export function resolveModelAttachmentDelivery(
     mimeType: file.type,
   });
 }
+
+export { calculateModelCost, calculateModelCostFromUsage };

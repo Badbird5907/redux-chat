@@ -1,0 +1,40 @@
+name: Refresh model catalog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *"
+
+concurrency:
+  group: models-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Generate model snapshot
+        run: pnpm models:generate
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/models-refresh
+          commit-message: "chore(models): refresh models.dev snapshot"
+          title: "chore(models): refresh models.dev snapshot"
+          body: |
+            Automated refresh of the allowlisted models.dev snapshot.
+
+            Generated with:
+            - `pnpm models:generate`
+          labels: |
+            dependencies
+            automated

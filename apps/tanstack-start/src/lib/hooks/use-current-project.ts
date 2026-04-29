@@ -1,6 +1,7 @@
 import { useMatch } from "@tanstack/react-router";
 
 import { api } from "@redux/backend/convex/_generated/api";
+
 import { useQuery } from "@/lib/hooks/convex";
 
 export function useCurrentProject() {
@@ -15,9 +16,7 @@ export function useCurrentProject() {
   });
 
   const isChatRoute = Boolean(chatMatch);
-  const isProjectRoute = Boolean(
-    projectDetailMatch ?? projectsIndexMatch,
-  );
+  const isProjectRoute = Boolean(projectDetailMatch ?? projectsIndexMatch);
   const isChatOrProjectRoute = isChatRoute || isProjectRoute;
 
   const threadId = chatMatch?.params.id;

@@ -1,20 +1,15 @@
 import { api } from "@redux/backend/convex/_generated/api";
 
+import type { EmbedItem, EmbedPart } from "./embed-client";
+import type { EmbeddedChunk } from "./vector-store";
 import { env } from "@/env";
 import {
   buildAttachmentUrl,
   getInternalConvexClient,
 } from "@/lib/silo/core.server";
-
-import {
-  EMBEDDING_DIMS,
-  EMBEDDING_MODEL,
-  embedItems
-} from "./embed-client";
-import type { EmbedItem, EmbedPart } from "./embed-client";
+import { EMBEDDING_DIMS, EMBEDDING_MODEL, embedItems } from "./embed-client";
 import { extractChunks } from "./extract";
 import { getVectorStore } from "./index";
-import type { EmbeddedChunk } from "./vector-store";
 
 export interface IndexProjectFileInput {
   attachmentId: string;
@@ -105,8 +100,10 @@ export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
     //
     // Chunks that produced neither text nor inlineData (shouldn't happen,
     // but guard anyway) are filtered out so we don't send empty `parts`.
-    const embedTargets: { chunk: (typeof extracted)[number]; item: EmbedItem }[] =
-      [];
+    const embedTargets: {
+      chunk: (typeof extracted)[number];
+      item: EmbedItem;
+    }[] = [];
     for (const chunk of extracted) {
       const parts: EmbedPart[] = [];
       if (chunk.text && !chunk.inlineData) parts.push({ text: chunk.text });

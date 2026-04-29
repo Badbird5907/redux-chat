@@ -1,4 +1,8 @@
+import type { ConvexQueryClient } from "@convex-dev/react-query";
 import type { QueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { lazy, Suspense } from "react";
+import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import {
   ClientOnly,
   createRootRouteWithContext,
@@ -7,32 +11,29 @@ import {
   Scripts,
   useRouteContext,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
-import { lazy, Suspense } from "react";
-import { createServerFn } from '@tanstack/react-start'
-import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
-import type { ConvexQueryClient } from '@convex-dev/react-query'
-import { ThemeProvider } from "@redux/ui/components/theme";
+import { createServerFn } from "@tanstack/react-start";
+
 import { Toaster } from "@redux/ui/components/sonner";
+import { ThemeProvider } from "@redux/ui/components/theme";
 import { cn } from "@redux/ui/lib/utils";
 
-import appCss from "@/styles.css?url";
-import { authClient } from '@/lib/auth/client'
+import { authClient } from "@/lib/auth/client";
+import { getToken } from "@/lib/auth/server";
 import { HotkeySettingsProvider } from "@/lib/hotkeys";
-import { getToken } from '@/lib/auth/server'
+import appCss from "@/styles.css?url";
 
 // eslint-disable-next-line turbo/no-undeclared-env-vars -- DEV is a Vite built-in, not a user-provided environment variable.
 const AppTanStackDevtools = import.meta.env.DEV
   ? lazy(() => import("@/components/devtools/tanstack-devtools"))
   : null;
 
-const getAuth = createServerFn({ method: 'GET' }).handler(async () => {
-  return await getToken()
-})
+const getAuth = createServerFn({ method: "GET" }).handler(async () => {
+  return await getToken();
+});
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
-  convexQueryClient: ConvexQueryClient
+  convexQueryClient: ConvexQueryClient;
 }>()({
   head: () => ({
     meta: [
@@ -59,21 +60,21 @@ export const Route = createRootRouteWithContext<{
         href: "/favicon.ico",
       },
       {
-        rel: 'apple-touch-icon',
-        sizes: '180x180',
-        href: '/apple-touch-icon.png',
+        rel: "apple-touch-icon",
+        sizes: "180x180",
+        href: "/apple-touch-icon.png",
       },
       {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '32x32',
-        href: '/favicon-32x32.png',
+        rel: "icon",
+        type: "image/png",
+        sizes: "32x32",
+        href: "/favicon-32x32.png",
       },
       {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '16x16',
-        href: '/favicon-16x16.png',
+        rel: "icon",
+        type: "image/png",
+        sizes: "16x16",
+        href: "/favicon-16x16.png",
       },
       {
         rel: "preconnect",
@@ -91,24 +92,24 @@ export const Route = createRootRouteWithContext<{
     ],
   }),
   beforeLoad: async (ctx) => {
-    const token = await getAuth()
+    const token = await getAuth();
     // all queries, mutations and actions through TanStack Query will be
     // authenticated during SSR if we have a valid token
     if (token) {
       // During SSR only (the only time serverHttpClient exists),
       // set the auth token to make HTTP queries with.
-      ctx.context.convexQueryClient.serverHttpClient?.setAuth(token)
+      ctx.context.convexQueryClient.serverHttpClient?.setAuth(token);
     }
     return {
       isAuthenticated: !!token,
       token,
-    }
+    };
   },
   component: RootComponent,
 });
 
 function RootComponent() {
-  const context = useRouteContext({ from: Route.id }) 
+  const context = useRouteContext({ from: Route.id });
   return (
     <ConvexBetterAuthProvider
       client={context.convexQueryClient.convexClient}
@@ -119,7 +120,7 @@ function RootComponent() {
         <Outlet />
       </RootDocument>
     </ConvexBetterAuthProvider>
-  )
+  );
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
@@ -128,9 +129,9 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body 
+      <body
         className={cn(
-          "bg-background text-foreground min-h-screen font-sans antialiased"
+          "bg-background text-foreground min-h-screen font-sans antialiased",
         )}
         style={{
           fontFamily: "var(--font-geist-sans, 'Geist', sans-serif)",

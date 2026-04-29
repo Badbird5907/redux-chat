@@ -8,10 +8,7 @@ export interface ProjectMediaCandidate {
   text?: string;
 }
 
-export function modelSupportsProjectMedia(
-  modelId: string,
-  mimeType: string,
-) {
+export function modelSupportsProjectMedia(modelId: string, mimeType: string) {
   const config = getChatModelConfig(modelId);
   if (!config) {
     return false;
@@ -36,8 +33,7 @@ export function selectProjectMediaAttachmentIds(
     requireMissingText?: boolean;
   },
 ) {
-  const limit =
-    options?.limit ?? MAX_PROJECT_MODEL_MEDIA_ATTACHMENTS;
+  const limit = options?.limit ?? MAX_PROJECT_MODEL_MEDIA_ATTACHMENTS;
   const requireMissingText = options?.requireMissingText ?? false;
   const attachmentIds: string[] = [];
   const seen = new Set<string>();
@@ -69,12 +65,12 @@ export function toProjectToolModelOutputPart(input: {
   url: string;
 }) {
   return input.mimeType.startsWith("image/")
-    ? ({
+    ? {
         type: "image-url" as const,
         url: input.url,
-      })
-    : ({
+      }
+    : {
         type: "file-url" as const,
         url: input.url,
-      });
+      };
 }

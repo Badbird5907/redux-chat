@@ -1,7 +1,17 @@
-import { classifyChatAttachment, resolveModelAttachmentDelivery } from "@redux/shared/models";
-import type { ChatAttachmentDeliveryMode, ChatAttachmentKind, ModelRouteInfo } from "@redux/shared/models";
+import type {
+  ChatAttachmentDeliveryMode,
+  ChatAttachmentKind,
+  ModelRouteInfo,
+} from "@redux/shared/models";
+import {
+  classifyChatAttachment,
+  resolveModelAttachmentDelivery,
+} from "@redux/shared/models";
 
-import type { AttachmentDerivativeKind, AttachmentSourceRef } from "../attachments-core/types";
+import type {
+  AttachmentDerivativeKind,
+  AttachmentSourceRef,
+} from "../attachments-core/types";
 
 export interface PlannedChatAttachment {
   kind: ChatAttachmentKind;
@@ -49,6 +59,7 @@ export function planChatAttachment(
   return {
     kind,
     deliveryMode,
-    derivativeKind: kind === "spreadsheet" ? "spreadsheet_text" : "normalized_text",
+    derivativeKind:
+      kind === "spreadsheet" ? "spreadsheet_text" : "normalized_text",
   };
 }

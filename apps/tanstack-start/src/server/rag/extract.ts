@@ -243,9 +243,7 @@ export async function extractChunks(
  * multiple pages — `pageNumber` records the first page of the slice so
  * downstream citations still land in a usable place.
  */
-async function extractPdfChunks(
-  bytes: ArrayBuffer,
-): Promise<ExtractedChunk[]> {
+async function extractPdfChunks(bytes: ArrayBuffer): Promise<ExtractedChunk[]> {
   const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const totalPages = Math.min(src.getPageCount(), MAX_PDF_PAGES);
   const { text: pageTexts } = await extractPdfText(new Uint8Array(bytes), {
@@ -273,9 +271,7 @@ async function extractPdfChunks(
       chunkIndex: chunkIndex,
       modality: "pdf_page",
       pageNumber: start + 1, // 1-indexed; first page of the slice
-      text: normalizePdfSliceText(
-        pageTexts.slice(start, end).join("\n\n"),
-      ),
+      text: normalizePdfSliceText(pageTexts.slice(start, end).join("\n\n")),
       inlineData: { mimeType: "application/pdf", data },
     });
     chunkIndex += 1;

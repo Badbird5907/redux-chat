@@ -1,9 +1,9 @@
 "use client";
 
-import { Collapsible } from "@base-ui/react/collapsible";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useContext, useMemo, useState } from "react";
+import { Collapsible } from "@base-ui/react/collapsible";
+import { BrainIcon, ChevronDownIcon } from "lucide-react";
 
 import { cn } from "@redux/ui/lib/utils";
 
@@ -77,7 +77,9 @@ export function Reasoning({
   );
 }
 
-export type ReasoningTriggerProps = ComponentProps<typeof Collapsible.Trigger> & {
+export type ReasoningTriggerProps = ComponentProps<
+  typeof Collapsible.Trigger
+> & {
   getThinkingMessage?: (isStreaming: boolean, duration?: number) => ReactNode;
 };
 
@@ -150,6 +152,6 @@ function getDefaultReasoningLabel(isStreaming: boolean, duration?: number) {
     const seconds = Math.max(1, Math.round(duration / 1000));
     return `Thought for ${seconds} second${seconds === 1 ? "" : "s"}`;
   }
-  return "Thought for a second"
+  return "Thought for a second";
   // return "Thought process";
 }

@@ -1,3 +1,4 @@
+import type { AppHotkeyBinding, AppHotkeyId } from "@/lib/hotkeys/registry";
 import {
   createContext,
   useCallback,
@@ -12,7 +13,6 @@ import {
   appHotkeyRegistry,
   getDefaultHotkeyBindings,
 } from "@/lib/hotkeys/registry";
-import type { AppHotkeyBinding, AppHotkeyId } from "@/lib/hotkeys/registry";
 
 const HOTKEY_STORAGE_KEY = "redux-chat:hotkeys";
 const DEFAULT_BINDINGS = getDefaultHotkeyBindings();
@@ -156,10 +156,7 @@ export function HotkeySettingsProvider({
     () => EMPTY_OVERRIDES,
   );
 
-  const bindings = useMemo(
-    () => resolveHotkeyBindings(overrides),
-    [overrides],
-  );
+  const bindings = useMemo(() => resolveHotkeyBindings(overrides), [overrides]);
 
   const setBinding = useCallback(
     (id: AppHotkeyId, binding: AppHotkeyBinding) => {

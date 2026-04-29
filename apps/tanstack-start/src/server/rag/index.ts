@@ -1,5 +1,5 @@
-import { ConvexVectorStore } from "./convex-vector-store";
 import type { VectorStore } from "./vector-store";
+import { ConvexVectorStore } from "./convex-vector-store";
 
 /**
  * The single swap point for migrating to a different vector backend.

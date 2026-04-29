@@ -43,7 +43,10 @@ for (const language of bundledLanguagesInfo) {
   LANGUAGE_ALIASES.set(language.id, language.id as MarkdownLanguageId);
 
   for (const alias of language.aliases ?? []) {
-    LANGUAGE_ALIASES.set(alias.toLowerCase(), language.id as MarkdownLanguageId);
+    LANGUAGE_ALIASES.set(
+      alias.toLowerCase(),
+      language.id as MarkdownLanguageId,
+    );
   }
 }
 
