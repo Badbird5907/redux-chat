@@ -4,6 +4,8 @@ import type { UIMessage } from "ai";
 import type { ComponentProps, ReactNode } from "react";
 import { memo, useCallback } from "react";
 
+import { DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES } from "@redux/types";
+
 import type { ChatMessageRowProps } from "./chat-message-row";
 import type {
   ChatMessageWithThreadMetadata,
@@ -107,6 +109,10 @@ export const ChatMessageList = memo(function ChatMessageList({
               resolvedMessageAttachments={resolvedMessageAttachments}
               status={status}
               totalCount={totalCount}
+              userMessagePreviewMaxLines={
+                settings.userMessagePreviewMaxLines ??
+                DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES
+              }
             />
           ))}
         </div>

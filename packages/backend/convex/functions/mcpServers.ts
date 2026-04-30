@@ -1,10 +1,27 @@
-import type { GenericMutationCtx } from "convex/server";
+import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { mergeMessageSettings } from "@redux/types";
 
 import type { DataModel, Doc } from "../_generated/dataModel";
 import { mutation, query } from "./index";
+
+const MAX_AUTH_HEADERS = 20;
+const MAX_HEADER_NAME_LENGTH = 128;
+const MAX_HEADER_VALUE_LENGTH = 4096;
+const headerNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+
+interface McpAuthHeaderInput {
+  name: string;
+  value: string;
+}
+
+type AuthenticatedCtx = (
+  | GenericQueryCtx<DataModel>
+  | GenericMutationCtx<DataModel>
+) & {
+  userId: string;
+};
 
 function normalizeMcpServerName(name: string) {
   const normalized = name.trim().replace(/\s+/g, " ").slice(0, 80);
@@ -37,6 +54,62 @@ function normalizeMcpServerUrl(url: string) {
   return parsed.toString();
 }
 
+function normalizeMcpAuthHeaders(
+  authHeaders: McpAuthHeaderInput[] | undefined,
+) {
+  if (!authHeaders || authHeaders.length === 0) {
+    return [];
+  }
+
+  if (authHeaders.length > MAX_AUTH_HEADERS) {
+    throw new ConvexError(
+      `MCP servers support up to ${MAX_AUTH_HEADERS} auth headers`,
+    );
+  }
+
+  const seenNames = new Set<string>();
+  const normalizedHeaders: McpAuthHeaderInput[] = [];
+
+  for (const header of authHeaders) {
+    const name = header.name.trim();
+    const value = header.value.trim();
+
+    if (!name && !value) {
+      continue;
+    }
+
+    if (!name || !value) {
+      throw new ConvexError("Auth header name and value are required");
+    }
+
+    if (name.length > MAX_HEADER_NAME_LENGTH) {
+      throw new ConvexError("Auth header name is too long");
+    }
+
+    if (value.length > MAX_HEADER_VALUE_LENGTH) {
+      throw new ConvexError("Auth header value is too long");
+    }
+
+    if (!headerNamePattern.test(name)) {
+      throw new ConvexError("Auth header name contains invalid characters");
+    }
+
+    if (/[\r\n]/.test(value)) {
+      throw new ConvexError("Auth header value cannot contain new lines");
+    }
+
+    const normalizedName = name.toLowerCase();
+    if (seenNames.has(normalizedName)) {
+      throw new ConvexError("Auth header names must be unique");
+    }
+
+    seenNames.add(normalizedName);
+    normalizedHeaders.push({ name, value });
+  }
+
+  return normalizedHeaders;
+}
+
 async function getMcpServerForUser(
   ctx: GenericMutationCtx<DataModel> & { userId: string },
   mcpServerId: string,
@@ -53,10 +126,44 @@ async function getMcpServerForUser(
   return server;
 }
 
+async function getMcpServersEnabled(ctx: AuthenticatedCtx) {
+  const settings = await ctx.db
+    .query("userSettings")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .first();
+
+  return settings?.mcpServersEnabled !== false;
+}
+
+async function setMcpServersEnabled(
+  ctx: GenericMutationCtx<DataModel> & { userId: string },
+  enabled: boolean,
+) {
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("userSettings")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .first();
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      mcpServersEnabled: enabled,
+      updatedAt: now,
+    });
+    return;
+  }
+
+  await ctx.db.insert("userSettings", {
+    userId: ctx.userId,
+    mcpServersEnabled: enabled,
+    updatedAt: now,
+  });
+}
+
 function stripDeletedServerIdFromSettings<
   T extends Doc<"defaultMessageSettings"> | Doc<"threads">,
 >(doc: T, mcpServerId: string) {
-  const currentIds = doc.settings.tools?.mcpServers?.serverIds ?? [];
+  const currentIds = doc.settings.tools.mcpServers?.serverIds ?? [];
   const nextIds = currentIds.filter((serverId) => serverId !== mcpServerId);
 
   if (nextIds.length === currentIds.length) {
@@ -71,22 +178,60 @@ function stripDeletedServerIdFromSettings<
   });
 }
 
+async function listConfiguredServers(
+  ctx: AuthenticatedCtx,
+  options: { includeAuthHeaders: boolean },
+) {
+  const servers = await ctx.db
+    .query("mcpServers")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .order("desc")
+    .collect();
+
+  return servers.map((server) => ({
+    mcpServerId: server.mcpServerId,
+    name: server.name,
+    url: server.url,
+    ...(options.includeAuthHeaders
+      ? { authHeaders: server.authHeaders ?? [] }
+      : {}),
+    createdAt: server.createdAt,
+    updatedAt: server.updatedAt,
+  }));
+}
+
+export const getSettings = query({
+  args: {},
+  handler: async (ctx) => ({
+    enabled: await getMcpServersEnabled(ctx),
+  }),
+});
+
+export const setEnabled = mutation({
+  args: {
+    enabled: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await setMcpServersEnabled(ctx, args.enabled);
+    return { enabled: args.enabled };
+  },
+});
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const servers = await ctx.db
-      .query("mcpServers")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .order("desc")
-      .collect();
+    if (!(await getMcpServersEnabled(ctx))) {
+      return [];
+    }
 
-    return servers.map((server) => ({
-      mcpServerId: server.mcpServerId,
-      name: server.name,
-      url: server.url,
-      createdAt: server.createdAt,
-      updatedAt: server.updatedAt,
-    }));
+    return listConfiguredServers(ctx, { includeAuthHeaders: false });
+  },
+});
+
+export const listConfigured = query({
+  args: {},
+  handler: async (ctx) => {
+    return listConfiguredServers(ctx, { includeAuthHeaders: true });
   },
 });
 
@@ -95,6 +240,10 @@ export const getByIds = query({
     serverIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    if (!(await getMcpServersEnabled(ctx))) {
+      return [];
+    }
+
     const uniqueServerIds = Array.from(new Set(args.serverIds));
 
     if (uniqueServerIds.length === 0) {
@@ -116,6 +265,7 @@ export const getByIds = query({
           mcpServerId: server.mcpServerId,
           name: server.name,
           url: server.url,
+          authHeaders: server.authHeaders ?? [],
         };
       }),
     );
@@ -128,16 +278,26 @@ export const create = mutation({
   args: {
     name: v.string(),
     url: v.string(),
+    authHeaders: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          value: v.string(),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     const mcpServerId = crypto.randomUUID();
+    const authHeaders = normalizeMcpAuthHeaders(args.authHeaders);
 
     await ctx.db.insert("mcpServers", {
       mcpServerId,
       userId: ctx.userId,
       name: normalizeMcpServerName(args.name),
       url: normalizeMcpServerUrl(args.url),
+      authHeaders: authHeaders.length > 0 ? authHeaders : undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -152,6 +312,14 @@ export const update = mutation({
     patch: v.object({
       name: v.optional(v.string()),
       url: v.optional(v.string()),
+      authHeaders: v.optional(
+        v.array(
+          v.object({
+            name: v.string(),
+            value: v.string(),
+          }),
+        ),
+      ),
     }),
   },
   handler: async (ctx, args) => {
@@ -165,10 +333,15 @@ export const update = mutation({
       args.patch.url !== undefined
         ? normalizeMcpServerUrl(args.patch.url)
         : server.url;
+    const nextAuthHeaders =
+      args.patch.authHeaders !== undefined
+        ? normalizeMcpAuthHeaders(args.patch.authHeaders)
+        : (server.authHeaders ?? []);
 
     await ctx.db.patch(server._id, {
       name: nextName,
       url: nextUrl,
+      authHeaders: nextAuthHeaders.length > 0 ? nextAuthHeaders : undefined,
       updatedAt: Date.now(),
     });
 
@@ -176,6 +349,7 @@ export const update = mutation({
       mcpServerId: server.mcpServerId,
       name: nextName,
       url: nextUrl,
+      authHeaders: nextAuthHeaders,
     };
   },
 });

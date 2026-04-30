@@ -39,6 +39,41 @@ import {
 } from "./chat-message-utils";
 import { MessageStatsBar } from "./message-stats-bar";
 
+function CollapsibleUserMessageMarkdown({
+  textContent,
+  previewMaxLines,
+}: {
+  textContent: string;
+  previewMaxLines: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const lines = textContent.split(/\r?\n/);
+  const shouldOfferCollapse =
+    previewMaxLines > 0 && lines.length > previewMaxLines && !expanded;
+
+  const displayContent = shouldOfferCollapse
+    ? lines.slice(0, previewMaxLines).join("\n")
+    : textContent;
+
+  return (
+    <div className="max-w-full min-w-0">
+      <StaticMarkdown content={displayContent} />
+      {shouldOfferCollapse ? (
+        <button
+          type="button"
+          className={cn(
+            "mt-2 text-sm font-medium underline underline-offset-2",
+            "opacity-90 hover:opacity-100",
+          )}
+          onClick={() => setExpanded(true)}
+        >
+          Show more
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function MessageCopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -98,6 +133,8 @@ export interface ChatMessageRowProps {
       usedDerivative?: boolean;
     } | null,
   ) => void;
+  /** Max newline-separated lines before "Show more"; `0` disables collapsing. From chat settings. */
+  userMessagePreviewMaxLines: number;
 }
 
 export const ChatMessageRow = memo(function ChatMessageRow({
@@ -116,6 +153,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onSelectBranch,
   onStartEditMessage,
   onAttachmentPreview,
+  userMessagePreviewMaxLines,
 }: ChatMessageRowProps) {
   const textContent = useMemo(
     () =>
@@ -243,7 +281,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         <div
           className={cn(
             "rounded-lg px-4 py-2",
-            message.role === "user" && "bg-primary text-primary-foreground",
+            message.role === "user" &&
+              "bg-primary text-primary-foreground max-w-full min-w-0",
           )}
         >
           {(!message.parts.length || showStreamingPlaceholder) &&
@@ -286,7 +325,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               )}
             </>
           ) : (
-            <StaticMarkdown content={textContent} />
+            <CollapsibleUserMessageMarkdown
+              previewMaxLines={userMessagePreviewMaxLines}
+              textContent={textContent}
+            />
           )}
         </div>
         {attachmentsToRender.length > 0 && (

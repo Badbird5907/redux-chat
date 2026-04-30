@@ -22,6 +22,10 @@ interface ToolRuntimeOptions {
     mcpServerId: string;
     name: string;
     url: string;
+    authHeaders?: {
+      name: string;
+      value: string;
+    }[];
   }[];
   projectContext?: {
     chatProjectId: string;
@@ -109,6 +113,12 @@ export async function createToolRuntime(
         transport: {
           type: "http",
           url: server.url,
+          headers: Object.fromEntries(
+            (server.authHeaders ?? []).map((header) => [
+              header.name,
+              header.value,
+            ]),
+          ),
           redirect: "error",
         },
       });

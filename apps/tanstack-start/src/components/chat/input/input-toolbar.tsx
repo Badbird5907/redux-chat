@@ -203,37 +203,49 @@ export function ChatInputToolbar({
               <span className="min-w-0 grow whitespace-nowrap">Tools</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>MCP Servers</DropdownMenuLabel>
-              {mcpServers.length > 0 ? (
-                mcpServers.map((server) => (
-                  <DropdownMenuCheckboxItem
-                    key={server.mcpServerId}
-                    checked={enabledMcpServerIds.includes(server.mcpServerId)}
-                    disabled={!settingsReady}
-                    onCheckedChange={() =>
-                      onToggleMcpServer(server.mcpServerId)
-                    }
-                  >
-                    <span className="min-w-0 grow whitespace-nowrap">
-                      {server.name}
-                    </span>
-                  </DropdownMenuCheckboxItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled>
-                  <span className="min-w-0 grow whitespace-nowrap">
-                    No MCP servers configured
-                  </span>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={onOpenMcpSettings}>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger disabled={!settingsReady}>
                 <PlugZap className="size-4 shrink-0" />
                 <span className="min-w-0 grow whitespace-nowrap">
-                  Manage MCP Servers
+                  MCP Servers
                 </span>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-64">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>MCP Servers</DropdownMenuLabel>
+                  {mcpServers.length > 0 ? (
+                    mcpServers.map((server) => (
+                      <DropdownMenuCheckboxItem
+                        key={server.mcpServerId}
+                        checked={enabledMcpServerIds.includes(
+                          server.mcpServerId,
+                        )}
+                        disabled={!settingsReady}
+                        onCheckedChange={() =>
+                          onToggleMcpServer(server.mcpServerId)
+                        }
+                      >
+                        <span className="min-w-0 grow whitespace-nowrap">
+                          {server.name}
+                        </span>
+                      </DropdownMenuCheckboxItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      <span className="min-w-0 grow whitespace-nowrap">
+                        No MCP servers configured
+                      </span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={onOpenMcpSettings}>
+                    <PlugZap className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      Manage MCP Servers
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
         <button

@@ -55,6 +55,7 @@ export const messageSettings = v.object({
   model: v.string(),
   tools: messageTools,
   instructionId: v.optional(v.string()),
+  userMessagePreviewMaxLines: v.optional(v.number()),
 });
 
 export default defineSchema({
@@ -63,6 +64,14 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(),
     url: v.string(),
+    authHeaders: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          value: v.string(),
+        }),
+      ),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -78,6 +87,7 @@ export default defineSchema({
   userSettings: defineTable({
     userId: v.string(),
     modelFavoritesInitializedAt: v.optional(v.number()),
+    mcpServersEnabled: v.optional(v.boolean()),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 

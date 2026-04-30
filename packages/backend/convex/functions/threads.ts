@@ -43,6 +43,7 @@ type ThreadReadCtx = GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>;
 const messageSettingsValidator = v.object({
   model: v.string(),
   instructionId: v.optional(v.string()),
+  userMessagePreviewMaxLines: v.optional(v.number()),
   tools: v.object({
     search: v.optional(v.object({})),
     analysisWorkspace: v.optional(

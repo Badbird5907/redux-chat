@@ -199,7 +199,10 @@ export function ChatInput({
     settings.tools,
     "analysisWorkspace",
   );
-  const enabledMcpServerIds = settings.tools.mcpServers?.serverIds ?? [];
+  const enabledMcpServerIds = useMemo(
+    () => settings.tools.mcpServers?.serverIds ?? [],
+    [settings.tools.mcpServers],
+  );
   const syncUploadsToAnalysisWorkspace =
     settings.tools.analysisWorkspace?.syncUploads !== false;
   const showErrorBorder = status === "error";
