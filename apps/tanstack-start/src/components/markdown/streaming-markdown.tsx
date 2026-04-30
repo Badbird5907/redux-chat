@@ -10,10 +10,9 @@ import {
   rehypePlugins,
   remarkPlugins,
 } from "./markdown-components";
-import { normalizeMarkdownMathDelimiters } from "./normalize-markdown-math";
-import { parseMarkdownIntoBlocks } from "./parse-markdown-into-blocks";
 import { ShikiCodeBlock } from "./shiki-code-block";
 import { useFrameBufferedValue } from "./use-frame-buffered-value";
+import { useMarkdownWorker } from "./use-markdown-worker";
 
 interface StreamingMarkdownProps {
   content: string;
@@ -59,9 +58,6 @@ const MemoizedMarkdownBlock = memo(
     );
   },
   (prevProps, nextProps) => {
-    // Keep completed blocks frozen once their markdown text stops changing.
-    // The streaming hint is only relevant while the block content is still
-    // updating, so we intentionally ignore it here.
     return (
       prevProps.content === nextProps.content &&
       prevProps.reasoning === nextProps.reasoning
@@ -108,17 +104,18 @@ export function StreamingMarkdown({
   reasoning = false,
   className,
 }: StreamingMarkdownProps) {
-  const normalizedContent = useMemo(
-    () => normalizeMarkdownMathDelimiters(content),
-    [content],
-  );
-  const renderedContent = useFrameBufferedValue(normalizedContent, isStreaming);
-  const blocks = useMemo(
-    () => parseMarkdownIntoBlocks(renderedContent),
-    [renderedContent],
-  );
+  // if (false) {
+  //   return (
+  //     <StaticMarkdown
+  //       content={content}
+  //       className={className}
+  //     />
+  //   )
+  // }
+  const renderedContent = useFrameBufferedValue(content, isStreaming);
+  const { normalizedContent, blocks } = useMarkdownWorker(renderedContent, true);
 
-  if (!renderedContent) {
+  if (!normalizedContent) {
     return null;
   }
 
