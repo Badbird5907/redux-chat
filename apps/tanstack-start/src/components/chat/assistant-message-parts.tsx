@@ -112,7 +112,7 @@ export function AssistantMessageParts({
                 status={step.id === activeStepId ? "active" : step.status}
               >
                 {step.kind === "reasoning" && step.content ? (
-                  <div className="border-border/80 text-muted-foreground max-h-48 overflow-y-auto border-l pl-4 pr-2 text-sm">
+                  <div className="border-border/80 text-muted-foreground max-h-48 overflow-y-auto border-l pr-2 pl-4 text-sm">
                     <StreamingMarkdown
                       content={step.content}
                       isStreaming={step.status === "active"}

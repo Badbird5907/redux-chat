@@ -6,6 +6,7 @@ import { Collapsible } from "@base-ui/react/collapsible";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 
 import { cn } from "@redux/ui/lib/utils";
+
 import { Shimmer } from "@/components/ai/shimmer";
 
 interface ReasoningContextValue {

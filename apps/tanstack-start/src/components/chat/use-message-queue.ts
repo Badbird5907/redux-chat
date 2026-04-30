@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
 import type { DraftAttachment } from "@/components/chat/use-chat-draft";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface QueuedMessage {
   id: string;
@@ -35,11 +34,7 @@ export function snapshotAttachmentsForQueue(
   }));
 }
 
-export function useMessageQueue({
-  threadId,
-}: {
-  threadId?: string;
-}) {
+export function useMessageQueue({ threadId }: { threadId?: string }) {
   const [queue, setQueue] = useState<QueuedMessage[]>([]);
   const previousThreadRef = useRef(threadId);
 

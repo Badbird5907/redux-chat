@@ -1,14 +1,10 @@
+import type { DraftAttachment } from "@/components/chat/use-chat-draft";
+import type { QueuedMessage } from "@/components/chat/use-message-queue";
 import type React from "react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { isTextUIPart } from "ai";
 import { useMutation } from "convex/react";
-import { useServerFn } from "@tanstack/react-start";
 import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
@@ -29,16 +25,14 @@ import { cn } from "@redux/ui/lib/utils";
 import type { ChatInputProps, PreviewableFile } from "./types";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
-import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
-import { submitMessage } from "@/components/chat/use-submit-message";
-import { useUpload } from "@/lib/silo/react";
-import { deleteDraftAttachment } from "@/server/attachments";
-import type { QueuedMessage } from "@/components/chat/use-message-queue";
 import {
   snapshotAttachmentsForQueue,
   useMessageQueue,
 } from "@/components/chat/use-message-queue";
+import { submitMessage } from "@/components/chat/use-submit-message";
+import { useUpload } from "@/lib/silo/react";
+import { deleteDraftAttachment } from "@/server/attachments";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
@@ -530,7 +524,9 @@ export function ChatInput({
     ],
   );
 
-  submitNewUserPayloadRef.current = submitNewUserPayload;
+  useEffect(() => {
+    submitNewUserPayloadRef.current = submitNewUserPayload;
+  }, [submitNewUserPayload]);
 
   useEffect(() => {
     const prev = prevStatusRef.current;
@@ -620,11 +616,7 @@ export function ChatInput({
 
       updateQueued(messageId, draft);
     },
-    [
-      discardDraftAttachmentForQueue,
-      queue,
-      updateQueued,
-    ],
+    [discardDraftAttachmentForQueue, queue, updateQueued],
   );
 
   const handlePromoteQueued = useCallback(

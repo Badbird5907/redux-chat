@@ -40,7 +40,6 @@ export interface ChatMessageRowProps {
   message: ChatMessageWithThreadMetadata;
   index: number;
   totalCount: number;
-  visibleMessages: ChatMessageWithThreadMetadata[];
   status: string;
   messageStats?: MessageStats;
   isHovered: boolean;
@@ -68,7 +67,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   message,
   index,
   totalCount,
-  visibleMessages,
   status,
   messageStats,
   isHovered,
@@ -126,16 +124,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     !isFailedMessage &&
     !hasRenderableAssistantContent;
   const branchGroup = getSiblingBranchGroup(allBranchMessages, message.id);
-  const visibleAssistantForUser =
-    message.role === "user"
-      ? visibleMessages.find(
-          (candidate) =>
-            candidate.role === "assistant" && candidate.parentId === message.id,
-        )
-      : undefined;
-  const assistantBranchGroup = visibleAssistantForUser
-    ? getSiblingBranchGroup(allBranchMessages, visibleAssistantForUser.id)
-    : undefined;
   const controlsDisabled = status === "streaming" || status === "submitted";
 
   const persistedAttachments: MessageAttachmentSummary[] = useMemo(() => {

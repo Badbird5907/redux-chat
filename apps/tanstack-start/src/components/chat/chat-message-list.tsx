@@ -97,7 +97,6 @@ export const ChatMessageList = memo(function ChatMessageList({
               index={index}
               isHovered={hoveredMessageId === message.id}
               message={message}
-              visibleMessages={finalMessages}
               messageAttachmentsByMessageId={messageAttachmentsByMessageId}
               messageStats={messageStatsMap.get(message.id)}
               onAttachmentPreview={setPreviewFile}

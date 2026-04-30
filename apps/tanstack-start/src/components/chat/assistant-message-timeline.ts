@@ -79,7 +79,7 @@ export function normalizeAssistantMessage(
       kind: "reasoning",
       label: "Thinking",
       rawPartIds: reasoningParts.map(({ id }) => id),
-      status: (isLastReasoningPartStreaming(message.parts))
+      status: isLastReasoningPartStreaming(message.parts)
         ? "active"
         : "complete",
       summary: "Thinking through the response",

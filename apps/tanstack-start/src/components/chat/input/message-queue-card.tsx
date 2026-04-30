@@ -87,7 +87,7 @@ export function MessageQueueCard({
   return (
     <div
       className={cn(
-        "border-border bg-card/95 mb-[-8px] max-h-[min(40vh,12rem)] overflow-hidden rounded-t-2xl border border-b-0 pb-7 translate-y-4 shadow-inner",
+        "border-border bg-card/95 mb-[-8px] max-h-[min(40vh,12rem)] translate-y-4 overflow-hidden rounded-t-2xl border border-b-0 pb-7 shadow-inner",
       )}
     >
       <button
@@ -107,8 +107,7 @@ export function MessageQueueCard({
         <ul className="max-h-[min(36vh,10rem)] space-y-0.5 overflow-y-auto px-2 pb-1">
           {queue.map((message) => {
             const attachmentCount = message.attachments.filter(
-              (file) =>
-                !file.uploading && !isAttachmentExpired(file.expiresAt),
+              (file) => !file.uploading && !isAttachmentExpired(file.expiresAt),
             ).length;
 
             return (
@@ -164,7 +163,7 @@ export function MessageQueueCard({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground size-7 hover:text-destructive"
+                      className="text-muted-foreground hover:text-destructive size-7"
                       title="Discard"
                       onClick={() => {
                         setDiscardTarget(message);
@@ -212,7 +211,9 @@ export function MessageQueueCard({
                 onPreview={onPreviewAttachment}
                 onRemove={(attachmentId) => {
                   setDraftAttachments((previous) =>
-                    previous.filter((file) => file.attachmentId !== attachmentId),
+                    previous.filter(
+                      (file) => file.attachmentId !== attachmentId,
+                    ),
                   );
                 }}
               />

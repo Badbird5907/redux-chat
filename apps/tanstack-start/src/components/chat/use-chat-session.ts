@@ -762,7 +762,9 @@ export function useChatSession({
         sourceAssistantMessageId: assistantMessage.id,
         newAssistantMessageId: branchInfo.assistantMessageId,
         threadId: branchInfo.threadId,
-        visibleMessageIds: visibleBranchMessages.map((candidate) => candidate.id),
+        visibleMessageIds: visibleBranchMessages.map(
+          (candidate) => candidate.id,
+        ),
       });
 
       await regenerate({

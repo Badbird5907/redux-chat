@@ -72,7 +72,7 @@ export const MessageStatsBar = memo(function MessageStatsBar({
           className={cn(
             "hover:bg-muted rounded p-2 transition-colors",
             // actionsDisabled && "hidden",
-            actionsDisabled && "opacity-50 cursor-not-allowed",
+            actionsDisabled && "cursor-not-allowed opacity-50",
           )}
           title="Regenerate"
           type="button"
@@ -84,7 +84,9 @@ export const MessageStatsBar = memo(function MessageStatsBar({
       </div>
 
       {model && (
-        <span className={cn("flex items-center gap-1", actionsDisabled && "hidden")}>
+        <span
+          className={cn("flex items-center gap-1", actionsDisabled && "hidden")}
+        >
           {getChatModelConfig(model)?.name}
         </span>
       )}
