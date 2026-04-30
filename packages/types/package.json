@@ -5,7 +5,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./api/chat": "./src/api/chat.ts",
-    "./chat/instructions": "./src/chat/instructions.ts",
+    "./chat/instructions/default": "./src/chat/instructions/default.ts",
+    "./chat/instructions/index": "./src/chat/instructions/index.ts",
+    "./chat/instructions/learning": "./src/chat/instructions/learning.ts",
     "./chat/message-settings": "./src/chat/message-settings.ts",
     "./chat/model-config": "./src/chat/model-config.ts",
     "./zod/threads": "./src/zod/threads.ts"
