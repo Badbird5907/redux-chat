@@ -88,6 +88,23 @@ function getOpeningFence(line: string) {
   return /^ {0,3}([`~]{3,})[^\n]*$/.exec(line)?.[1];
 }
 
+function isBlankLine(line: string) {
+  return /^[\t ]*$/.test(line);
+}
+
+function isIndentedCodeLine(line: string) {
+  return /^(?: {4,}|\t)/.test(line);
+}
+
+function shouldStartIndentedCodeBlock(line: string, plainTextBuffer: string[]) {
+  if (!isIndentedCodeLine(line)) {
+    return false;
+  }
+
+  const previousLine = plainTextBuffer.at(-1);
+  return previousLine === undefined || isBlankLine(previousLine);
+}
+
 function isClosingFence(line: string, openingFence: string) {
   const fenceCharacter = openingFence.charAt(0);
 
@@ -106,7 +123,8 @@ export function normalizeStreamdownMath(markdown: string) {
   const segments: string[] = [];
   const plainTextBuffer: string[] = [];
   let activeFence: string | null = null;
-  let fencedBlockBuffer: string[] = [];
+  let activeIndentedCodeBlock = false;
+  let protectedBlockBuffer: string[] = [];
 
   const flushPlainTextBuffer = () => {
     if (plainTextBuffer.length === 0) {
@@ -119,32 +137,49 @@ export function normalizeStreamdownMath(markdown: string) {
     plainTextBuffer.length = 0;
   };
 
-  const flushFencedBlockBuffer = () => {
-    if (fencedBlockBuffer.length === 0) {
+  const flushProtectedBlockBuffer = () => {
+    if (protectedBlockBuffer.length === 0) {
       return;
     }
 
-    segments.push(fencedBlockBuffer.join(lineEnding));
-    fencedBlockBuffer = [];
+    segments.push(protectedBlockBuffer.join(lineEnding));
+    protectedBlockBuffer = [];
   };
 
   for (const line of lines) {
     if (activeFence) {
-      fencedBlockBuffer.push(line);
+      protectedBlockBuffer.push(line);
 
       if (isClosingFence(line, activeFence)) {
         activeFence = null;
-        flushFencedBlockBuffer();
+        flushProtectedBlockBuffer();
       }
 
       continue;
+    }
+
+    if (activeIndentedCodeBlock) {
+      if (isIndentedCodeLine(line) || isBlankLine(line)) {
+        protectedBlockBuffer.push(line);
+        continue;
+      }
+
+      activeIndentedCodeBlock = false;
+      flushProtectedBlockBuffer();
     }
 
     const openingFence = getOpeningFence(line);
     if (openingFence) {
       flushPlainTextBuffer();
       activeFence = openingFence;
-      fencedBlockBuffer.push(line);
+      protectedBlockBuffer.push(line);
+      continue;
+    }
+
+    if (shouldStartIndentedCodeBlock(line, plainTextBuffer)) {
+      flushPlainTextBuffer();
+      activeIndentedCodeBlock = true;
+      protectedBlockBuffer.push(line);
       continue;
     }
 
@@ -152,7 +187,7 @@ export function normalizeStreamdownMath(markdown: string) {
   }
 
   flushPlainTextBuffer();
-  flushFencedBlockBuffer();
+  flushProtectedBlockBuffer();
 
   return segments.join(lineEnding);
 }
