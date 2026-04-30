@@ -1,9 +1,9 @@
 "use client";
 
+import type { ThemeInput } from "streamdown";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { Streamdown } from "streamdown";
-import type { ThemeInput } from "streamdown";
 
 import { cn } from "@redux/ui/lib/utils";
 

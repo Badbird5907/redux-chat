@@ -148,10 +148,7 @@ body {
   }
 
   .chat-markdown
-    :is(
-      [data-streamdown="table-header-cell"],
-      [data-streamdown="table-cell"]
-    ) {
+    :is([data-streamdown="table-header-cell"], [data-streamdown="table-cell"]) {
     @apply border-border border px-3 py-2 text-left align-top;
   }
 

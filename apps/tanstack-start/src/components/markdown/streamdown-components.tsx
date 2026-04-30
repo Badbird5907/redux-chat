@@ -39,15 +39,14 @@ export const streamdownComponents: Components = {
   },
   inlineCode({ children, className, ...props }: MarkdownInlineCodeProps) {
     return (
-      <code
-        {...props}
-        className={cn("chat-markdown__inline-code", className)}
-      >
+      <code {...props} className={cn("chat-markdown__inline-code", className)}>
         {children}
       </code>
     );
   },
   hr({ className, ...props }: MarkdownHrProps) {
-    return <hr {...props} className={cn("chat-markdown__hr my-4", className)} />;
+    return (
+      <hr {...props} className={cn("chat-markdown__hr my-4", className)} />
+    );
   },
 };
