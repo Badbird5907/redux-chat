@@ -56,7 +56,7 @@ export const MessageStatsBar = memo(function MessageStatsBar({
         <button
           className={cn(
             "hover:bg-muted rounded p-2 transition-colors",
-            actionsDisabled && "hidden",
+            // actionsDisabled && "hidden",
           )}
           title="Copy"
           type="button"
@@ -71,7 +71,8 @@ export const MessageStatsBar = memo(function MessageStatsBar({
         <button
           className={cn(
             "hover:bg-muted rounded p-2 transition-colors",
-            actionsDisabled && "hidden",
+            // actionsDisabled && "hidden",
+            actionsDisabled && "opacity-50 cursor-not-allowed",
           )}
           title="Regenerate"
           type="button"

@@ -1,7 +1,14 @@
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { isTextUIPart } from "ai";
 import { useMutation } from "convex/react";
+import { useServerFn } from "@tanstack/react-start";
 import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
@@ -22,12 +29,20 @@ import { cn } from "@redux/ui/lib/utils";
 import type { ChatInputProps, PreviewableFile } from "./types";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
 import { submitMessage } from "@/components/chat/use-submit-message";
 import { useUpload } from "@/lib/silo/react";
+import { deleteDraftAttachment } from "@/server/attachments";
+import type { QueuedMessage } from "@/components/chat/use-message-queue";
+import {
+  snapshotAttachmentsForQueue,
+  useMessageQueue,
+} from "@/components/chat/use-message-queue";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
+import { MessageQueueCard } from "./message-queue-card";
 import { ChatToolsDialog } from "./tools-dialog";
 import { isAttachmentExpired } from "./utils";
 
@@ -82,12 +97,29 @@ export function ChatInput({
   const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
+  const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
   const upload = useUpload({
     endpoint: "chatAttachment",
     onError: (error) => {
       toast.error(error.message);
     },
   });
+  const {
+    queue,
+    enqueue,
+    removeQueued,
+    updateQueued,
+    moveQueuedToFront,
+    consumeHead,
+    takeQueued,
+    prependQueued,
+  } = useMessageQueue({ threadId });
+  const prevStatusRef = useRef(status);
+  const flushInProgressRef = useRef(false);
+  const submitNewUserPayloadRef = useRef<
+    (text: string, att: DraftAttachment[]) => Promise<boolean>
+  >(() => Promise.resolve(false));
+
   const editingMessageIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -373,6 +405,261 @@ export function ChatInput({
     [isAnalysisWorkspaceEnabled, onSettingsChange],
   );
 
+  const discardDraftAttachmentForQueue = useCallback(
+    async (attachment: DraftAttachment) => {
+      if (attachment.source === "retained") {
+        return;
+      }
+
+      try {
+        await deleteDraftAttachmentFn({
+          data: { attachmentId: attachment.attachmentId },
+        });
+      } catch (error) {
+        console.error("Failed to delete draft attachment from queue:", error);
+      }
+    },
+    [deleteDraftAttachmentFn],
+  );
+
+  const submitNewUserPayload = useCallback(
+    async (
+      messageContent: string,
+      attachmentsList: DraftAttachment[],
+    ): Promise<boolean> => {
+      const trimmed = messageContent.trim();
+      const expiredAttachments = attachmentsList.filter(
+        (attachment) =>
+          !attachment.uploading && isAttachmentExpired(attachment.expiresAt),
+      );
+      const currentAttachments = attachmentsList.filter(
+        (attachment) =>
+          attachment.uploading || !isAttachmentExpired(attachment.expiresAt),
+      );
+
+      if (expiredAttachments.length > 0) {
+        toast.error(
+          expiredAttachments.length === 1
+            ? "An attachment expired and was removed."
+            : "Some attachments expired and were removed.",
+        );
+
+        return false;
+      }
+
+      if (!trimmed && currentAttachments.length === 0) {
+        return false;
+      }
+
+      if (status !== "ready") {
+        return false;
+      }
+
+      if (!settingsReady || !draftReady) {
+        return false;
+      }
+
+      if (attachmentsList.some((attachment) => attachment.uploading)) {
+        return false;
+      }
+
+      const attachmentsUsingDerivative = currentAttachments.filter(
+        attachmentUsesDerivative,
+      );
+
+      if (attachmentsUsingDerivative.length > 0) {
+        toast("Preparing attached files for model compatibility. Please wait.");
+      }
+
+      try {
+        await submitMessage({
+          messageContent: trimmed,
+          threadId,
+          chatProjectId,
+          setThreadId,
+          settings,
+          clientId,
+          attachmentIds: currentAttachments.map(
+            (attachment) => attachment.attachmentId,
+          ),
+          attachmentMetadata: currentAttachments.map((attachment) => ({
+            attachmentId: attachment.attachmentId,
+            generatingDerivative: attachmentsUsingDerivative.some(
+              (candidate) => candidate.attachmentId === attachment.attachmentId,
+            ),
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            size: attachment.size,
+            expiresAt: attachment.expiresAt,
+            url: attachment.url,
+          })),
+          allocateSignedIds,
+          createMessage,
+          setOptimisticMessage,
+          sendMessage,
+          convexMessages,
+          parentMessageId: _messages.at(-1)?.id,
+        });
+
+        return true;
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to send message",
+        );
+        console.error("Failed to send message:", error);
+
+        return false;
+      }
+    },
+    [
+      _messages,
+      allocateSignedIds,
+      attachmentUsesDerivative,
+      chatProjectId,
+      clientId,
+      convexMessages,
+      createMessage,
+      draftReady,
+      sendMessage,
+      setOptimisticMessage,
+      setThreadId,
+      settings,
+      settingsReady,
+      status,
+      threadId,
+    ],
+  );
+
+  submitNewUserPayloadRef.current = submitNewUserPayload;
+
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+
+    if (editMessage || status !== "ready") {
+      return;
+    }
+
+    if (prev !== "streaming" && prev !== "submitted") {
+      return;
+    }
+
+    if (flushInProgressRef.current) {
+      return;
+    }
+
+    const head = consumeHead();
+    if (!head) {
+      return;
+    }
+
+    flushInProgressRef.current = true;
+    void submitNewUserPayloadRef
+      .current(head.text, head.attachments)
+      .then((success) => {
+        if (!success) {
+          prependQueued(head);
+        }
+      })
+      .finally(() => {
+        flushInProgressRef.current = false;
+      });
+  }, [consumeHead, editMessage, prependQueued, status]);
+
+  const discardQueuedMessage = useCallback(
+    async (message: QueuedMessage) => {
+      await Promise.all(
+        message.attachments.map((attachment) =>
+          discardDraftAttachmentForQueue(attachment),
+        ),
+      );
+      removeQueued(message.id);
+    },
+    [discardDraftAttachmentForQueue, removeQueued],
+  );
+
+  const restoreQueuedIntoComposer = useCallback(
+    (message: QueuedMessage) => {
+      const taken = takeQueued(message.id);
+
+      if (!taken) {
+        return;
+      }
+
+      setInput(taken.text);
+      setAttachments(taken.attachments);
+      queueMicrotask(() => textareaRef.current?.focus());
+    },
+    [setAttachments, setInput, takeQueued],
+  );
+
+  const handleSaveQueuedEdit = useCallback(
+    async (
+      messageId: string,
+      draft: Pick<QueuedMessage, "text" | "attachments">,
+    ) => {
+      const existing = queue.find((candidate) => candidate.id === messageId);
+
+      if (!existing) {
+        return;
+      }
+
+      const nextIds = new Set(
+        draft.attachments.map((attachment) => attachment.attachmentId),
+      );
+
+      await Promise.all(
+        existing.attachments
+          .filter(
+            (attachment) =>
+              !nextIds.has(attachment.attachmentId) &&
+              attachment.source !== "retained",
+          )
+          .map((attachment) => discardDraftAttachmentForQueue(attachment)),
+      );
+
+      updateQueued(messageId, draft);
+    },
+    [
+      discardDraftAttachmentForQueue,
+      queue,
+      updateQueued,
+    ],
+  );
+
+  const handlePromoteQueued = useCallback(
+    async (message: QueuedMessage) => {
+      if (!editMessage && status === "ready") {
+        const taken = takeQueued(message.id);
+
+        if (!taken) {
+          return;
+        }
+
+        const success = await submitNewUserPayload(
+          taken.text,
+          taken.attachments,
+        );
+
+        if (!success) {
+          prependQueued(taken);
+        }
+
+        return;
+      }
+
+      moveQueuedToFront(message.id);
+    },
+    [
+      editMessage,
+      moveQueuedToFront,
+      prependQueued,
+      status,
+      submitNewUserPayload,
+      takeQueued,
+    ],
+  );
+
   const handleSubmit = useCallback(async () => {
     const expiredAttachments = attachments.filter(
       (attachment) =>
@@ -392,10 +679,7 @@ export function ChatInput({
       );
     }
 
-    if (
-      (!input.trim() && currentAttachments.length === 0) ||
-      status !== "ready"
-    ) {
+    if (!input.trim() && currentAttachments.length === 0) {
       return;
     }
 
@@ -404,6 +688,23 @@ export function ChatInput({
     }
 
     if (attachments.some((attachment) => attachment.uploading)) {
+      return;
+    }
+
+    if (!editMessage && (status === "streaming" || status === "submitted")) {
+      enqueue({
+        text: input.trim(),
+        attachments: snapshotAttachmentsForQueue(currentAttachments),
+      });
+
+      toast.success("Message queued");
+
+      clearDraft();
+
+      return;
+    }
+
+    if (status !== "ready") {
       return;
     }
 
@@ -446,35 +747,16 @@ export function ChatInput({
         });
         onCancelEdit?.();
       } else {
-        await submitMessage({
-          messageContent: input,
-          threadId,
-          chatProjectId,
-          setThreadId,
-          settings,
-          clientId,
-          attachmentIds: currentAttachments.map(
-            (attachment) => attachment.attachmentId,
-          ),
-          attachmentMetadata: currentAttachments.map((attachment) => ({
-            attachmentId: attachment.attachmentId,
-            generatingDerivative: attachmentsUsingDerivative.some(
-              (candidate) => candidate.attachmentId === attachment.attachmentId,
-            ),
-            fileName: attachment.fileName,
-            mimeType: attachment.mimeType,
-            size: attachment.size,
-            expiresAt: attachment.expiresAt,
-            url: attachment.url,
-          })),
-          allocateSignedIds,
-          createMessage,
-          setOptimisticMessage,
-          sendMessage,
-          convexMessages,
-          parentMessageId: _messages.at(-1)?.id,
-        });
+        const success = await submitNewUserPayload(
+          input.trim(),
+          currentAttachments,
+        );
+
+        if (!success) {
+          return;
+        }
       }
+
       clearDraft();
     } catch (error) {
       toast.error(
@@ -483,28 +765,20 @@ export function ChatInput({
       console.error("Failed to send message:", error);
     }
   }, [
-    _messages,
     attachments,
     attachmentUsesDerivative,
-    chatProjectId,
     clearDraft,
-    clientId,
-    convexMessages,
-    createMessage,
     draftReady,
     editMessage,
+    enqueue,
     input,
     isExpanded,
-    allocateSignedIds,
     onCancelEdit,
     onSubmitEdit,
-    sendMessage,
     setAttachments,
-    setOptimisticMessage,
-    setThreadId,
-    settings,
     settingsReady,
     status,
+    submitNewUserPayload,
     threadId,
   ]);
 
@@ -609,13 +883,23 @@ export function ChatInput({
       >
         <div
           className={cn(
-            "w-full transition-all duration-300",
+            "flex w-full flex-col transition-all duration-300",
             isExpanded ? "h-full" : "max-w-3xl",
           )}
         >
+          {!editMessage && queue.length > 0 ? (
+            <MessageQueueCard
+              onDiscard={(message) => void discardQueuedMessage(message)}
+              onEditInComposer={restoreQueuedIntoComposer}
+              queue={queue}
+              onPromote={(message) => void handlePromoteQueued(message)}
+              onPreviewAttachment={setPreviewFile}
+              onSaveEdit={handleSaveQueuedEdit}
+            />
+          ) : null}
           <div
             className={cn(
-              "bg-card border-border flex flex-col overflow-hidden border shadow-lg transition-all duration-300",
+              "bg-card border-border relative z-10 flex flex-col overflow-hidden border shadow-lg transition-all duration-300",
               isExpanded ? "h-full rounded-2xl" : "rounded-3xl",
               status === "streaming" && "border-primary",
               status === "submitted" && "border-amber-400",
@@ -654,7 +938,6 @@ export function ChatInput({
               visualizationHeight={visualizationHeight}
               tokenizedText={tokenizedText}
               onKeyDown={handleKeyDown}
-              isSubmitting={isSubmitting}
               draftReady={draftReady}
               onCloseTokenVisualization={() => setShowTokenVisualization(false)}
             />

@@ -15,7 +15,6 @@ interface ChatInputEditorSectionProps {
   visualizationHeight: number | null;
   tokenizedText: string[];
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  isSubmitting: boolean;
   draftReady: boolean;
   onCloseTokenVisualization: () => void;
 }
@@ -30,7 +29,6 @@ export function ChatInputEditorSection({
   visualizationHeight,
   tokenizedText,
   onKeyDown,
-  isSubmitting,
   draftReady,
   onCloseTokenVisualization,
 }: ChatInputEditorSectionProps) {
@@ -62,7 +60,7 @@ export function ChatInputEditorSection({
             isExpanded && "flex-1",
           )}
           style={isExpanded ? undefined : { maxHeight: `${24 * 10}px` }}
-          disabled={isSubmitting || !draftReady}
+          disabled={!draftReady}
         />
       )}
     </div>
