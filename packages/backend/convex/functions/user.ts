@@ -3,24 +3,18 @@ import { v } from "convex/values";
 
 import { authComponent } from "../auth";
 import { backendEnv } from "../env";
-import { mutation, query } from "./index";
+import { query } from "./index";
 
 export const getUserImage = query({
   args: {
     userId: v.optional(v.string()),
   },
   handler: async (ctx, { userId }) => {
-    let target = null;
-
-    if (userId && userId !== "me") {
-      target = await authComponent.getAnyUserById(ctx, userId);
-    } else {
-      target = await authComponent.getAuthUser(ctx);
-    }
-
-    if (!target) {
+    if (userId && userId !== "me" && userId !== ctx.userId) {
       throw new Error("User not found");
     }
+
+    const target = await authComponent.getAuthUser(ctx);
 
     if (typeof target.image === "string" && target.image) {
       if (target.image.startsWith("http")) {
@@ -32,12 +26,6 @@ export const getUserImage = query({
       };
     }
     return { image: null };
-  },
-});
-
-export const testMutation = mutation({
-  handler: (ctx) => {
-    return ctx.user;
   },
 });
 
@@ -64,12 +52,6 @@ export const verifySignature = async (
 
   return crypto.subtle.verify("HMAC", key, signatureBuffer, messageData);
 };
-export const testQuery = query({
-  handler: () => {
-    return "testQuery";
-  },
-});
-
 export const getCurrentUserId = query({
   handler: (_ctx) => {
     return { userId: _ctx.userId };

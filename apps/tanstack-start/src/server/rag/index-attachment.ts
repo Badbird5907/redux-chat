@@ -28,6 +28,7 @@ function generateEmbeddingId() {
 }
 
 async function setStatus(input: {
+  userId: string;
   attachmentId: string;
   status: "queued" | "indexing" | "indexed" | "failed";
   error?: string;
@@ -38,6 +39,7 @@ async function setStatus(input: {
     api.functions.embeddings.internal_setAttachmentEmbeddingStatus,
     {
       secret: env.INTERNAL_CONVEX_SECRET,
+      userId: input.userId,
       attachmentId: input.attachmentId,
       status: input.status,
       error: input.error,
@@ -56,7 +58,11 @@ async function setStatus(input: {
  * message recorded — the user can retry via a UI affordance.
  */
 export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
-  await setStatus({ attachmentId: input.attachmentId, status: "indexing" });
+  await setStatus({
+    userId: input.userId,
+    attachmentId: input.attachmentId,
+    status: "indexing",
+  });
 
   try {
     const downloadUrl = await buildAttachmentUrl({
@@ -85,6 +91,7 @@ export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
 
     if (extracted.length === 0) {
       await setStatus({
+        userId: input.userId,
         attachmentId: input.attachmentId,
         status: "indexed",
         chunkCount: 0,
@@ -132,6 +139,7 @@ export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
 
     if (embedded.length === 0) {
       await setStatus({
+        userId: input.userId,
         attachmentId: input.attachmentId,
         status: "indexed",
         chunkCount: 0,
@@ -147,6 +155,7 @@ export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
     });
 
     await setStatus({
+      userId: input.userId,
       attachmentId: input.attachmentId,
       status: "indexed",
       chunkCount: embedded.length,
@@ -160,6 +169,7 @@ export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
     );
     try {
       await setStatus({
+        userId: input.userId,
         attachmentId: input.attachmentId,
         status: "failed",
         error: message.slice(0, 1000),

@@ -1,5 +1,5 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
-import type { GenericMutationCtx } from "convex/server";
+import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { Buffer } from "buffer/";
@@ -38,6 +38,10 @@ type AuthenticatedMutationCtx = GenericMutationCtx<DataModel> & {
   userId: string;
 };
 
+type ThreadReadCtx =
+  | GenericMutationCtx<DataModel>
+  | GenericQueryCtx<DataModel>;
+
 const messageSettingsValidator = v.object({
   model: v.string(),
   instructionId: v.optional(v.string()),
@@ -55,12 +59,20 @@ async function getThreadForUser(
   ctx: AuthenticatedMutationCtx,
   threadId: string,
 ) {
+  return getThreadForOwner(ctx, threadId, ctx.userId);
+}
+
+async function getThreadForOwner(
+  ctx: ThreadReadCtx,
+  threadId: string,
+  userId: string,
+) {
   const thread = await ctx.db
     .query("threads")
     .withIndex("by_threadId", (q) => q.eq("threadId", threadId))
     .first();
 
-  if (thread?.userId !== ctx.userId) {
+  if (thread?.userId !== userId) {
     throw new ConvexError("Thread not found");
   }
 
@@ -69,6 +81,14 @@ async function getThreadForUser(
 
 async function getMessageForThread(
   ctx: AuthenticatedMutationCtx,
+  threadId: string,
+  messageId: string,
+) {
+  return getMessageForThreadId(ctx, threadId, messageId);
+}
+
+async function getMessageForThreadId(
+  ctx: ThreadReadCtx,
   threadId: string,
   messageId: string,
 ) {
@@ -292,23 +312,12 @@ export const getThread = query({
 export const abortStream = mutation({
   args: { threadId: v.string(), messageId: v.string() },
   handler: async (ctx, args) => {
-    const thread = await ctx.db
-      .query("threads")
-      .filter((q) => q.eq(q.field("threadId"), args.threadId))
-      .first();
-
-    if (thread?.userId != ctx.userId) {
-      throw new ConvexError("Thread not found");
-    }
-
-    const message = await ctx.db
-      .query("messages")
-      .filter((q) => q.eq(q.field("messageId"), args.messageId))
-      .first();
-
-    if (message?.threadId != args.threadId) {
-      throw new ConvexError("Message not found");
-    }
+    const thread = await getThreadForOwner(ctx, args.threadId, ctx.userId);
+    const message = await getMessageForThreadId(
+      ctx,
+      args.threadId,
+      args.messageId,
+    );
 
     await ctx.db.patch(message._id, {
       canceledAt: Date.now(),
@@ -334,8 +343,7 @@ export const getThreadMessages = query({
     }
 
     if (thread.userId !== ctx.userId) {
-      console.log(thread.userId, ctx.userId);
-      throw new ConvexError("Unauthorized");
+      throw new ConvexError("Thread not found");
     }
 
     // Get all messages for this thread
@@ -392,30 +400,24 @@ export const getThreadMessages = query({
 // Complete the stream - update assistant message with final content
 export const internal_completeStream = backendMutation({
   args: {
+    userId: v.string(),
     threadId: v.string(),
     assistantMessageId: v.string(),
     parts: v.array(v.any()),
   },
   handler: async (ctx, args) => {
-    const assistantMessage = await ctx.db
-      .query("messages")
-      .filter((q) => q.eq(q.field("messageId"), args.assistantMessageId))
-      .first();
-
-    if (!assistantMessage) {
+    const thread = await getThreadForOwner(ctx, args.threadId, args.userId);
+    const assistantMessage = await getMessageForThreadId(
+      ctx,
+      args.threadId,
+      args.assistantMessageId,
+    );
+    if (assistantMessage.role !== "assistant") {
       throw new ConvexError("Assistant message not found");
     }
 
     if (assistantMessage.canceledAt || assistantMessage.status === "failed") {
-      const thread = await ctx.db
-        .query("threads")
-        .filter((q) => q.eq(q.field("threadId"), args.threadId))
-        .first();
-
-      if (thread) {
-        await cleanupInactiveStreamThread(ctx, thread);
-      }
-
+      await cleanupInactiveStreamThread(ctx, thread);
       return { success: false };
     }
 
@@ -423,15 +425,6 @@ export const internal_completeStream = backendMutation({
       parts: args.parts as UIMessagePart<UIDataTypes, UITools>[],
       status: "completed",
     });
-
-    const thread = await ctx.db
-      .query("threads")
-      .filter((q) => q.eq(q.field("threadId"), args.threadId))
-      .first();
-
-    if (!thread) {
-      throw new ConvexError("Thread not found");
-    }
 
     await cleanupInactiveStreamThread(ctx, thread);
 
@@ -441,11 +434,13 @@ export const internal_completeStream = backendMutation({
 
 export const internal_failStream = backendMutation({
   args: {
+    userId: v.string(),
     threadId: v.string(),
     assistantMessageId: v.string(),
     error: v.string(),
   },
   handler: async (ctx, args) => {
+    const thread = await getThreadForOwner(ctx, args.threadId, args.userId);
     // we errored
     const assistantMessage = await ctx.db
       .query("messages")
@@ -456,21 +451,16 @@ export const internal_failStream = backendMutation({
       )
       .first();
 
-    if (assistantMessage) {
+    if (assistantMessage?.role === "assistant") {
       await ctx.db.patch(assistantMessage._id, {
         status: "failed",
         error: args.error,
       });
+    } else if (assistantMessage) {
+      throw new ConvexError("Assistant message not found");
     }
 
-    const thread = await ctx.db
-      .query("threads")
-      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-      .first();
-
-    if (thread) {
-      await cleanupInactiveStreamThread(ctx, thread);
-    }
+    await cleanupInactiveStreamThread(ctx, thread);
 
     return { success: assistantMessage !== null };
   },
@@ -478,6 +468,8 @@ export const internal_failStream = backendMutation({
 
 export const internal_updateMessageUsage = backendMutation({
   args: {
+    userId: v.string(),
+    threadId: v.string(),
     messageId: v.string(),
     usage: v.object({
       promptTokens: v.number(),
@@ -493,12 +485,14 @@ export const internal_updateMessageUsage = backendMutation({
     ),
   },
   handler: async (ctx, args) => {
-    const message = await ctx.db
-      .query("messages")
-      .filter((q) => q.eq(q.field("messageId"), args.messageId))
-      .first();
-    if (!message) {
-      throw new ConvexError("Message not found");
+    await getThreadForOwner(ctx, args.threadId, args.userId);
+    const message = await getMessageForThreadId(
+      ctx,
+      args.threadId,
+      args.messageId,
+    );
+    if (message.role !== "assistant") {
+      throw new ConvexError("Assistant message not found");
     }
     await ctx.db.patch(message._id, {
       usage: args.usage,
@@ -510,19 +504,21 @@ export const internal_updateMessageUsage = backendMutation({
 // Set the active stream ID for resumable streams
 export const internal_setActiveStreamId = backendMutation({
   args: {
+    userId: v.string(),
     threadId: v.string(),
     streamId: v.string(),
     messageId: v.string(),
     clientId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const thread = await ctx.db
-      .query("threads")
-      .filter((q) => q.eq(q.field("threadId"), args.threadId))
-      .first();
-
-    if (!thread) {
-      throw new ConvexError("Thread not found");
+    const thread = await getThreadForOwner(ctx, args.threadId, args.userId);
+    const message = await getMessageForThreadId(
+      ctx,
+      args.threadId,
+      args.messageId,
+    );
+    if (message.role !== "assistant") {
+      throw new ConvexError("Assistant message not found");
     }
 
     await ctx.db.patch(thread._id, {
@@ -535,22 +531,17 @@ export const internal_setActiveStreamId = backendMutation({
 });
 
 export const internal_checkMessageAbort = backendQuery({
-  args: { messageId: v.string(), threadId: v.string() },
+  args: { userId: v.string(), messageId: v.string(), threadId: v.string() },
   handler: async (ctx, args) => {
+    await getThreadForOwner(ctx, args.threadId, args.userId);
     const message = await ctx.db
       .query("messages")
-      .filter((q) => q.eq(q.field("messageId"), args.messageId))
+      .withIndex("by_threadId_messageId", (q) =>
+        q.eq("threadId", args.threadId).eq("messageId", args.messageId),
+      )
       .first();
 
     if (!message) {
-      // check if we deleted the thread
-      const thread = await ctx.db
-        .query("threads")
-        .filter((q) => q.eq(q.field("threadId"), args.threadId))
-        .first();
-      if (!thread) {
-        return true;
-      }
       throw new ConvexError("Message not found");
     }
     return message.canceledAt;

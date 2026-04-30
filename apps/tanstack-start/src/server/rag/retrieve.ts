@@ -1,11 +1,9 @@
-import { api } from "@redux/backend/convex/_generated/api";
-
 import type { RetrievedChunk } from "./vector-store";
-import { fetchAuthQuery } from "@/lib/auth/server";
 import { embedTexts } from "./embed-client";
 import { getVectorStore } from "./index";
 
 export interface RetrieveProjectContextInput {
+  userId: string;
   chatProjectId: string;
   query: string;
   k?: number;
@@ -58,16 +56,8 @@ export async function retrieveProjectContextForUser(
 export async function retrieveProjectContext(
   input: RetrieveProjectContextInput,
 ): Promise<RetrieveProjectContextResult> {
-  const { userId } = await fetchAuthQuery(
-    api.functions.user.getCurrentUserId,
-    {},
-  );
-  if (!userId) {
-    return { chunks: [] };
-  }
-
   return retrieveProjectContextForUser({
-    userId,
+    userId: input.userId,
     chatProjectId: input.chatProjectId,
     query: input.query,
     k: input.k ?? DEFAULT_K,

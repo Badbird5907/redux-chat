@@ -7,7 +7,12 @@ import { z } from "zod";
 
 import { getModelAttachmentExpects } from "@redux/types";
 
-import { getRequestUserIdFromHeaders } from "@/lib/auth/server";
+import { api } from "@redux/backend/convex/_generated/api";
+
+import {
+  fetchAuthQuery,
+  getRequestUserIdFromHeaders,
+} from "@/lib/auth/server";
 import {
   buildAttachmentUrl,
   createUploadedAttachmentRecord,
@@ -31,6 +36,28 @@ const projectAttachmentInput = z.object({
   chatProjectId: z.string(),
 });
 
+async function requireOwnedThread(threadId: string | undefined) {
+  if (!threadId) {
+    return;
+  }
+
+  const thread = await fetchAuthQuery(api.functions.threads.getThread, {
+    threadId,
+  });
+  if (!thread) {
+    throw new Error("Thread not found");
+  }
+}
+
+async function requireOwnedProject(projectId: string) {
+  const project = await fetchAuthQuery(api.functions.projects.getProject, {
+    projectId,
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+}
+
 // Generic accepted types for project files. Project files are part of a
 // long-lived knowledge base, not bound to a specific model's capabilities.
 const PROJECT_ATTACHMENT_EXPECTS: SiloRouteConfigInput = [
@@ -48,6 +75,7 @@ export const fileRouter = {
       if (!userId) {
         throw new Error("Unauthorized");
       }
+      await requireOwnedThread(input.threadId);
 
       return {
         userId,
@@ -113,6 +141,7 @@ export const fileRouter = {
       if (!userId) {
         throw new Error("Unauthorized");
       }
+      await requireOwnedProject(input.chatProjectId);
 
       return {
         userId,

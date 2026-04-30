@@ -171,7 +171,7 @@ export async function getInstructionForUserById(
     .withIndex("by_instructionId", (q) => q.eq("instructionId", instructionId))
     .first();
 
-  if (!instruction || instruction.userId !== userId) {
+  if (instruction?.userId !== userId) {
     return null;
   }
 
@@ -288,7 +288,7 @@ export const createInstruction = mutation({
       instructionId,
       userId: ctx.userId,
       name: normalizeName(args.name),
-      description: args.description?.trim() || "Custom instruction",
+      description: args.description?.trim() ?? "Custom instruction",
       prompt: normalizePrompt(args.prompt),
       userEdited: true,
       createdAt: now,
@@ -444,7 +444,7 @@ export const getBuiltinInstructionMeta = query({
   args: {
     builtinKey: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: (_ctx, args) => {
     if (!isBuiltinInstructionKey(args.builtinKey)) {
       throw new ConvexError("Unknown built-in instruction");
     }

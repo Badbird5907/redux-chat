@@ -1,8 +1,9 @@
+import type { GenericMutationCtx } from "convex/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { api, internal } from "../_generated/api";
-import { backendEnv } from "../env";
+import { internal } from "../_generated/api";
+import type { DataModel } from "../_generated/dataModel";
 import { mutation, query } from "./index";
 
 function generateProjectId() {
@@ -18,6 +19,20 @@ function normalizeOptionalText(value: string | undefined) {
     return undefined;
   }
   return value;
+}
+
+async function deleteAttachmentEmbeddings(
+  ctx: GenericMutationCtx<DataModel>,
+  attachmentId: string,
+) {
+  const rows = await ctx.db
+    .query("attachmentEmbeddings")
+    .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
+    .collect();
+
+  for (const row of rows) {
+    await ctx.db.delete(row._id);
+  }
 }
 
 export const createProject = mutation({
@@ -181,7 +196,6 @@ export const deleteProject = mutation({
       )
       .collect();
 
-    const secret = backendEnv().INTERNAL_CONVEX_SECRET;
     for (const file of projectFiles) {
       if (file.userId !== ctx.userId) continue;
       await ctx.scheduler.runAfter(
@@ -194,12 +208,8 @@ export const deleteProject = mutation({
           accessKey: file.accessKey,
         },
       );
+      await deleteAttachmentEmbeddings(ctx, file.attachmentId);
       await ctx.db.delete(file._id);
-      await ctx.scheduler.runAfter(
-        0,
-        api.functions.embeddings.internal_deleteEmbeddingsForAttachment,
-        { secret, attachmentId: file.attachmentId },
-      );
     }
 
     await ctx.db.delete(project._id);
@@ -304,15 +314,8 @@ export const deleteProjectFile = mutation({
         accessKey: attachment.accessKey,
       },
     );
+    await deleteAttachmentEmbeddings(ctx, args.attachmentId);
     await ctx.db.delete(attachment._id);
-    await ctx.scheduler.runAfter(
-      0,
-      api.functions.embeddings.internal_deleteEmbeddingsForAttachment,
-      {
-        secret: backendEnv().INTERNAL_CONVEX_SECRET,
-        attachmentId: args.attachmentId,
-      },
-    );
     return { success: true };
   },
 });
