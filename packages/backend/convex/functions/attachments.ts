@@ -37,6 +37,24 @@ export async function attachDraftAttachmentsToMessage(
     messageId: string;
   },
 ) {
+  const thread = await ctx.db
+    .query("threads")
+    .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+    .first();
+  if (thread?.userId !== ctx.userId) {
+    throw new ConvexError("Thread not found");
+  }
+
+  const message = await ctx.db
+    .query("messages")
+    .withIndex("by_threadId_messageId", (q) =>
+      q.eq("threadId", args.threadId).eq("messageId", args.messageId),
+    )
+    .first();
+  if (!message) {
+    throw new ConvexError("Message not found");
+  }
+
   for (const attachmentId of args.attachmentIds) {
     const attachment = await ctx.db
       .query("attachments")
@@ -98,6 +116,34 @@ export const internal_createUploadedAttachment = backendMutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
+    if (args.threadId && args.chatProjectId) {
+      throw new ConvexError("Attachment cannot target both thread and project");
+    }
+
+    if (args.threadId) {
+      const thread = await ctx.db
+        .query("threads")
+        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId ?? ""))
+        .first();
+      if (thread?.userId !== args.userId) {
+        throw new ConvexError("Thread not found");
+      }
+    }
+
+    if (args.chatProjectId) {
+      const project = await ctx.db
+        .query("projects")
+        .withIndex("by_projectId", (q) =>
+          q.eq("projectId", args.chatProjectId ?? ""),
+        )
+        .first();
+      if (project?.userId !== args.userId) {
+        throw new ConvexError("Project not found");
+      }
+    } else if (args.expiresAt === undefined) {
+      throw new ConvexError("Draft attachments must expire");
+    }
+
     // Project files are uploaded directly into a project's library — they
     // never expire and skip the draft -> attached lifecycle.
     const isProjectFile = args.chatProjectId !== undefined;
@@ -112,6 +158,10 @@ export const internal_createUploadedAttachment = backendMutation({
       .first();
 
     if (existing) {
+      if (existing.userId !== args.userId) {
+        throw new ConvexError("Attachment not found");
+      }
+
       await ctx.db.patch(existing._id, {
         threadId: args.threadId,
         chatProjectId: args.chatProjectId,

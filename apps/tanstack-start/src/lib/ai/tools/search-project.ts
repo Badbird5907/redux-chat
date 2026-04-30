@@ -15,7 +15,7 @@ import {
 } from "@/lib/silo/core.server";
 import { retrieveProjectContextForUser } from "@/server/rag/retrieve";
 
-async function resolveAttachmentUrls(attachmentIds: string[]) {
+async function resolveAttachmentUrls(userId: string, attachmentIds: string[]) {
   if (attachmentIds.length === 0) {
     return new Map<
       string,
@@ -28,6 +28,7 @@ async function resolveAttachmentUrls(attachmentIds: string[]) {
     api.functions.embeddings.internal_getAttachmentSummaries,
     {
       secret: env.INTERNAL_CONVEX_SECRET,
+      userId,
       attachmentIds,
     },
   );
@@ -170,7 +171,10 @@ export const searchProjectKnowledgeTool = (
         projectContext.modelId,
       );
 
-      const attachmentUrls = await resolveAttachmentUrls(rawAttachmentIds);
+      const attachmentUrls = await resolveAttachmentUrls(
+        projectContext.userId,
+        rawAttachmentIds,
+      );
 
       for (const attachmentId of rawAttachmentIds) {
         const attachment = attachmentUrls.get(attachmentId);

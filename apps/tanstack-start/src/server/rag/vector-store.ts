@@ -48,5 +48,8 @@ export interface VectorStore {
     k: number;
   }): Promise<RetrievedChunk[]>;
 
-  deleteForAttachment(attachmentId: string): Promise<void>;
+  deleteForAttachment(input: {
+    userId: string;
+    attachmentId: string;
+  }): Promise<void>;
 }

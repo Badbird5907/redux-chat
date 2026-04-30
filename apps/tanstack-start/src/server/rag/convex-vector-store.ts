@@ -74,13 +74,17 @@ export class ConvexVectorStore implements VectorStore {
     }));
   }
 
-  async deleteForAttachment(attachmentId: string): Promise<void> {
+  async deleteForAttachment(input: {
+    userId: string;
+    attachmentId: string;
+  }): Promise<void> {
     const client = getInternalConvexClient();
     await client.mutation(
       api.functions.embeddings.internal_deleteEmbeddingsForAttachment,
       {
         secret: env.INTERNAL_CONVEX_SECRET,
-        attachmentId,
+        userId: input.userId,
+        attachmentId: input.attachmentId,
       },
     );
   }

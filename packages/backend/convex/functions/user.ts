@@ -10,13 +10,11 @@ export const getUserImage = query({
     userId: v.optional(v.string()),
   },
   handler: async (ctx, { userId }) => {
-    let target = null;
-
-    if (userId && userId !== "me") {
-      target = await authComponent.getAnyUserById(ctx, userId);
-    } else {
-      target = await authComponent.getAuthUser(ctx);
+    if (userId && userId !== "me" && userId !== ctx.userId) {
+      throw new Error("User not found");
     }
+
+    const target = await authComponent.getAuthUser(ctx);
 
     if (!target) {
       throw new Error("User not found");
@@ -32,12 +30,6 @@ export const getUserImage = query({
       };
     }
     return { image: null };
-  },
-});
-
-export const testMutation = mutation({
-  handler: (ctx) => {
-    return ctx.user;
   },
 });
 
@@ -64,12 +56,6 @@ export const verifySignature = async (
 
   return crypto.subtle.verify("HMAC", key, signatureBuffer, messageData);
 };
-export const testQuery = query({
-  handler: () => {
-    return "testQuery";
-  },
-});
-
 export const getCurrentUserId = query({
   handler: (_ctx) => {
     return { userId: _ctx.userId };

@@ -1,6 +1,8 @@
-import { v } from "convex/values";
+import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
+import { ConvexError, v } from "convex/values";
 
 import { api } from "../_generated/api";
+import type { DataModel } from "../_generated/dataModel";
 import { backendEnv } from "../env";
 import { backendAction, backendMutation, backendQuery } from "./index";
 
@@ -28,6 +30,35 @@ const chunkValidator = v.object({
   embeddingDims: v.number(),
 });
 
+type BackendDbCtx =
+  | GenericMutationCtx<DataModel>
+  | GenericQueryCtx<DataModel>;
+
+async function getProjectAttachmentForOwner(
+  ctx: BackendDbCtx,
+  args: {
+    userId: string;
+    attachmentId: string;
+    chatProjectId?: string;
+  },
+) {
+  const attachment = await ctx.db
+    .query("attachments")
+    .withIndex("by_attachmentId", (q) => q.eq("attachmentId", args.attachmentId))
+    .first();
+
+  if (
+    attachment?.userId !== args.userId ||
+    !attachment.chatProjectId ||
+    (args.chatProjectId !== undefined &&
+      attachment.chatProjectId !== args.chatProjectId)
+  ) {
+    throw new ConvexError("Attachment not found");
+  }
+
+  return attachment;
+}
+
 /**
  * Inserts (or replaces) the embedding rows for a single attachment. We use
  * a delete-then-insert strategy so re-indexing is fully idempotent regardless
@@ -41,6 +72,12 @@ export const internal_upsertEmbeddings = backendMutation({
     chunks: v.array(chunkValidator),
   },
   handler: async (ctx, args) => {
+    await getProjectAttachmentForOwner(ctx, {
+      userId: args.userId,
+      attachmentId: args.attachmentId,
+      chatProjectId: args.chatProjectId,
+    });
+
     // Delete any existing embeddings for this attachment
     const existing = await ctx.db
       .query("attachmentEmbeddings")
@@ -75,8 +112,13 @@ export const internal_upsertEmbeddings = backendMutation({
 });
 
 export const internal_deleteEmbeddingsForAttachment = backendMutation({
-  args: { attachmentId: v.string() },
+  args: { userId: v.string(), attachmentId: v.string() },
   handler: async (ctx, args) => {
+    await getProjectAttachmentForOwner(ctx, {
+      userId: args.userId,
+      attachmentId: args.attachmentId,
+    });
+
     const rows = await ctx.db
       .query("attachmentEmbeddings")
       .withIndex("by_attachmentId", (q) =>
@@ -94,22 +136,17 @@ export const internal_deleteEmbeddingsForAttachment = backendMutation({
 
 export const internal_setAttachmentEmbeddingStatus = backendMutation({
   args: {
+    userId: v.string(),
     attachmentId: v.string(),
     status: embeddingStatus,
     error: v.optional(v.string()),
     chunkCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const attachment = await ctx.db
-      .query("attachments")
-      .withIndex("by_attachmentId", (q) =>
-        q.eq("attachmentId", args.attachmentId),
-      )
-      .first();
-
-    if (!attachment) {
-      return { success: false };
-    }
+    const attachment = await getProjectAttachmentForOwner(ctx, {
+      userId: args.userId,
+      attachmentId: args.attachmentId,
+    });
 
     await ctx.db.patch(attachment._id, {
       embeddingStatus: args.status,
@@ -153,7 +190,7 @@ export const internal_getEmbeddingsByIds = backendQuery({
  * for citation rendering.
  */
 export const internal_getAttachmentSummaries = backendQuery({
-  args: { attachmentIds: v.array(v.string()) },
+  args: { userId: v.string(), attachmentIds: v.array(v.string()) },
   handler: async (ctx, args) => {
     const out: Record<
       string,
@@ -171,7 +208,7 @@ export const internal_getAttachmentSummaries = backendQuery({
         .query("attachments")
         .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
         .first();
-      if (!a) continue;
+      if (!a || a.userId !== args.userId) continue;
       out[attachmentId] = {
         fileName: a.fileName,
         mimeType: a.mimeType,
@@ -238,7 +275,7 @@ export const internal_searchEmbeddings = backendAction({
     );
     const summaries = await ctx.runQuery(
       api.functions.embeddings.internal_getAttachmentSummaries,
-      { secret: env.INTERNAL_CONVEX_SECRET, attachmentIds },
+      { secret: env.INTERNAL_CONVEX_SECRET, userId: args.userId, attachmentIds },
     );
 
     // Score lookup keyed by _id

@@ -20,7 +20,11 @@ import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
 import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
-import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
+import {
+  fetchAuthMutation,
+  fetchAuthQuery,
+  getRequestUserIdFromHeaders,
+} from "@/lib/auth/server";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
@@ -275,6 +279,13 @@ export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const requestUserId = await getRequestUserIdFromHeaders(
+          request.headers,
+        );
+        if (!requestUserId) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
         const parsedBody = requestBody.parse(await request.json());
 
         const {
@@ -303,6 +314,7 @@ export const Route = createFileRoute("/api/chat/")({
           try {
             await fetchAuthMutation(api.functions.threads.internal_failStream, {
               secret: env.INTERNAL_CONVEX_SECRET,
+              userId: requestUserId,
               threadId,
               assistantMessageId,
               error: errorMessage,
@@ -376,6 +388,7 @@ export const Route = createFileRoute("/api/chat/")({
             if (queryText) {
               try {
                 const { chunks } = await retrieveProjectContext({
+                  userId: requestUserId,
                   chatProjectId,
                   query: queryText,
                   k: 6,
@@ -550,6 +563,8 @@ export const Route = createFileRoute("/api/chat/")({
                   api.functions.threads.internal_updateMessageUsage,
                   {
                     secret: env.INTERNAL_CONVEX_SECRET,
+                    userId: requestUserId,
+                    threadId,
                     messageId: assistantMessageId,
                     usage: usageData ?? {
                       promptTokens: 0,
@@ -572,6 +587,7 @@ export const Route = createFileRoute("/api/chat/")({
                   api.functions.threads.internal_checkMessageAbort,
                   {
                     secret: env.INTERNAL_CONVEX_SECRET,
+                    userId: requestUserId,
                     messageId: assistantMessageId,
                     threadId: threadId,
                   },
@@ -621,6 +637,7 @@ export const Route = createFileRoute("/api/chat/")({
                 api.functions.threads.internal_completeStream,
                 {
                   secret: env.INTERNAL_CONVEX_SECRET,
+                  userId: requestUserId,
                   threadId: threadId,
                   assistantMessageId: assistantMessageId,
                   parts,
@@ -645,6 +662,7 @@ export const Route = createFileRoute("/api/chat/")({
                 api.functions.threads.internal_setActiveStreamId,
                 {
                   secret: env.INTERNAL_CONVEX_SECRET,
+                  userId: requestUserId,
                   threadId: threadId,
                   streamId,
                   messageId: assistantMessageId,
