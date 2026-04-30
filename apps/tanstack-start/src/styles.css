@@ -1,8 +1,12 @@
 @import "katex/dist/katex.min.css";
+@import "streamdown/styles.css";
 @import "tailwindcss";
 @import "@redux/tailwind-config/theme";
 
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+@source "../node_modules/@streamdown/math/dist/*.js";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));
@@ -35,6 +39,18 @@ body {
   }
 
   .chat-markdown > :last-child {
+    @apply mb-0;
+  }
+
+  .chat-markdown [data-streamdown="root"] {
+    @apply text-inherit;
+  }
+
+  .chat-markdown [data-streamdown="block"] > :first-child {
+    @apply mt-0;
+  }
+
+  .chat-markdown [data-streamdown="block"] > :last-child {
     @apply mb-0;
   }
 
@@ -96,12 +112,14 @@ body {
   }
 
   .chat-markdown__pre,
-  .chat-markdown .shiki {
+  .chat-markdown .shiki,
+  .chat-markdown [data-streamdown="code-block"] {
     @apply bg-muted/40 border-border my-4 overflow-x-auto rounded-2xl border p-4;
   }
 
   .chat-markdown__pre code,
-  .chat-markdown .shiki code {
+  .chat-markdown .shiki code,
+  .chat-markdown [data-streamdown="code-block"] code {
     @apply block min-w-max font-mono text-[13px] leading-6;
   }
 
@@ -113,7 +131,15 @@ body {
     @apply my-4 overflow-x-auto;
   }
 
+  .chat-markdown [data-streamdown="table-wrapper"] {
+    @apply my-4 overflow-x-auto;
+  }
+
   .chat-markdown__table {
+    @apply w-full min-w-max border-collapse text-sm;
+  }
+
+  .chat-markdown [data-streamdown="table"] {
     @apply w-full min-w-max border-collapse text-sm;
   }
 
@@ -121,7 +147,19 @@ body {
     @apply border-border border px-3 py-2 text-left align-top;
   }
 
+  .chat-markdown
+    :is(
+      [data-streamdown="table-header-cell"],
+      [data-streamdown="table-cell"]
+    ) {
+    @apply border-border border px-3 py-2 text-left align-top;
+  }
+
   .chat-markdown th {
+    @apply bg-muted/60 font-medium;
+  }
+
+  .chat-markdown [data-streamdown="table-header-cell"] {
     @apply bg-muted/60 font-medium;
   }
 
