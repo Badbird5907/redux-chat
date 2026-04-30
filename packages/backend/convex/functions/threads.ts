@@ -12,6 +12,7 @@ import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
 import { attachDraftAttachmentsToMessage } from "./attachments";
+import { normalizeInstructionIdForUser } from "./instructions";
 import { backendMutation, backendQuery, mutation, query } from "./index";
 import { internalAction, internalMutation } from "./internal";
 
@@ -39,6 +40,7 @@ type AuthenticatedMutationCtx = GenericMutationCtx<DataModel> & {
 
 const messageSettingsValidator = v.object({
   model: v.string(),
+  instructionId: v.optional(v.string()),
   tools: v.object({
     search: v.optional(v.object({})),
     analysisWorkspace: v.optional(
@@ -404,7 +406,7 @@ export const internal_completeStream = backendMutation({
       throw new ConvexError("Assistant message not found");
     }
 
-    if (assistantMessage.status === "failed") {
+    if (assistantMessage.canceledAt || assistantMessage.status === "failed") {
       const thread = await ctx.db
         .query("threads")
         .filter((q) => q.eq(q.field("threadId"), args.threadId))
@@ -641,6 +643,11 @@ export const sendMessage = mutation({
     let depth = 0;
     let siblingIndex = 0;
     const normalizedSettings = normalizeMessageSettings(args.settings);
+    normalizedSettings.instructionId = await normalizeInstructionIdForUser(
+      ctx,
+      ctx.userId,
+      normalizedSettings.instructionId,
+    );
 
     // 3. Insert thread if needed
     if (threadId.includes(":")) {
@@ -1137,6 +1144,7 @@ export const updateThreadSettings = mutation({
   args: {
     threadId: v.string(),
     patch: v.object({
+      instructionId: v.optional(v.string()),
       model: v.optional(v.string()),
       tools: v.optional(
         v.object({
@@ -1161,6 +1169,11 @@ export const updateThreadSettings = mutation({
     }
 
     const mergedSettings = mergeMessageSettings(thread.settings, args.patch);
+    mergedSettings.instructionId = await normalizeInstructionIdForUser(
+      ctx,
+      ctx.userId,
+      mergedSettings.instructionId,
+    );
 
     await ctx.db.patch(thread._id, {
       settings: mergedSettings,

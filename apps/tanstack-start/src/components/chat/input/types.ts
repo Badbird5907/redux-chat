@@ -32,6 +32,7 @@ export interface ChatInputProps {
   onModelChange: (modelId: string) => Promise<MessageSettings>;
   onSettingsChange: (patch: MessageSettingsPatch) => Promise<MessageSettings>;
   restoreSettings: (settings: MessageSettings) => void;
+  onStopGeneration?: () => void;
   editMessage?: ChatMessageWithThreadMetadata;
   onCancelEdit?: () => void;
   onSubmitEdit?: (payload: {

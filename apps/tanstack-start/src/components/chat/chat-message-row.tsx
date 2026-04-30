@@ -12,6 +12,7 @@ import {
   Loader2,
   PencilIcon,
   RefreshCwIcon,
+  Square,
 } from "lucide-react";
 
 import { Card, CardContent } from "@redux/ui/components/card";
@@ -137,6 +138,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     isLastMessage;
 
   const isFailedMessage = message.status === "failed";
+  const isStoppedMessage =
+    message.role === "assistant" && Boolean(message.canceledAt);
   const responseModel = assistantModelByParentMessageId.get(message.id);
   const normalizedAssistantMessage = useMemo(
     () =>
@@ -158,6 +161,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     message.role === "assistant" &&
     isStreamingAssistant &&
     !isFailedMessage &&
+    !isStoppedMessage &&
     !hasRenderableAssistantContent;
   const branchGroup = getSiblingBranchGroup(allBranchMessages, message.id);
   const controlsDisabled = status === "streaming" || status === "submitted";
@@ -243,7 +247,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           )}
         >
           {(!message.parts.length || showStreamingPlaceholder) &&
-            !isFailedMessage && <Spinner className="size-4" />}
+            !isFailedMessage &&
+            !isStoppedMessage && <Spinner className="size-4" />}
           {isFailedMessage ? (
             <Card
               size="sm"
@@ -262,11 +267,24 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               </CardContent>
             </Card>
           ) : message.role === "assistant" ? (
-            <AssistantMessageParts
-              isLastMessage={isLastMessage}
-              isStreaming={isStreamingAssistant}
-              message={message}
-            />
+            <>
+              <AssistantMessageParts
+                isLastMessage={isLastMessage}
+                isStreaming={isStreamingAssistant}
+                message={message}
+              />
+              {isStoppedMessage && (
+                <Card
+                  size="sm"
+                  className="border-border bg-muted/40 text-muted-foreground mt-3 w-fit gap-2 py-2 shadow-none"
+                >
+                  <CardContent className="flex items-center gap-2 px-3 text-sm">
+                    <Square className="size-3 fill-current" />
+                    <span>Generation stopped by user</span>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           ) : (
             <StaticMarkdown content={textContent} />
           )}
@@ -378,7 +396,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           </div>
         )}
         {message.role === "assistant" && (
-          <div className="text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs">
+          <div className={cn("text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs", isStreamingAssistant && "opacity-0")}>
             <div
               className={cn(
                 "flex items-center gap-1 transition-opacity duration-200",

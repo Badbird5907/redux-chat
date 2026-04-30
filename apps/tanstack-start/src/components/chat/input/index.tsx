@@ -30,6 +30,7 @@ import {
   useMessageQueue,
 } from "@/components/chat/use-message-queue";
 import { submitMessage } from "@/components/chat/use-submit-message";
+import { useInstructions } from "@/lib/hooks/use-instructions";
 import { deleteDraftAttachment } from "@/server/attachments";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
@@ -58,6 +59,7 @@ export function ChatInput({
   editMessage,
   onCancelEdit,
   onSubmitEdit,
+  onStopGeneration,
 }: ChatInputProps) {
   const {
     text: input,
@@ -87,6 +89,12 @@ export function ChatInput({
   const visualizationRef = useRef<HTMLDivElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
   const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
+  const {
+    instructions,
+    instructionsById,
+    defaultInstruction,
+    isReady: instructionsReady,
+  } = useInstructions();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
@@ -195,6 +203,10 @@ export function ChatInput({
   const syncUploadsToAnalysisWorkspace =
     settings.tools.analysisWorkspace?.syncUploads !== false;
   const showErrorBorder = status === "error";
+  const selectedInstruction =
+    (settings.instructionId
+      ? instructionsById.get(settings.instructionId)
+      : undefined) ?? defaultInstruction;
   const currentModelConfig = getChatModelConfig(selectedModel);
   const currentModelRoute = resolveModelRoute(selectedModel);
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
@@ -308,6 +320,14 @@ export function ChatInput({
       });
     },
     [isAnalysisWorkspaceEnabled, onSettingsChange],
+  );
+
+  const handleInstructionChange = useCallback(
+    (instructionId: string) => {
+      void onSettingsChange({ instructionId });
+      setDropdownOpen(false);
+    },
+    [onSettingsChange],
   );
 
   const discardDraftAttachmentForQueue = useCallback(
@@ -858,6 +878,20 @@ export function ChatInput({
                 setDropdownOpen(false);
                 setToolsDialogOpen(true);
               }}
+              instructions={instructions.map((instruction) => ({
+                instructionId: instruction.instructionId,
+                name: instruction.name,
+                isDefault: instruction.isDefault,
+                isBuiltin: instruction.isBuiltin,
+              }))}
+              selectedInstructionId={selectedInstruction?.instructionId}
+              selectedInstructionName={
+                selectedInstruction && !selectedInstruction.isDefault
+                  ? selectedInstruction.name
+                  : undefined
+              }
+              onInstructionChange={handleInstructionChange}
+              instructionsReady={instructionsReady}
               canUploadFiles={canUploadFiles}
               isSearchEnabled={isSearchEnabled}
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
@@ -877,6 +911,7 @@ export function ChatInput({
               isSubmitting={isSubmitting}
               hasUploadingFiles={hasUploadingFiles}
               draftReady={draftReady}
+              onStopGeneration={onStopGeneration}
               onSubmit={() => void handleSubmit()}
               project={chatProjectId}
             />

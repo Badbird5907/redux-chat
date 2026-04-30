@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import {
+  BookText,
   Keyboard,
   MessageSquare,
   Plus,
@@ -131,6 +132,8 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
             <div className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
               {item.value === "settings-general" ? (
                 <SlidersHorizontal className="size-4" />
+              ) : item.value === "settings-instructions" ? (
+                <BookText className="size-4" />
               ) : (
                 <Keyboard className="size-4" />
               )}

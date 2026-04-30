@@ -16,6 +16,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
@@ -62,6 +63,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const SettingsInstructionsRoute = SettingsInstructionsRouteImport.update({
+  id: '/instructions',
+  path: '/instructions',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsHotkeysRoute = SettingsHotkeysRouteImport.update({
   id: '/hotkeys',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
+  '/settings/instructions': typeof SettingsInstructionsRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/chat/$id': typeof AppChatIdRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
+  '/settings/instructions': typeof SettingsInstructionsRoute
   '/': typeof AppIndexRoute
   '/logos': typeof LogosIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
+  '/settings/instructions': typeof SettingsInstructionsRoute
   '/_app/': typeof AppIndexRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/auth/sign-up'
     | '/settings/hotkeys'
+    | '/settings/instructions'
     | '/logos/'
     | '/settings/'
     | '/chat/$id'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/auth/sign-up'
     | '/settings/hotkeys'
+    | '/settings/instructions'
     | '/'
     | '/logos'
     | '/settings'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/auth/sign-up'
     | '/settings/hotkeys'
+    | '/settings/instructions'
     | '/_app/'
     | '/logos/'
     | '/settings/'
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/settings/instructions': {
+      id: '/settings/instructions'
+      path: '/instructions'
+      fullPath: '/settings/instructions'
+      preLoaderRoute: typeof SettingsInstructionsRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/settings/hotkeys': {
       id: '/settings/hotkeys'
@@ -432,11 +451,13 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface SettingsRouteChildren {
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
+  SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsHotkeysRoute: SettingsHotkeysRoute,
+  SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 

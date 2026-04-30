@@ -1,4 +1,10 @@
 export * from "./types";
+export {
+  compareChatModelsByReleaseDateNewestFirst,
+  isModelNewlyReleased,
+  NEW_MODEL_RECENCY_DAYS,
+  parseModelReleasedAtMs,
+} from "./release-date";
 export { DEFAULT_CHAT_MODEL_ID, defaultFavorites } from "./defaults";
 export { PROVIDERS } from "./curated";
 export { classifyChatAttachment } from "./route-behavior";

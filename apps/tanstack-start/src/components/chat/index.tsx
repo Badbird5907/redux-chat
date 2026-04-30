@@ -11,6 +11,7 @@ import {
   ConversationScrollButton,
 } from "@/components/ai/conversation";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import type { ChatPreload } from "./preload";
 import { ChatMessageList } from "./chat-message-list";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
 import { ChatInput } from "./input";
@@ -24,7 +25,7 @@ export function Chat({
 }: {
   initialThreadId: string | undefined;
   chatProjectId?: string;
-  preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
+  preload?: ChatPreload;
   /** Custom content when there's no active thread. Defaults to <EmptyChat />. */
   emptyContent?: ReactNode;
 }) {
@@ -36,6 +37,7 @@ export function Chat({
     messages,
     status,
     sendMessageWithTracking,
+    stopGeneration,
     setOptimisticMessage,
     convexUIMessages,
     allBranchMessages,
@@ -112,6 +114,7 @@ export function Chat({
         chatProjectId={effectiveChatProjectId}
         setThreadId={handleThreadIdChange}
         sendMessage={sendMessageWithTracking}
+        onStopGeneration={stopGeneration}
         setOptimisticMessage={setOptimisticMessage}
         messages={messages}
         status={status}

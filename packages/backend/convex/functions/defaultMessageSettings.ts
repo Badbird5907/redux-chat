@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 
+import { normalizeInstructionIdForUser } from "./instructions";
 import { mutation } from "./index";
 
 export const getOrCreate = mutation({
@@ -14,6 +15,11 @@ export const getOrCreate = mutation({
 
     if (existing) {
       const normalizedSettings = normalizeMessageSettings(existing.settings);
+      normalizedSettings.instructionId = await normalizeInstructionIdForUser(
+        ctx,
+        ctx.userId,
+        normalizedSettings.instructionId,
+      );
       if (
         JSON.stringify(normalizedSettings) !== JSON.stringify(existing.settings)
       ) {
@@ -26,6 +32,11 @@ export const getOrCreate = mutation({
     }
 
     const settings = normalizeMessageSettings(undefined);
+    settings.instructionId = await normalizeInstructionIdForUser(
+      ctx,
+      ctx.userId,
+      settings.instructionId,
+    );
     await ctx.db.insert("defaultMessageSettings", {
       userId: ctx.userId,
       settings,
@@ -38,6 +49,7 @@ export const getOrCreate = mutation({
 export const update = mutation({
   args: {
     patch: v.object({
+      instructionId: v.optional(v.string()),
       model: v.optional(v.string()),
       tools: v.optional(
         v.object({
@@ -58,6 +70,11 @@ export const update = mutation({
       .first();
 
     const mergedSettings = mergeMessageSettings(existing?.settings, args.patch);
+    mergedSettings.instructionId = await normalizeInstructionIdForUser(
+      ctx,
+      ctx.userId,
+      mergedSettings.instructionId,
+    );
 
     if (existing) {
       await ctx.db.patch(existing._id, {

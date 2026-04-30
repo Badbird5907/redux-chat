@@ -49,6 +49,7 @@ const messageTools = v.object({
 export const messageSettings = v.object({
   model: v.string(),
   tools: messageTools,
+  instructionId: v.optional(v.string()),
 });
 
 export default defineSchema({
@@ -86,6 +87,22 @@ export default defineSchema({
   })
     .index("by_projectId", ["projectId"])
     .index("by_userId", ["userId", "updatedAt"]),
+
+  instructions: defineTable({
+    instructionId: v.string(),
+    userId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    prompt: v.optional(v.string()),
+    defaultPrompt: v.optional(v.string()),
+    userEdited: v.optional(v.boolean()),
+    builtinKey: v.optional(v.union(v.literal("default"), v.literal("learning"))),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_instructionId", ["instructionId"])
+    .index("by_userId", ["userId", "updatedAt"])
+    .index("by_userId_builtinKey", ["userId", "builtinKey"]),
 
   threads: defineTable({
     threadId: v.string(),

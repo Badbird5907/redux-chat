@@ -2,20 +2,29 @@ import type React from "react";
 import type { RefObject } from "react";
 import {
   ArrowUp,
+  BookText,
   Hammer,
   Loader2,
   Maximize2,
   Minimize2,
   Plus,
   Search,
+  Square,
 } from "lucide-react";
 
 import { Button } from "@redux/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
@@ -31,6 +40,16 @@ interface ChatInputToolbarProps {
   onDropdownOpenChange: (open: boolean) => void;
   onOpenFilePicker: () => void;
   onOpenToolsDialog: () => void;
+  instructions: {
+    instructionId: string;
+    name: string;
+    isDefault: boolean;
+    isBuiltin: boolean;
+  }[];
+  selectedInstructionId?: string;
+  selectedInstructionName?: string;
+  onInstructionChange: (instructionId: string) => void;
+  instructionsReady: boolean;
   canUploadFiles: boolean;
   isSearchEnabled: boolean;
   project?: string;
@@ -50,6 +69,7 @@ interface ChatInputToolbarProps {
   hasUploadingFiles: boolean;
   draftReady: boolean;
   onSubmit: () => void;
+  onStopGeneration?: () => void;
 }
 
 export function ChatInputToolbar({
@@ -60,6 +80,11 @@ export function ChatInputToolbar({
   onDropdownOpenChange,
   onOpenFilePicker,
   onOpenToolsDialog,
+  instructions,
+  selectedInstructionId,
+  selectedInstructionName,
+  onInstructionChange,
+  instructionsReady,
   canUploadFiles,
   isSearchEnabled,
   onToggleSearch,
@@ -79,6 +104,7 @@ export function ChatInputToolbar({
   hasUploadingFiles,
   draftReady,
   onSubmit,
+  onStopGeneration,
 }: ChatInputToolbarProps) {
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
@@ -119,6 +145,42 @@ export function ChatInputToolbar({
               </DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger
+                disabled={!instructionsReady || !settingsReady}
+              >
+                <BookText className="size-4 shrink-0" />
+                <span className="min-w-0 grow whitespace-nowrap">
+                  Instructions
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-64">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Choose instruction</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={selectedInstructionId ?? ""}
+                    onValueChange={onInstructionChange}
+                  >
+                    {instructions.map((instruction) => (
+                      <DropdownMenuRadioItem
+                        key={instruction.instructionId}
+                        value={instruction.instructionId}
+                      >
+                        <span className="min-w-0 grow whitespace-nowrap">
+                          {instruction.name}
+                        </span>
+                        {!instruction.isDefault ? (
+                          <span className="text-muted-foreground text-xs">
+                            {instruction.isBuiltin ? "Built-in" : "Custom"}
+                          </span>
+                        ) : null}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onOpenToolsDialog}
               disabled={!settingsReady}
@@ -154,6 +216,12 @@ export function ChatInputToolbar({
             </TooltipContent>
           </Tooltip>
         )} */}
+        {selectedInstructionName ? (
+          <div className="border-border bg-muted/50 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm">
+            <BookText className="h-3.5 w-3.5" />
+            <span>{selectedInstructionName}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-2">
@@ -192,30 +260,43 @@ export function ChatInputToolbar({
           selectedModel={selectedModel}
           onModelChange={onModelChange}
         />
-        <Button
-          type="button"
-          size="icon"
-          className={cn(
-            "h-8 w-8 rounded-full transition-all",
-            input.trim() || hasUsableAttachments
-              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-              : "bg-muted text-muted-foreground",
-          )}
-          onClick={onSubmit}
-          disabled={
-            isSubmitting ||
-            hasUploadingFiles ||
-            (!input.trim() && !hasUsableAttachments) ||
-            !settingsReady ||
-            !draftReady
-          }
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUp className="h-4 w-4" />
-          )}
-        </Button>
+        {isSubmitting && onStopGeneration ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="destructive"
+            className="h-8 w-8 rounded-full"
+            onClick={onStopGeneration}
+            title="Stop generating"
+          >
+            <Square className="size-3 fill-current" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="icon"
+            className={cn(
+              "h-8 w-8 rounded-full transition-all",
+              input.trim() || hasUsableAttachments
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground",
+            )}
+            onClick={onSubmit}
+            disabled={
+              isSubmitting ||
+              hasUploadingFiles ||
+              (!input.trim() && !hasUsableAttachments) ||
+              !settingsReady ||
+              !draftReady
+            }
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUp className="h-4 w-4" />
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import type {
   MessageStats,
   ResolvedAttachment,
 } from "./chat-types";
+import type { ChatPreload } from "./preload";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
 import {
@@ -32,7 +33,7 @@ import { useStableClientId } from "./use-stable-client-id";
 export interface UseChatSessionArgs {
   initialThreadId: string | undefined;
   chatProjectId?: string;
-  preload?: (typeof api.functions.threads.getThreadMessages)["_returnType"];
+  preload?: ChatPreload;
 }
 
 export function useChatSession({
@@ -40,6 +41,19 @@ export function useChatSession({
   chatProjectId,
   preload,
 }: UseChatSessionArgs) {
+  const initialSettings = useMemo(() => {
+    const settingsJson = preload?.thread?.settingsJson ?? preload?.settingsJson;
+    if (!settingsJson) {
+      return undefined;
+    }
+
+    try {
+      return JSON.parse(settingsJson) as Record<string, unknown>;
+    } catch (error) {
+      console.error("Failed to parse preloaded chat settings", error);
+      return undefined;
+    }
+  }, [preload?.settingsJson, preload?.thread?.settingsJson]);
   const router = useRouter();
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId,
@@ -61,7 +75,7 @@ export function useChatSession({
     api.functions.threads.getThreadMessages,
     { threadId: currentThreadId ?? "" },
     {
-      default: preload,
+      default: preload?.messages,
       skip: !currentThreadId,
     },
   );
@@ -72,12 +86,19 @@ export function useChatSession({
     { skip: !currentThreadId },
   );
   const effectiveChatProjectId =
-    chatProjectId ?? thread?.chatProjectId ?? undefined;
+    chatProjectId ?? preload?.thread?.chatProjectId ?? thread?.chatProjectId;
 
   const chatSessionId = useStableClientId();
   const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
   const locallyCompletedStreamRef = useRef(false);
   const locallyStartedStreamRef = useRef(false);
+  const locallyStoppedStreamRef = useRef<
+    | {
+        messageId?: string;
+        streamId?: string;
+      }
+    | undefined
+  >(undefined);
   const lastSyncedMessagesRef = useRef<UIMessage[]>([]);
   const { markAdoptedThreadNavigation } = useChatRouteAdoption();
   const {
@@ -87,7 +108,10 @@ export function useChatSession({
     setModel,
     restoreSettings,
     updateSettings,
-  } = useChatSettings(currentThreadId);
+  } = useChatSettings(
+    currentThreadId,
+    initialSettings,
+  );
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
   const selectThreadBranchMutation = useMutation(
     api.functions.threads.selectThreadBranch,
@@ -98,13 +122,17 @@ export function useChatSession({
   const regenerateAssistantMessageBranch = useMutation(
     api.functions.threads.regenerateAssistantMessageBranch,
   );
+  const abortStreamMutation = useMutation(api.functions.threads.abortStream);
   const { allocate: allocateSignedIds } = useSignedCid();
   const [editingMessageId, setEditingMessageId] = useState<string | undefined>(
     undefined,
   );
 
   const [initialMessages] = useState<ChatMessageWithThreadMetadata[]>(() =>
-    getVisibleBranchMessages((preload ?? []).map(toChatUIMessage), undefined),
+    getVisibleBranchMessages(
+      (preload?.messages ?? []).map(toChatUIMessage),
+      preload?.thread?.selectedLeafMessageId,
+    ),
   );
 
   const handleThreadIdChange = useCallback(
@@ -142,6 +170,7 @@ export function useChatSession({
     regenerate,
     setMessages,
     resumeStream,
+    stop,
   } = useChat<ChatMessageWithThreadMetadata>({
     id: chatInstanceId,
     messages: initialMessages,
@@ -155,7 +184,7 @@ export function useChatSession({
       console.log("Finish:", message);
       locallyStartedStreamRef.current = false;
       locallyCompletedStreamRef.current =
-        !message.isAbort && !message.isDisconnect && !message.isError;
+        message.isAbort || (!message.isDisconnect && !message.isError);
     },
   });
 
@@ -170,6 +199,7 @@ export function useChatSession({
     ) => {
       locallyStartedStreamRef.current = true;
       locallyCompletedStreamRef.current = false;
+      locallyStoppedStreamRef.current = undefined;
 
       const userMessageId = message.messageId;
 
@@ -232,6 +262,7 @@ export function useChatSession({
 
       locallyStartedStreamRef.current = false;
       locallyCompletedStreamRef.current = false;
+      locallyStoppedStreamRef.current = undefined;
       setCurrentThreadId(initialThreadId);
       setOptimisticMessage(undefined);
       setPendingAssistantMessageId(undefined);
@@ -262,6 +293,7 @@ export function useChatSession({
 
       locallyStartedStreamRef.current = false;
       locallyCompletedStreamRef.current = false;
+      locallyStoppedStreamRef.current = undefined;
       setOptimisticMessage(undefined);
       setPendingAssistantMessageId(undefined);
       lastMessageCount.current = 0;
@@ -281,8 +313,64 @@ export function useChatSession({
   ) as
     | { streamId: string; messageId?: string; clientId: string | undefined }
     | undefined;
+  const activeStreamId = activeStreamInfo?.streamId;
+  const activeStreamMessageId = activeStreamInfo?.messageId;
+  const activeStreamClientId = activeStreamInfo?.clientId;
+
+  const stopGeneration = useCallback(() => {
+    console.log("stopGeneration", {
+      clientId: activeStreamClientId,
+      messageId: activeStreamMessageId,
+      streamId: activeStreamId,
+    });
+    const messageId = activeStreamMessageId ?? pendingAssistantMessageId;
+    locallyStartedStreamRef.current = false;
+    locallyCompletedStreamRef.current = true;
+    locallyStoppedStreamRef.current = {
+      messageId,
+      streamId: activeStreamId,
+    };
+    setPendingAssistantMessageId(undefined);
+    void stop();
+    if (!currentThreadId || !messageId) {
+      return;
+    }
+    console.log("abortStreamMutation", messageId);
+    void abortStreamMutation({
+      threadId: currentThreadId,
+      messageId,
+    }).catch((error) => {
+      console.error("Failed to abort stream:", error);
+    });
+  }, [
+    abortStreamMutation,
+    activeStreamClientId,
+    activeStreamId,
+    activeStreamMessageId,
+    currentThreadId,
+    pendingAssistantMessageId,
+    stop,
+  ]);
 
   useEffect(() => {
+    const locallyStoppedStream = locallyStoppedStreamRef.current;
+
+    if (
+      activeStreamInfo?.streamId &&
+      locallyStoppedStream?.streamId &&
+      activeStreamInfo.streamId === locallyStoppedStream.streamId
+    ) {
+      return;
+    }
+
+    if (
+      activeStreamInfo?.messageId &&
+      locallyStoppedStream?.messageId &&
+      activeStreamInfo.messageId === locallyStoppedStream.messageId
+    ) {
+      return;
+    }
+
     if (
       !activeStreamInfo?.streamId ||
       locallyCompletedStreamRef.current ||
@@ -666,6 +754,7 @@ export function useChatSession({
 
       locallyStartedStreamRef.current = true;
       locallyCompletedStreamRef.current = false;
+      locallyStoppedStreamRef.current = undefined;
       setOptimisticMessage(undefined);
       setPendingAssistantMessageId(branchInfo.assistantMessageId);
       lastMessageCount.current = localMessages.length;
@@ -757,6 +846,7 @@ export function useChatSession({
       setPendingAssistantMessageId(branchInfo.assistantMessageId);
       locallyStartedStreamRef.current = true;
       locallyCompletedStreamRef.current = false;
+      locallyStoppedStreamRef.current = undefined;
 
       console.log("Regenerating assistant branch", {
         sourceAssistantMessageId: assistantMessage.id,
@@ -846,6 +936,7 @@ export function useChatSession({
     messages,
     status,
     sendMessageWithTracking,
+    stopGeneration,
     setOptimisticMessage,
     convexUIMessages,
     allBranchMessages,

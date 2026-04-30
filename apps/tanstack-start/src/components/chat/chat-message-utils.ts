@@ -30,6 +30,7 @@ export function toChatUIMessage(
       "attachments" in message && Array.isArray(message.attachments)
         ? message.attachments
         : undefined,
+    canceledAt: "canceledAt" in message ? message.canceledAt : undefined,
     createdAt:
       "_creationTime" in message && typeof message._creationTime === "number"
         ? message._creationTime

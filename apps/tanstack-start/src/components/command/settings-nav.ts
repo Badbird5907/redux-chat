@@ -10,6 +10,13 @@ export const SETTINGS_NAV_ITEMS = [
     searchBlob: "general settings preferences",
   },
   {
+    value: "settings-instructions",
+    to: "/settings/instructions" as const,
+    title: "Instructions",
+    subtitle: "Manage reusable chat behavior presets",
+    searchBlob: "instructions prompts styles presets system prompts",
+  },
+  {
     value: "settings-hotkeys",
     to: "/settings/hotkeys" as const,
     title: "Hotkeys",

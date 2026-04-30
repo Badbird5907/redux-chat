@@ -66,6 +66,7 @@ export const threadSchema = z.object({
 
   settings: z.object({
     model: z.string(),
+    instructionId: z.string().optional(),
     tools: messageToolsSchema,
   }),
 

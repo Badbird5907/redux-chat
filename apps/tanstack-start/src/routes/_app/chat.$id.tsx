@@ -4,6 +4,7 @@ import z from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
+import type { ChatThreadPreload } from "@/components/chat/preload";
 import { fetchAuthQuery } from "@/lib/auth/server";
 
 const loadChat = createServerFn({ method: "GET" })
@@ -18,8 +19,18 @@ const loadChat = createServerFn({ method: "GET" })
       }).catch((): null => null),
     ]);
     const displayName = thread != null ? thread.name.trim() : "";
+    const preloadThread: ChatThreadPreload | null =
+      thread == null
+        ? null
+        : {
+            chatProjectId: thread.chatProjectId,
+            selectedLeafMessageId: thread.selectedLeafMessageId,
+            settingsJson: JSON.stringify(thread.settings),
+          };
+
     return {
       messages,
+      thread: preloadThread,
       threadName: displayName || null,
     };
   });
@@ -29,7 +40,8 @@ export const Route = createFileRoute("/_app/chat/$id")({
   params: z.object({ id: z.string() }),
   loader: ({ params }) => loadChat({ data: { id: params.id } }),
   head: ({ loaderData }) => {
-    const name = loaderData?.threadName;
+    const name = (loaderData as { threadName?: string | null } | undefined)
+      ?.threadName;
     return {
       meta: [
         {

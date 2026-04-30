@@ -17,6 +17,7 @@ import type { ChatModelConfig } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   CHAT_MODELS,
+  compareChatModelsByReleaseDateNewestFirst,
   PROVIDERS,
 } from "@redux/shared/models";
 
@@ -276,6 +277,16 @@ export function useModelSelectorState({
         modelMatchesMinKnowledgeCutoff(m, minKnowledgeCutoff),
       );
     }
+
+    const preserveFavoriteOrder =
+      activeSidebar === "favorites" &&
+      !q &&
+      selectedFeatureFilters.length === 0 &&
+      !minKnowledgeCutoff;
+    if (!preserveFavoriteOrder) {
+      list = [...list].sort(compareChatModelsByReleaseDateNewestFirst);
+    }
+
     return list;
   }, [
     activeSidebar,

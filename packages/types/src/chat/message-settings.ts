@@ -27,6 +27,7 @@ export interface MessageToolSettingsInput {
 export interface MessageSettings {
   model: string;
   tools: MessageToolSettings;
+  instructionId?: string;
   [key: string]: unknown;
 }
 
@@ -44,6 +45,7 @@ export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
   tools: {},
+  instructionId: undefined,
 };
 
 export function normalizeMessageSettings(

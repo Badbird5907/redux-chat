@@ -42,6 +42,7 @@ const requestBody = z.object({
   ),
   settings: z.object({
     model: z.string(),
+    instructionId: z.string().optional(),
     tools: z.object({
       search: z.object({}).optional(),
       analysisWorkspace: z
@@ -322,6 +323,7 @@ export const Route = createFileRoute("/api/chat/")({
           // and prepend them as a system message to the model. Also retrieve
           // RAG context from the project's indexed file library.
           let projectInstructions: string | undefined;
+          let selectedInstructionPrompt: string | undefined;
           let projectContextBlock: string | undefined;
           let projectToolInstruction: string | undefined;
           let chatProjectId: string | undefined;
@@ -343,8 +345,16 @@ export const Route = createFileRoute("/api/chat/")({
                 projectInstructions = instructions;
               }
             }
+            const selectedInstruction = await fetchAuthQuery(
+              api.functions.instructions.getEffectiveInstruction,
+              { instructionId: thread?.settings.instructionId },
+            );
+            const prompt = selectedInstruction?.prompt?.trim();
+            if (prompt) {
+              selectedInstructionPrompt = prompt;
+            }
           } catch (error) {
-            console.error("Failed to load project instructions", error);
+            console.error("Failed to load chat instructions", error);
           }
 
           if (chatProjectId) {
@@ -476,6 +486,12 @@ export const Route = createFileRoute("/api/chat/")({
               content: projectInstructions,
             });
           }
+          if (selectedInstructionPrompt) {
+            modelMessages.unshift({
+              role: "system",
+              content: selectedInstructionPrompt,
+            });
+          }
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
@@ -561,6 +577,7 @@ export const Route = createFileRoute("/api/chat/")({
                   },
                 ).then((res) => {
                   if (res) {
+                    console.log("Stream aborted by user");
                     abortController.abort();
                     return;
                   }

@@ -50,6 +50,7 @@ export type PersistedChatMessage =
 
 export type ChatMessageWithThreadMetadata = UIMessage & {
   attachments?: MessageAttachmentSummary[];
+  canceledAt?: number;
   createdAt?: number;
   depth?: number;
   error?: string;

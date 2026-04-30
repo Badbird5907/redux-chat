@@ -20,6 +20,7 @@ import {
 
 import { AppChatRoute } from "@/components/chat/app-chat-route";
 import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
+import type { ChatPreload } from "@/components/chat/preload";
 // import { getToken } from "@/lib/auth/server";
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
@@ -107,15 +108,28 @@ function AppLayout() {
     from: "/_app/chat/$id",
     shouldThrow: false,
   });
+  const homeMatch = useMatch({
+    from: "/_app/",
+    shouldThrow: false,
+  });
   const desiredChatThreadId = getChatThreadIdFromPathname(pathname);
   const isChatSurfaceRoute =
     pathname === "/" || desiredChatThreadId !== undefined;
   const chatMatchThreadId = chatMatch?.params.id;
   const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
-  const chatPreload =
+  const chatPreload: ChatPreload | undefined =
     chatMatchThreadId === chatThreadId
-      ? chatMatch?.loaderData?.messages
-      : undefined;
+      ? (chatMatch?.loaderData as ChatPreload | undefined)
+      : chatThreadId === undefined
+        ? {
+            settingsJson:
+              (
+                homeMatch?.loaderData as {
+                  settingsJson?: ChatPreload["settingsJson"];
+                }
+              )?.settingsJson ?? null,
+          }
+        : undefined;
 
   return (
     <ChatRouteAdoptionProvider>

@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConvex, useMutation } from "convex/react";
 
-import type { MessageSettings, MessageSettingsPatch } from "@redux/types";
+import type {
+  MessageSettings,
+  MessageSettingsInput,
+  MessageSettingsPatch,
+} from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   DEFAULT_MESSAGE_SETTINGS,
@@ -13,9 +17,12 @@ import {
 
 import { authClient } from "@/lib/auth/client";
 
-export function useChatSettings(threadId?: string) {
+export function useChatSettings(
+  threadId?: string,
+  initialSettings?: MessageSettingsInput | null,
+) {
   const convex = useConvex();
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const getDefaultSettings = useMutation(
     api.functions.defaultMessageSettings.getOrCreate,
   );
@@ -29,19 +36,33 @@ export function useChatSettings(threadId?: string) {
     () => (threadId ? `thread:${threadId}` : "home"),
     [threadId],
   );
+  const normalizedInitialSettings = useMemo(
+    () => normalizeMessageSettings(initialSettings),
+    [initialSettings],
+  );
 
   const [settings, setSettings] = useState<MessageSettings>(
-    DEFAULT_MESSAGE_SETTINGS,
+    normalizedInitialSettings,
   );
   const [baselineSettings, setBaselineSettings] = useState<MessageSettings>(
-    DEFAULT_MESSAGE_SETTINGS,
+    normalizedInitialSettings,
   );
-  const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady] = useState(() => initialSettings !== undefined);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadSettings() {
+      if (!cancelled) {
+        setSettings(normalizedInitialSettings);
+        setBaselineSettings(normalizedInitialSettings);
+        setIsReady(initialSettings !== undefined);
+      }
+
+      if (isPending) {
+        return;
+      }
+
       setIsReady(false);
 
       if (!session?.session.userId) {
@@ -84,7 +105,16 @@ export function useChatSettings(threadId?: string) {
     return () => {
       cancelled = true;
     };
-  }, [convex, getDefaultSettings, scopeKey, session?.session.userId, threadId]);
+  }, [
+    convex,
+    getDefaultSettings,
+    initialSettings,
+    isPending,
+    normalizedInitialSettings,
+    scopeKey,
+    session?.session.userId,
+    threadId,
+  ]);
 
   const updateSettings = useCallback(
     async (patch: MessageSettingsPatch) => {

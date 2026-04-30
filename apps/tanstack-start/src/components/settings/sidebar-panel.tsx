@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, Keyboard, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, BookText, Keyboard, SlidersHorizontal } from "lucide-react";
 
 import {
   SidebarMenu,
@@ -15,6 +15,7 @@ export function SettingsSidebarPanel() {
   });
 
   const isGeneralActive = pathname === "/settings" || pathname === "/settings/";
+  const isInstructionsActive = pathname.startsWith("/settings/instructions");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
 
   return (
@@ -38,6 +39,16 @@ export function SettingsSidebarPanel() {
             >
               <SlidersHorizontal />
               <span>General</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isInstructionsActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/instructions" />}
+            >
+              <BookText />
+              <span>Instructions</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

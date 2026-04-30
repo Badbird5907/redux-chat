@@ -2,11 +2,11 @@ import type { DragEvent } from "react";
 import { LayoutGroup, motion } from "motion/react";
 
 import type { ChatModelConfig } from "@redux/shared/models";
-import { getModelDisplayName } from "@redux/shared/models";
+import { getModelDisplayName, isModelNewlyReleased, NEW_MODEL_RECENCY_DAYS } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
-import { Star } from "lucide-react";
+import { Sparkles, Star } from "lucide-react";
 
 import { Capabilities } from "./capabilities";
 import { panelSpring } from "./constants";
@@ -210,8 +210,17 @@ function ModelRow({
         <Star className={cn("size-4", favorited && "fill-current")} />
       </Button>
       <div className="min-w-0 flex-1">
-        <div className="text-foreground text-sm leading-tight font-semibold">
-          {getModelDisplayName(model.id)}
+        <div className="text-foreground flex min-w-0 flex-wrap items-center gap-1.5 text-sm leading-tight font-semibold">
+          <span className="min-w-0 truncate">{getModelDisplayName(model.id)}</span>
+          {isModelNewlyReleased(model.releasedAt) ? (
+            <span
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-emerald-500/12 px-1.5 py-px text-[10px] font-bold tracking-wide text-emerald-700 uppercase shadow-[0_0_12px_-4px_var(--color-emerald-500,oklch(0.696_0.17_162.48))] dark:text-emerald-400"
+              title={`Released within the last ${NEW_MODEL_RECENCY_DAYS} days`}
+            >
+              <Sparkles className="size-2.5" aria-hidden />
+              New
+            </span>
+          ) : null}
         </div>
         <ModelRowSubtitle model={model} />
       </div>
