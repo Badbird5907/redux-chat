@@ -15,6 +15,7 @@ interface ChatInputEditorSectionProps {
   visualizationHeight: number | null;
   tokenizedText: string[];
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onPasteFiles: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   draftReady: boolean;
   onCloseTokenVisualization: () => void;
 }
@@ -29,6 +30,7 @@ export function ChatInputEditorSection({
   visualizationHeight,
   tokenizedText,
   onKeyDown,
+  onPasteFiles,
   draftReady,
   onCloseTokenVisualization,
 }: ChatInputEditorSectionProps) {
@@ -53,6 +55,7 @@ export function ChatInputEditorSection({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
+          onPaste={onPasteFiles}
           placeholder="Message..."
           rows={1}
           className={cn(

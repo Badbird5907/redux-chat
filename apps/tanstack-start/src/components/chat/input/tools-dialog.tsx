@@ -1,7 +1,7 @@
 import type React from "react";
-import { FlaskConical, Search, Wrench } from "lucide-react";
+import { FlaskConical, Search } from "lucide-react";
 
-import { Checkbox } from "@redux/ui/components/checkbox";
+import { Switch } from "@redux/ui/components/switch";
 import {
   Dialog,
   DialogContent,
@@ -36,144 +36,157 @@ export function ChatToolsDialog({
 }: ChatToolsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader className="gap-3">
-          <div className="bg-primary/10 text-primary flex h-11 w-11 items-center justify-center rounded-2xl">
-            <Wrench className="size-5" />
-          </div>
-          <div className="space-y-1">
-            <DialogTitle>Tools</DialogTitle>
-            <DialogDescription>
-              Turn tools on per chat and adjust how they behave before you send
-              the next message.
-            </DialogDescription>
-          </div>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[420px]">
+        <DialogHeader className="border-border/80 space-y-1.5 border-b px-5 py-4 text-left">
+          <DialogTitle className="text-base tracking-tight">
+            Tools for this chat
+          </DialogTitle>
+          <DialogDescription className="text-xs leading-relaxed">
+            Changes apply on your next message.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <ToolCard
-            description="Let the assistant search the web for current information and cite results during a reply."
-            disabled={!settingsReady}
-            icon={Search}
-            title="Search"
-          >
-            <ToolToggleRow
+        <div
+          className={cn(
+            "divide-border/60 divide-y",
+            !settingsReady && "pointer-events-none opacity-60",
+          )}
+        >
+          <div className="px-5 py-4">
+            <ToolBlock
               checked={isSearchEnabled}
-              description="Allow live web search"
+              description="Web lookup with citations in replies."
               disabled={!settingsReady}
+              icon={Search}
               id="tool-search-enabled"
-              label="Enabled"
+              title="Search"
               onCheckedChange={onSearchEnabledChange}
             />
-          </ToolCard>
+          </div>
 
-          <ToolCard
-            description="Run Python in a cloud notebook workspace for calculations, data analysis, and file processing."
-            disabled={!settingsReady}
-            icon={FlaskConical}
-            title="Analysis"
-          >
-            <div className="space-y-3">
-              <ToolToggleRow
-                checked={isAnalysisWorkspaceEnabled}
-                description="Allow notebook-style Python execution"
-                disabled={!settingsReady}
-                id="tool-analysis-workspace-enabled"
-                label="Enabled"
-                onCheckedChange={onAnalysisWorkspaceEnabledChange}
+          <div className="px-5 py-4">
+            <ToolBlock
+              checked={isAnalysisWorkspaceEnabled}
+              description="Allow the agent to execute Python code in a Jupyter notebook."
+              disabled={!settingsReady}
+              icon={FlaskConical}
+              id="tool-analysis-workspace-enabled"
+              title="Analysis"
+              onCheckedChange={onAnalysisWorkspaceEnabledChange}
+            />
+
+            <div
+              className={cn(
+                "bg-muted/35 mt-3 rounded-lg px-3 py-2.5 transition-opacity",
+                !isAnalysisWorkspaceEnabled &&
+                  "pointer-events-none opacity-45",
+              )}
+            >
+              <SubToggle
+                checked={syncUploads}
+                disabled={!settingsReady || !isAnalysisWorkspaceEnabled}
+                id="tool-analysis-workspace-sync-uploads"
+                label="Download uploaded files to the VM"
+                onCheckedChange={onAnalysisWorkspaceSyncUploadsChange}
               />
-
-              <div
-                className={cn(
-                  "border-border/70 bg-muted/20 rounded-xl border p-3 transition-opacity",
-                  !isAnalysisWorkspaceEnabled &&
-                    "pointer-events-none opacity-50",
-                )}
-              >
-                <ToolToggleRow
-                  checked={syncUploads}
-                  description="Sync uploaded chat files into /home/user/uploads before code runs."
-                  disabled={!settingsReady || !isAnalysisWorkspaceEnabled}
-                  id="tool-analysis-workspace-sync-uploads"
-                  label="Include uploaded files"
-                  onCheckedChange={onAnalysisWorkspaceSyncUploadsChange}
-                />
-              </div>
             </div>
-          </ToolCard>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function ToolCard({
-  children,
+function ToolBlock({
+  checked,
   description,
   disabled,
   icon: Icon,
+  id,
+  onCheckedChange,
   title,
 }: {
-  children: React.ReactNode;
+  checked: boolean;
   description: string;
   disabled: boolean;
   icon: React.ComponentType<{ className?: string }>;
+  id: string;
+  onCheckedChange: (checked: boolean) => void;
   title: string;
 }) {
   return (
-    <section
-      className={cn(
-        "border-border/80 bg-card rounded-2xl border p-4",
-        disabled && "opacity-80",
-      )}
-    >
-      <div className="mb-4 flex items-start gap-3">
-        <div className="bg-muted text-foreground flex h-10 w-10 items-center justify-center rounded-xl">
-          <Icon className="size-4.5" />
+    <div className="flex gap-3.5">
+      <label
+        className={cn(
+          "flex min-w-0 flex-1 cursor-pointer gap-3.5",
+          disabled && "cursor-not-allowed",
+        )}
+        htmlFor={id}
+      >
+        <div
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-transparent transition-colors",
+            checked
+              ? "bg-primary/12 text-primary"
+              : "bg-muted/50 text-muted-foreground",
+          )}
+        >
+          <Icon className="size-4" />
         </div>
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">{title}</h3>
-          <p className="text-muted-foreground text-sm">{description}</p>
-        </div>
-      </div>
-      {children}
-    </section>
+        <span className="min-w-0">
+          <span className="text-foreground block text-sm font-medium leading-snug">
+            {title}
+          </span>
+          <span className="text-muted-foreground mt-1 block text-xs leading-relaxed">
+            {description}
+          </span>
+        </span>
+      </label>
+      <Switch
+        checked={checked}
+        className="mt-1 self-start"
+        disabled={disabled}
+        id={id}
+        onCheckedChange={onCheckedChange}
+      />
+    </div>
   );
 }
 
-function ToolToggleRow({
+function SubToggle({
   checked,
-  description,
   disabled,
   id,
   label,
   onCheckedChange,
 }: {
   checked: boolean;
-  description: string;
   disabled: boolean;
   id: string;
   label: string;
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <label
-      className={cn(
-        "flex items-start justify-between gap-4 rounded-xl",
-        disabled && "cursor-not-allowed",
-      )}
-      htmlFor={id}
-    >
-      <div className="space-y-1">
-        <div className="text-sm font-medium">{label}</div>
-        <p className="text-muted-foreground text-sm">{description}</p>
-      </div>
-      <Checkbox
+    <div className="flex gap-3">
+      <label
+        className={cn(
+          "flex min-w-0 flex-1 cursor-pointer",
+          disabled && "cursor-not-allowed",
+        )}
+        htmlFor={id}
+      >
+        <span className="text-foreground block text-xs font-medium leading-snug">
+          {label}
+        </span>
+      </label>
+      <Switch
         checked={checked}
+        className="mt-0.5 self-start"
         disabled={disabled}
         id={id}
-        onCheckedChange={(value) => onCheckedChange(value === true)}
+        size="sm"
+        onCheckedChange={onCheckedChange}
       />
-    </label>
+    </div>
   );
 }

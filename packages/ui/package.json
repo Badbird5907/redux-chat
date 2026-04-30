@@ -89,6 +89,7 @@
     "./components/skeleton": "./src/components/skeleton.tsx",
     "./components/sonner": "./src/components/sonner.tsx",
     "./components/spinner": "./src/components/spinner.tsx",
+    "./components/switch": "./src/components/switch.tsx",
     "./components/table": "./src/components/table.tsx",
     "./components/tabs": "./src/components/tabs.tsx",
     "./components/textarea": "./src/components/textarea.tsx",

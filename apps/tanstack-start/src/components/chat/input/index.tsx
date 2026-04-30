@@ -14,7 +14,6 @@ import {
   CHAT_MODELS,
   classifyChatAttachment,
   getChatModelConfig,
-  isFileAllowedForModel,
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "@redux/shared/models";
@@ -31,13 +30,13 @@ import {
   useMessageQueue,
 } from "@/components/chat/use-message-queue";
 import { submitMessage } from "@/components/chat/use-submit-message";
-import { useUpload } from "@/lib/silo/react";
 import { deleteDraftAttachment } from "@/server/attachments";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
 import { MessageQueueCard } from "./message-queue-card";
 import { ChatToolsDialog } from "./tools-dialog";
+import { useFileUpload } from "./use-file-upload";
 import { isAttachmentExpired } from "./utils";
 
 export function ChatInput({
@@ -85,19 +84,12 @@ export function ChatInput({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toolsDialogOpen, setToolsDialogOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
   const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
-  const upload = useUpload({
-    endpoint: "chatAttachment",
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
   const {
     queue,
     enqueue,
@@ -243,107 +235,26 @@ export function ChatInput({
     [currentModelRoute],
   );
 
-  const openFilePicker = useCallback(() => {
-    if (!canUploadFiles) {
-      return;
-    }
-
+  const beforeOpenFilePicker = useCallback(() => {
     setDropdownOpen(false);
-    fileInputRef.current?.click();
-  }, [canUploadFiles]);
+  }, []);
 
-  const handleFileSelect = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files || !currentModelConfig) {
-        return;
-      }
-
-      for (const file of Array.from(files)) {
-        if (!isFileAllowedForModel(selectedModel, file)) {
-          toast.error(
-            `File type not supported by ${currentModelConfig.name} (${file.type})`,
-          );
-          continue;
-        }
-
-        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        const objectUrl =
-          file.type.startsWith("image/") ||
-          file.type.startsWith("video/") ||
-          file.type.startsWith("audio/") ||
-          file.type === "application/pdf"
-            ? URL.createObjectURL(file)
-            : undefined;
-
-        appendAttachment({
-          attachmentId: tempId,
-          fileName: file.name,
-          mimeType: file.type,
-          size: file.size,
-          url: objectUrl,
-          uploading: true,
-          objectUrl,
-        });
-
-        try {
-          const completion = await upload.uploadFile(file, {
-            input: {
-              modelId: selectedModel,
-              threadId,
-            },
-          });
-
-          updateAttachment(tempId, (attachment) => {
-            if (attachment.objectUrl) {
-              URL.revokeObjectURL(attachment.objectUrl);
-            }
-
-            return {
-              attachmentId: completion.result.attachmentId,
-              fileName: completion.result.fileName,
-              mimeType: completion.result.mimeType,
-              size: completion.result.size,
-              url: completion.result.url,
-              uploading: false,
-              expiresAt: completion.result.expiresAt,
-            };
-          });
-        } catch (error) {
-          setAttachments((previous) => {
-            const failedAttachment = previous.find(
-              (attachment) => attachment.attachmentId === tempId,
-            );
-            if (failedAttachment?.objectUrl) {
-              URL.revokeObjectURL(failedAttachment.objectUrl);
-            }
-            return previous.filter(
-              (attachment) => attachment.attachmentId !== tempId,
-            );
-          });
-
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : `Failed to upload ${file.name}`,
-          );
-        }
-      }
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    },
-    [
-      appendAttachment,
-      currentModelConfig,
-      selectedModel,
-      setAttachments,
-      threadId,
-      updateAttachment,
-      upload,
-    ],
-  );
+  const {
+    fileInputRef,
+    handleFileSelect,
+    handlePasteFiles,
+    openFilePicker,
+    dropHighlightLayer,
+  } = useFileUpload({
+    threadId,
+    selectedModel,
+    currentModelConfig,
+    canUploadFiles,
+    appendAttachment,
+    updateAttachment,
+    setAttachments,
+    beforeOpenFilePicker,
+  });
 
   const handleRemoveAttachment = useCallback(
     async (attachmentId: string) => {
@@ -859,6 +770,7 @@ export function ChatInput({
 
   return (
     <>
+      {dropHighlightLayer}
       {isExpanded && (
         <div
           className="bg-background/80 animate-in fade-in fixed inset-0 z-40 backdrop-blur-sm duration-300"
@@ -930,6 +842,7 @@ export function ChatInput({
               visualizationHeight={visualizationHeight}
               tokenizedText={tokenizedText}
               onKeyDown={handleKeyDown}
+              onPasteFiles={handlePasteFiles}
               draftReady={draftReady}
               onCloseTokenVisualization={() => setShowTokenVisualization(false)}
             />
