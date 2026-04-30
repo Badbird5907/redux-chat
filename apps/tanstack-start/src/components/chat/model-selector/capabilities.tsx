@@ -83,16 +83,23 @@ export function Capabilities({ model }: { model: ChatModelConfig }) {
     >
       {items.map(({ id, label, Icon, chipClassName }) => (
         <Tooltip key={id} delay={300}>
-          <TooltipTrigger>
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={label}
-              className={cn(CAPABILITY_CHIP_WRAPPER_CLASSES, chipClassName)}
-            >
-              <Icon className="size-3.5" strokeWidth={2} aria-hidden />
-            </button>
-          </TooltipTrigger>
+          <TooltipTrigger
+            render={(props) => (
+              <button
+                type="button"
+                {...props}
+                tabIndex={-1}
+                aria-label={label}
+                className={cn(
+                  CAPABILITY_CHIP_WRAPPER_CLASSES,
+                  chipClassName,
+                  props.className,
+                )}
+              >
+                <Icon className="size-3.5" strokeWidth={2} aria-hidden />
+              </button>
+            )}
+          />
           <TooltipContent side="top" sideOffset={6} className="font-medium">
             {label}
           </TooltipContent>

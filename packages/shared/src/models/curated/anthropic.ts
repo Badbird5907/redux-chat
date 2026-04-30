@@ -12,12 +12,6 @@ export const ANTHROPIC_PROVIDER: CuratedProviderDefinition = {
       name: "Claude Sonnet 4",
       providerIds: ["anthropic:claude-sonnet-4-20250514"],
       defaultProviderId: "anthropic:claude-sonnet-4-20250514",
-      benchmarks: {
-        aa: {
-          id: "0a603978-03b9-4f47-a273-2f7fd969be85",
-          slug: "claude-sonnet-4",
-        },
-      },
       attachments: {
         maxFiles: 4,
       },

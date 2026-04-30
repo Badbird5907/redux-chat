@@ -10,6 +10,7 @@ import {
 import { CommandPanel } from "@/components/command";
 import { SettingsSidebarPanel } from "@/components/settings/sidebar-panel";
 import {
+  ModelSwitcherHotkeyRegistration,
   NewChatHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
@@ -53,6 +54,7 @@ function SettingsLayout() {
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
       <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
       <NewChatHotkeyRegistration />
+      <ModelSwitcherHotkeyRegistration />
       <SidebarToggleHotkeyRegistration />
       <SettingsSidebarPanel />
       <main className="flex h-screen w-screen flex-col p-2">

@@ -166,22 +166,31 @@ export function ChatInputAttachmentsBar({
         return (
           <div key={file.attachmentId} className="group relative">
             <Tooltip delay={300}>
-              <TooltipTrigger>
-                <span className="inline-flex h-16 w-16">
+              <TooltipTrigger
+                render={(props) => (
                   <button
                     type="button"
+                    {...props}
                     aria-label={`Preview attachment ${file.fileName}`}
-                    onClick={() =>
-                      !file.uploading &&
-                      !isExpired &&
-                      onPreview({
-                        id: file.attachmentId,
-                        name: file.fileName,
-                        type: file.mimeType,
-                        url: file.url,
-                      })
-                    }
-                    className="border-border bg-muted hover:border-primary relative h-full w-full overflow-hidden rounded-lg border transition-colors"
+                    onClick={(e) => {
+                      props.onClick?.(e);
+                      if (
+                        !file.uploading &&
+                        !isExpired &&
+                        !e.defaultPrevented
+                      ) {
+                        onPreview({
+                          id: file.attachmentId,
+                          name: file.fileName,
+                          type: file.mimeType,
+                          url: file.url,
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "border-border bg-muted hover:border-primary relative inline-flex h-16 w-16 overflow-hidden rounded-lg border transition-colors",
+                      props.className,
+                    )}
                     disabled={file.uploading || isExpired}
                   >
                     {isImage && file.url && !isExpired ? (
@@ -217,8 +226,8 @@ export function ChatInputAttachmentsBar({
                       </div>
                     )}
                   </button>
-                </span>
-              </TooltipTrigger>
+                )}
+              />
               <TooltipContent
                 side="top"
                 className="max-w-[min(20rem,calc(100vw-3rem))] px-3 py-1.5 text-left"

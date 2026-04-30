@@ -24,6 +24,7 @@ import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
 import {
+  ModelSwitcherHotkeyRegistration,
   NewChatHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
@@ -120,6 +121,7 @@ function AppLayout() {
     <ChatRouteAdoptionProvider>
       <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
         <NewChatHotkeyRegistration />
+        <ModelSwitcherHotkeyRegistration />
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
         <main className="flex h-screen w-screen flex-col p-2">

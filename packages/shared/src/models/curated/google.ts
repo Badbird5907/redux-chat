@@ -11,12 +11,6 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
       id: "gemini-2.5-pro",
       providerIds: ["openrouter:google/gemini-2.5-pro"],
       defaultProviderId: "openrouter:google/gemini-2.5-pro",
-      benchmarks: {
-        aa: {
-          id: "27202e5f-c82d-4710-92e9-4317877d4883",
-          slug: "gemini-2-5-pro",
-        },
-      },
       attachments: {
         maxFiles: 4,
       },

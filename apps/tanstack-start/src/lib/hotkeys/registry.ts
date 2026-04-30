@@ -44,6 +44,12 @@ export const appHotkeyRegistry = defineAppHotkeys({
     category: "Navigation",
     defaultHotkey: "Mod+Shift+O",
   },
+  "model.switcher.open": {
+    label: "Open model switcher",
+    description: "Open the model picker to change the active chat model.",
+    category: "Chat",
+    defaultHotkey: "Mod+/",
+  },
 });
 
 export type AppHotkeyId = keyof typeof appHotkeyRegistry;

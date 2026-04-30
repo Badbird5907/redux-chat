@@ -28,6 +28,7 @@ import {
   modelMatchesFeatureFilters,
   modelMatchesMinKnowledgeCutoff,
 } from "./feature-filters";
+import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
 import { useQuery } from "@/lib/hooks/convex";
 
 type ModelSelectorNavColumn = "search" | "sidebar" | "list";
@@ -314,6 +315,17 @@ export function useModelSelectorState({
     },
     [activeSidebar, sidebarProviders, resetPickerDismissState],
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onOpenRequest = () => {
+      handleOpenChange(true);
+    };
+    window.addEventListener(OPEN_MODEL_SELECTOR_EVENT, onOpenRequest);
+    return () => {
+      window.removeEventListener(OPEN_MODEL_SELECTOR_EVENT, onOpenRequest);
+    };
+  }, [handleOpenChange]);
 
   const pickModelAt = useCallback(
     (index: number) => {
