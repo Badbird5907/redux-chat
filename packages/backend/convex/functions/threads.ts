@@ -451,7 +451,7 @@ export const internal_failStream = backendMutation({
       )
       .first();
 
-    if (assistantMessage && assistantMessage.role === "assistant") {
+    if (assistantMessage?.role === "assistant") {
       await ctx.db.patch(assistantMessage._id, {
         status: "failed",
         error: args.error,

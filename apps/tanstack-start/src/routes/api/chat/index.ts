@@ -361,7 +361,10 @@ export const Route = createFileRoute("/api/chat/")({
               api.functions.instructions.getEffectiveInstruction,
               { instructionId: thread?.settings.instructionId },
             );
-            const prompt = selectedInstruction?.prompt?.trim();
+            const prompt =
+              selectedInstruction === null
+                ? undefined
+                : selectedInstruction.prompt.trim();
             if (prompt) {
               selectedInstructionPrompt = prompt;
             }

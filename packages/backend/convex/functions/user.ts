@@ -3,7 +3,7 @@ import { v } from "convex/values";
 
 import { authComponent } from "../auth";
 import { backendEnv } from "../env";
-import { mutation, query } from "./index";
+import { query } from "./index";
 
 export const getUserImage = query({
   args: {
@@ -15,10 +15,6 @@ export const getUserImage = query({
     }
 
     const target = await authComponent.getAuthUser(ctx);
-
-    if (!target) {
-      throw new Error("User not found");
-    }
 
     if (typeof target.image === "string" && target.image) {
       if (target.image.startsWith("http")) {

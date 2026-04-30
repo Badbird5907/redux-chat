@@ -208,7 +208,7 @@ export const internal_getAttachmentSummaries = backendQuery({
         .query("attachments")
         .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
         .first();
-      if (!a || a.userId !== args.userId) continue;
+      if (a?.userId !== args.userId) continue;
       out[attachmentId] = {
         fileName: a.fileName,
         mimeType: a.mimeType,
