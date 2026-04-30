@@ -1,5 +1,6 @@
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import type { ToolSet } from "ai";
+import { createMCPClient } from "@ai-sdk/mcp";
 import { webSearch } from "@exalabs/ai-sdk";
 import { tool } from "ai";
 import { z } from "zod";
@@ -17,6 +18,11 @@ export type { ChatToolAttachment };
 
 interface ToolRuntimeOptions {
   attachments?: ChatToolAttachment[];
+  mcpServers?: {
+    mcpServerId: string;
+    name: string;
+    url: string;
+  }[];
   projectContext?: {
     chatProjectId: string;
     userId: string;
@@ -28,14 +34,29 @@ interface ToolRuntime {
   tools: ToolSet;
 }
 
-export function createToolRuntime(
+function toToolKeyPrefix(name: string) {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return normalized || "server";
+}
+
+export async function createToolRuntime(
   settings: MessageSettings,
-  { attachments = [], projectContext }: ToolRuntimeOptions = {},
-): ToolRuntime {
+  {
+    attachments = [],
+    mcpServers = [],
+    projectContext,
+  }: ToolRuntimeOptions = {},
+): Promise<ToolRuntime> {
   const enabledTools = getEnabledMessageTools(settings.tools);
   const tools: ToolSet = {};
 
   let sandboxRuntime: ReturnType<typeof createSandboxRuntime> | undefined;
+  const mcpClients: Awaited<ReturnType<typeof createMCPClient>>[] = [];
 
   if (enabledTools.includes("search")) {
     tools.search = webSearch();
@@ -81,6 +102,27 @@ export function createToolRuntime(
     });
   }
 
+  if (enabledTools.includes("mcpServers")) {
+    for (const server of mcpServers) {
+      const client = await createMCPClient({
+        name: `redux-chat-${server.mcpServerId}`,
+        transport: {
+          type: "http",
+          url: server.url,
+          redirect: "error",
+        },
+      });
+      mcpClients.push(client);
+
+      const serverTools = await client.tools();
+      const prefix = toToolKeyPrefix(server.name);
+
+      for (const [toolName, toolDefinition] of Object.entries(serverTools)) {
+        tools[`mcp_${prefix}_${toolName}`] = toolDefinition as ToolSet[string];
+      }
+    }
+  }
+
   if (projectContext) {
     tools.search_project_knowledge = searchProjectKnowledgeTool({
       ...projectContext,
@@ -91,6 +133,7 @@ export function createToolRuntime(
   return {
     tools,
     cleanup: async () => {
+      await Promise.allSettled(mcpClients.map((client) => client.close()));
       await sandboxRuntime?.cleanup();
     },
   };

@@ -50,6 +50,11 @@ const messageSettingsValidator = v.object({
         syncUploads: v.optional(v.boolean()),
       }),
     ),
+    mcpServers: v.optional(
+      v.object({
+        serverIds: v.array(v.string()),
+      }),
+    ),
   }),
 });
 
@@ -1142,6 +1147,11 @@ export const updateThreadSettings = mutation({
           analysisWorkspace: v.optional(
             v.object({
               syncUploads: v.optional(v.boolean()),
+            }),
+          ),
+          mcpServers: v.optional(
+            v.object({
+              serverIds: v.array(v.string()),
             }),
           ),
         }),

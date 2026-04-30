@@ -16,6 +16,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
@@ -65,6 +66,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const SettingsMcpRoute = SettingsMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsInstructionsRoute = SettingsInstructionsRouteImport.update({
   id: '/instructions',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/chat/$id': typeof AppChatIdRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
   '/': typeof AppIndexRoute
   '/logos': typeof LogosIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
   '/_app/': typeof AppIndexRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/settings/hotkeys'
     | '/settings/instructions'
+    | '/settings/mcp'
     | '/logos/'
     | '/settings/'
     | '/chat/$id'
@@ -247,6 +257,7 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/settings/hotkeys'
     | '/settings/instructions'
+    | '/settings/mcp'
     | '/'
     | '/logos'
     | '/settings'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/settings/hotkeys'
     | '/settings/instructions'
+    | '/settings/mcp'
     | '/_app/'
     | '/logos/'
     | '/settings/'
@@ -348,6 +360,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/settings/mcp': {
+      id: '/settings/mcp'
+      path: '/mcp'
+      fullPath: '/settings/mcp'
+      preLoaderRoute: typeof SettingsMcpRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/settings/instructions': {
       id: '/settings/instructions'
@@ -492,12 +511,14 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 interface SettingsRouteChildren {
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
   SettingsInstructionsRoute: typeof SettingsInstructionsRoute
+  SettingsMcpRoute: typeof SettingsMcpRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsHotkeysRoute: SettingsHotkeysRoute,
   SettingsInstructionsRoute: SettingsInstructionsRoute,
+  SettingsMcpRoute: SettingsMcpRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 

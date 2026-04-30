@@ -44,6 +44,11 @@ const messageTools = v.object({
       syncUploads: v.optional(v.boolean()),
     }),
   ),
+  mcpServers: v.optional(
+    v.object({
+      serverIds: v.array(v.string()),
+    }),
+  ),
 });
 
 export const messageSettings = v.object({
@@ -53,6 +58,17 @@ export const messageSettings = v.object({
 });
 
 export default defineSchema({
+  mcpServers: defineTable({
+    mcpServerId: v.string(),
+    userId: v.string(),
+    name: v.string(),
+    url: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_mcpServerId", ["mcpServerId"])
+    .index("by_userId", ["userId", "updatedAt"]),
+
   defaultMessageSettings: defineTable({
     userId: v.string(),
     settings: messageSettings,

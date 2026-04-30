@@ -60,6 +60,11 @@ export const update = mutation({
               syncUploads: v.optional(v.boolean()),
             }),
           ),
+          mcpServers: v.optional(
+            v.object({
+              serverIds: v.array(v.string()),
+            }),
+          ),
         }),
       ),
     }),

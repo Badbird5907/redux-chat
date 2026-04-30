@@ -7,6 +7,7 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  PlugZap,
   Plus,
   Search,
   Square,
@@ -16,6 +17,7 @@ import {
 import { Button } from "@redux/ui/components/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -41,6 +43,7 @@ interface ChatInputToolbarProps {
   onDropdownOpenChange: (open: boolean) => void;
   onOpenFilePicker: () => void;
   onOpenToolsDialog: () => void;
+  onOpenMcpSettings: () => void;
   instructions: {
     instructionId: string;
     name: string;
@@ -56,6 +59,12 @@ interface ChatInputToolbarProps {
   project?: string;
   onToggleSearch: () => void;
   settingsReady: boolean;
+  mcpServers: {
+    mcpServerId: string;
+    name: string;
+  }[];
+  enabledMcpServerIds: string[];
+  onToggleMcpServer: (mcpServerId: string) => void;
   isContentOverflowing: boolean;
   isExpanded: boolean;
   onToggleExpand: () => void;
@@ -81,6 +90,7 @@ export function ChatInputToolbar({
   onDropdownOpenChange,
   onOpenFilePicker,
   onOpenToolsDialog,
+  onOpenMcpSettings,
   instructions,
   selectedInstructionId,
   selectedInstructionName,
@@ -90,6 +100,9 @@ export function ChatInputToolbar({
   isSearchEnabled,
   onToggleSearch,
   settingsReady,
+  mcpServers,
+  enabledMcpServerIds,
+  onToggleMcpServer,
   isContentOverflowing,
   isExpanded,
   onToggleExpand,
@@ -189,6 +202,38 @@ export function ChatInputToolbar({
               <Hammer className="size-4 shrink-0" />
               <span className="min-w-0 grow whitespace-nowrap">Tools</span>
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>MCP Servers</DropdownMenuLabel>
+              {mcpServers.length > 0 ? (
+                mcpServers.map((server) => (
+                  <DropdownMenuCheckboxItem
+                    key={server.mcpServerId}
+                    checked={enabledMcpServerIds.includes(server.mcpServerId)}
+                    disabled={!settingsReady}
+                    onCheckedChange={() =>
+                      onToggleMcpServer(server.mcpServerId)
+                    }
+                  >
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      {server.name}
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                ))
+              ) : (
+                <DropdownMenuItem disabled>
+                  <span className="min-w-0 grow whitespace-nowrap">
+                    No MCP servers configured
+                  </span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={onOpenMcpSettings}>
+                <PlugZap className="size-4 shrink-0" />
+                <span className="min-w-0 grow whitespace-nowrap">
+                  Manage MCP Servers
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
         <button

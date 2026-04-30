@@ -1,5 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, BookText, Keyboard, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowLeft,
+  BookText,
+  Keyboard,
+  PlugZap,
+  SlidersHorizontal,
+} from "lucide-react";
 
 import {
   SidebarMenu,
@@ -17,6 +23,7 @@ export function SettingsSidebarPanel() {
   const isGeneralActive = pathname === "/settings" || pathname === "/settings/";
   const isInstructionsActive = pathname.startsWith("/settings/instructions");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
+  const isMcpActive = pathname.startsWith("/settings/mcp");
 
   return (
     <AppSidebar
@@ -49,6 +56,16 @@ export function SettingsSidebarPanel() {
             >
               <BookText />
               <span>Instructions</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isMcpActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/mcp" />}
+            >
+              <PlugZap />
+              <span>MCP Servers</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

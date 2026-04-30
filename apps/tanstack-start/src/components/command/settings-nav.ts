@@ -17,6 +17,13 @@ export const SETTINGS_NAV_ITEMS = [
     searchBlob: "instructions prompts styles presets system prompts",
   },
   {
+    value: "settings-mcp",
+    to: "/settings/mcp" as const,
+    title: "MCP Servers",
+    subtitle: "Manage remote HTTP MCP endpoints",
+    searchBlob: "mcp servers tools model context protocol http",
+  },
+  {
     value: "settings-hotkeys",
     to: "/settings/hotkeys" as const,
     title: "Hotkeys",

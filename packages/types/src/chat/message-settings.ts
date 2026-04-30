@@ -1,6 +1,10 @@
 import { DEFAULT_CHAT_MODEL_ID, normalizeModelId } from "@redux/shared/models";
 
-export const MESSAGE_TOOL_NAMES = ["search", "analysisWorkspace"] as const;
+export const MESSAGE_TOOL_NAMES = [
+  "search",
+  "analysisWorkspace",
+  "mcpServers",
+] as const;
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
 
@@ -14,14 +18,24 @@ export interface AnalysisWorkspaceToolSettingsInput {
   syncUploads?: boolean;
 }
 
+export interface McpServersToolSettings {
+  serverIds: string[];
+}
+
+export interface McpServersToolSettingsInput {
+  serverIds: string[];
+}
+
 export interface MessageToolSettings {
   search?: SearchToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettings;
+  mcpServers?: McpServersToolSettings;
 }
 
 export interface MessageToolSettingsInput {
   search?: SearchToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettingsInput;
+  mcpServers?: McpServersToolSettingsInput;
 }
 
 export interface MessageSettings {
@@ -109,6 +123,25 @@ function normalizeTools(
     normalizedTools.analysisWorkspace = {
       syncUploads: tools.analysisWorkspace.syncUploads !== false,
     };
+  }
+
+  if (
+    tools?.mcpServers &&
+    typeof tools.mcpServers === "object" &&
+    !Array.isArray(tools.mcpServers)
+  ) {
+    const serverIds = Array.from(
+      new Set(
+        (tools.mcpServers.serverIds ?? []).filter(
+          (serverId): serverId is string =>
+            typeof serverId === "string" && serverId.trim().length > 0,
+        ),
+      ),
+    );
+
+    if (serverIds.length > 0) {
+      normalizedTools.mcpServers = { serverIds };
+    }
   }
 
   return normalizedTools;

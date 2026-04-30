@@ -54,6 +54,11 @@ const requestBody = z.object({
           syncUploads: z.boolean().optional(),
         })
         .optional(),
+      mcpServers: z
+        .object({
+          serverIds: z.array(z.string()),
+        })
+        .optional(),
     }),
   }),
   model: z.string(),
@@ -298,12 +303,14 @@ export const Route = createFileRoute("/api/chat/")({
         } = parsedBody;
         const settings = normalizeMessageSettings(rawSettings);
         const isSearchEnabled = isToolEnabled(settings.tools, "search");
+        const enabledMcpServerIds = settings.tools.mcpServers?.serverIds ?? [];
         console.log("Received request:", {
           threadId,
           assistantMessageId,
           clientId,
           model: settings.model,
           isSearchEnabled,
+          enabledMcpServerIds,
         });
 
         let cleanupTools: (() => Promise<void>) | undefined;
@@ -435,8 +442,16 @@ export const Route = createFileRoute("/api/chat/")({
             );
           }
 
-          const toolRuntime = createToolRuntime(settings, {
+          const enabledMcpServers =
+            enabledMcpServerIds.length > 0
+              ? await fetchAuthQuery(api.functions.mcpServers.getByIds, {
+                  serverIds: enabledMcpServerIds,
+                })
+              : [];
+
+          const toolRuntime = await createToolRuntime(settings, {
             attachments: getToolAttachments(attachmentsByMessageId),
+            mcpServers: enabledMcpServers,
             projectContext:
               chatProjectId && threadUserId
                 ? {
