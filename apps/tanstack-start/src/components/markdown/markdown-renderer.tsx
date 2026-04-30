@@ -3,9 +3,11 @@
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { Streamdown } from "streamdown";
+import type { ThemeInput } from "streamdown";
 
 import { cn } from "@redux/ui/lib/utils";
 
+import { normalizeStreamdownMath } from "./normalize-streamdown-math";
 import { streamdownComponents } from "./streamdown-components";
 
 const streamdownPlugins = {
@@ -13,7 +15,7 @@ const streamdownPlugins = {
   math,
 } as const;
 
-const shikiTheme = ["github-light", "github-dark"] as const;
+const shikiTheme: [ThemeInput, ThemeInput] = ["github-light", "github-dark"];
 
 interface MarkdownRendererProps {
   content: string;
@@ -34,6 +36,8 @@ export function MarkdownRenderer({
     return null;
   }
 
+  const normalizedContent = normalizeStreamdownMath(content);
+
   return (
     <Streamdown
       className={cn(
@@ -49,7 +53,7 @@ export function MarkdownRenderer({
       plugins={streamdownPlugins}
       shikiTheme={shikiTheme}
     >
-      {content}
+      {normalizedContent}
     </Streamdown>
   );
 }
