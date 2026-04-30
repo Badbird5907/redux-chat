@@ -1,3 +1,4 @@
+import type { ChatPreload } from "@/components/chat/preload";
 import {
   createFileRoute,
   Link,
@@ -20,7 +21,6 @@ import {
 
 import { AppChatRoute } from "@/components/chat/app-chat-route";
 import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
-import type { ChatPreload } from "@/components/chat/preload";
 // import { getToken } from "@/lib/auth/server";
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
@@ -119,14 +119,16 @@ function AppLayout() {
   const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
   const chatPreload: ChatPreload | undefined =
     chatMatchThreadId === chatThreadId
-      ? (chatMatch?.loaderData as ChatPreload | undefined)
+      ? chatMatch?.loaderData
       : chatThreadId === undefined
         ? {
             settingsJson:
               (
-                homeMatch?.loaderData as {
-                  settingsJson?: ChatPreload["settingsJson"];
-                }
+                homeMatch?.loaderData as
+                  | {
+                      settingsJson?: ChatPreload["settingsJson"];
+                    }
+                  | undefined
               )?.settingsJson ?? null,
           }
         : undefined;

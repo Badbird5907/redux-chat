@@ -11,7 +11,6 @@ import { estimateTokenCount, splitByTokens } from "tokenx";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import {
-  CHAT_MODELS,
   classifyChatAttachment,
   getChatModelConfig,
   resolveModelAttachmentDelivery,
@@ -51,11 +50,9 @@ export function ChatInput({
   clientId,
   convexMessages,
   settings,
-  baselineSettings,
   settingsReady,
   onModelChange,
   onSettingsChange,
-  restoreSettings,
   editMessage,
   onCancelEdit,
   onSubmitEdit,
@@ -73,10 +70,7 @@ export function ChatInput({
     clearDraft,
   } = useChatDraft({
     threadId,
-    settings,
-    baselineSettings,
     settingsReady,
-    restoreSettings,
     persistDraft: !editMessage,
   });
   const [previewFile, setPreviewFile] = useState<PreviewableFile | null>(null);
@@ -324,7 +318,9 @@ export function ChatInput({
 
   const handleInstructionChange = useCallback(
     (instructionId: string) => {
-      void onSettingsChange({ instructionId });
+      void onSettingsChange({
+        instructionId: instructionId === "" ? undefined : instructionId,
+      });
       setDropdownOpen(false);
     },
     [onSettingsChange],

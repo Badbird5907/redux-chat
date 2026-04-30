@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,12 +19,30 @@ interface InstructionDraft {
   prompt: string;
 }
 
+function createInstructionDraft(instruction: {
+  name: string;
+  prompt: string;
+}): InstructionDraft {
+  return {
+    name: instruction.name,
+    prompt: instruction.prompt,
+  };
+}
+
 export function InstructionsManager() {
   const { instructions, isReady } = useInstructions();
-  const createInstruction = useMutation(api.functions.instructions.createInstruction);
-  const updateInstruction = useMutation(api.functions.instructions.updateInstruction);
-  const resetInstruction = useMutation(api.functions.instructions.resetInstruction);
-  const deleteInstruction = useMutation(api.functions.instructions.deleteInstruction);
+  const createInstruction = useMutation(
+    api.functions.instructions.createInstruction,
+  );
+  const updateInstruction = useMutation(
+    api.functions.instructions.updateInstruction,
+  );
+  const resetInstruction = useMutation(
+    api.functions.instructions.resetInstruction,
+  );
+  const deleteInstruction = useMutation(
+    api.functions.instructions.deleteInstruction,
+  );
 
   const [drafts, setDrafts] = useState<Record<string, InstructionDraft>>({});
   const [newInstructionName, setNewInstructionName] = useState("");
@@ -40,42 +58,40 @@ export function InstructionsManager() {
     string | null
   >(null);
 
-  useEffect(() => {
-    setDrafts((currentDrafts) => {
-      const nextDrafts: Record<string, InstructionDraft> = {};
-      for (const instruction of instructions) {
-        nextDrafts[instruction.instructionId] = currentDrafts[
-          instruction.instructionId
-        ] ?? {
-          name: instruction.name,
-          prompt: instruction.prompt,
-        };
-      }
-      return nextDrafts;
-    });
-  }, [instructions]);
+  const mergedDrafts = useMemo(
+    () =>
+      Object.fromEntries(
+        instructions.map((instruction) => [
+          instruction.instructionId,
+          drafts[instruction.instructionId] ??
+            createInstructionDraft(instruction),
+        ]),
+      ) as Record<string, InstructionDraft>,
+    [drafts, instructions],
+  );
 
   const dirtyInstructionIds = useMemo(
     () =>
       new Set(
         instructions
           .filter((instruction) => {
-            const draft = drafts[instruction.instructionId];
+            const draft = mergedDrafts[instruction.instructionId];
             if (!draft) {
               return false;
             }
 
             return (
-              draft.name !== instruction.name || draft.prompt !== instruction.prompt
+              draft.name !== instruction.name ||
+              draft.prompt !== instruction.prompt
             );
           })
           .map((instruction) => instruction.instructionId),
       ),
-    [drafts, instructions],
+    [instructions, mergedDrafts],
   );
 
   const handleSave = async (instructionId: string) => {
-    const draft = drafts[instructionId];
+    const draft = mergedDrafts[instructionId];
     const instruction = instructions.find(
       (candidate) => candidate.instructionId === instructionId,
     );
@@ -187,7 +203,9 @@ export function InstructionsManager() {
   };
 
   if (!isReady && instructions.length === 0) {
-    return <div className="text-muted-foreground text-sm">Loading instructions…</div>;
+    return (
+      <div className="text-muted-foreground text-sm">Loading instructions…</div>
+    );
   }
 
   return (
@@ -195,8 +213,9 @@ export function InstructionsManager() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Instructions</h1>
         <p className="text-muted-foreground max-w-3xl text-sm">
-          Create reusable behavior presets for chats. Built-in instructions can be
-          edited and reset. Custom instructions can be created and deleted.
+          Create reusable behavior presets for chats. Built-in instructions can
+          be edited, reset, and removed. Custom instructions can be created and
+          deleted.
         </p>
       </div>
 
@@ -216,6 +235,7 @@ export function InstructionsManager() {
           />
           <Textarea
             rows={6}
+            className="field-sizing-fixed resize-y overflow-y-auto"
             value={newInstructionPrompt}
             placeholder="Tell the model how it should behave, write, and respond..."
             onChange={(event) => setNewInstructionPrompt(event.target.value)}
@@ -237,21 +257,24 @@ export function InstructionsManager() {
 
       <div className="flex flex-col gap-4">
         {instructions.map((instruction) => {
-          const draft = drafts[instruction.instructionId] ?? {
-            name: instruction.name,
-            prompt: instruction.prompt,
-          };
+          const draft =
+            mergedDrafts[instruction.instructionId] ??
+            createInstructionDraft(instruction);
           const isDirty = dirtyInstructionIds.has(instruction.instructionId);
           const isSaving = savingInstructionId === instruction.instructionId;
-          const isResetting = resettingInstructionId === instruction.instructionId;
-          const isDeleting = deletingInstructionId === instruction.instructionId;
+          const isResetting =
+            resettingInstructionId === instruction.instructionId;
+          const isDeleting =
+            deletingInstructionId === instruction.instructionId;
 
           return (
             <Card key={instruction.instructionId}>
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div className="flex min-w-0 flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-medium">{instruction.name}</div>
+                    <div className="text-sm font-medium">
+                      {instruction.name}
+                    </div>
                     {instruction.isDefault ? <Badge>Default</Badge> : null}
                     {instruction.isBuiltin ? (
                       <Badge variant="secondary">Built-in</Badge>
@@ -269,12 +292,14 @@ export function InstructionsManager() {
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  {instruction.isBuiltin ? (
+                  {instruction.isBuiltin && instruction.isDefault ? (
                     <Button
                       variant="ghost"
                       size="sm"
                       disabled={isResetting}
-                      onClick={() => void handleReset(instruction.instructionId)}
+                      onClick={() =>
+                        void handleReset(instruction.instructionId)
+                      }
                     >
                       <RotateCcw className="size-4" />
                       {isResetting ? "Resetting..." : "Reset"}
@@ -284,7 +309,9 @@ export function InstructionsManager() {
                       variant="ghost"
                       size="sm"
                       disabled={isDeleting}
-                      onClick={() => void handleDelete(instruction.instructionId)}
+                      onClick={() =>
+                        void handleDelete(instruction.instructionId)
+                      }
                     >
                       <Trash2 className="size-4" />
                       {isDeleting ? "Deleting..." : "Delete"}
@@ -300,7 +327,7 @@ export function InstructionsManager() {
                     setDrafts((currentDrafts) => ({
                       ...currentDrafts,
                       [instruction.instructionId]: {
-                        ...draft,
+                        ...(currentDrafts[instruction.instructionId] ?? draft),
                         name: event.target.value,
                       },
                     }))
@@ -308,12 +335,13 @@ export function InstructionsManager() {
                 />
                 <Textarea
                   rows={8}
+                  className="field-sizing-fixed resize-y overflow-y-auto"
                   value={draft.prompt}
                   onChange={(event) =>
                     setDrafts((currentDrafts) => ({
                       ...currentDrafts,
                       [instruction.instructionId]: {
-                        ...draft,
+                        ...(currentDrafts[instruction.instructionId] ?? draft),
                         prompt: event.target.value,
                       },
                     }))

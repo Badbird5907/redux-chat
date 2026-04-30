@@ -26,6 +26,8 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-pas
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
+import { Route as ApiWebhookPolarRouteImport } from './routes/api/webhook/polar'
+import { Route as ApiPolarCheckoutRouteImport } from './routes/api/polar/checkout'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
@@ -115,6 +117,16 @@ const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiWebhookPolarRoute = ApiWebhookPolarRouteImport.update({
+  id: '/api/webhook/polar',
+  path: '/api/webhook/polar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPolarCheckoutRoute = ApiPolarCheckoutRouteImport.update({
+  id: '/api/polar/checkout',
+  path: '/api/polar/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -154,6 +166,8 @@ export interface FileRoutesByFullPath {
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
+  '/api/webhook/polar': typeof ApiWebhookPolarRoute
   '/projects/': typeof AppProjectsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -175,6 +189,8 @@ export interface FileRoutesByTo {
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
+  '/api/webhook/polar': typeof ApiWebhookPolarRoute
   '/projects': typeof AppProjectsIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
@@ -199,6 +215,8 @@ export interface FileRoutesById {
   '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
+  '/api/webhook/polar': typeof ApiWebhookPolarRoute
   '/_app/projects/': typeof AppProjectsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -223,6 +241,8 @@ export interface FileRouteTypes {
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
+    | '/api/polar/checkout'
+    | '/api/webhook/polar'
     | '/projects/'
     | '/api/chat/'
     | '/api/chat/$id/stream/'
@@ -244,6 +264,8 @@ export interface FileRouteTypes {
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
+    | '/api/polar/checkout'
+    | '/api/webhook/polar'
     | '/projects'
     | '/api/chat'
     | '/api/chat/$id/stream'
@@ -267,6 +289,8 @@ export interface FileRouteTypes {
     | '/_app/chat/$id'
     | '/_app/projects/$id'
     | '/api/auth/$'
+    | '/api/polar/checkout'
+    | '/api/webhook/polar'
     | '/_app/projects/'
     | '/api/chat/'
     | '/api/chat/$id/stream/'
@@ -280,6 +304,8 @@ export interface RootRouteChildren {
   ApiUploadRoute: typeof ApiUploadRoute
   LogosIndexRoute: typeof LogosIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiPolarCheckoutRoute: typeof ApiPolarCheckoutRoute
+  ApiWebhookPolarRoute: typeof ApiWebhookPolarRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
@@ -405,6 +431,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/webhook/polar': {
+      id: '/api/webhook/polar'
+      path: '/api/webhook/polar'
+      fullPath: '/api/webhook/polar'
+      preLoaderRoute: typeof ApiWebhookPolarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/polar/checkout': {
+      id: '/api/polar/checkout'
+      path: '/api/polar/checkout'
+      fullPath: '/api/polar/checkout'
+      preLoaderRoute: typeof ApiPolarCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -494,6 +534,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUploadRoute: ApiUploadRoute,
   LogosIndexRoute: LogosIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiPolarCheckoutRoute: ApiPolarCheckoutRoute,
+  ApiWebhookPolarRoute: ApiWebhookPolarRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }

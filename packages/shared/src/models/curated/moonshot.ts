@@ -13,6 +13,6 @@ export const MOONSHOT_PROVIDER: CuratedProviderDefinition = {
       id: "kimi-k2.5",
       name: "Kimi K2.5",
       providerIds: ["openrouter:moonshotai/kimi-k2.5"],
-    }
-  ]
-}
+    },
+  ],
+};

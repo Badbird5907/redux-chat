@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 
-import { ModelFeatureFilters } from "./feature-filters";
 import type { ModelSelectorState } from "./use-model-selector-state";
+import { ModelFeatureFilters } from "./feature-filters";
 
 type SearchBarProps = Pick<
   ModelSelectorState,

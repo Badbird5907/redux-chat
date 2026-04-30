@@ -96,7 +96,10 @@ export default defineSchema({
     prompt: v.optional(v.string()),
     defaultPrompt: v.optional(v.string()),
     userEdited: v.optional(v.boolean()),
-    builtinKey: v.optional(v.union(v.literal("default"), v.literal("learning"))),
+    hidden: v.optional(v.boolean()),
+    builtinKey: v.optional(
+      v.union(v.literal("default"), v.literal("learning")),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -108,9 +111,7 @@ export default defineSchema({
     threadId: v.string(),
     userId: v.string(),
     name: v.string(),
-    /** Sidebar title provenance — drives typewriter UX for AI-generated titles. */
     titleSource: v.optional(v.union(v.literal("user"), v.literal("generated"))),
-    /** Latest time an AI/regenerated title was applied; cleared when the user edits the title. */
     titleGeneratedAt: v.optional(v.number()),
     status: threadStatus,
     settings: messageSettings,

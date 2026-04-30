@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   Square,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@redux/ui/components/button";
@@ -22,10 +23,10 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 import { cn } from "@redux/ui/lib/utils";
@@ -217,10 +218,17 @@ export function ChatInputToolbar({
           </Tooltip>
         )} */}
         {selectedInstructionName ? (
-          <div className="border-border bg-muted/50 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm">
-            <BookText className="h-3.5 w-3.5" />
+          <button
+            type="button"
+            onClick={() => onInstructionChange("")}
+            title="Clear instruction"
+            aria-label={`Clear instruction: ${selectedInstructionName}`}
+            className="group border-border bg-muted/50 text-muted-foreground hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors"
+          >
+            <BookText className="h-3.5 w-3.5 shrink-0 group-hover:hidden" />
+            <Trash2 className="hidden h-3.5 w-3.5 shrink-0 group-hover:block" />
             <span>{selectedInstructionName}</span>
-          </div>
+          </button>
         ) : null}
       </div>
 

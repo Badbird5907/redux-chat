@@ -44,8 +44,12 @@ function sortInstructions(instructions: Doc<"instructions">[]) {
   );
 
   return [...instructions].sort((a, b) => {
-    const aBuiltin = a.builtinKey ? builtinRank.get(a.builtinKey) ?? 999 : 999;
-    const bBuiltin = b.builtinKey ? builtinRank.get(b.builtinKey) ?? 999 : 999;
+    const aBuiltin = a.builtinKey
+      ? (builtinRank.get(a.builtinKey) ?? 999)
+      : 999;
+    const bBuiltin = b.builtinKey
+      ? (builtinRank.get(b.builtinKey) ?? 999)
+      : 999;
 
     if (aBuiltin !== bBuiltin) {
       return aBuiltin - bBuiltin;
@@ -83,26 +87,39 @@ function toInstructionSummary(instruction: Doc<"instructions">) {
 async function readUserInstructions(
   ctx: AuthenticatedMutationCtx | AuthenticatedQueryCtx,
   userId: string,
+  options?: { includeHidden?: boolean },
 ) {
-  return ctx.db
+  const instructions = await ctx.db
     .query("instructions")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .collect();
+
+  if (options?.includeHidden) {
+    return instructions;
+  }
+
+  return instructions.filter((instruction) => instruction.hidden !== true);
 }
 
 export async function ensureInstructionsForUser(
   ctx: AuthenticatedMutationCtx,
   userId: string,
 ) {
-  const existing = await readUserInstructions(ctx, userId);
+  const existing = await readUserInstructions(ctx, userId, {
+    includeHidden: true,
+  });
   const existingByBuiltinKey = new Map(
     existing.flatMap((instruction) =>
-      instruction.builtinKey ? [[instruction.builtinKey, instruction] as const] : [],
+      instruction.builtinKey
+        ? [[instruction.builtinKey, instruction] as const]
+        : [],
     ),
   );
 
   const now = Date.now();
-  const instructions = [...existing];
+  const instructions = existing.filter(
+    (instruction) => instruction.hidden !== true,
+  );
 
   for (const builtin of BUILTIN_INSTRUCTIONS) {
     const current = existingByBuiltinKey.get(builtin.key);
@@ -119,13 +136,31 @@ export async function ensureInstructionsForUser(
         updatedAt: now,
       });
       const inserted = await ctx.db.get(insertedId);
-      if (inserted) {
+      if (inserted && inserted.hidden !== true) {
         instructions.push(inserted);
       }
       continue;
     }
 
     const patch: Partial<Doc<"instructions">> = {};
+    if (current.hidden === true) {
+      if (current.name !== builtin.name) {
+        patch.name = builtin.name;
+      }
+      if (current.description !== builtin.description) {
+        patch.description = builtin.description;
+      }
+      if (current.defaultPrompt !== builtin.prompt) {
+        patch.defaultPrompt = builtin.prompt;
+      }
+      if (Object.keys(patch).length > 0) {
+        patch.updatedAt = now;
+        await ctx.db.patch(current._id, patch);
+        Object.assign(current, patch);
+      }
+      continue;
+    }
+
     const inheritedPrompt = current.defaultPrompt ?? builtin.prompt;
     const shouldInherit =
       current.userEdited === undefined
@@ -171,7 +206,7 @@ export async function getInstructionForUserById(
     .withIndex("by_instructionId", (q) => q.eq("instructionId", instructionId))
     .first();
 
-  if (instruction?.userId !== userId) {
+  if (instruction?.userId !== userId || instruction.hidden === true) {
     return null;
   }
 
@@ -381,18 +416,23 @@ export const deleteInstruction = mutation({
   },
   handler: async (ctx, args) => {
     await ensureInstructionsForUser(ctx, ctx.userId);
-    const instruction = await getInstructionForUserById(
-      ctx,
-      ctx.userId,
-      args.instructionId,
-    );
+    const instruction = await ctx.db
+      .query("instructions")
+      .withIndex("by_instructionId", (q) =>
+        q.eq("instructionId", args.instructionId),
+      )
+      .first();
 
-    if (!instruction) {
+    if (instruction?.userId !== ctx.userId) {
       throw new ConvexError("Instruction not found");
     }
 
-    if (instruction.builtinKey) {
-      throw new ConvexError("Built-in instructions cannot be deleted");
+    if (instruction.hidden === true) {
+      throw new ConvexError("Instruction not found");
+    }
+
+    if (instruction.builtinKey === DEFAULT_INSTRUCTION_KEY) {
+      throw new ConvexError("The default instruction cannot be deleted");
     }
 
     const defaultInstructionId = await normalizeInstructionIdForUser(
@@ -433,6 +473,14 @@ export const deleteInstruction = mutation({
         },
         updatedAt: Date.now(),
       });
+    }
+
+    if (instruction.builtinKey) {
+      await ctx.db.patch(instruction._id, {
+        hidden: true,
+        updatedAt: Date.now(),
+      });
+      return { success: true as const };
     }
 
     await ctx.db.delete(instruction._id);

@@ -5,14 +5,10 @@ import type {
 import { createSiloUpload } from "@silo-storage/sdk-server";
 import { z } from "zod";
 
+import { api } from "@redux/backend/convex/_generated/api";
 import { getModelAttachmentExpects } from "@redux/types";
 
-import { api } from "@redux/backend/convex/_generated/api";
-
-import {
-  fetchAuthQuery,
-  getRequestUserIdFromHeaders,
-} from "@/lib/auth/server";
+import { fetchAuthQuery, getRequestUserIdFromHeaders } from "@/lib/auth/server";
 import {
   buildAttachmentUrl,
   createUploadedAttachmentRecord,

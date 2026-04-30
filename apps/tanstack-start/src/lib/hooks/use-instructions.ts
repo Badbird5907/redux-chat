@@ -28,7 +28,10 @@ export function useInstructions() {
   const ensureInstructions = useMutation(
     api.functions.instructions.getOrCreateInstructions,
   );
-  const instructionsQuery = useQuery(api.functions.instructions.getInstructions, {});
+  const instructionsQuery = useQuery(
+    api.functions.instructions.getInstructions,
+    {},
+  );
   const [seededInstructions, setSeededInstructions] = useState<
     InstructionSummary[]
   >([]);
@@ -81,7 +84,10 @@ export function useInstructions() {
   const instructionsById = useMemo(
     () =>
       new Map(
-        instructions.map((instruction) => [instruction.instructionId, instruction]),
+        instructions.map((instruction) => [
+          instruction.instructionId,
+          instruction,
+        ]),
       ),
     [instructions],
   );

@@ -3,13 +3,13 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 
 import { cn } from "@redux/ui/lib/utils";
 
+import type { ModelSelectorState } from "./use-model-selector-state";
 import {
   panelSpring,
   sidebarAsideVariants,
   sidebarRailItemVariants,
 } from "./constants";
 import { ProviderGlyph } from "./provider-glyph";
-import type { ModelSelectorState } from "./use-model-selector-state";
 
 type SidebarProps = Pick<
   ModelSelectorState,
