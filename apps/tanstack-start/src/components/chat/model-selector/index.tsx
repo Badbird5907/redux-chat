@@ -75,7 +75,12 @@ export function ModelSelector({
     return (
       <Drawer open={state.open} onOpenChange={state.handleOpenChange}>
         <DrawerTrigger asChild>
-          <Button type="button" variant="ghost" size="sm" className={triggerButtonClassName}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={triggerButtonClassName}
+          >
             <ProviderGlyph maker={maker} className="size-3.5" />
             <span className="font-medium">{currentModelName}</span>
             <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
@@ -102,7 +107,12 @@ export function ModelSelector({
     <Popover open={state.open} onOpenChange={state.handleOpenChange}>
       <PopoverTrigger
         render={
-          <Button type="button" variant="ghost" size="sm" className={triggerButtonClassName} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={triggerButtonClassName}
+          />
         }
       >
         <ProviderGlyph maker={maker} className="size-3.5" />

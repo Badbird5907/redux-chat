@@ -108,10 +108,7 @@ export function useChatSession({
     setModel,
     restoreSettings,
     updateSettings,
-  } = useChatSettings(
-    currentThreadId,
-    initialSettings,
-  );
+  } = useChatSettings(currentThreadId, initialSettings);
   const resolveAttachmentsFn = useServerFn(resolveAttachments);
   const selectThreadBranchMutation = useMutation(
     api.functions.threads.selectThreadBranch,

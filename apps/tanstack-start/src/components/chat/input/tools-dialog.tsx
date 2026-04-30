@@ -1,7 +1,6 @@
 import type React from "react";
 import { FlaskConical, Search } from "lucide-react";
 
-import { Switch } from "@redux/ui/components/switch";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@redux/ui/components/dialog";
+import { Switch } from "@redux/ui/components/switch";
 import { cn } from "@redux/ui/lib/utils";
 
 interface ChatToolsDialogProps {
@@ -78,8 +78,7 @@ export function ChatToolsDialog({
             <div
               className={cn(
                 "bg-muted/35 mt-3 rounded-lg px-3 py-2.5 transition-opacity",
-                !isAnalysisWorkspaceEnabled &&
-                  "pointer-events-none opacity-45",
+                !isAnalysisWorkspaceEnabled && "pointer-events-none opacity-45",
               )}
             >
               <SubToggle
@@ -134,7 +133,7 @@ function ToolBlock({
           <Icon className="size-4" />
         </div>
         <span className="min-w-0">
-          <span className="text-foreground block text-sm font-medium leading-snug">
+          <span className="text-foreground block text-sm leading-snug font-medium">
             {title}
           </span>
           <span className="text-muted-foreground mt-1 block text-xs leading-relaxed">
@@ -175,7 +174,7 @@ function SubToggle({
         )}
         htmlFor={id}
       >
-        <span className="text-foreground block text-xs font-medium leading-snug">
+        <span className="text-foreground block text-xs leading-snug font-medium">
           {label}
         </span>
       </label>

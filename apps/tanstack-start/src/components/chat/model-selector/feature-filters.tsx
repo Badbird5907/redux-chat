@@ -1,8 +1,11 @@
-import type { ChatModelConfig, ModelKnowledgeCutoff } from "@redux/shared/models";
-import { CHAT_MODELS } from "@redux/shared/models";
-import { Check, ListFilter } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Check, ListFilter } from "lucide-react";
 
+import type {
+  ChatModelConfig,
+  ModelKnowledgeCutoff,
+} from "@redux/shared/models";
+import { CHAT_MODELS } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import { Label } from "@redux/ui/components/label";
 import {
@@ -51,15 +54,11 @@ export function modelMatchesMinKnowledgeCutoff(
   if (!min) return true;
   const k = model.knowledgeCutoff;
   if (!k) return true;
-  return (
-    modelKnowledgePeriodKey(k) >= cutoffPeriodKey(min.year, min.month)
-  );
+  return modelKnowledgePeriodKey(k) >= cutoffPeriodKey(min.year, min.month);
 }
 
 /** Descending years, never after the current calendar year. */
-function knowledgeCutoffYearOptions(
-  calendarYear: number,
-): readonly number[] {
+function knowledgeCutoffYearOptions(calendarYear: number): readonly number[] {
   let minY = calendarYear;
   let maxY = calendarYear;
   for (const m of CHAT_MODELS) {
@@ -81,7 +80,8 @@ function clampCutoffToPresent(
   calendarYear: number,
   calendarMonth: number,
 ): MinKnowledgeCutoff {
-  if (c.year > calendarYear) return { year: calendarYear, month: calendarMonth };
+  if (c.year > calendarYear)
+    return { year: calendarYear, month: calendarMonth };
   if (c.year === calendarYear && c.month > calendarMonth) {
     return { year: calendarYear, month: calendarMonth };
   }
@@ -148,8 +148,7 @@ export function ModelFeatureFilters({
   const [draftYear, setDraftYear] = useState<number | "">("");
   const [draftMonth, setDraftMonth] = useState<number | "">("");
 
-  const hasAnyFilters =
-    selectedIds.length > 0 || minKnowledgeCutoff !== null;
+  const hasAnyFilters = selectedIds.length > 0 || minKnowledgeCutoff !== null;
 
   return (
     <div onPointerDown={(e) => e.stopPropagation()}>
@@ -292,8 +291,7 @@ export function ModelFeatureFilters({
                         );
                         const maxM =
                           allowed[allowed.length - 1]?.value ?? calendarMonth;
-                        const month =
-                          draftMonth <= maxM ? draftMonth : maxM;
+                        const month = draftMonth <= maxM ? draftMonth : maxM;
                         setDraftMonth(month);
                         onMinKnowledgeCutoffChange({ year, month });
                       }}

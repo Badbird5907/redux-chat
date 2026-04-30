@@ -1,10 +1,10 @@
+import type { ChatThreadPreload } from "@/components/chat/preload";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import z from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
-import type { ChatThreadPreload } from "@/components/chat/preload";
 import { fetchAuthQuery } from "@/lib/auth/server";
 
 const loadChat = createServerFn({ method: "GET" })

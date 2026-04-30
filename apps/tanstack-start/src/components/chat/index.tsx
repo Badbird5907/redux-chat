@@ -2,16 +2,15 @@
 
 import type { ReactNode } from "react";
 
-import type { api } from "@redux/backend/convex/_generated/api";
 import { cn } from "@redux/ui/lib/utils";
 
+import type { ChatPreload } from "./preload";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai/conversation";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
-import type { ChatPreload } from "./preload";
 import { ChatMessageList } from "./chat-message-list";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
 import { ChatInput } from "./input";
@@ -59,10 +58,8 @@ export function Chat({
     messageAttachmentsByMessageId,
     assistantModelByParentMessageId,
     settings,
-    baselineSettings,
     settingsReady,
     setModel,
-    restoreSettings,
     updateSettings,
   } = useChatSession({ initialThreadId, chatProjectId, preload });
 
@@ -121,11 +118,9 @@ export function Chat({
         clientId={chatSessionId}
         convexMessages={convexUIMessages}
         settings={settings}
-        baselineSettings={baselineSettings}
         settingsReady={settingsReady}
         onModelChange={setModel}
         onSettingsChange={updateSettings}
-        restoreSettings={restoreSettings}
         editMessage={editMessage}
         onCancelEdit={cancelEditMessage}
         onSubmitEdit={submitEditedMessage}

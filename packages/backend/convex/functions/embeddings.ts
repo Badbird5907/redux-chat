@@ -1,8 +1,8 @@
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { api } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
+import { api } from "../_generated/api";
 import { backendEnv } from "../env";
 import { backendAction, backendMutation, backendQuery } from "./index";
 
@@ -30,9 +30,7 @@ const chunkValidator = v.object({
   embeddingDims: v.number(),
 });
 
-type BackendDbCtx =
-  | GenericMutationCtx<DataModel>
-  | GenericQueryCtx<DataModel>;
+type BackendDbCtx = GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>;
 
 async function getProjectAttachmentForOwner(
   ctx: BackendDbCtx,
@@ -44,7 +42,9 @@ async function getProjectAttachmentForOwner(
 ) {
   const attachment = await ctx.db
     .query("attachments")
-    .withIndex("by_attachmentId", (q) => q.eq("attachmentId", args.attachmentId))
+    .withIndex("by_attachmentId", (q) =>
+      q.eq("attachmentId", args.attachmentId),
+    )
     .first();
 
   if (
@@ -275,7 +275,11 @@ export const internal_searchEmbeddings = backendAction({
     );
     const summaries = await ctx.runQuery(
       api.functions.embeddings.internal_getAttachmentSummaries,
-      { secret: env.INTERNAL_CONVEX_SECRET, userId: args.userId, attachmentIds },
+      {
+        secret: env.INTERNAL_CONVEX_SECRET,
+        userId: args.userId,
+        attachmentIds,
+      },
     );
 
     // Score lookup keyed by _id

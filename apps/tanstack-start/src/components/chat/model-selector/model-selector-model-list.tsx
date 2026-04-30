@@ -1,17 +1,20 @@
 import type { DragEvent } from "react";
+import { Sparkles, Star } from "lucide-react";
 import { LayoutGroup, motion } from "motion/react";
 
 import type { ChatModelConfig } from "@redux/shared/models";
-import { getModelDisplayName, isModelNewlyReleased, NEW_MODEL_RECENCY_DAYS } from "@redux/shared/models";
+import {
+  getModelDisplayName,
+  isModelNewlyReleased,
+  NEW_MODEL_RECENCY_DAYS,
+} from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
-import { Sparkles, Star } from "lucide-react";
-
+import type { ModelSelectorState } from "./use-model-selector-state";
 import { Capabilities } from "./capabilities";
 import { panelSpring } from "./constants";
 import { ModelRowSubtitle } from "./model-row-subtitle";
-import type { ModelSelectorState } from "./use-model-selector-state";
 
 type ModelListProps = Pick<
   ModelSelectorState,
@@ -203,15 +206,15 @@ function ModelRow({
             "hover:bg-muted text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300",
         )}
         onClick={(e) => void listProps.toggleFavorite(model.id, e)}
-        aria-label={
-          favorited ? "Remove from favorites" : "Add to favorites"
-        }
+        aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
       >
         <Star className={cn("size-4", favorited && "fill-current")} />
       </Button>
       <div className="min-w-0 flex-1">
         <div className="text-foreground flex min-w-0 flex-wrap items-center gap-1.5 text-sm leading-tight font-semibold">
-          <span className="min-w-0 truncate">{getModelDisplayName(model.id)}</span>
+          <span className="min-w-0 truncate">
+            {getModelDisplayName(model.id)}
+          </span>
           {isModelNewlyReleased(model.releasedAt) ? (
             <span
               className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-emerald-500/12 px-1.5 py-px text-[10px] font-bold tracking-wide text-emerald-700 uppercase shadow-[0_0_12px_-4px_var(--color-emerald-500,oklch(0.696_0.17_162.48))] dark:text-emerald-400"

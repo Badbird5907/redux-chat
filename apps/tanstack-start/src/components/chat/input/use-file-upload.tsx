@@ -36,7 +36,7 @@ function extractPastedFiles(data: DataTransfer | null): File[] {
 function ChatFileDropHighlightOverlay() {
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-100 flex items-center justify-center bg-background/55 animate-in fade-in duration-200 backdrop-blur-sm"
+      className="bg-background/55 animate-in fade-in pointer-events-none fixed inset-0 z-100 flex items-center justify-center backdrop-blur-sm duration-200"
       aria-hidden
     >
       <div className="border-primary/70 bg-card/95 text-foreground flex max-w-md flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-12 py-10 text-center shadow-xl">

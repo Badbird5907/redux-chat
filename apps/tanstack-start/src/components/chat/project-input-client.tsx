@@ -20,10 +20,8 @@ function ProjectChatInput({ chatProjectId }: { chatProjectId: string }) {
   const { markAdoptedThreadNavigation } = useChatRouteAdoption();
   const {
     settings,
-    baselineSettings,
     isReady: settingsReady,
     setModel,
-    restoreSettings,
     updateSettings,
   } = useChatSettings();
 
@@ -107,11 +105,9 @@ function ProjectChatInput({ chatProjectId }: { chatProjectId: string }) {
       clientId={chatSessionId}
       convexMessages={EMPTY_CONVEX_MESSAGES}
       settings={settings}
-      baselineSettings={baselineSettings}
       settingsReady={settingsReady}
       onModelChange={setModel}
       onSettingsChange={updateSettings}
-      restoreSettings={restoreSettings}
     />
   );
 }

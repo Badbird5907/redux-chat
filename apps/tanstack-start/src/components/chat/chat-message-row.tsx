@@ -396,7 +396,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           </div>
         )}
         {message.role === "assistant" && (
-          <div className={cn("text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs", isStreamingAssistant && "opacity-0")}>
+          <div
+            className={cn(
+              "text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs",
+              isStreamingAssistant && "opacity-0",
+            )}
+          >
             <div
               className={cn(
                 "flex items-center gap-1 transition-opacity duration-200",

@@ -12,8 +12,8 @@ import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
 import { attachDraftAttachmentsToMessage } from "./attachments";
-import { normalizeInstructionIdForUser } from "./instructions";
 import { backendMutation, backendQuery, mutation, query } from "./index";
+import { normalizeInstructionIdForUser } from "./instructions";
 import { internalAction, internalMutation } from "./internal";
 
 async function cleanupInactiveStreamThread(
@@ -38,9 +38,7 @@ type AuthenticatedMutationCtx = GenericMutationCtx<DataModel> & {
   userId: string;
 };
 
-type ThreadReadCtx =
-  | GenericMutationCtx<DataModel>
-  | GenericQueryCtx<DataModel>;
+type ThreadReadCtx = GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>;
 
 const messageSettingsValidator = v.object({
   model: v.string(),
@@ -1136,6 +1134,7 @@ export const updateThreadSettings = mutation({
     threadId: v.string(),
     patch: v.object({
       instructionId: v.optional(v.string()),
+      clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
       tools: v.optional(
         v.object({
@@ -1159,11 +1158,12 @@ export const updateThreadSettings = mutation({
       throw new ConvexError("Thread not found");
     }
 
-    const mergedSettings = mergeMessageSettings(thread.settings, args.patch);
+    const { clearInstructionId, ...settingsPatch } = args.patch;
+    const mergedSettings = mergeMessageSettings(thread.settings, settingsPatch);
     mergedSettings.instructionId = await normalizeInstructionIdForUser(
       ctx,
       ctx.userId,
-      mergedSettings.instructionId,
+      clearInstructionId ? undefined : mergedSettings.instructionId,
     );
 
     await ctx.db.patch(thread._id, {

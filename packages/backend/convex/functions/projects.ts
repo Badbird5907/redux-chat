@@ -2,8 +2,8 @@ import type { GenericMutationCtx } from "convex/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { internal } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 import { mutation, query } from "./index";
 
 function generateProjectId() {

@@ -1,7 +1,4 @@
-import type {
-  DragEvent,
-  MouseEvent,
-} from "react";
+import type { DragEvent, MouseEvent } from "react";
 import {
   useCallback,
   useEffect,
@@ -25,12 +22,12 @@ import type {
   MinKnowledgeCutoff,
   ModelFeatureFilterId,
 } from "./feature-filters";
+import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
+import { useQuery } from "@/lib/hooks/convex";
 import {
   modelMatchesFeatureFilters,
   modelMatchesMinKnowledgeCutoff,
 } from "./feature-filters";
-import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
-import { useQuery } from "@/lib/hooks/convex";
 
 type ModelSelectorNavColumn = "search" | "sidebar" | "list";
 
