@@ -19,9 +19,9 @@ export function BranchSwitcher({
   const next = branchGroup.siblings[branchGroup.currentIndex + 1];
 
   return (
-    <div className="text-muted-foreground flex items-center gap-1">
+    <div className="text-muted-foreground flex min-h-8 items-center gap-1 text-xs">
       <button
-        className="hover:bg-muted rounded p-1.5 transition-colors disabled:opacity-40"
+        className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
         title="Previous branch"
         type="button"
         disabled={disabled || !previous}
@@ -33,11 +33,11 @@ export function BranchSwitcher({
         className="inline-flex min-w-12 items-center justify-center gap-1 tabular-nums"
         title={`Branch ${branchGroup.currentIndex + 1} of ${branchGroup.siblings.length}`}
       >
-        <GitBranch className="size-3.5" />
+        <GitBranch className="size-4" />
         {branchGroup.currentIndex + 1}/{branchGroup.siblings.length}
       </span>
       <button
-        className="hover:bg-muted rounded p-1.5 transition-colors disabled:opacity-40"
+        className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
         title="Next branch"
         type="button"
         disabled={disabled || !next}

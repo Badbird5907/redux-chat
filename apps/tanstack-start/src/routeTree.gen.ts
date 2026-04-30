@@ -13,7 +13,6 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as ShimmerIndexRouteImport } from './routes/shimmer/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
@@ -47,11 +46,6 @@ const AuthRoute = AuthRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShimmerIndexRoute = ShimmerIndexRouteImport.update({
-  id: '/shimmer/',
-  path: '/shimmer/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -143,7 +137,6 @@ export interface FileRoutesByFullPath {
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
-  '/shimmer/': typeof ShimmerIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -163,7 +156,6 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/logos': typeof LogosIndexRoute
   '/settings': typeof SettingsIndexRoute
-  '/shimmer': typeof ShimmerIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -186,7 +178,6 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
-  '/shimmer/': typeof ShimmerIndexRoute
   '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -209,7 +200,6 @@ export interface FileRouteTypes {
     | '/settings/hotkeys'
     | '/logos/'
     | '/settings/'
-    | '/shimmer/'
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
@@ -229,7 +219,6 @@ export interface FileRouteTypes {
     | '/'
     | '/logos'
     | '/settings'
-    | '/shimmer'
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
@@ -251,7 +240,6 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/logos/'
     | '/settings/'
-    | '/shimmer/'
     | '/_app/chat/$id'
     | '/_app/projects/$id'
     | '/api/auth/$'
@@ -267,7 +255,6 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiUploadRoute: typeof ApiUploadRoute
   LogosIndexRoute: typeof LogosIndexRoute
-  ShimmerIndexRoute: typeof ShimmerIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
@@ -301,13 +288,6 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/shimmer/': {
-      id: '/shimmer/'
-      path: '/shimmer'
-      fullPath: '/shimmer/'
-      preLoaderRoute: typeof ShimmerIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -471,7 +451,6 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   ApiUploadRoute: ApiUploadRoute,
   LogosIndexRoute: LogosIndexRoute,
-  ShimmerIndexRoute: ShimmerIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,

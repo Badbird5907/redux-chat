@@ -868,7 +868,6 @@ export function ChatInput({
               tokenCount={tokenCount}
               showTokenVisualization={showTokenVisualization}
               onTokenCountClick={handleTokenCountClick}
-              models={CHAT_MODELS}
               selectedModel={selectedModel}
               onModelChange={(modelId) => {
                 void onModelChange(modelId);

@@ -1,11 +1,13 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { isTextUIPart } from "ai";
 import {
   ArrowRightLeft,
+  CheckIcon,
   CircleAlert,
+  CopyIcon,
   FileText,
   Loader2,
   PencilIcon,
@@ -35,6 +37,40 @@ import {
   modelUsesDerivativeForAttachment,
 } from "./chat-message-utils";
 import { MessageStatsBar } from "./message-stats-bar";
+
+function MessageCopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const t = text.trim();
+    if (!t) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  return (
+    <button
+      className={cn(
+        "hover:bg-muted rounded p-2 transition-colors disabled:opacity-50",
+      )}
+      title="Copy"
+      type="button"
+      disabled={!text.trim()}
+      onClick={handleCopy}
+    >
+      {copied ? (
+        <CheckIcon className="size-4" />
+      ) : (
+        <CopyIcon className="size-4" />
+      )}
+    </button>
+  );
+}
 
 export interface ChatMessageRowProps {
   message: ChatMessageWithThreadMetadata;
@@ -311,7 +347,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         {message.role === "user" && (
           <div
             className={cn(
-              "text-muted-foreground mt-2 flex min-h-[32px] items-center justify-end gap-1 text-xs transition-opacity duration-200",
+              "text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs transition-opacity duration-200",
               isHovered ? "opacity-100" : "opacity-0",
             )}
           >
@@ -320,6 +356,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               disabled={controlsDisabled}
               onSelectBranch={onSelectBranch}
             />
+            <MessageCopyButton text={textContent} />
             <button
               className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
               title="Regenerate"
@@ -341,18 +378,35 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           </div>
         )}
         {message.role === "assistant" && (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <BranchSwitcher
-              branchGroup={branchGroup}
-              disabled={controlsDisabled}
-              onSelectBranch={onSelectBranch}
-            />
+          <div className="text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs">
+            <div
+              className={cn(
+                "flex items-center gap-1 transition-opacity duration-200",
+                isHovered ? "opacity-100" : "opacity-0",
+              )}
+            >
+              <BranchSwitcher
+                branchGroup={branchGroup}
+                disabled={controlsDisabled}
+                onSelectBranch={onSelectBranch}
+              />
+              <MessageCopyButton text={textContent} />
+              <button
+                className={cn(
+                  "hover:bg-muted rounded p-2 transition-colors disabled:opacity-50",
+                )}
+                title="Regenerate"
+                type="button"
+                disabled={controlsDisabled}
+                onClick={() => onRegenerateMessage(message)}
+              >
+                <RefreshCwIcon className="size-4" />
+              </button>
+            </div>
             <MessageStatsBar
               stats={messageStats}
               isVisible={isHovered}
-              content={textContent}
               actionsDisabled={controlsDisabled}
-              onRegenerate={() => onRegenerateMessage(message)}
             />
           </div>
         )}

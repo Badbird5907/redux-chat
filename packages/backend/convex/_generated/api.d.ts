@@ -16,6 +16,7 @@ import type * as functions_embeddings from "../functions/embeddings.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_internal from "../functions/internal.js";
 import type * as functions_migrations from "../functions/migrations.js";
+import type * as functions_modelFavorites from "../functions/modelFavorites.js";
 import type * as functions_projects from "../functions/projects.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   "functions/index": typeof functions_index;
   "functions/internal": typeof functions_internal;
   "functions/migrations": typeof functions_migrations;
+  "functions/modelFavorites": typeof functions_modelFavorites;
   "functions/projects": typeof functions_projects;
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;

@@ -10,7 +10,6 @@ import {
   Search,
 } from "lucide-react";
 
-import type { ChatModelConfig } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import {
   DropdownMenu,
@@ -43,7 +42,6 @@ interface ChatInputToolbarProps {
   tokenCount: number;
   showTokenVisualization: boolean;
   onTokenCountClick: () => void;
-  models: ChatModelConfig[];
   selectedModel: string;
   onModelChange: (modelId: string) => void;
   input: string;
@@ -73,7 +71,6 @@ export function ChatInputToolbar({
   showTokenVisualization,
   onTokenCountClick,
   // project,
-  models,
   selectedModel,
   onModelChange,
   input,
@@ -192,7 +189,6 @@ export function ChatInputToolbar({
           </button>
         )}
         <ModelSelector
-          models={models}
           selectedModel={selectedModel}
           onModelChange={onModelChange}
         />

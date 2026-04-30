@@ -52,99 +52,112 @@ const ROUTE_BEHAVIOR_OVERRIDES = new Map<
   ModelProviderRouteId,
   ModelRouteBehavior
 >();
+const RESOLVED_CURATED_MODEL_ROUTES = new Map<
+  CanonicalModelId,
+  ModelRouteInfo[]
+>();
 
 for (const model of CURATED_MODELS) {
+  const resolvedRoutes: ModelRouteInfo[] = [];
+
   for (const providerId of model.providerIds) {
+    const route = getModelSpec(MODELS_DEV_PROVIDERS, providerId);
+    if (!route) {
+      continue;
+    }
+
     ROUTE_TO_MODEL_ID.set(providerId, model.id);
     const routeBehavior = model.routeBehavior?.[providerId];
     if (routeBehavior) {
       ROUTE_BEHAVIOR_OVERRIDES.set(providerId, routeBehavior);
     }
+    resolvedRoutes.push({
+      ...route,
+      canonicalModelId: model.id,
+      behavior: mergeModelRouteBehavior(route.provider, routeBehavior),
+    });
+  }
+
+  if (resolvedRoutes.length > 0) {
+    RESOLVED_CURATED_MODEL_ROUTES.set(model.id, resolvedRoutes);
   }
 }
 
 export const MODEL_ROUTES: ModelRouteInfo[] = Array.from(
-  new Set(CURATED_MODELS.flatMap((model) => model.providerIds)),
-).map((routeId) => {
-  const route = getModelSpec(MODELS_DEV_PROVIDERS, routeId);
-  if (!route) {
-    throw new Error(`Unknown model route: ${routeId}`);
-  }
-
-  return {
-    ...route,
-    canonicalModelId: ROUTE_TO_MODEL_ID.get(route.id),
-    behavior: mergeModelRouteBehavior(
-      route.provider,
-      ROUTE_BEHAVIOR_OVERRIDES.get(route.id),
-    ),
-  };
-});
+  RESOLVED_CURATED_MODEL_ROUTES.values(),
+).flat();
 
 const MODEL_ROUTE_BY_ID = new Map(
   MODEL_ROUTES.map((route) => [route.id, route] as const),
 );
 
-export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.map((model) => {
-  const defaultProviderId = model.defaultProviderId ?? model.providerIds[0];
-  const defaultRoute = defaultProviderId
-    ? MODEL_ROUTE_BY_ID.get(defaultProviderId)
-    : undefined;
+export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.flatMap(
+  (model) => {
+    const resolvedRoutes = RESOLVED_CURATED_MODEL_ROUTES.get(model.id) ?? [];
+    if (resolvedRoutes.length === 0) {
+      return [];
+    }
 
-  if (!defaultProviderId || !defaultRoute) {
-    throw new Error(`Missing default provider route for ${model.id}`);
-  }
+    const defaultRoute =
+      (model.defaultProviderId
+        ? MODEL_ROUTE_BY_ID.get(model.defaultProviderId)
+        : undefined) ?? resolvedRoutes[0];
 
-  const allowedMimeTypes = getRouteAcceptedMimeTypes(
-    defaultRoute,
-    model.attachments,
-  );
-  const accept = getRouteAcceptedExtensions(defaultRoute, model.attachments);
+    if (!defaultRoute) {
+      return [];
+    }
 
-  return {
-    id: model.id,
-    name: model.name ?? defaultRoute.displayName,
-    maker: model.providerSlug,
-    provider: defaultRoute.providerName,
-    providerIds: [...model.providerIds],
-    defaultProviderId,
-    accept,
-    allowedMimeTypes,
-    acceptedChatExtensions: accept,
-    acceptedChatMimeTypes: allowedMimeTypes,
-    maxFiles:
-      allowedMimeTypes.length > 0
-        ? (model.attachments?.maxFiles ?? 4)
-        : undefined,
-    knowledgeCutoff: defaultRoute.knowledgeCutoff,
-    supports: {
-      ...defaultRoute.supports,
-      attachments: allowedMimeTypes.length > 0,
-    },
-    costs: defaultRoute.pricing,
-    pricingMetadata: defaultRoute.pricingMetadata,
-    context: defaultRoute.context,
-    modalities: defaultRoute.modalities,
-    releasedAt: defaultRoute.releasedAt,
-    verifiedAt: defaultRoute.verifiedAt,
-    benchmarks: model.benchmarks,
-    custom: model.custom,
-  };
-});
+    const allowedMimeTypes = getRouteAcceptedMimeTypes(
+      defaultRoute,
+      model.attachments,
+    );
+    const accept = getRouteAcceptedExtensions(defaultRoute, model.attachments);
+
+    return [
+      {
+        id: model.id,
+        name: model.name ?? defaultRoute.displayName,
+        maker: model.providerSlug,
+        makerName: model.providerName,
+        provider: defaultRoute.providerName,
+        providerIds: resolvedRoutes.map((route) => route.id),
+        defaultProviderId: defaultRoute.id,
+        accept,
+        allowedMimeTypes,
+        acceptedChatExtensions: accept,
+        acceptedChatMimeTypes: allowedMimeTypes,
+        maxFiles:
+          allowedMimeTypes.length > 0
+            ? (model.attachments?.maxFiles ?? 4)
+            : undefined,
+        knowledgeCutoff: defaultRoute.knowledgeCutoff,
+        supports: {
+          ...defaultRoute.supports,
+          attachments: allowedMimeTypes.length > 0,
+        },
+        costs: defaultRoute.pricing,
+        pricingMetadata: defaultRoute.pricingMetadata,
+        context: defaultRoute.context,
+        modalities: defaultRoute.modalities,
+        releasedAt: defaultRoute.releasedAt,
+        verifiedAt: defaultRoute.verifiedAt,
+        benchmarks: model.benchmarks,
+        custom: model.custom,
+      },
+    ];
+  },
+);
 
 const CHAT_MODEL_BY_ID = new Map(
   CHAT_MODELS.map((model) => [model.id, model] as const),
 );
 
-export const DEFAULT_CHAT_MODEL_ID: CanonicalModelId =
-  CHAT_MODELS[0]?.id ?? "openai/gpt-5-mini";
-
 export const MODEL_PROVIDERS: ModelProviderInfo[] = Array.from(
   new Set(MODEL_ROUTES.map((route) => route.provider)),
-).map((providerId) => {
+).flatMap((providerId) => {
   const provider = getProviderCatalog(MODELS_DEV_PROVIDERS, providerId);
   if (!provider) {
-    throw new Error(`Unknown model provider: ${providerId}`);
+    return [];
   }
 
   const routes = MODEL_ROUTES.filter((route) => route.provider === providerId);
@@ -156,16 +169,18 @@ export const MODEL_PROVIDERS: ModelProviderInfo[] = Array.from(
     ),
   );
 
-  return {
-    id: provider.id,
-    name: provider.name,
-    api: provider.api,
-    npm: provider.npm,
-    doc: provider.doc,
-    env: provider.env,
-    routeIds: routes.map((route) => route.id),
-    modelIds,
-  };
+  return [
+    {
+      id: provider.id,
+      name: provider.name,
+      api: provider.api,
+      npm: provider.npm,
+      doc: provider.doc,
+      env: provider.env,
+      routeIds: routes.map((route) => route.id),
+      modelIds,
+    },
+  ];
 });
 
 export function normalizeModelId(
@@ -189,6 +204,19 @@ export function getChatModelConfig(
 ): ChatModelConfig | undefined {
   const canonicalModelId = normalizeModelId(modelId);
   return canonicalModelId ? CHAT_MODEL_BY_ID.get(canonicalModelId) : undefined;
+}
+
+export function getModelDisplayName(modelId: string): string {
+  const trimmedModelId = modelId.trim();
+  if (!trimmedModelId) {
+    return "";
+  }
+
+  return getChatModelConfig(trimmedModelId)?.name ?? trimmedModelId;
+}
+
+export function isRegisteredModelId(modelId: string): boolean {
+  return getChatModelConfig(modelId) !== undefined;
 }
 
 export function getModelRoute(routeId: string): ModelRouteInfo | undefined {

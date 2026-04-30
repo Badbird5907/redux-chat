@@ -58,6 +58,23 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  userSettings: defineTable({
+    userId: v.string(),
+    modelFavoritesInitializedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  modelFavorites: defineTable({
+    userId: v.string(),
+    modelId: v.string(),
+    sortOrder: v.number(),
+    fromDefault: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId", "sortOrder"])
+    .index("by_userId_modelId", ["userId", "modelId"]),
+
   projects: defineTable({
     projectId: v.string(),
     userId: v.string(),

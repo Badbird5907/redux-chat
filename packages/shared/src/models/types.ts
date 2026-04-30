@@ -143,6 +143,7 @@ export interface ChatModelConfig {
   id: CanonicalModelId;
   name: string;
   maker: string;
+  makerName: string;
   provider: string;
   providerIds: ModelProviderRouteId[];
   defaultProviderId: ModelProviderRouteId;
