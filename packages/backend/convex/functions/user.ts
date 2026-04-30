@@ -57,3 +57,17 @@ export const getCurrentUserId = query({
     return { userId: _ctx.userId };
   },
 });
+
+export const getCurrentUserPolarInfo = query({
+  handler: async (ctx) => {
+    const user = await authComponent.getAnyUserById(ctx, ctx.userId);
+    if (!user?.email) {
+      throw new Error("Authenticated user is missing an email address");
+    }
+
+    return {
+      userId: ctx.userId,
+      email: user.email,
+    };
+  },
+});

@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.11.5",
+    "@convex-dev/polar": "^0.9.0",
     "@openrouter/ai-sdk-provider": "2.8.1",
     "@redux/shared": "workspace:*",
     "@redux/types": "workspace:*",

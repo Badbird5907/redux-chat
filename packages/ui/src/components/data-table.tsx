@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import type {
   CellContext,
   ColumnDef,
@@ -9,6 +8,7 @@ import type {
   RowSelectionState,
 } from "@tanstack/react-table";
 import type { LucideIcon } from "lucide-react";
+import * as React from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -22,10 +22,6 @@ import {
   FileX,
 } from "lucide-react";
 
-import { cn } from "@redux/ui/lib/utils";
-
-import { Button } from "./button";
-import { Checkbox } from "./checkbox";
 import {
   Select,
   SelectContent,
@@ -33,6 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@redux/ui/components/select";
+import { cn } from "@redux/ui/lib/utils";
+
+import { Button } from "./button";
+import { Checkbox } from "./checkbox";
 import Spinner from "./spinner";
 import {
   Table,
@@ -66,12 +66,16 @@ function getRowRange<TData>(
       processedRowsMap[row.id] = true;
     }
     if (
-      (processedRowsMap[clickedRowID] || processedRowsMap[previousClickedRowID]) &&
+      (processedRowsMap[clickedRowID] ||
+        processedRowsMap[previousClickedRowID]) &&
       !row.getIsGrouped()
     ) {
       range.push(row);
     }
-    if (processedRowsMap[clickedRowID] && processedRowsMap[previousClickedRowID]) {
+    if (
+      processedRowsMap[clickedRowID] &&
+      processedRowsMap[previousClickedRowID]
+    ) {
       break;
     }
   }
@@ -255,7 +259,14 @@ type DataTableProps<TData, TValue> = {
   getRowId?: (originalRow: TData, index: number, parent?: Row<TData>) => string;
 } & (
   | { multiselect?: false | undefined }
-  | { multiselect: true; getRowId: (originalRow: TData, index: number, parent?: Row<TData>) => string }
+  | {
+      multiselect: true;
+      getRowId: (
+        originalRow: TData,
+        index: number,
+        parent?: Row<TData>,
+      ) => string;
+    }
 );
 
 function getColumnLayoutMeta(meta: unknown): {
@@ -302,8 +313,7 @@ function DataTable<TData, TValue>({
     ? setUncontrolledSelection
     : onRowSelectionChange;
 
-  const selectionEnabled =
-    multiselect || effectiveOnRowSelectionChange != null;
+  const selectionEnabled = multiselect || effectiveOnRowSelectionChange != null;
 
   const selectionColumn = React.useMemo(
     (): ColumnDef<TData, unknown> => ({
