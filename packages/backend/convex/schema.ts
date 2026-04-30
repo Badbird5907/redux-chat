@@ -189,6 +189,7 @@ export default defineSchema({
   })
     .index("by_attachmentId", ["attachmentId"])
     .index("by_userId", ["userId"])
+    .index("by_userId_createdAt", ["userId", "createdAt"])
     .index("by_userId_status", ["userId", "status"])
     .index("by_threadId", ["threadId"])
     .index("by_messageId", ["messageId"])

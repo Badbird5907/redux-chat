@@ -1,4 +1,5 @@
 import type { GenericMutationCtx } from "convex/server";
+import { paginationOptsValidator } from "convex/server";
 import { createSiloCoreFromToken } from "@silo-storage/sdk-core";
 import { ConvexError, v } from "convex/values";
 
@@ -27,6 +28,20 @@ function createBackendSiloCore() {
 
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
+}
+
+async function deleteAttachmentEmbeddings(
+  ctx: GenericMutationCtx<DataModel>,
+  attachmentId: string,
+) {
+  const rows = await ctx.db
+    .query("attachmentEmbeddings")
+    .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
+    .collect();
+
+  for (const row of rows) {
+    await ctx.db.delete(row._id);
+  }
 }
 
 export async function attachDraftAttachmentsToMessage(
@@ -249,6 +264,41 @@ export const listByIds = query({
   },
 });
 
+export const listForSettings = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const results = await ctx.db
+      .query("attachments")
+      .withIndex("by_userId_createdAt", (q) => q.eq("userId", ctx.userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    const page = results.page.map((attachment) => ({
+      attachmentId: attachment.attachmentId,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      status: attachment.status,
+      threadId: attachment.threadId,
+      messageId: attachment.messageId,
+      chatProjectId: attachment.chatProjectId,
+      expiresAt: attachment.expiresAt,
+      expired: isAttachmentExpired(attachment.expiresAt, now),
+      createdAt: attachment.createdAt,
+      updatedAt: attachment.updatedAt,
+      embeddingStatus: attachment.embeddingStatus,
+      embeddingChunkCount: attachment.embeddingChunkCount,
+    }));
+
+    return {
+      page,
+      isDone: results.isDone,
+      continueCursor: results.continueCursor,
+    };
+  },
+});
+
 export const internal_syncAttachmentExpiry = internalMutation({
   args: {
     attachmentId: v.string(),
@@ -342,6 +392,44 @@ export const deleteDraftAttachment = mutation({
 
     await ctx.db.delete(attachment._id);
     return { success: true };
+  },
+});
+
+export const deleteUnexpiredAttachments = mutation({
+  args: { attachmentIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const attachmentIds = [...new Set(args.attachmentIds)].slice(0, 100);
+    const now = Date.now();
+
+    for (const attachmentId of attachmentIds) {
+      const attachment = await ctx.db
+        .query("attachments")
+        .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
+        .first();
+
+      if (attachment?.userId !== ctx.userId) {
+        throw new ConvexError("Attachment not found");
+      }
+
+      if (isAttachmentExpired(attachment.expiresAt, now)) {
+        throw new ConvexError("Expired attachments cannot be deleted");
+      }
+
+      await ctx.scheduler.runAfter(
+        0,
+        internal.functions.attachments.internal_deleteFileFromSilo,
+        {
+          projectId: attachment.projectId,
+          environmentId: attachment.environmentId,
+          fileKeyId: attachment.fileKeyId,
+          accessKey: attachment.accessKey,
+        },
+      );
+      await deleteAttachmentEmbeddings(ctx, attachment.attachmentId);
+      await ctx.db.delete(attachment._id);
+    }
+
+    return { success: true, deletedCount: attachmentIds.length };
   },
 });
 

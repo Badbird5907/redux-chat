@@ -18,6 +18,7 @@ import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
+import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
@@ -72,6 +73,11 @@ const SettingsInstructionsRoute = SettingsInstructionsRouteImport.update({
 const SettingsHotkeysRoute = SettingsHotkeysRouteImport.update({
   id: '/hotkeys',
   path: '/hotkeys',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAttachmentsRoute = SettingsAttachmentsRouteImport.update({
+  id: '/attachments',
+  path: '/attachments',
   getParentRoute: () => SettingsRoute,
 } as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/chat/$id': typeof AppChatIdRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/': typeof AppIndexRoute
   '/logos': typeof LogosIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/_app/': typeof AppIndexRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/settings/hotkeys'
     | '/settings/instructions'
+    | '/settings/attachments'
     | '/logos/'
     | '/settings/'
     | '/chat/$id'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/settings/hotkeys'
     | '/settings/instructions'
+    | '/settings/attachments'
     | '/'
     | '/logos'
     | '/settings'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/settings/hotkeys'
     | '/settings/instructions'
+    | '/settings/attachments'
     | '/_app/'
     | '/logos/'
     | '/settings/'
@@ -335,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: '/hotkeys'
       fullPath: '/settings/hotkeys'
       preLoaderRoute: typeof SettingsHotkeysRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/attachments': {
+      id: '/settings/attachments'
+      path: '/attachments'
+      fullPath: '/settings/attachments'
+      preLoaderRoute: typeof SettingsAttachmentsRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/auth/sign-up': {
@@ -450,12 +469,14 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface SettingsRouteChildren {
+  SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
   SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAttachmentsRoute: SettingsAttachmentsRoute,
   SettingsHotkeysRoute: SettingsHotkeysRoute,
   SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsIndexRoute: SettingsIndexRoute,

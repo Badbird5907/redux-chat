@@ -5,7 +5,32 @@ import { api } from "@redux/backend/convex/_generated/api";
 
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl, getSiloCore } from "@/lib/silo/core.server";
+import {
+  deleteAttachmentDerivativeCache,
+  getReadyPdfDerivativeRecords,
+} from "@/server/attachments-core/cache";
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
+
+type AttachmentForDeletion =
+  (typeof api.functions.attachments.listByIds)["_returnType"][number];
+
+async function deleteStoredDerivativeFiles(attachment: AttachmentForDeletion) {
+  const pdfDerivatives = await getReadyPdfDerivativeRecords(attachment);
+  const siloCore = getSiloCore();
+
+  await Promise.all(
+    pdfDerivatives.map((derivative) =>
+      siloCore.deleteFile({
+        projectId: derivative.projectId,
+        environmentId: derivative.environmentId,
+        fileKeyId: derivative.fileKeyId,
+        accessKey: derivative.accessKey,
+      }),
+    ),
+  );
+
+  await deleteAttachmentDerivativeCache(attachment);
+}
 
 export const resolveAttachments = createServerFn({ method: "POST" })
   .inputValidator(
@@ -76,6 +101,8 @@ export const deleteDraftAttachment = createServerFn({ method: "POST" })
       throw new Error("Attachment not found");
     }
 
+    await deleteStoredDerivativeFiles(attachment);
+
     if (!attachment.expired) {
       const siloCore = getSiloCore();
       await siloCore.deleteFile({
@@ -91,4 +118,37 @@ export const deleteDraftAttachment = createServerFn({ method: "POST" })
     });
 
     return { success: true };
+  });
+
+export const deleteSettingsAttachments = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      attachmentIds: z.array(z.string()).min(1).max(100),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const attachmentIds = [...new Set(data.attachmentIds)];
+    const attachments = await fetchAuthQuery(
+      api.functions.attachments.listByIds,
+      {
+        attachmentIds,
+      },
+    );
+
+    if (attachments.length !== attachmentIds.length) {
+      throw new Error("One or more attachments could not be found");
+    }
+
+    const expiredAttachment = attachments.find(
+      (attachment) => attachment.expired,
+    );
+    if (expiredAttachment) {
+      throw new Error("Expired attachments cannot be deleted");
+    }
+
+    await Promise.all(attachments.map(deleteStoredDerivativeFiles));
+
+    return fetchAuthMutation(api.functions.attachments.deleteUnexpiredAttachments, {
+      attachmentIds,
+    });
   });
