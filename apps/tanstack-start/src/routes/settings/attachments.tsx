@@ -11,16 +11,11 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import { Card, CardContent } from "@redux/ui/components/card";
-import { Checkbox } from "@redux/ui/components/checkbox";
-import { Skeleton } from "@redux/ui/components/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@redux/ui/components/table";
+import type {
+  ColumnDef,
+  RowSelectionState,
+} from "@redux/ui/components/data-table";
+import { DataTable } from "@redux/ui/components/data-table";
 
 import { deleteSettingsAttachments } from "@/server/attachments";
 
@@ -74,8 +69,12 @@ function getAttachmentStatus(attachment: AttachmentRow) {
   return "Active";
 }
 
+function getAttachmentId(attachment: AttachmentRow) {
+  return attachment.attachmentId;
+}
+
 function AttachmentsRouteComponent() {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [deleting, setDeleting] = useState(false);
   const deleteAttachments = useServerFn(deleteSettingsAttachments);
   const attachments = usePaginatedQuery(
@@ -84,50 +83,84 @@ function AttachmentsRouteComponent() {
     { initialNumItems: PAGE_SIZE },
   );
 
-  const selectableIds = useMemo(
-    () =>
-      attachments.results
-        .filter((attachment) => !attachment.expired)
-        .map((attachment) => attachment.attachmentId),
-    [attachments.results],
+  const enableRowSelection = (row: AttachmentRow) => !row.expired && !deleting;
+
+  const columns = useMemo<ColumnDef<AttachmentRow>[]>(
+    () => [
+      {
+        accessorKey: "fileName",
+        header: "File",
+        cell: ({ row }) => (
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="truncate font-medium">
+              {row.original.fileName}
+            </span>
+            <span className="text-muted-foreground truncate text-xs">
+              {row.original.mimeType}
+            </span>
+          </div>
+        ),
+        meta: {
+          cellClassName: "max-w-[22rem]",
+        },
+      },
+      {
+        id: "scope",
+        header: "Scope",
+        cell: ({ row }) => (
+          <Badge variant="secondary">{getAttachmentScope(row.original)}</Badge>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={row.original.expired ? "outline" : "secondary"}>
+            {getAttachmentStatus(row.original)}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "size",
+        header: "Size",
+        cell: ({ row }) => formatFileSize(row.original.size),
+        meta: {
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Uploaded",
+        cell: ({ row }) => formatDate(row.original.createdAt),
+      },
+      {
+        accessorKey: "expiresAt",
+        header: "Expires",
+        cell: ({ row }) => formatDate(row.original.expiresAt),
+      },
+    ],
+    [],
   );
 
-  const selectedCount = selectedIds.size;
-  const allLoadedSelected =
-    selectableIds.length > 0 &&
-    selectableIds.every((attachmentId) => selectedIds.has(attachmentId));
-  const someLoadedSelected =
-    selectableIds.some((attachmentId) => selectedIds.has(attachmentId)) &&
-    !allLoadedSelected;
-
-  const toggleSelectAllLoaded = (checked: boolean) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      for (const attachmentId of selectableIds) {
-        if (checked) {
-          next.add(attachmentId);
-        } else {
-          next.delete(attachmentId);
-        }
-      }
-      return next;
-    });
-  };
-
-  const toggleSelected = (attachmentId: string, checked: boolean) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (checked) {
-        next.add(attachmentId);
-      } else {
-        next.delete(attachmentId);
-      }
-      return next;
-    });
-  };
+  const selectedIds = useMemo(
+    () =>
+      Object.entries(rowSelection)
+        .filter(([, selected]) => selected)
+        .map(([attachmentId]) => attachmentId),
+    [rowSelection],
+  );
+  const selectedCount = selectedIds.length;
+  const loadedSelectedCount = useMemo(
+    () =>
+      attachments.results.filter((attachment) =>
+        selectedIds.includes(attachment.attachmentId),
+      ).length,
+    [attachments.results, selectedIds],
+  );
 
   const handleDeleteSelected = async () => {
-    const attachmentIds = [...selectedIds].slice(0, MAX_DELETE_COUNT);
+    const attachmentIds = selectedIds.slice(0, MAX_DELETE_COUNT);
     if (attachmentIds.length === 0) {
       return;
     }
@@ -145,7 +178,7 @@ function AttachmentsRouteComponent() {
       const result = await deleteAttachments({
         data: { attachmentIds },
       });
-      setSelectedIds(new Set());
+      setRowSelection({});
       toast.success(
         `Deleted ${result.deletedCount} attachment${result.deletedCount === 1 ? "" : "s"}`,
       );
@@ -191,111 +224,27 @@ function AttachmentsRouteComponent() {
             </Button>
           </div>
 
-          <div className="border-border/60 overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      aria-label="Select all loaded attachments"
-                      checked={allLoadedSelected}
-                      indeterminate={someLoadedSelected}
-                      disabled={selectableIds.length === 0 || deleting}
-                      onCheckedChange={(checked) =>
-                        toggleSelectAllLoaded(checked === true)
-                      }
-                    />
-                  </TableHead>
-                  <TableHead>File</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Size</TableHead>
-                  <TableHead>Uploaded</TableHead>
-                  <TableHead>Expires</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attachments.status === "LoadingFirstPage" ? (
-                  Array.from({ length: 6 }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell colSpan={7}>
-                        <Skeleton className="h-8 w-full" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : attachments.results.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-28 text-center">
-                      <div className="text-muted-foreground flex flex-col items-center gap-2 text-sm">
-                        <FileText className="size-6" />
-                        No attachments found.
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  attachments.results.map((attachment) => {
-                    const isSelected = selectedIds.has(attachment.attachmentId);
-                    const canDelete = !attachment.expired;
-
-                    return (
-                      <TableRow
-                        key={attachment.attachmentId}
-                        data-state={isSelected ? "selected" : undefined}
-                      >
-                        <TableCell>
-                          <Checkbox
-                            aria-label={`Select ${attachment.fileName}`}
-                            checked={isSelected}
-                            disabled={!canDelete || deleting}
-                            onCheckedChange={(checked) =>
-                              toggleSelected(
-                                attachment.attachmentId,
-                                checked === true,
-                              )
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="max-w-[22rem]">
-                          <div className="flex min-w-0 flex-col gap-1">
-                            <span className="truncate font-medium">
-                              {attachment.fileName}
-                            </span>
-                            <span className="text-muted-foreground truncate text-xs">
-                              {attachment.mimeType}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {getAttachmentScope(attachment)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              attachment.expired ? "outline" : "secondary"
-                            }
-                          >
-                            {getAttachmentStatus(attachment)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatFileSize(attachment.size)}
-                        </TableCell>
-                        <TableCell>{formatDate(attachment.createdAt)}</TableCell>
-                        <TableCell>{formatDate(attachment.expiresAt)}</TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={attachments.results}
+            loading={attachments.status === "LoadingFirstPage"}
+            emptyMessage="No attachments found."
+            emptyIcon={FileText}
+            multiselect
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            getRowId={getAttachmentId}
+            enableRowSelection={enableRowSelection}
+          />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-muted-foreground text-xs">
               Showing {attachments.results.length} loaded attachment
-              {attachments.results.length === 1 ? "" : "s"}.
+              {attachments.results.length === 1 ? "" : "s"}
+              {selectedCount > loadedSelectedCount
+                ? ` (${selectedCount - loadedSelectedCount} selected on other loaded pages)`
+                : ""}
+              .
             </div>
             <Button
               variant="outline"
