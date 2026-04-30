@@ -332,11 +332,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               disabled={controlsDisabled}
               onSelectBranch={onSelectBranch}
             />
-            <BranchSwitcher
-              branchGroup={assistantBranchGroup}
-              disabled={controlsDisabled}
-              onSelectBranch={onSelectBranch}
-            />
             <button
               className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
               title="Regenerate"
@@ -358,13 +353,20 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           </div>
         )}
         {message.role === "assistant" && (
-          <MessageStatsBar
-            stats={messageStats}
-            isVisible={isHovered}
-            content={textContent}
-            actionsDisabled={controlsDisabled}
-            onRegenerate={() => onRegenerateMessage(message)}
-          />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <BranchSwitcher
+              branchGroup={branchGroup}
+              disabled={controlsDisabled}
+              onSelectBranch={onSelectBranch}
+            />
+            <MessageStatsBar
+              stats={messageStats}
+              isVisible={isHovered}
+              content={textContent}
+              actionsDisabled={controlsDisabled}
+              onRegenerate={() => onRegenerateMessage(message)}
+            />
+          </div>
         )}
       </div>
     </div>

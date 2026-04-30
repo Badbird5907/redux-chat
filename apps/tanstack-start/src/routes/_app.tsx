@@ -58,14 +58,14 @@ function getChatThreadIdFromPathname(pathname: string) {
 }
 
 function TopLeftActions() {
-  const { open: sidebarOpen } = useSidebar();
+  const { open: sidebarOpen, openMobile, isMobile } = useSidebar();
   const { project, isChatRoute } = useCurrentProject();
 
   const projectBack =
     project && isChatRoute
       ? { id: project.projectId, name: project.name }
       : null;
-  const showSidebarTrigger = !sidebarOpen;
+  const showSidebarTrigger = isMobile ? !openMobile : !sidebarOpen;
   const showProjectBack = projectBack !== null;
 
   if (!showSidebarTrigger && !showProjectBack) {

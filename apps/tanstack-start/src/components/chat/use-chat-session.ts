@@ -758,6 +758,13 @@ export function useChatSession({
       locallyStartedStreamRef.current = true;
       locallyCompletedStreamRef.current = false;
 
+      console.log("Regenerating assistant branch", {
+        sourceAssistantMessageId: assistantMessage.id,
+        newAssistantMessageId: branchInfo.assistantMessageId,
+        threadId: branchInfo.threadId,
+        visibleMessageIds: visibleBranchMessages.map((candidate) => candidate.id),
+      });
+
       await regenerate({
         messageId: assistantMessage.id,
         body: {
