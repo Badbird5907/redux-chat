@@ -37,6 +37,7 @@ export function backendEnv() {
       VITE_CONVEX_SITE_URL: z.url(),
       OPENAI_API_KEY: z.string().min(1),
       OPENROUTER_API_KEY: z.string().min(1),
+      GOOGLE_VERTEX_API_KEY: z.string().min(1),
       AA_API_KEY: z.string().min(1),
     },
     runtimeEnv: {
@@ -61,6 +62,7 @@ export function backendEnv() {
       VITE_CONVEX_SITE_URL: process.env.VITE_CONVEX_SITE_URL,
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+      GOOGLE_VERTEX_API_KEY: process.env.GOOGLE_VERTEX_API_KEY,
       AA_API_KEY: process.env.AA_API_KEY,
     },
     skipValidation: shouldSkipValidation,

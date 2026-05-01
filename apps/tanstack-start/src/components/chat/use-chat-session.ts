@@ -529,7 +529,6 @@ export function useChatSession({
     return map;
   }, [convexMessages]);
 
-  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{
     generatingDerivative?: boolean;
     id: string;
@@ -948,8 +947,6 @@ export function useChatSession({
     shouldInitializeInitialThreadScroll,
     handleInitialThreadScrollReady,
     messageStatsMap,
-    hoveredMessageId,
-    setHoveredMessageId,
     previewFile,
     setPreviewFile,
     resolvedMessageAttachments,

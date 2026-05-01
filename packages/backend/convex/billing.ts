@@ -19,6 +19,30 @@ type BillingSubscriptionSnapshot = {
   subscriptionId?: string;
 };
 
+export const BILLING_DEBUG_LOGGING = false;
+
+/** Checkpoint / trace logs; enable only by flipping `BILLING_DEBUG_LOGGING` locally. */
+export function billingDebugLog(
+  ...args: Parameters<typeof console.log>
+): void {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- BILLING_DEBUG_LOGGING gate
+  if (BILLING_DEBUG_LOGGING) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- delegated to console
+    console.log(...args);
+  }
+}
+
+/** Diagnostic warnings (e.g. missing pricing); gated like `billingDebugLog`. */
+export function billingDebugWarn(
+  ...args: Parameters<typeof console.warn>
+): void {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- BILLING_DEBUG_LOGGING gate
+  if (BILLING_DEBUG_LOGGING) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- delegated to console
+    console.warn(...args);
+  }
+}
+
 export type BillingGrantReason =
   | "subscription_created"
   | "subscription_renewed"
@@ -300,7 +324,7 @@ export function extractMeterCreditSummary(
     const { availableCredits, overageCredits } =
       deriveMeterCreditSummary(matchingMeter);
 
-    console.log("billing_extract_meter_balance_match", {
+    billingDebugLog("billing_extract_meter_balance_match", {
       meterName,
       candidateName: matchingMeter.candidateName,
       balance: matchingMeter.balance,
@@ -314,7 +338,7 @@ export function extractMeterCreditSummary(
     return { availableCredits, overageCredits };
   }
 
-  console.warn("billing_extract_meter_balance_missing_meter", {
+  billingDebugWarn("billing_extract_meter_balance_missing_meter", {
     meterName,
     activeMeters: normalizedMeters,
   });

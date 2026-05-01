@@ -2,113 +2,76 @@
 // Do not edit manually.
 import type { ModelsDevProviderCatalog } from "../types";
 
-export const googleModels = {
-  "id": "google",
-  "name": "Google",
-  "npm": "@ai-sdk/google",
-  "doc": "https://ai.google.dev/gemini-api/docs/pricing",
+export const vertexModels = {
+  "id": "vertex",
+  "name": "Vertex",
+  "npm": "@ai-sdk/google-vertex",
+  "doc": "https://cloud.google.com/vertex-ai/generative-ai/docs/models",
   "env": [
-    "GEMINI_API_KEY",
-    "GOOGLE_GENERATIVE_AI_API_KEY"
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    "GOOGLE_VERTEX_LOCATION",
+    "GOOGLE_VERTEX_PROJECT"
   ],
   "models": {
-    "gemini-1.5-flash": {
-      "id": "gemini-1.5-flash",
-      "name": "Gemini 1.5 Flash",
-      "family": "gemini-flash",
-      "attachment": true,
-      "reasoning": false,
+    "deepseek-ai/deepseek-v3.1-maas": {
+      "id": "deepseek-ai/deepseek-v3.1-maas",
+      "name": "DeepSeek V3.1",
+      "family": "deepseek",
+      "attachment": false,
+      "reasoning": true,
       "tool_call": true,
+      "structured_output": true,
       "temperature": true,
-      "knowledge": "2024-04",
-      "release_date": "2024-05-14",
-      "last_updated": "2024-05-14",
-      "open_weights": false,
+      "release_date": "2025-08-28",
+      "last_updated": "2025-08-28",
+      "open_weights": true,
       "modalities": {
         "input": [
           "text",
-          "image",
-          "audio",
-          "video"
+          "pdf"
         ],
         "output": [
           "text"
         ]
       },
       "cost": {
-        "cache_read": 0.01875,
-        "input": 0.075,
-        "output": 0.3
+        "input": 0.6,
+        "output": 1.7
       },
       "limit": {
-        "context": 1000000,
-        "output": 8192
+        "context": 163840,
+        "output": 32768
       }
     },
-    "gemini-1.5-flash-8b": {
-      "id": "gemini-1.5-flash-8b",
-      "name": "Gemini 1.5 Flash-8B",
-      "family": "gemini-flash",
-      "attachment": true,
-      "reasoning": false,
+    "deepseek-ai/deepseek-v3.2-maas": {
+      "id": "deepseek-ai/deepseek-v3.2-maas",
+      "name": "DeepSeek V3.2",
+      "family": "deepseek",
+      "attachment": false,
+      "reasoning": true,
       "tool_call": true,
+      "structured_output": true,
       "temperature": true,
-      "knowledge": "2024-04",
-      "release_date": "2024-10-03",
-      "last_updated": "2024-10-03",
-      "open_weights": false,
+      "release_date": "2025-12-17",
+      "last_updated": "2026-04-04",
+      "open_weights": true,
       "modalities": {
         "input": [
           "text",
-          "image",
-          "audio",
-          "video"
+          "pdf"
         ],
         "output": [
           "text"
         ]
       },
       "cost": {
-        "cache_read": 0.01,
-        "input": 0.0375,
-        "output": 0.15
+        "cache_read": 0.056,
+        "input": 0.56,
+        "output": 1.68
       },
       "limit": {
-        "context": 1000000,
-        "output": 8192
-      }
-    },
-    "gemini-1.5-pro": {
-      "id": "gemini-1.5-pro",
-      "name": "Gemini 1.5 Pro",
-      "family": "gemini-pro",
-      "attachment": true,
-      "reasoning": false,
-      "tool_call": true,
-      "temperature": true,
-      "knowledge": "2024-04",
-      "release_date": "2024-02-15",
-      "last_updated": "2024-02-15",
-      "open_weights": false,
-      "modalities": {
-        "input": [
-          "text",
-          "image",
-          "audio",
-          "video"
-        ],
-        "output": [
-          "text"
-        ]
-      },
-      "cost": {
-        "cache_read": 0.3125,
-        "input": 1.25,
-        "output": 5
-      },
-      "limit": {
-        "context": 1000000,
-        "output": 8192
+        "context": 163840,
+        "output": 65536
       }
     },
     "gemini-2.0-flash": {
@@ -118,7 +81,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": false,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2024-06",
       "release_date": "2024-12-11",
@@ -138,8 +100,8 @@ export const googleModels = {
       },
       "cost": {
         "cache_read": 0.025,
-        "input": 0.1,
-        "output": 0.4
+        "input": 0.15,
+        "output": 0.6
       },
       "limit": {
         "context": 1048576,
@@ -153,7 +115,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": false,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2024-06",
       "release_date": "2024-12-11",
@@ -187,11 +148,10 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
-      "release_date": "2025-03-20",
-      "last_updated": "2025-06-05",
+      "release_date": "2025-06-17",
+      "last_updated": "2025-06-17",
       "open_weights": false,
       "modalities": {
         "input": [
@@ -206,78 +166,14 @@ export const googleModels = {
         ]
       },
       "cost": {
-        "cache_read": 0.03,
+        "cache_read": 0.075,
+        "cache_write": 0.383,
         "input": 0.3,
-        "input_audio": 1,
         "output": 2.5
       },
       "limit": {
         "context": 1048576,
         "output": 65536
-      }
-    },
-    "gemini-2.5-flash-image": {
-      "id": "gemini-2.5-flash-image",
-      "name": "Gemini 2.5 Flash Image",
-      "family": "gemini-flash",
-      "attachment": true,
-      "reasoning": true,
-      "tool_call": false,
-      "temperature": true,
-      "knowledge": "2025-06",
-      "release_date": "2025-08-26",
-      "last_updated": "2025-08-26",
-      "open_weights": false,
-      "modalities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "text",
-          "image"
-        ]
-      },
-      "cost": {
-        "cache_read": 0.075,
-        "input": 0.3,
-        "output": 30
-      },
-      "limit": {
-        "context": 32768,
-        "output": 32768
-      }
-    },
-    "gemini-2.5-flash-image-preview": {
-      "id": "gemini-2.5-flash-image-preview",
-      "name": "Gemini 2.5 Flash Image (Preview)",
-      "family": "gemini-flash",
-      "attachment": true,
-      "reasoning": true,
-      "tool_call": false,
-      "temperature": true,
-      "knowledge": "2025-06",
-      "release_date": "2025-08-26",
-      "last_updated": "2025-08-26",
-      "open_weights": false,
-      "modalities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "text",
-          "image"
-        ]
-      },
-      "cost": {
-        "cache_read": 0.075,
-        "input": 0.3,
-        "output": 30
-      },
-      "limit": {
-        "context": 32768,
-        "output": 32768
       }
     },
     "gemini-2.5-flash-lite": {
@@ -287,7 +183,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-06-17",
@@ -342,11 +237,10 @@ export const googleModels = {
       "cost": {
         "cache_read": 0.025,
         "input": 0.1,
-        "input_audio": 0.3,
         "output": 0.4
       },
       "limit": {
-        "context": 1048576,
+        "context": 65536,
         "output": 65536
       }
     },
@@ -357,7 +251,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-09-25",
@@ -426,7 +319,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-05-20",
@@ -461,7 +353,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-09-25",
@@ -481,42 +372,13 @@ export const googleModels = {
       },
       "cost": {
         "cache_read": 0.075,
+        "cache_write": 0.383,
         "input": 0.3,
-        "input_audio": 1,
         "output": 2.5
       },
       "limit": {
         "context": 1048576,
         "output": 65536
-      }
-    },
-    "gemini-2.5-flash-preview-tts": {
-      "id": "gemini-2.5-flash-preview-tts",
-      "name": "Gemini 2.5 Flash Preview TTS",
-      "family": "gemini-flash",
-      "attachment": false,
-      "reasoning": false,
-      "tool_call": false,
-      "temperature": false,
-      "knowledge": "2025-01",
-      "release_date": "2025-05-01",
-      "last_updated": "2025-05-01",
-      "open_weights": false,
-      "modalities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "audio"
-        ]
-      },
-      "cost": {
-        "input": 0.5,
-        "output": 10
-      },
-      "limit": {
-        "context": 8000,
-        "output": 16000
       }
     },
     "gemini-2.5-pro": {
@@ -526,7 +388,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-03-20",
@@ -566,7 +427,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-05-06",
@@ -601,7 +461,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-06-05",
@@ -627,35 +486,6 @@ export const googleModels = {
       "limit": {
         "context": 1048576,
         "output": 65536
-      }
-    },
-    "gemini-2.5-pro-preview-tts": {
-      "id": "gemini-2.5-pro-preview-tts",
-      "name": "Gemini 2.5 Pro Preview TTS",
-      "family": "gemini-flash",
-      "attachment": false,
-      "reasoning": false,
-      "tool_call": false,
-      "temperature": false,
-      "knowledge": "2025-01",
-      "release_date": "2025-05-01",
-      "last_updated": "2025-05-01",
-      "open_weights": false,
-      "modalities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "audio"
-        ]
-      },
-      "cost": {
-        "input": 1,
-        "output": 20
-      },
-      "limit": {
-        "context": 8000,
-        "output": 16000
       }
     },
     "gemini-3-flash-preview": {
@@ -734,40 +564,8 @@ export const googleModels = {
         "output": 12
       },
       "limit": {
-        "context": 1000000,
-        "output": 64000
-      }
-    },
-    "gemini-3.1-flash-image-preview": {
-      "id": "gemini-3.1-flash-image-preview",
-      "name": "Gemini 3.1 Flash Image (Preview)",
-      "family": "gemini-flash",
-      "attachment": true,
-      "reasoning": true,
-      "tool_call": false,
-      "temperature": true,
-      "knowledge": "2025-01",
-      "release_date": "2026-02-26",
-      "last_updated": "2026-02-26",
-      "open_weights": false,
-      "modalities": {
-        "input": [
-          "text",
-          "image",
-          "pdf"
-        ],
-        "output": [
-          "text",
-          "image"
-        ]
-      },
-      "cost": {
-        "input": 0.25,
-        "output": 60
-      },
-      "limit": {
-        "context": 131072,
-        "output": 32768
+        "context": 1048576,
+        "output": 65536
       }
     },
     "gemini-3.1-flash-lite-preview": {
@@ -922,7 +720,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-09-25",
@@ -942,8 +739,8 @@ export const googleModels = {
       },
       "cost": {
         "cache_read": 0.075,
+        "cache_write": 0.383,
         "input": 0.3,
-        "input_audio": 1,
         "output": 2.5
       },
       "limit": {
@@ -958,7 +755,6 @@ export const googleModels = {
       "attachment": true,
       "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
       "knowledge": "2025-01",
       "release_date": "2025-09-25",
@@ -986,277 +782,242 @@ export const googleModels = {
         "output": 65536
       }
     },
-    "gemini-live-2.5-flash": {
-      "id": "gemini-live-2.5-flash",
-      "name": "Gemini Live 2.5 Flash",
-      "family": "gemini-flash",
-      "attachment": true,
-      "reasoning": true,
+    "meta/llama-3.3-70b-instruct-maas": {
+      "id": "meta/llama-3.3-70b-instruct-maas",
+      "name": "Llama 3.3 70B Instruct",
+      "family": "llama",
+      "attachment": false,
+      "reasoning": false,
       "tool_call": true,
+      "structured_output": true,
       "temperature": true,
-      "knowledge": "2025-01",
-      "release_date": "2025-09-01",
-      "last_updated": "2025-09-01",
-      "open_weights": false,
+      "knowledge": "2023-12",
+      "release_date": "2025-04-29",
+      "last_updated": "2025-04-29",
+      "open_weights": true,
       "modalities": {
         "input": [
-          "text",
-          "image",
-          "audio",
-          "video"
+          "text"
         ],
         "output": [
-          "text",
-          "audio"
+          "text"
         ]
       },
       "cost": {
-        "input": 0.5,
-        "input_audio": 3,
-        "output": 2,
-        "output_audio": 12
+        "input": 0.72,
+        "output": 0.72
       },
       "limit": {
         "context": 128000,
-        "output": 8000
+        "output": 8192
       }
     },
-    "gemini-live-2.5-flash-preview-native-audio": {
-      "id": "gemini-live-2.5-flash-preview-native-audio",
-      "name": "Gemini Live 2.5 Flash Preview Native Audio",
-      "family": "gemini-flash",
-      "attachment": false,
-      "reasoning": true,
+    "meta/llama-4-maverick-17b-128e-instruct-maas": {
+      "id": "meta/llama-4-maverick-17b-128e-instruct-maas",
+      "name": "Llama 4 Maverick 17B 128E Instruct",
+      "family": "llama",
+      "attachment": true,
+      "reasoning": false,
       "tool_call": true,
-      "temperature": false,
-      "knowledge": "2025-01",
-      "release_date": "2025-06-17",
-      "last_updated": "2025-09-18",
-      "open_weights": false,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2024-08",
+      "release_date": "2025-04-29",
+      "last_updated": "2025-04-29",
+      "open_weights": true,
       "modalities": {
         "input": [
           "text",
-          "audio",
-          "video"
+          "image"
         ],
         "output": [
-          "text",
-          "audio"
+          "text"
         ]
       },
       "cost": {
-        "input": 0.5,
-        "input_audio": 3,
-        "output": 2,
-        "output_audio": 12
+        "input": 0.35,
+        "output": 1.15
+      },
+      "limit": {
+        "context": 524288,
+        "output": 8192
+      }
+    },
+    "moonshotai/kimi-k2-thinking-maas": {
+      "id": "moonshotai/kimi-k2-thinking-maas",
+      "name": "Kimi K2 Thinking",
+      "family": "kimi-thinking",
+      "attachment": false,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2024-08",
+      "release_date": "2025-11-13",
+      "last_updated": "2025-11-13",
+      "open_weights": true,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "cost": {
+        "input": 0.6,
+        "output": 2.5
+      },
+      "limit": {
+        "context": 262144,
+        "output": 262144
+      }
+    },
+    "openai/gpt-oss-120b-maas": {
+      "id": "openai/gpt-oss-120b-maas",
+      "name": "GPT OSS 120B",
+      "family": "gpt-oss",
+      "attachment": false,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "release_date": "2025-08-05",
+      "last_updated": "2025-08-05",
+      "open_weights": true,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "cost": {
+        "input": 0.09,
+        "output": 0.36
       },
       "limit": {
         "context": 131072,
-        "output": 65536
+        "output": 32768
       }
     },
-    "gemma-3-12b-it": {
-      "id": "gemma-3-12b-it",
-      "name": "Gemma 3 12B",
-      "family": "gemma",
-      "attachment": true,
-      "reasoning": false,
-      "tool_call": false,
-      "structured_output": true,
-      "temperature": true,
-      "knowledge": "2024-10",
-      "release_date": "2025-03-13",
-      "last_updated": "2025-03-13",
-      "open_weights": true,
-      "modalities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "text"
-        ]
-      },
-      "cost": {
-        "input": 0,
-        "output": 0
-      },
-      "limit": {
-        "context": 32768,
-        "output": 8192
-      }
-    },
-    "gemma-3-27b-it": {
-      "id": "gemma-3-27b-it",
-      "name": "Gemma 3 27B",
-      "family": "gemma",
-      "attachment": true,
-      "reasoning": false,
+    "openai/gpt-oss-20b-maas": {
+      "id": "openai/gpt-oss-20b-maas",
+      "name": "GPT OSS 20B",
+      "family": "gpt-oss",
+      "attachment": false,
+      "reasoning": true,
       "tool_call": true,
-      "structured_output": true,
       "temperature": true,
-      "knowledge": "2024-10",
-      "release_date": "2025-03-12",
-      "last_updated": "2025-03-12",
+      "release_date": "2025-08-05",
+      "last_updated": "2025-08-05",
       "open_weights": true,
       "modalities": {
         "input": [
-          "text",
-          "image"
+          "text"
         ],
         "output": [
           "text"
         ]
       },
       "cost": {
-        "input": 0,
-        "output": 0
+        "input": 0.07,
+        "output": 0.25
       },
       "limit": {
         "context": 131072,
-        "output": 8192
+        "output": 32768
       }
     },
-    "gemma-3-4b-it": {
-      "id": "gemma-3-4b-it",
-      "name": "Gemma 3 4B",
-      "family": "gemma",
-      "attachment": true,
-      "reasoning": false,
-      "tool_call": false,
-      "temperature": true,
-      "knowledge": "2024-10",
-      "release_date": "2025-03-13",
-      "last_updated": "2025-03-13",
-      "open_weights": true,
-      "modalities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "text"
-        ]
-      },
-      "cost": {
-        "input": 0,
-        "output": 0
-      },
-      "limit": {
-        "context": 32768,
-        "output": 8192
-      }
-    },
-    "gemma-3n-e2b-it": {
-      "id": "gemma-3n-e2b-it",
-      "name": "Gemma 3n 2B",
-      "family": "gemma",
-      "attachment": true,
-      "reasoning": false,
-      "tool_call": false,
-      "temperature": true,
-      "knowledge": "2024-10",
-      "release_date": "2025-07-09",
-      "last_updated": "2025-07-09",
-      "open_weights": true,
-      "modalities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "text"
-        ]
-      },
-      "cost": {
-        "input": 0,
-        "output": 0
-      },
-      "limit": {
-        "context": 8192,
-        "output": 2000
-      }
-    },
-    "gemma-3n-e4b-it": {
-      "id": "gemma-3n-e4b-it",
-      "name": "Gemma 3n 4B",
-      "family": "gemma",
-      "attachment": true,
-      "reasoning": false,
-      "tool_call": false,
-      "temperature": true,
-      "knowledge": "2024-10",
-      "release_date": "2025-05-20",
-      "last_updated": "2025-05-20",
-      "open_weights": true,
-      "modalities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "text"
-        ]
-      },
-      "cost": {
-        "input": 0,
-        "output": 0
-      },
-      "limit": {
-        "context": 8192,
-        "output": 2000
-      }
-    },
-    "gemma-4-26b-a4b-it": {
-      "id": "gemma-4-26b-a4b-it",
-      "name": "Gemma 4 26B",
-      "family": "gemma",
+    "qwen/qwen3-235b-a22b-instruct-2507-maas": {
+      "id": "qwen/qwen3-235b-a22b-instruct-2507-maas",
+      "name": "Qwen3 235B A22B Instruct",
+      "family": "qwen",
       "attachment": false,
       "reasoning": true,
       "tool_call": true,
       "structured_output": true,
       "temperature": true,
-      "release_date": "2026-04-02",
-      "last_updated": "2026-04-02",
+      "release_date": "2025-08-13",
+      "last_updated": "2025-08-13",
       "open_weights": true,
       "modalities": {
         "input": [
-          "text",
-          "image"
+          "text"
         ],
         "output": [
           "text"
         ]
       },
+      "cost": {
+        "input": 0.22,
+        "output": 0.88
+      },
       "limit": {
-        "context": 256000,
-        "output": 8192
+        "context": 262144,
+        "output": 16384
       }
     },
-    "gemma-4-31b-it": {
-      "id": "gemma-4-31b-it",
-      "name": "Gemma 4 31B",
-      "family": "gemma",
+    "zai-org/glm-4.7-maas": {
+      "id": "zai-org/glm-4.7-maas",
+      "name": "GLM-4.7",
+      "family": "glm",
       "attachment": false,
       "reasoning": true,
       "tool_call": true,
       "structured_output": true,
       "temperature": true,
-      "release_date": "2026-04-02",
-      "last_updated": "2026-04-02",
+      "knowledge": "2025-04",
+      "release_date": "2026-01-06",
+      "last_updated": "2026-01-06",
       "open_weights": true,
       "modalities": {
         "input": [
           "text",
-          "image"
+          "pdf"
         ],
         "output": [
           "text"
         ]
       },
+      "cost": {
+        "input": 0.6,
+        "output": 2.2
+      },
       "limit": {
-        "context": 256000,
-        "output": 8192
+        "context": 200000,
+        "output": 128000
+      }
+    },
+    "zai-org/glm-5-maas": {
+      "id": "zai-org/glm-5-maas",
+      "name": "GLM-5",
+      "family": "glm",
+      "attachment": false,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "release_date": "2026-02-11",
+      "last_updated": "2026-02-11",
+      "open_weights": true,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "cost": {
+        "cache_read": 0.1,
+        "input": 1,
+        "output": 3.2
+      },
+      "limit": {
+        "context": 202752,
+        "output": 131072
       }
     }
   }
 } as const satisfies ModelsDevProviderCatalog;
-export const googleCatalog = googleModels;
+export const vertexCatalog = vertexModels;

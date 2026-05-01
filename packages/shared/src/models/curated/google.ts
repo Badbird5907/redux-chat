@@ -9,33 +9,24 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
   models: [
     {
       id: "gemini-2.5-pro",
-      providerIds: ["openrouter:google/gemini-2.5-pro"],
-      defaultProviderId: "openrouter:google/gemini-2.5-pro",
-      attachments: {
-        maxFiles: 4,
-      },
+      providerIds: ["openrouter:google/gemini-2.5-pro", "vertex:gemini-2.5-pro"],
+      defaultProviderId: "vertex:gemini-2.5-pro",
     },
     {
       id: "gemini-3-flash-preview",
       providerIds: [
         "openrouter:google/gemini-3-flash-preview",
-        "google:gemini-3-flash-preview",
+        "vertex:gemini-3-flash-preview",
       ],
-      defaultProviderId: "openrouter:google/gemini-3-flash-preview",
-      attachments: {
-        maxFiles: 4,
-      },
+      defaultProviderId: "vertex:gemini-3-flash-preview",
     },
     {
       id: "gemini-3.1-pro-preview",
       providerIds: [
         "openrouter:google/gemini-3.1-pro-preview",
-        "google:gemini-3.1-pro-preview",
+        "vertex:gemini-3.1-pro-preview",
       ],
-      defaultProviderId: "openrouter:google/gemini-3.1-pro-preview",
-      attachments: {
-        maxFiles: 4,
-      },
+      defaultProviderId: "vertex:gemini-3.1-pro-preview",
     },
   ],
 };

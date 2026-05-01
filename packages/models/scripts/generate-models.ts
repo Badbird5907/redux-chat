@@ -7,9 +7,15 @@ const PROVIDER_ALLOWLIST = [
   "google",
   "openai",
   "openrouter",
+  "vertex",
 ] as const;
 
 type ProviderId = (typeof PROVIDER_ALLOWLIST)[number];
+
+// these are ailases, so `vertex` -> `google-vertex` in models.dev
+const PROVIDER_MODELS_DEV_KEYS = {
+  vertex: "google-vertex",
+} as const satisfies Partial<Record<ProviderId, string>>;
 
 interface ModelsDevModelCost {
   input?: number;
@@ -115,9 +121,14 @@ async function main() {
     {} as Record<ProviderId, { modelCount: number; doc: string }>;
 
   for (const providerId of PROVIDER_ALLOWLIST) {
-    const catalog = catalogs[providerId];
+    const modelsDevKey = modelsDevCatalogKey(providerId);
+    const catalog = catalogs[modelsDevKey];
     if (!catalog) {
-      throw new Error(`Provider "${providerId}" is missing from models.dev`);
+      throw new Error(
+        modelsDevKey === providerId
+          ? `Provider "${providerId}" is missing from models.dev`
+          : `Models.dev catalog "${modelsDevKey}" for provider "${providerId}" is missing`,
+      );
     }
 
     const normalizedCatalog = normalizeProviderCatalog(providerId, catalog);
@@ -141,6 +152,15 @@ async function main() {
     `export const generatedProviderManifest = ${serialize(manifest)} as const;\n`;
 
   await fs.writeFile(manifestPath, manifestContents);
+}
+
+function modelsDevCatalogKey(providerId: ProviderId): string {
+  if (providerId in PROVIDER_MODELS_DEV_KEYS) {
+    return PROVIDER_MODELS_DEV_KEYS[
+      providerId as keyof typeof PROVIDER_MODELS_DEV_KEYS
+    ];
+  }
+  return providerId;
 }
 
 function normalizeProviderCatalog(

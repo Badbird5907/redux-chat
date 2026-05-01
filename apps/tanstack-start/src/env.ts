@@ -20,6 +20,7 @@ export const env = createEnv({
     ANTHROPIC_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1),
+    GOOGLE_VERTEX_API_KEY: z.string().min(1),
     DOCUMENT_CONVERTER_URL: z.string().min(1),
     DOCUMENT_CONVERTER_BASIC_AUTH: z.string().min(1),
     DOCUMENT_CONVERTER_TIMEOUT_MS: z.coerce
@@ -27,7 +28,6 @@ export const env = createEnv({
       .int()
       .positive()
       .default(40000),
-    GEMINI_API_KEY: z.string().min(1),
     AA_API_KEY: z.string().min(1),
   },
   client: {

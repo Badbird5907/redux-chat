@@ -20,11 +20,9 @@ import type { MessageStats } from "./chat-types";
 
 export const MessageStatsBar = memo(function MessageStatsBar({
   stats,
-  isVisible,
   actionsDisabled,
 }: {
   stats: MessageStats | undefined;
-  isVisible: boolean;
   actionsDisabled: boolean;
 }) {
   const usage = stats?.usage;
@@ -35,8 +33,7 @@ export const MessageStatsBar = memo(function MessageStatsBar({
   return (
     <div
       className={cn(
-        "text-muted-foreground flex min-h-8 items-center gap-4 text-xs transition-opacity duration-200",
-        isVisible ? "opacity-100" : "opacity-0",
+        "text-muted-foreground flex min-h-8 items-center gap-4 text-xs",
       )}
     >
       {model && (

@@ -114,8 +114,6 @@ export interface ChatMessageRowProps {
   totalCount: number;
   status: string;
   messageStats?: MessageStats;
-  isHovered: boolean;
-  onHoverChange: (messageId: string | null) => void;
   resolvedMessageAttachments: Record<string, ResolvedAttachment>;
   messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
   assistantModelByParentMessageId: Map<string, string>;
@@ -143,8 +141,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   totalCount,
   status,
   messageStats,
-  isHovered,
-  onHoverChange,
   resolvedMessageAttachments,
   messageAttachmentsByMessageId,
   assistantModelByParentMessageId,
@@ -265,11 +261,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   return (
     <div
       className={cn(
-        "flex w-full",
+        "group flex w-full",
         message.role === "user" ? "justify-end" : "justify-start",
       )}
-      onMouseEnter={() => onHoverChange(message.id)}
-      onMouseLeave={() => onHoverChange(null)}
     >
       <div
         className={cn(
@@ -406,10 +400,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         )}
         {message.role === "user" && (
           <div
-            className={cn(
-              "text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs transition-opacity duration-200",
-              isHovered ? "opacity-100" : "opacity-0",
-            )}
+            className="text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
           >
             <BranchSwitcher
               branchGroup={branchGroup}
@@ -440,16 +431,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         {message.role === "assistant" && (
           <div
             className={cn(
-              "text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs",
-              isStreamingAssistant && "opacity-0",
+              "text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs transition-opacity duration-200",
+              isStreamingAssistant
+                ? "opacity-0"
+                : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
             )}
           >
-            <div
-              className={cn(
-                "flex items-center gap-1 transition-opacity duration-200",
-                isHovered ? "opacity-100" : "opacity-0",
-              )}
-            >
+            <div className="flex items-center gap-1">
               <BranchSwitcher
                 branchGroup={branchGroup}
                 disabled={controlsDisabled}
@@ -470,7 +458,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             </div>
             <MessageStatsBar
               stats={messageStats}
-              isVisible={isHovered}
               actionsDisabled={controlsDisabled}
             />
           </div>

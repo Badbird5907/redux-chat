@@ -161,6 +161,19 @@ export const ROUTE_PROVIDER_DEFAULTS: Record<string, RouteProviderDefaults> = {
       },
     },
   },
+  vertex: {
+    runtimeProviderKey: "vertex",
+    attachmentPolicy: {
+      defaults: {
+        image: "native",
+        pdf: "native",
+        plain_text: "native",
+        office_document: "convert_to_pdf",
+        spreadsheet: "convert_to_pdf",
+        presentation: "convert_to_pdf",
+      },
+    },
+  },
 };
 
 export function mergeModelRouteBehavior(

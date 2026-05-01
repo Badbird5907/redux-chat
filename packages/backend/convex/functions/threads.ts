@@ -1,6 +1,6 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createVertex } from "@ai-sdk/google-vertex/edge";
 import { generateText } from "ai";
 import { Buffer } from "buffer/";
 import { paginationOptsValidator } from "convex/server";
@@ -1110,13 +1110,13 @@ export const internal_generateThreadTitle = internalAction({
   handler: async (ctx, args) => {
     const env = backendEnv();
 
-    const openrouter = createOpenRouter({
-      apiKey: env.OPENROUTER_API_KEY,
+    const vertex = createVertex({
+      apiKey: env.GOOGLE_VERTEX_API_KEY,
     });
 
     try {
       const { text } = await generateText({
-        model: openrouter.chat("google/gemini-3.1-flash-lite-preview"),
+        model: vertex("gemini-3-flash-preview"),
         prompt: [
           "Generate a short chat thread title for the user's first message.",
           "Return only the title with no quotes, prefix, or punctuation decoration.",

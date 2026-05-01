@@ -8,6 +8,8 @@ import { api, internal } from "../_generated/api";
 import type { DataModel, Doc } from "../_generated/dataModel";
 import {
   buildBillingAccountRecord,
+  billingDebugLog,
+  billingDebugWarn,
   buildPolarCreditGrantEvent,
   buildPolarCreditUsageEvent,
   buildToolSummaryRecord,
@@ -251,8 +253,8 @@ export const recordUsageEvent = action({
     polarIngestedAt: number | undefined;
     tier: PlanTier;
   }> => {
-    console.log("Recording usage event", args);
-    console.log("billing_record_usage_checkpoint", {
+    billingDebugLog("Recording usage event", args);
+    billingDebugLog("billing_record_usage_checkpoint", {
       stage: "before_existing_lookup",
       requestId: args.requestId,
       userId: ctx.userId,
@@ -281,7 +283,7 @@ export const recordUsageEvent = action({
         tier: existing.tier,
       };
     }
-    console.log("billing_record_usage_checkpoint", {
+    billingDebugLog("billing_record_usage_checkpoint", {
       stage: "after_existing_lookup",
       requestId: args.requestId,
       userId: ctx.userId,
@@ -291,7 +293,7 @@ export const recordUsageEvent = action({
       ctx,
       ctx.userId,
     );
-    console.log("billing_record_usage_checkpoint", {
+    billingDebugLog("billing_record_usage_checkpoint", {
       stage: "after_subscription_resolution",
       requestId: args.requestId,
       userId: ctx.userId,
@@ -308,7 +310,7 @@ export const recordUsageEvent = action({
       getBillingConfig(),
     );
 
-    console.log("billing_charge_computed", {
+    billingDebugLog("billing_charge_computed", {
       userId: ctx.userId,
       tier: subscriptionState.tier,
       routeId: args.routeId,
@@ -322,7 +324,7 @@ export const recordUsageEvent = action({
       },
     });
 
-    console.log("billing_record_usage_checkpoint", {
+    billingDebugLog("billing_record_usage_checkpoint", {
       stage: "after_charge_computation",
       requestId: args.requestId,
       userId: ctx.userId,
@@ -330,7 +332,7 @@ export const recordUsageEvent = action({
     });
 
     if (charge.usedPricingFallback) {
-      console.warn("billing_missing_model_pricing", {
+      billingDebugWarn("billing_missing_model_pricing", {
         routeId: args.routeId,
         requestId: args.requestId,
         userId: ctx.userId,
@@ -361,7 +363,7 @@ export const recordUsageEvent = action({
       polarEventName: POLAR_CREDITS_EVENT_NAME,
     });
 
-    console.log("billing_record_usage_checkpoint", {
+    billingDebugLog("billing_record_usage_checkpoint", {
       stage: "after_local_insert",
       requestId: args.requestId,
       userId: ctx.userId,
@@ -374,7 +376,7 @@ export const recordUsageEvent = action({
         POLAR_NETWORK_TIMEOUT_MS,
         "ensureMonthlyCreditsForUser",
       );
-      console.log("billing_record_usage_checkpoint", {
+      billingDebugLog("billing_record_usage_checkpoint", {
         stage: "after_monthly_credit_check",
         requestId: args.requestId,
         userId: ctx.userId,
@@ -670,7 +672,7 @@ async function refreshBillingStateForUser(
   ctx: BillingActionCtx,
   userId: string,
 ): Promise<BillingRefreshResult> {
-  console.log("refreshBillingStateForUser", userId);
+  billingDebugLog("refreshBillingStateForUser", userId);
   const subscriptionState = await resolveCurrentSubscriptionState(ctx, userId);
   const customerId = await ensurePolarCustomerForCurrentUser(ctx);
   const billingAccount = buildBillingAccountRecord(
@@ -678,7 +680,7 @@ async function refreshBillingStateForUser(
     subscriptionState.subscription,
   );
 
-  console.log("billingAccount", billingAccount);
+  billingDebugLog("billingAccount", billingAccount);
 
   await ctx.runMutation(internal.functions.billing.internal_upsertBillingAccount, {
     userId: billingAccount.userId,
@@ -701,7 +703,7 @@ async function refreshBillingStateForUser(
     const state = await polarSdk.customers.getStateExternal({
       externalId: userId,
     });
-    console.log("billing_refresh_customer_state", {
+    billingDebugLog("billing_refresh_customer_state", {
       userId,
       tier: subscriptionState.tier,
       meterName,
@@ -749,7 +751,7 @@ async function refreshBillingStateForUser(
       periodKey,
     });
 
-    console.log("billing_refresh_balance_result", {
+    billingDebugLog("billing_refresh_balance_result", {
       userId,
       tier: subscriptionState.tier,
       meterName,
@@ -935,7 +937,7 @@ async function ensureMonthlyCreditsForUser(
       const availableCredits =
         extractMeterBalance(state, getBillingConfig().meterName) ?? 0;
       creditsToGrant = Math.max(0, plan.includedMonthlyCredits - availableCredits);
-      console.log("billing_free_top_up_calculated", {
+      billingDebugLog("billing_free_top_up_calculated", {
         userId,
         periodKey,
         availableCredits,

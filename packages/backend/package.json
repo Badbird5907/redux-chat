@@ -43,6 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/google-vertex": "^4.0.115",
     "@convex-dev/better-auth": "^0.12.1",
     "@convex-dev/polar": "^0.9.0",
     "@openrouter/ai-sdk-provider": "2.8.1",
