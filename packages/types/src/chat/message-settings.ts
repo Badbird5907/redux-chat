@@ -64,6 +64,7 @@ export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
   tools: {
+    search: {},
     analysisWorkspace: { syncUploads: false },
   },
   instructionId: undefined,

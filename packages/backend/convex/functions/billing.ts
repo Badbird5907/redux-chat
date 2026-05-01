@@ -401,6 +401,7 @@ export const recordUsageEvent = action({
         routeId: args.routeId,
         tier: subscriptionState.tier,
         charge,
+        usage: args.usage,
         toolCalls: args.toolCalls,
       });
 

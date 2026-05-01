@@ -3,9 +3,24 @@ import { Polar as PolarSdkClient } from "@polar-sh/sdk";
 import {
   DEFAULT_BILLING_CONFIG,
   aggregateBillableToolCalls,
-  getPlanConfig
+  getPlanConfig,
+  resolveModelRoute,
 } from "@redux/shared";
-import type { BillableToolCall, PlanTier, UsageChargeComputationResult } from "@redux/shared";
+import type {
+  BillableToolCall,
+  PlanTier,
+  UsageChargeComputationResult,
+} from "@redux/shared";
+
+type BillingUsage = {
+  inputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  inputAudioTokens?: number;
+  outputAudioTokens?: number;
+};
 
 import { backendEnv } from "./env";
 
@@ -61,7 +76,7 @@ export function getBillingConfig() {
   return {
     ...DEFAULT_BILLING_CONFIG,
     meterName:
-      env.POLAR_CREDITS_METER_NAME ?? DEFAULT_BILLING_CONFIG.meterName,
+      env.POLAR_CREDITS_METER_NAME,
   };
 }
 
@@ -73,7 +88,7 @@ export function getPolarSdkClient() {
 
   return new PolarSdkClient({
     accessToken: env.POLAR_ACCESS_TOKEN,
-    server: env.POLAR_SERVER ?? "sandbox",
+    server: env.POLAR_SERVER,
   });
 }
 
@@ -214,9 +229,14 @@ export function buildPolarCreditUsageEvent(args: {
   routeId: string;
   tier: PlanTier;
   charge: UsageChargeComputationResult;
+  usage: BillingUsage;
   toolCalls?: BillableToolCall[];
 }) {
   const toolSummary = buildToolSummaryRecord(args.toolCalls);
+  const llmMetadata = buildPolarLlmMetadata({
+    routeId: args.routeId,
+    usage: args.usage,
+  });
 
   return {
     name: POLAR_CREDITS_EVENT_NAME,
@@ -240,7 +260,54 @@ export function buildPolarCreditUsageEvent(args: {
         amount: args.charge.rawUsdCost,
         currency: "usd",
       },
+      _llm: llmMetadata,
     },
+  };
+}
+
+/**
+ * Build the special `_llm` metadata block consumed by the Polar UI to surface
+ * top-models and per-event LLM stats. See:
+ * https://docs.polar.sh/features/usage-based-billing/ingestion-strategies/llm-strategy
+ */
+export function buildPolarLlmMetadata(args: {
+  routeId: string;
+  usage: BillingUsage;
+}) {
+  const route = resolveModelRoute(args.routeId);
+  const inputTokens = args.usage.inputTokens ?? 0;
+  const outputTokens = args.usage.outputTokens ?? 0;
+  const reasoningTokens = args.usage.reasoningTokens ?? 0;
+  const cachedInputTokens = args.usage.cacheReadTokens ?? 0;
+  // Polar requires `outputTokens` and `totalTokens`; treat reasoning as
+  // output for billing purposes so totals match what providers report.
+  const totalOutputTokens = outputTokens + reasoningTokens;
+  const totalTokens =
+    inputTokens +
+    totalOutputTokens +
+    cachedInputTokens +
+    (args.usage.cacheWriteTokens ?? 0) +
+    (args.usage.inputAudioTokens ?? 0) +
+    (args.usage.outputAudioTokens ?? 0);
+
+  // Fall back to parsing `provider:model` from the routeId when the route is
+  // not registered (e.g. fallback pricing path). routeId is `${provider}:${model}`.
+  const [fallbackProvider, ...fallbackModelParts] = args.routeId.split(":");
+  const fallbackModel = fallbackModelParts.join(":");
+
+  const vendor = route?.vendorId ?? route?.provider ?? fallbackProvider ?? "unknown";
+  const model =
+    route?.canonicalModelId ??
+    (fallbackModel.length > 0 ? fallbackModel : route?.displayName ?? args.routeId);
+
+  // The SDK expects camelCase here; it serializes to snake_case on the wire.
+  return {
+    vendor,
+    model,
+    inputTokens,
+    outputTokens: totalOutputTokens,
+    totalTokens,
+    cachedInputTokens,
   };
 }
 
