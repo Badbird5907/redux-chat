@@ -49,8 +49,7 @@ export const Route = createRootRouteWithContext<{
       },
       {
         name: "description",
-        content:
-          "Opinionated full-stack template for quickly bootstrapping a TanStack Start and turborepo app with Convex, Shadcn/ui, Better Auth, and more.",
+        content: "A chat app to rule them all",
       },
     ],
     links: [
