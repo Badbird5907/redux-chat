@@ -16,5 +16,29 @@ export const ANTHROPIC_PROVIDER: CuratedProviderDefinition = {
         maxFiles: 4,
       },
     },
+    {
+      id: "claude-3-5-haiku-20241022",
+      name: "Claude 3.5 Haiku",
+      providerIds: [
+        "openrouter:anthropic/claude-3.5-haiku",
+        "anthropic:claude-3-5-haiku-20241022",
+      ],
+      defaultProviderId: "anthropic:claude-3-5-haiku-20241022",
+      attachments: {
+        maxFiles: 4,
+      },
+    },
+    {
+      id: "claude-haiku-4-5-20251001",
+      name: "Claude 4.5 Haiku",
+      providerIds: [
+        "openrouter:anthropic/claude-haiku-4.5",
+        "anthropic:claude-haiku-4-5-20251001",
+      ],
+      defaultProviderId: "anthropic:claude-haiku-4-5-20251001",
+      attachments: {
+        maxFiles: 4,
+      },
+    },
   ],
 };

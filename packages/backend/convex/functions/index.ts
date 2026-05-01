@@ -59,6 +59,17 @@ export const mutation = customMutation(
   }),
 );
 
+export const action = customAction(
+  rawAction,
+  customCtx(async (ctx: GenericActionCtx<DataModel>) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new ConvexError("Unauthorized");
+    }
+    return { user, userId: user.subject };
+  }),
+);
+
 const enforceInternalSecret = {
   args: { secret: v.string() },
   input: (

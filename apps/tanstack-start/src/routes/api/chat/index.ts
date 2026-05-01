@@ -21,6 +21,7 @@ import { createToolRuntime } from "@/lib/ai/tools";
 import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
 import {
+  fetchAuthAction,
   fetchAuthMutation,
   fetchAuthQuery,
   getRequestUserIdFromHeaders,
@@ -54,6 +55,11 @@ const requestBody = z.object({
           syncUploads: z.boolean().optional(),
         })
         .optional(),
+      mcpServers: z
+        .object({
+          serverIds: z.array(z.string()),
+        })
+        .optional(),
     }),
   }),
   model: z.string(),
@@ -65,6 +71,11 @@ const requestBody = z.object({
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
 
 const ENABLE_PROJECT_RAG_PREFETCH = true;
+
+const BASE_SYSTEM_PROMPT = `You are Redux.chat.
+
+You can use Markdown for clear formatting, including fenced code blocks for code.
+For math, use LaTeX with $...$ for inline math and $$...$$ for display math.`;
 
 interface ModelAttachment {
   attachmentId: string;
@@ -213,9 +224,9 @@ function formatChunksAsContext(chunks: RetrievedChunk[]): string {
     "Cite them inline using their tags (e.g. [#cite-1]) when you use them. " +
     "If a chunk's content is not relevant, ignore it.";
 
-  const blocks = chunks.map((chunk, index) => {
+  const blocks = chunks.map((chunk, _index) => {
     return formatProjectKnowledgeChunk(chunk, {
-      tag: `[#cite-${index + 1}]`,
+      tag: undefined,// `[#cite-${index + 1}]`,
       includeFilePrefix: true,
       emptyText: "(no text)",
       imageText: "(image — refer to it by file name when relevant)",
@@ -298,13 +309,27 @@ export const Route = createFileRoute("/api/chat/")({
         } = parsedBody;
         const settings = normalizeMessageSettings(rawSettings);
         const isSearchEnabled = isToolEnabled(settings.tools, "search");
+        const enabledMcpServerIds = settings.tools.mcpServers?.serverIds ?? [];
         console.log("Received request:", {
           threadId,
           assistantMessageId,
           clientId,
           model: settings.model,
           isSearchEnabled,
+          enabledMcpServerIds,
         });
+
+        const billingState = await fetchAuthAction(
+          api.functions.billing.refreshCurrentUserMeterState,
+          {},
+        );
+        if (
+          billingState.availableCredits !== undefined &&
+          billingState.availableCredits <= 0 &&
+          !billingState.overageAllowed
+        ) {
+          return new Response("You are out of credits.", { status: 402 });
+        }
 
         let cleanupTools: (() => Promise<void>) | undefined;
         let streamFailureMessage: string | undefined;
@@ -435,8 +460,16 @@ export const Route = createFileRoute("/api/chat/")({
             );
           }
 
-          const toolRuntime = createToolRuntime(settings, {
+          const enabledMcpServers =
+            enabledMcpServerIds.length > 0
+              ? await fetchAuthQuery(api.functions.mcpServers.getByIds, {
+                  serverIds: enabledMcpServerIds,
+                })
+              : [];
+
+          const toolRuntime = await createToolRuntime(settings, {
             attachments: getToolAttachments(attachmentsByMessageId),
+            mcpServers: enabledMcpServers,
             projectContext:
               chatProjectId && threadUserId
                 ? {
@@ -480,10 +513,9 @@ export const Route = createFileRoute("/api/chat/")({
             messagesWithAttachments,
           );
 
-          // Prepend the project's shared instructions and any retrieved RAG
-          // context as leading system messages. We do this on the model-message
-          // array (after conversion) so they never get persisted on the thread.
-          // Order: [projectInstructions, projectToolInstruction, projectContext, ...userMessages]
+          // Prepend base, selected, project, tool, and retrieved RAG context as
+          // leading system messages. We do this on the model-message array
+          // (after conversion) so they never get persisted on the thread.
           if (projectContextBlock) {
             modelMessages.unshift({
               role: "system",
@@ -508,6 +540,10 @@ export const Route = createFileRoute("/api/chat/")({
               content: selectedInstructionPrompt,
             });
           }
+          modelMessages.unshift({
+            role: "system",
+            content: BASE_SYSTEM_PROMPT,
+          });
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
@@ -577,6 +613,27 @@ export const Route = createFileRoute("/api/chat/")({
                     generationStats,
                   },
                 );
+
+                try {
+                  await fetchAuthAction(api.functions.billing.recordUsageEvent, {
+                    requestId: assistantMessageId,
+                    messageId: assistantMessageId,
+                    threadId,
+                    routeId: resolvedModel.route.id,
+                    usage: {
+                      inputTokens: usage.inputTokens,
+                      outputTokens: usage.outputTokens,
+                      reasoningTokens: usage.reasoningTokens,
+                      cacheReadTokens: usage.cachedInputTokens,
+                      cacheWriteTokens: undefined,
+                      inputAudioTokens: undefined,
+                      outputAudioTokens: undefined,
+                    },
+                    toolCalls: toolRuntime.getBillableToolCalls(),
+                  });
+                } catch (billingError) {
+                  console.error("Failed to record usage billing event", billingError);
+                }
               } finally {
                 await cleanupTools?.();
               }

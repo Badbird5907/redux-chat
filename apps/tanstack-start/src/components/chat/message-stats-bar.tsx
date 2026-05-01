@@ -1,9 +1,19 @@
 "use client";
 
 import { memo } from "react";
-import { ClockIcon, WholeWord, ZapIcon } from "lucide-react";
+import {
+  CircleDollarSign,
+  ClockIcon,
+  WholeWord,
+  ZapIcon,
+} from "lucide-react";
 
 import { getModelDisplayName } from "@redux/shared/models";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@redux/ui/components/tooltip";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { MessageStats } from "./chat-types";
@@ -20,6 +30,7 @@ export const MessageStatsBar = memo(function MessageStatsBar({
   const usage = stats?.usage;
   const generationStats = stats?.generationStats;
   const model = stats?.model;
+  const creditsConsumed = stats?.creditsConsumed;
 
   return (
     <div
@@ -53,6 +64,24 @@ export const MessageStatsBar = memo(function MessageStatsBar({
             </span>
           )}
         </>
+      )}
+      {typeof creditsConsumed === "number" && (
+        <Tooltip delay={150}>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-sm"
+                aria-label={`${creditsConsumed.toLocaleString()} credits consumed`}
+              />
+            }
+          >
+            <CircleDollarSign className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            {creditsConsumed.toLocaleString()} credits consumed
+          </TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

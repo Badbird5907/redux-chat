@@ -8,9 +8,11 @@ import {
   isModelNewlyReleased,
   NEW_MODEL_RECENCY_DAYS,
 } from "@redux/shared/models";
+import type { PlanTier } from "@redux/shared";
 import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
+import { useBillingState } from "@/components/chat/use-billing-state";
 import type { ModelSelectorState } from "./use-model-selector-state";
 import { Capabilities } from "./capabilities";
 import { panelSpring } from "./constants";
@@ -59,6 +61,8 @@ export function ModelSelectorModelList(props: ModelListProps) {
     listboxId,
     favoritesLayoutGroupId,
   } = props;
+  const { billingState } = useBillingState();
+  const currentTier: PlanTier = billingState?.tier ?? "free";
 
   const emptyMessage =
     activeSidebar === "favorites" &&
@@ -99,6 +103,7 @@ export function ModelSelectorModelList(props: ModelListProps) {
                 key={model.id}
                 model={model}
                 rowIndex={rowIndex}
+                tier={currentTier}
                 listProps={props}
               />
             ))}
@@ -112,10 +117,12 @@ export function ModelSelectorModelList(props: ModelListProps) {
 function ModelRow({
   model,
   rowIndex,
+  tier,
   listProps,
 }: {
   model: ChatModelConfig;
   rowIndex: number;
+  tier: PlanTier;
   listProps: ModelListProps;
 }) {
   const selected = model.id === listProps.selectedModel;
@@ -225,7 +232,7 @@ function ModelRow({
             </span>
           ) : null}
         </div>
-        <ModelRowSubtitle model={model} />
+        <ModelRowSubtitle model={model} tier={tier} />
       </div>
       <div className="shrink-0 self-start">
         <Capabilities model={model} />

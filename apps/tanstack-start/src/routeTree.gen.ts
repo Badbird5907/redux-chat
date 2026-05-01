@@ -13,9 +13,12 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as TestIndexRouteImport } from './routes/test/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
+import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
@@ -52,6 +55,11 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TestIndexRoute = TestIndexRouteImport.update({
+  id: '/test/',
+  path: '/test/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -66,6 +74,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsMcpRoute = SettingsMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsInstructionsRoute = SettingsInstructionsRouteImport.update({
   id: '/instructions',
@@ -161,8 +179,11 @@ export interface FileRoutesByFullPath {
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/test/': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -183,9 +204,12 @@ export interface FileRoutesByTo {
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/': typeof AppIndexRoute
   '/logos': typeof LogosIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/test': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -209,9 +233,12 @@ export interface FileRoutesById {
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/_app/': typeof AppIndexRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/test/': typeof TestIndexRoute
   '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -236,8 +263,11 @@ export interface FileRouteTypes {
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/attachments'
+    | '/settings/mcp'
+    | '/settings/security'
     | '/logos/'
     | '/settings/'
+    | '/test/'
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
@@ -258,9 +288,12 @@ export interface FileRouteTypes {
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/attachments'
+    | '/settings/mcp'
+    | '/settings/security'
     | '/'
     | '/logos'
     | '/settings'
+    | '/test'
     | '/chat/$id'
     | '/projects/$id'
     | '/api/auth/$'
@@ -283,9 +316,12 @@ export interface FileRouteTypes {
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/attachments'
+    | '/settings/mcp'
+    | '/settings/security'
     | '/_app/'
     | '/logos/'
     | '/settings/'
+    | '/test/'
     | '/_app/chat/$id'
     | '/_app/projects/$id'
     | '/api/auth/$'
@@ -303,6 +339,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiUploadRoute: typeof ApiUploadRoute
   LogosIndexRoute: typeof LogosIndexRoute
+  TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPolarCheckoutRoute: typeof ApiPolarCheckoutRoute
   ApiWebhookPolarRoute: typeof ApiWebhookPolarRoute
@@ -340,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/test/': {
+      id: '/test/'
+      path: '/test'
+      fullPath: '/test/'
+      preLoaderRoute: typeof TestIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/': {
       id: '/settings/'
       path: '/'
@@ -360,6 +404,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/settings/security': {
+      id: '/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof SettingsSecurityRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/mcp': {
+      id: '/settings/mcp'
+      path: '/mcp'
+      fullPath: '/settings/mcp'
+      preLoaderRoute: typeof SettingsMcpRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/settings/instructions': {
       id: '/settings/instructions'
@@ -512,6 +570,8 @@ interface SettingsRouteChildren {
   SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
   SettingsInstructionsRoute: typeof SettingsInstructionsRoute
+  SettingsMcpRoute: typeof SettingsMcpRoute
+  SettingsSecurityRoute: typeof SettingsSecurityRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -519,6 +579,8 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAttachmentsRoute: SettingsAttachmentsRoute,
   SettingsHotkeysRoute: SettingsHotkeysRoute,
   SettingsInstructionsRoute: SettingsInstructionsRoute,
+  SettingsMcpRoute: SettingsMcpRoute,
+  SettingsSecurityRoute: SettingsSecurityRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
@@ -533,6 +595,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   ApiUploadRoute: ApiUploadRoute,
   LogosIndexRoute: LogosIndexRoute,
+  TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPolarCheckoutRoute: ApiPolarCheckoutRoute,
   ApiWebhookPolarRoute: ApiWebhookPolarRoute,

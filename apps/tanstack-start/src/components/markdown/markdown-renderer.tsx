@@ -7,7 +7,6 @@ import { Streamdown } from "streamdown";
 
 import { cn } from "@redux/ui/lib/utils";
 
-import { normalizeStreamdownMath } from "./normalize-streamdown-math";
 import { streamdownComponents } from "./streamdown-components";
 
 const streamdownPlugins = {
@@ -36,8 +35,6 @@ export function MarkdownRenderer({
     return null;
   }
 
-  const normalizedContent = normalizeStreamdownMath(content);
-
   return (
     <Streamdown
       className={cn(
@@ -46,14 +43,14 @@ export function MarkdownRenderer({
         className,
       )}
       components={streamdownComponents}
-      controls={false}
+      controls={true}
       isAnimating={isStreaming}
       lineNumbers={false}
       mode={mode}
       plugins={streamdownPlugins}
       shikiTheme={shikiTheme}
     >
-      {normalizedContent}
+      {content}
     </Streamdown>
   );
 }

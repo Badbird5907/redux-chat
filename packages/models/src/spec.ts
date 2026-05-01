@@ -39,10 +39,14 @@ export function getModelSpec(
 }
 
 export function toPricing(cost: ModelsDevModelCost | undefined): ModelPricing {
+  const outputPrice = numberOrUndefined(cost?.output);
+
   return {
     input: numberOrUndefined(cost?.input),
-    output: numberOrUndefined(cost?.output),
-    reasoning: numberOrUndefined(cost?.reasoning),
+    output: outputPrice,
+    // When a provider does not publish separate reasoning pricing,
+    // bill reasoning tokens at the output-token rate.
+    reasoning: numberOrUndefined(cost?.reasoning) ?? outputPrice,
     cacheRead: numberOrUndefined(cost?.cache_read),
     cacheWrite: numberOrUndefined(cost?.cache_write),
     inputAudio: numberOrUndefined(cost?.input_audio),

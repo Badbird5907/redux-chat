@@ -10,11 +10,26 @@ export const SETTINGS_NAV_ITEMS = [
     searchBlob: "general settings preferences",
   },
   {
+    value: "settings-security",
+    to: "/settings/security" as const,
+    title: "Security",
+    subtitle: "Manage email, password, and OAuth connections",
+    searchBlob:
+      "security authentication auth account email password oauth github social connections",
+  },
+  {
     value: "settings-instructions",
     to: "/settings/instructions" as const,
     title: "Instructions",
     subtitle: "Manage reusable chat behavior presets",
     searchBlob: "instructions prompts styles presets system prompts",
+  },
+  {
+    value: "settings-mcp",
+    to: "/settings/mcp" as const,
+    title: "MCP Servers",
+    subtitle: "Manage remote HTTP MCP endpoints",
+    searchBlob: "mcp servers tools model context protocol http",
   },
   {
     value: "settings-hotkeys",

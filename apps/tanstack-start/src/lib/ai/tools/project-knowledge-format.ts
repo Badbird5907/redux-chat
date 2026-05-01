@@ -10,7 +10,7 @@ export interface ProjectKnowledgeChunkLike {
 export function formatProjectKnowledgeChunk(
   chunk: ProjectKnowledgeChunkLike,
   options: {
-    tag: string;
+    tag?: string;
     includeFilePrefix?: boolean;
     emptyText: string;
     imageText?: string;
@@ -29,5 +29,5 @@ export function formatProjectKnowledgeChunk(
         ? chunk.text.trim()
         : options.emptyText;
 
-  return `${options.tag} ${locator}\n${excerpt}`;
+  return `${options.tag} ${locator}\n${excerpt}`.trim();
 }

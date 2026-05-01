@@ -66,7 +66,7 @@ export function InstructionsManager() {
           drafts[instruction.instructionId] ??
             createInstructionDraft(instruction),
         ]),
-      ) as Record<string, InstructionDraft>,
+      ),
     [drafts, instructions],
   );
 

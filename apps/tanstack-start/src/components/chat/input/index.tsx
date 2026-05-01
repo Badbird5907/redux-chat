@@ -2,6 +2,7 @@ import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import type { QueuedMessage } from "@/components/chat/use-message-queue";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { isTextUIPart } from "ai";
 import { useMutation } from "convex/react";
@@ -29,8 +30,10 @@ import {
   useMessageQueue,
 } from "@/components/chat/use-message-queue";
 import { submitMessage } from "@/components/chat/use-submit-message";
+import { useQuery } from "@/lib/hooks/convex";
 import { useInstructions } from "@/lib/hooks/use-instructions";
 import { deleteDraftAttachment } from "@/server/attachments";
+import { useBillingState } from "../use-billing-state";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
@@ -79,6 +82,7 @@ export function ChatInput({
   const [isExpanded, setIsExpanded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toolsDialogOpen, setToolsDialogOpen] = useState(false);
+  const navigate = useNavigate();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
@@ -89,6 +93,9 @@ export function ChatInput({
     defaultInstruction,
     isReady: instructionsReady,
   } = useInstructions();
+  const mcpServers =
+    useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
+  const { isOutOfCredits } = useBillingState();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
@@ -193,6 +200,10 @@ export function ChatInput({
   const isAnalysisWorkspaceEnabled = isToolEnabled(
     settings.tools,
     "analysisWorkspace",
+  );
+  const enabledMcpServerIds = useMemo(
+    () => settings.tools.mcpServers?.serverIds ?? [],
+    [settings.tools.mcpServers],
   );
   const syncUploadsToAnalysisWorkspace =
     settings.tools.analysisWorkspace?.syncUploads !== false;
@@ -326,6 +337,22 @@ export function ChatInput({
     [onSettingsChange],
   );
 
+  const handleToggleMcpServer = useCallback(
+    (mcpServerId: string) => {
+      const nextServerIds = enabledMcpServerIds.includes(mcpServerId)
+        ? enabledMcpServerIds.filter((serverId) => serverId !== mcpServerId)
+        : [...enabledMcpServerIds, mcpServerId];
+
+      void onSettingsChange({
+        tools: {
+          mcpServers:
+            nextServerIds.length > 0 ? { serverIds: nextServerIds } : undefined,
+        },
+      });
+    },
+    [enabledMcpServerIds, onSettingsChange],
+  );
+
   const discardDraftAttachmentForQueue = useCallback(
     async (attachment: DraftAttachment) => {
       if (attachment.source === "retained") {
@@ -369,6 +396,11 @@ export function ChatInput({
       }
 
       if (!trimmed && currentAttachments.length === 0) {
+        return false;
+      }
+
+      if (isOutOfCredits) {
+        toast.error("You are out of credits.");
         return false;
       }
 
@@ -448,6 +480,7 @@ export function ChatInput({
       settingsReady,
       status,
       threadId,
+      isOutOfCredits,
     ],
   );
 
@@ -602,6 +635,11 @@ export function ChatInput({
       return;
     }
 
+    if (isOutOfCredits) {
+      toast.error("You are out of credits.");
+      return;
+    }
+
     if (!settingsReady || !draftReady) {
       return;
     }
@@ -699,6 +737,7 @@ export function ChatInput({
     status,
     submitNewUserPayload,
     threadId,
+    isOutOfCredits,
   ]);
 
   const handleKeyDown = useCallback(
@@ -817,6 +856,17 @@ export function ChatInput({
               onSaveEdit={handleSaveQueuedEdit}
             />
           ) : null}
+          {isOutOfCredits ? (
+            <div
+              className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
+              role="alert"
+            >
+              <p className="font-medium">You are out of credits.</p>
+              <p className="mt-1 text-xs opacity-90">
+                Add credits or enable overages to keep chatting.
+              </p>
+            </div>
+          ) : null}
           <div
             className={cn(
               "bg-card border-border relative z-10 flex flex-col overflow-hidden border shadow-lg transition-all duration-300",
@@ -874,6 +924,10 @@ export function ChatInput({
                 setDropdownOpen(false);
                 setToolsDialogOpen(true);
               }}
+              onOpenMcpSettings={() => {
+                setDropdownOpen(false);
+                void navigate({ to: "/settings/mcp" });
+              }}
               instructions={instructions.map((instruction) => ({
                 instructionId: instruction.instructionId,
                 name: instruction.name,
@@ -892,6 +946,12 @@ export function ChatInput({
               isSearchEnabled={isSearchEnabled}
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}
+              mcpServers={mcpServers.map((server) => ({
+                mcpServerId: server.mcpServerId,
+                name: server.name,
+              }))}
+              enabledMcpServerIds={enabledMcpServerIds}
+              onToggleMcpServer={handleToggleMcpServer}
               isContentOverflowing={isContentOverflowing}
               isExpanded={isExpanded}
               onToggleExpand={toggleExpand}
@@ -907,6 +967,7 @@ export function ChatInput({
               isSubmitting={isSubmitting}
               hasUploadingFiles={hasUploadingFiles}
               draftReady={draftReady}
+              isOutOfCredits={isOutOfCredits}
               onStopGeneration={onStopGeneration}
               onSubmit={() => void handleSubmit()}
               project={chatProjectId}

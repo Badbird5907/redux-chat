@@ -4,6 +4,8 @@ import {
   BookText,
   FileText,
   Keyboard,
+  PlugZap,
+  Shield,
   SlidersHorizontal,
 } from "lucide-react";
 
@@ -21,9 +23,11 @@ export function SettingsSidebarPanel() {
   });
 
   const isGeneralActive = pathname === "/settings" || pathname === "/settings/";
+  const isSecurityActive = pathname.startsWith("/settings/security");
   const isInstructionsActive = pathname.startsWith("/settings/instructions");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
   const isAttachmentsActive = pathname.startsWith("/settings/attachments");
+  const isMcpActive = pathname.startsWith("/settings/mcp");
 
   return (
     <AppSidebar
@@ -56,6 +60,26 @@ export function SettingsSidebarPanel() {
             >
               <BookText />
               <span>Instructions</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isSecurityActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/security" />}
+            >
+              <Shield />
+              <span>Security</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isMcpActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/mcp" />}
+            >
+              <PlugZap />
+              <span>MCP Servers</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
