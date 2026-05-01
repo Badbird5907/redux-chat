@@ -380,7 +380,7 @@ function SecurityRouteComponent() {
             <CardDescription>
               {hasPassword
                 ? "Change your password and revoke other active sessions."
-                : "Add a password so you can sign in without GitHub."}
+                : "Add a password so you can sign in without OAuth."}
             </CardDescription>
           </CardHeader>
           <CardContent>

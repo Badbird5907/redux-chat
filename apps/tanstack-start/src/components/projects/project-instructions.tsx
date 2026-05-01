@@ -53,7 +53,7 @@ export function ProjectInstructions({
           <span className="text-sm font-medium">Instructions</span>
           {!instructions && !editing && (
             <span className="text-muted-foreground text-xs">
-              Add instructions to tailor Claude's responses
+              Add instructions to tailor responses
             </span>
           )}
         </div>
@@ -78,7 +78,7 @@ export function ProjectInstructions({
               ref={textareaRef}
               rows={6}
               value={draft}
-              placeholder="Tailor Claude's responses for this project..."
+              placeholder="Tailor responses for this project..."
               onChange={(event) => setDraft(event.target.value)}
             />
             <div className="flex justify-end gap-2">

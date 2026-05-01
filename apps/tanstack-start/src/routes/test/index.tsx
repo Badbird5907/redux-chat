@@ -1,4 +1,6 @@
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
+import { Button } from "@redux/ui/components/button";
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/test/")({
@@ -58,6 +60,8 @@ function RouteComponent() {
       <div className="border-border bg-card w-full max-w-3xl rounded-2xl border p-8 shadow-sm">
         <MarkdownRenderer content={MARKDOWN_FIXTURE} mode="static" />
       </div>
+
+      <Button onClick={() => toast.success("Hello")}>Click me</Button>
     </div>
   );
 }

@@ -221,12 +221,11 @@ function getLastUserMessage(messages: ChatRequestMessage[]) {
 function formatChunksAsContext(chunks: RetrievedChunk[]): string {
   const header =
     "You have access to the following excerpts from this project's files. " +
-    "Cite them inline using their tags (e.g. [#cite-1]) when you use them. " +
     "If a chunk's content is not relevant, ignore it.";
 
   const blocks = chunks.map((chunk, _index) => {
     return formatProjectKnowledgeChunk(chunk, {
-      tag: undefined,// `[#cite-${index + 1}]`,
+      tag: undefined,
       includeFilePrefix: true,
       emptyText: "(no text)",
       imageText: "(image — refer to it by file name when relevant)",
