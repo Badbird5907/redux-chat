@@ -2,15 +2,16 @@ import { ChevronDown } from "lucide-react";
 
 import { Button } from "@redux/ui/components/button";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerTrigger,
-} from "@redux/ui/components/drawer";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@redux/ui/components/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@redux/ui/components/sheet";
 import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -73,23 +74,28 @@ export function ModelSelector({
 
   if (isMobile) {
     return (
-      <Drawer open={state.open} onOpenChange={state.handleOpenChange}>
-        <DrawerTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={triggerButtonClassName}
-          >
-            <ProviderGlyph maker={maker} className="size-3.5" />
-            <span className="font-medium">{currentModelName}</span>
-            <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
-          </Button>
-        </DrawerTrigger>
-        <DrawerContent
+      <Sheet open={state.open} onOpenChange={state.handleOpenChange}>
+        <SheetTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={triggerButtonClassName}
+            />
+          }
+        >
+          <ProviderGlyph maker={maker} className="size-3.5" />
+          <span className="font-medium">{currentModelName}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+        </SheetTrigger>
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
           className="flex max-h-[90vh] flex-col gap-0 p-0 ring-0 after:hidden"
           onKeyDownCapture={handleMenuKeyDownCapture}
         >
+          <SheetTitle className="sr-only">Select model</SheetTitle>
           <div
             className={cn(
               pickerSurfaceClassName,
@@ -98,8 +104,8 @@ export function ModelSelector({
           >
             {modelPickerBody}
           </div>
-        </DrawerContent>
-      </Drawer>
+        </SheetContent>
+      </Sheet>
     );
   }
 

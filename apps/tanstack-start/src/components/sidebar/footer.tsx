@@ -4,20 +4,20 @@ import { LogIn, LogOut, Settings } from "lucide-react";
 
 import { Button, buttonVariants } from "@redux/ui/components/button";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@redux/ui/components/drawer";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@redux/ui/components/sheet";
 import { Skeleton } from "@redux/ui/components/skeleton";
 import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import { cn } from "@redux/ui/lib/utils";
@@ -79,29 +79,33 @@ export const AppSidebarFooter = () => {
   }
   if (isMobile) {
     return (
-      <Drawer>
-        <DrawerTrigger className="w-full text-left">
+      <Sheet>
+        <SheetTrigger
+          render={<button type="button" className="w-full text-left" />}
+        >
           <UserInfo
             userId={session.session.userId}
             name={session.user.name}
             email={session.user.email}
           />
-        </DrawerTrigger>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Settings</DrawerTitle>
-          </DrawerHeader>
+        </SheetTrigger>
+        <SheetContent side="bottom">
+          <SheetHeader>
+            <SheetTitle>Settings</SheetTitle>
+          </SheetHeader>
           <div className="flex flex-col gap-2 px-4">
-            <DrawerClose asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={handleOpenSettings}
-              >
-                <Settings className="size-4" />
-                <span>Settings</span>
-              </Button>
-            </DrawerClose>
+            <SheetClose
+              render={
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={handleOpenSettings}
+                />
+              }
+            >
+              <Settings className="size-4" />
+              <span>Settings</span>
+            </SheetClose>
             <Button
               variant="destructive"
               className="w-full justify-start"
@@ -111,9 +115,9 @@ export const AppSidebarFooter = () => {
               <span>Logout</span>
             </Button>
           </div>
-          <DrawerFooter />
-        </DrawerContent>
-      </Drawer>
+          <SheetFooter />
+        </SheetContent>
+      </Sheet>
     );
   }
   return (
