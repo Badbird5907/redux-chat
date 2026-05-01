@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation } from "convex/react";
 import {
   KeyRound,
   Loader2,
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 
 import { Badge } from "@redux/ui/components/badge";
+import { api } from "@redux/backend/convex/_generated/api";
 import { Button } from "@redux/ui/components/button";
 import {
   Card,
@@ -49,9 +51,13 @@ const passwordSchema = z
     message: "Passwords do not match",
   });
 
-type AuthAccount = NonNullable<
-  Awaited<ReturnType<typeof authClient.listAccounts>>["data"]
->[number];
+type AuthAccount = {
+  id: string;
+  providerId: string;
+  accountId: string;
+  userId: string;
+  scopes: string[];
+};
 
 export const Route = createFileRoute("/settings/security")({
   component: SecurityRouteComponent,
@@ -67,12 +73,14 @@ function SecurityRouteComponent() {
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
   const [isLinkingGithub, setIsLinkingGithub] = useState(false);
   const [isUnlinkingGithub, setIsUnlinkingGithub] = useState(false);
+  const setPassword = useMutation(api.functions.user.setPassword);
 
-  const hasPassword = accounts?.some(
-    (account) => account.providerId === "credential",
-  );
-  const hasGithub = accounts?.some((account) => account.providerId === "github");
-  const canUnlinkGithub = Boolean(hasGithub && accounts && accounts.length > 1);
+  const hasLoadedAccounts = accounts !== null;
+  const hasPassword =
+    accounts?.some((account) => account.providerId === "credential") === true;
+  const hasGithub =
+    accounts?.some((account) => account.providerId === "github") === true;
+  const canUnlinkGithub = hasGithub && accounts.length > 1;
 
   const loadAccounts = useCallback(async () => {
     if (!session) {
@@ -89,12 +97,12 @@ function SecurityRouteComponent() {
       return;
     }
 
-    setAccounts(result.data ?? []);
+    setAccounts(result.data);
     setIsLoadingAccounts(false);
   }, [session]);
 
   useEffect(() => {
-    void loadAccounts();
+    void Promise.resolve().then(loadAccounts);
   }, [loadAccounts]);
 
   const emailForm = useForm({
@@ -149,9 +157,19 @@ function SecurityRouteComponent() {
             newPassword: value.newPassword,
             revokeOtherSessions: true,
           })
-        : await authClient.setPassword({
+        : await setPassword({
             newPassword: value.newPassword,
-          });
+          }).then(
+            () => ({ error: null }),
+            (error: unknown) => ({
+              error: {
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Unable to set password.",
+              },
+            }),
+          );
 
       if (result.error) {
         toast.error(result.error.message);
@@ -274,13 +292,25 @@ function SecurityRouteComponent() {
                 ? "Email and password sign-in"
                 : "No password on this account"
             }
-            status={hasPassword ? "Enabled" : "Not set"}
+            status={
+              !hasLoadedAccounts
+                ? "Checking"
+                : hasPassword
+                  ? "Enabled"
+                  : "Not set"
+            }
           />
           <SecurityTile
             icon={<GithubIcon className="size-4" />}
             label="OAuth"
             value="GitHub social sign-in"
-            status={hasGithub ? "Connected" : "Available"}
+            status={
+              !hasLoadedAccounts
+                ? "Checking"
+                : hasGithub
+                  ? "Connected"
+                  : "Available"
+            }
           />
         </CardContent>
       </Card>
@@ -435,7 +465,10 @@ function SecurityRouteComponent() {
                 )}
               />
 
-              <Button type="submit" disabled={passwordForm.state.isSubmitting}>
+              <Button
+                type="submit"
+                disabled={passwordForm.state.isSubmitting || !hasLoadedAccounts}
+              >
                 {passwordForm.state.isSubmitting ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
@@ -465,14 +498,21 @@ function SecurityRouteComponent() {
               <div>
                 <p className="text-sm font-medium">GitHub</p>
                 <p className="text-muted-foreground text-sm">
-                  {hasGithub
-                    ? "Connected as a sign-in method."
-                    : "Not connected."}
+                  {!hasLoadedAccounts
+                    ? "Checking connection..."
+                    : hasGithub
+                      ? "Connected as a sign-in method."
+                      : "Not connected."}
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {hasGithub ? (
+              {!hasLoadedAccounts ? (
+                <Button variant="outline" disabled>
+                  <Loader2 className="size-4 animate-spin" />
+                  Checking
+                </Button>
+              ) : hasGithub ? (
                 <Button
                   variant="destructive"
                   onClick={handleUnlinkGithub}

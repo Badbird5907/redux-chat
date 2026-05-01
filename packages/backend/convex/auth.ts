@@ -13,7 +13,6 @@ import { internalAction } from "./_generated/server";
 import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
-import { dash } from "@better-auth/infra";
 
 const authFunctions: AuthFunctions = internal.auth;
 export const authComponent = createClient<DataModel, typeof authSchema>(
@@ -40,7 +39,6 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
       //   productionURL: env.BASE_URL,
       // }),
       convex({ authConfig }),
-      dash(),
     ],
     socialProviders: {
       github: {
@@ -68,7 +66,8 @@ export const getLatestJwks = internalAction({
   args: {},
   handler: async (ctx) => {
     const auth = initAuth(ctx);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    // idk
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return await auth.api.getLatestJwks();
   },
 });

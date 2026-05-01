@@ -1,9 +1,9 @@
 import { Buffer } from "buffer/";
 import { v } from "convex/values";
 
-import { authComponent } from "../auth";
+import { authComponent, initAuth } from "../auth";
 import { backendEnv } from "../env";
-import { query } from "./index";
+import { mutation, query } from "./index";
 
 export const getUserImage = query({
   args: {
@@ -69,5 +69,19 @@ export const getCurrentUserPolarInfo = query({
       userId: ctx.userId,
       email: user.email,
     };
+  },
+});
+
+export const setPassword = mutation({
+  args: {
+    newPassword: v.string(),
+  },
+  handler: async (ctx, { newPassword }) => {
+    const { auth, headers } = await authComponent.getAuth(initAuth, ctx);
+
+    return await auth.api.setPassword({
+      body: { newPassword },
+      headers,
+    });
   },
 });
