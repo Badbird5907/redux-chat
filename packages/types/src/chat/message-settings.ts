@@ -63,10 +63,24 @@ export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
 
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
-  tools: {},
+  tools: {
+    analysisWorkspace: { syncUploads: false },
+  },
   instructionId: undefined,
   userMessagePreviewMaxLines: DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES,
 };
+
+function toolsInputForNormalization(
+  input: MessageSettingsInput | null | undefined,
+): MessageToolSettingsInput {
+  if (
+    input == null ||
+    !Object.prototype.hasOwnProperty.call(input, "tools")
+  ) {
+    return { ...DEFAULT_MESSAGE_SETTINGS.tools };
+  }
+  return input.tools ?? {};
+}
 
 export function normalizeMessageSettings(
   input: MessageSettingsInput | null | undefined,
@@ -81,7 +95,7 @@ export function normalizeMessageSettings(
     ...DEFAULT_MESSAGE_SETTINGS,
     ...rest,
     model: normalizedModel,
-    tools: normalizeTools(input?.tools),
+    tools: normalizeTools(toolsInputForNormalization(input)),
     userMessagePreviewMaxLines: normalizeUserMessagePreviewMaxLines(
       rest.userMessagePreviewMaxLines,
     ),
