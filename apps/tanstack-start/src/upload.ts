@@ -89,7 +89,7 @@ export const fileRouter = {
     .public(false)
     .serveImage(true)
     // .public(true)
-    .expires("24 hours")
+    .expires("7 days")
     .onUploadComplete(async ({ metadata, file }) => {
       const serveImage = file.mimeType.startsWith("image/");
 

@@ -33,6 +33,7 @@ import { submitMessage } from "@/components/chat/use-submit-message";
 import { useQuery } from "@/lib/hooks/convex";
 import { useInstructions } from "@/lib/hooks/use-instructions";
 import { deleteDraftAttachment } from "@/server/attachments";
+import { useBillingState } from "../use-billing-state";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
@@ -94,6 +95,7 @@ export function ChatInput({
   } = useInstructions();
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
+  const { isOutOfCredits } = useBillingState();
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
@@ -397,6 +399,11 @@ export function ChatInput({
         return false;
       }
 
+      if (isOutOfCredits) {
+        toast.error("You are out of credits.");
+        return false;
+      }
+
       if (status !== "ready") {
         return false;
       }
@@ -473,6 +480,7 @@ export function ChatInput({
       settingsReady,
       status,
       threadId,
+      isOutOfCredits,
     ],
   );
 
@@ -627,6 +635,11 @@ export function ChatInput({
       return;
     }
 
+    if (isOutOfCredits) {
+      toast.error("You are out of credits.");
+      return;
+    }
+
     if (!settingsReady || !draftReady) {
       return;
     }
@@ -724,6 +737,7 @@ export function ChatInput({
     status,
     submitNewUserPayload,
     threadId,
+    isOutOfCredits,
   ]);
 
   const handleKeyDown = useCallback(
@@ -842,6 +856,17 @@ export function ChatInput({
               onSaveEdit={handleSaveQueuedEdit}
             />
           ) : null}
+          {isOutOfCredits ? (
+            <div
+              className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
+              role="alert"
+            >
+              <p className="font-medium">You are out of credits.</p>
+              <p className="mt-1 text-xs opacity-90">
+                Add credits or enable overages to keep chatting.
+              </p>
+            </div>
+          ) : null}
           <div
             className={cn(
               "bg-card border-border relative z-10 flex flex-col overflow-hidden border shadow-lg transition-all duration-300",
@@ -942,6 +967,7 @@ export function ChatInput({
               isSubmitting={isSubmitting}
               hasUploadingFiles={hasUploadingFiles}
               draftReady={draftReady}
+              isOutOfCredits={isOutOfCredits}
               onStopGeneration={onStopGeneration}
               onSubmit={() => void handleSubmit()}
               project={chatProjectId}

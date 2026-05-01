@@ -91,6 +91,75 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  billingAccounts: defineTable({
+    userId: v.string(),
+    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
+    status: v.string(),
+    polarCustomerId: v.optional(v.string()),
+    polarSubscriptionId: v.optional(v.string()),
+    currentPeriodStart: v.optional(v.number()),
+    currentPeriodEnd: v.optional(v.number()),
+    markupMultiplier: v.number(),
+    includedMonthlyCredits: v.number(),
+    overageAllowed: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  billingUsageEvents: defineTable({
+    userId: v.string(),
+    eventId: v.string(),
+    requestId: v.string(),
+    messageId: v.string(),
+    threadId: v.string(),
+    routeId: v.string(),
+    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
+    credits: v.number(),
+    modelUsdCost: v.number(),
+    toolUsdCost: v.number(),
+    rawUsdCost: v.number(),
+    effectiveUsdCost: v.number(),
+    markupMultiplier: v.number(),
+    displayMultiplier: v.number(),
+    usedPricingFallback: v.boolean(),
+    toolSummary: v.record(v.string(), v.number()),
+    polarIngestedAt: v.optional(v.number()),
+    polarEventName: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId", "createdAt"])
+    .index("by_requestId", ["requestId"])
+    .index("by_threadId", ["threadId", "createdAt"])
+    .index("by_messageId", ["messageId"]),
+
+  billingCreditGrants: defineTable({
+    userId: v.string(),
+    grantId: v.string(),
+    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
+    periodKey: v.string(),
+    credits: v.number(),
+    reason: v.union(
+      v.literal("subscription_created"),
+      v.literal("subscription_renewed"),
+      v.literal("free_monthly_reset"),
+      v.literal("admin_adjustment"),
+    ),
+    polarIngestedAt: v.optional(v.number()),
+    sourceRef: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId", "createdAt"])
+    .index("by_userId_periodKey", ["userId", "periodKey", "createdAt"])
+    .index("by_sourceRef", ["sourceRef"]),
+
+  billingBalanceCache: defineTable({
+    userId: v.string(),
+    availableCredits: v.optional(v.number()),
+    overageCredits: v.optional(v.number()),
+    meterName: v.string(),
+    periodKey: v.string(),
+    syncedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   modelFavorites: defineTable({
     userId: v.string(),
     modelId: v.string(),

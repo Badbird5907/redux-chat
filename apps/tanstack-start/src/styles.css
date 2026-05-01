@@ -6,177 +6,98 @@
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";
-@source "../node_modules/@streamdown/math/dist/*.js";
 
+@source "../node_modules/@streamdown/math/dist/*.js";
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant light (&:where(.light, .light *));
 @custom-variant auto (&:where(.auto, .auto *));
 
-body {
-  @apply bg-background text-foreground antialiased;
+/* ---------------------------------------------------------------------------
+ * Streamdown overrides
+ * ---------------------------------------------------------------------------
+ * Goal: a single rounded "card" with a slightly darker header bar (language
+ * label + actions) and a lighter body — instead of Streamdown's default
+ * nested-rounded look (outer card + inner rounded body + floating action pill).
+ *
+ * Strategy:
+ *   • Outer wrapper      → `bg-card` + `rounded-xl border overflow-hidden`
+ *   • Body               → `bg-muted` + `rounded-none border-0` so it fills
+ *                          the outer corners (the outer's `overflow-hidden`
+ *                          handles the rounded clipping).
+ *   • Header             → horizontal padding so the language label is inset.
+ *   • Action button pill → strip its own bg / border / backdrop so the icons
+ *                          sit flat over the header bar.
+ *
+ * Newline fix: when `lineNumbers={false}` (our config), Streamdown renders
+ * each source line as a class-less `<span>` whose only newline is the `\n`
+ * literal inside *empty* lines. The spans default to `display: inline`, so
+ * non-empty lines collapse onto one line. When line numbers are enabled,
+ * Streamdown applies a `block` utility to those spans — we replicate that
+ * here so the fix doesn't depend on toggling line numbers.
+ * ------------------------------------------------------------------------- */
+
+/* Outer wrapper: one unified rounded card. `gap-0` collapses the strip of
+   bg-card between the header bar and the body so the two tones butt directly
+   against each other. `relative` gives the absolutely-positioned code-block
+   actions wrapper (see below) a positioning context. */
+.chat-markdown [data-streamdown="code-block"],
+.chat-markdown [data-streamdown="table-wrapper"] {
+  @apply relative gap-0 overflow-hidden rounded-xl border border-border bg-card p-0;
 }
 
-@layer components {
-  .chat-markdown {
-    @apply text-foreground text-[15px] leading-7 break-words;
-  }
-
-  .chat-markdown.chat-markdown--reasoning {
-    @apply text-muted-foreground text-sm leading-7;
-  }
-
-  .chat-markdown.chat-markdown--reasoning .chat-markdown__link {
-    @apply text-muted-foreground hover:text-primary;
-  }
-
-  .chat-markdown.chat-markdown--reasoning :not(pre) > code,
-  .chat-markdown.chat-markdown--reasoning .chat-markdown__inline-code {
-    @apply text-muted-foreground;
-  }
-
-  .chat-markdown > :first-child {
-    @apply mt-0;
-  }
-
-  .chat-markdown > :last-child {
-    @apply mb-0;
-  }
-
-  .chat-markdown [data-streamdown="root"] {
-    @apply text-inherit;
-  }
-
-  .chat-markdown [data-streamdown="block"] > :first-child {
-    @apply mt-0;
-  }
-
-  .chat-markdown [data-streamdown="block"] > :last-child {
-    @apply mb-0;
-  }
-
-  .chat-markdown :is(p, ul, ol, blockquote, hr) {
-    @apply my-4;
-  }
-
-  .chat-markdown :is(h1, h2, h3, h4) {
-    @apply mt-6 mb-3 font-semibold tracking-tight;
-  }
-
-  .chat-markdown h1 {
-    @apply text-3xl;
-  }
-
-  .chat-markdown h2 {
-    @apply text-2xl;
-  }
-
-  .chat-markdown h3 {
-    @apply text-xl;
-  }
-
-  .chat-markdown h4 {
-    @apply text-lg;
-  }
-
-  .chat-markdown ul {
-    @apply list-disc pl-6;
-  }
-
-  .chat-markdown ol {
-    @apply list-decimal pl-6;
-  }
-
-  .chat-markdown li {
-    @apply my-1;
-  }
-
-  .chat-markdown li > ul,
-  .chat-markdown li > ol {
-    @apply my-2;
-  }
-
-  .chat-markdown blockquote {
-    @apply border-border text-muted-foreground border-l-4 pl-4 italic;
-  }
-
-  .chat-markdown hr {
-    @apply border-border;
-  }
-
-  .chat-markdown :not(pre) > code {
-    @apply bg-muted text-foreground rounded-md px-1.5 py-1 font-mono text-[0.9em];
-  }
-
-  .chat-markdown__inline-code {
-    @apply bg-muted text-foreground rounded-md px-1.5 py-1 font-mono text-[0.9em];
-  }
-
-  .chat-markdown__pre,
-  .chat-markdown .shiki,
-  .chat-markdown [data-streamdown="code-block"] {
-    @apply bg-muted/40 border-border my-4 overflow-x-auto rounded-2xl border p-4;
-  }
-
-  .chat-markdown__pre code,
-  .chat-markdown .shiki code,
-  .chat-markdown [data-streamdown="code-block"] code {
-    @apply block min-w-max font-mono text-[13px] leading-6;
-  }
-
-  .chat-markdown__code-block {
-    @apply block;
-  }
-
-  .chat-markdown__table-wrap {
-    @apply my-4 overflow-x-auto;
-  }
-
-  .chat-markdown [data-streamdown="table-wrapper"] {
-    @apply my-4 overflow-x-auto;
-  }
-
-  .chat-markdown__table {
-    @apply w-full min-w-max border-collapse text-sm;
-  }
-
-  .chat-markdown [data-streamdown="table"] {
-    @apply w-full min-w-max border-collapse text-sm;
-  }
-
-  .chat-markdown :is(th, td) {
-    @apply border-border border px-3 py-2 text-left align-top;
-  }
-
-  .chat-markdown
-    :is([data-streamdown="table-header-cell"], [data-streamdown="table-cell"]) {
-    @apply border-border border px-3 py-2 text-left align-top;
-  }
-
-  .chat-markdown th {
-    @apply bg-muted/60 font-medium;
-  }
-
-  .chat-markdown [data-streamdown="table-header-cell"] {
-    @apply bg-muted/60 font-medium;
-  }
-
-  .chat-markdown__image {
-    @apply border-border my-4 max-h-[28rem] max-w-full rounded-2xl border object-contain;
-  }
-
-  .chat-markdown__link {
-    @apply text-foreground decoration-border hover:text-primary underline underline-offset-4 transition-colors;
-  }
-
-  .chat-markdown .task-list-item {
-    @apply list-none;
-  }
-
-  .chat-markdown input[type="checkbox"] {
-    @apply mr-2 align-middle;
-  }
-
-  .chat-markdown .katex-display {
-    @apply my-6 overflow-x-auto overflow-y-hidden py-1;
-  }
+/* Body fills the outer card, lighter than the header bar. */
+.chat-markdown [data-streamdown="code-block-body"],
+.chat-markdown [data-streamdown="table-wrapper"] > div:has(> table) {
+  @apply rounded-none border-0 bg-muted;
 }
+
+/* Code-block header: horizontal padding for the language label. */
+.chat-markdown [data-streamdown="code-block-header"] {
+  @apply px-4;
+}
+.chat-markdown [data-streamdown="code-block-header"] > span {
+  @apply ml-0;
+}
+
+/* Table action row: streamdown leaves it heightless, so it shrinks to the
+   ~22px icon buttons and reads as a stripe of icons rather than a header
+   bar. Pin it to `h-8` to match the code-block header height. */
+.chat-markdown [data-streamdown="table-wrapper"] > div:not(:has(table)) {
+  @apply h-8 px-4;
+}
+
+/* Code-block actions: drop the floating "pill" chrome so icons sit flat over
+   the header bar.
+
+   Position the wrapper absolutely at the header's top-right. Streamdown
+   ships it as `sticky top-2 z-10 -mt-10` — a clever trick that overlays
+   the actions on top of the header by relying on the default `gap-2`
+   between flex children. With our `gap-0` the math no longer works:
+   per the CSS spec, `position: sticky` with `top: 0.5rem` shifts the
+   element 7.5px down from its natural flow position even when not yet
+   stuck, which makes the icons land 7.5px below the label's vertical
+   center. Re-anchoring with `position: absolute; top: 0; right: 0`
+   removes the dependency on `gap` / `-mt` / sticky `top` entirely and
+   reliably centers the icons against the language label. */
+.chat-markdown [data-streamdown="code-block-actions"] {
+  @apply border-0 bg-transparent px-0 py-0 backdrop-blur-none supports-[backdrop-filter]:bg-transparent;
+}
+.chat-markdown [data-streamdown="code-block-header"]
+  + div:not([data-streamdown="code-block-body"]) {
+  @apply absolute right-0 top-0 m-0 pr-4;
+}
+
+/* Match code-block button icon size to the table buttons. Streamdown passes
+   `{ size: 14 }` to the copy/download icon SVGs, but `size` is not a valid
+   SVG attribute, so the icons silently fall back to their declared 16×16
+   defaults — making code-block buttons 2px larger than the 14×14 table
+   buttons and slightly off-balance in the 32px header bar. */
+.chat-markdown [data-streamdown="code-block-copy-button"] svg,
+.chat-markdown [data-streamdown="code-block-download-button"] svg {
+  @apply h-3.5 w-3.5;
+}
+
+.chat-markdown [data-streamdown="code-block-body"] code > span {
+  @apply block min-h-lh;
+}
+

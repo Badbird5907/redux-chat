@@ -78,6 +78,7 @@ interface ChatInputToolbarProps {
   isSubmitting: boolean;
   hasUploadingFiles: boolean;
   draftReady: boolean;
+  isOutOfCredits: boolean;
   onSubmit: () => void;
   onStopGeneration?: () => void;
 }
@@ -117,6 +118,7 @@ export function ChatInputToolbar({
   isSubmitting,
   hasUploadingFiles,
   draftReady,
+  isOutOfCredits,
   onSubmit,
   onStopGeneration,
 }: ChatInputToolbarProps) {
@@ -347,8 +349,10 @@ export function ChatInputToolbar({
                 : "bg-muted text-muted-foreground",
             )}
             onClick={onSubmit}
+            title={isOutOfCredits ? "You are out of credits" : "Send message"}
             disabled={
               isSubmitting ||
+              isOutOfCredits ||
               hasUploadingFiles ||
               (!input.trim() && !hasUsableAttachments) ||
               !settingsReady ||

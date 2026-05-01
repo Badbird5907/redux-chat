@@ -519,6 +519,7 @@ export function useChatSession({
     convexMessages?.forEach((m) => {
       if (m.role === "assistant") {
         map.set(m.messageId, {
+          creditsConsumed: m.creditsConsumed,
           usage: m.usage,
           generationStats: m.generationStats,
           model: m.model,
@@ -774,7 +775,7 @@ export function useChatSession({
           fileIds: payload.draftAttachmentIds,
           settings,
           model: settings.model,
-          id: branchInfo.threadId,
+          id: branchInfo.assistantMessageId,
           clientId: chatSessionId,
           trigger: "regenerate-message" as const,
         },
@@ -863,7 +864,7 @@ export function useChatSession({
           fileIds: [],
           settings,
           model: settings.model,
-          id: branchInfo.threadId,
+          id: branchInfo.assistantMessageId,
           clientId: chatSessionId,
           trigger: "regenerate-message" as const,
         },

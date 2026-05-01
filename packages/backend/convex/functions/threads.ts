@@ -360,6 +360,10 @@ export const getThreadMessages = query({
       .query("attachments")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
+    const billingUsageEvents = await ctx.db
+      .query("billingUsageEvents")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
 
     const attachmentsByMessageId = new Map<
       string,
@@ -374,6 +378,7 @@ export const getThreadMessages = query({
         expiresAt: number | undefined;
       }[]
     >();
+    const creditsByMessageId = new Map<string, number>();
 
     for (const attachment of allAttachments) {
       if (!attachment.messageId) {
@@ -393,10 +398,15 @@ export const getThreadMessages = query({
       attachmentsByMessageId.set(attachment.messageId, existing);
     }
 
+    for (const event of billingUsageEvents) {
+      creditsByMessageId.set(event.messageId, event.credits);
+    }
+
     return allMessages.map((m) => ({
       ...m,
       id: m.messageId,
       attachments: attachmentsByMessageId.get(m.messageId) ?? [],
+      creditsConsumed: creditsByMessageId.get(m.messageId),
     }));
   },
 });

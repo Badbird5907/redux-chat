@@ -8,9 +8,42 @@ export const OPENAI_PROVIDER: CuratedProviderDefinition = {
   },
   models: [
     {
+      id: "gpt-5.4-mini",
+      providerIds: [
+        "openrouter:openai/gpt-5.4-mini",
+        "openai:gpt-5.4-mini",
+      ],
+      defaultProviderId: "openai:gpt-5.4-mini",
+    },
+    {
+      id: "gpt-5.4-nano",
+      providerIds: [
+        "openrouter:openai/gpt-5.4-nano",
+        "openai:gpt-5.4-nano",
+      ],
+      defaultProviderId: "openai:gpt-5.4-nano",
+    },
+    {
+      id: "gpt-5.4",
+      providerIds: ["openrouter:openai/gpt-5.4", "openai:gpt-5.4"],
+      defaultProviderId: "openai:gpt-5.4",
+    },
+    {
+      id: "gpt-5.3",
+      name: "GPT-5.3",
+      providerIds: ["openai:gpt-5.3-chat-latest"],
+      defaultProviderId: "openai:gpt-5.3-chat-latest",
+    },
+    {
       id: "gpt-5-mini",
       providerIds: ["openrouter:openai/gpt-5-mini", "openai:gpt-5-mini"],
-      defaultProviderId: "openai:gpt-5-mini", //"openrouter:openai/gpt-5-mini",
+      defaultProviderId: "openai:gpt-5-mini",
+    },
+    {
+      id: "gpt-oss-120b",
+      name: "GPT OSS 120B",
+      providerIds: ["openrouter:openai/gpt-oss-120b"],
+      defaultProviderId: "openrouter:openai/gpt-oss-120b",
     },
   ],
 };

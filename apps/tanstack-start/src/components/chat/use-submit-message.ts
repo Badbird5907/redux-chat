@@ -158,7 +158,7 @@ export async function submitMessage({
     fileIds: attachmentIds,
     settings,
     model: settings.model,
-    id: threadInfo.threadId,
+    id: threadInfo.assistantMessageId,
     clientId,
     trigger: "submit-message" as const,
   };
