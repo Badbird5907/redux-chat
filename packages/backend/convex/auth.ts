@@ -8,6 +8,8 @@ import { betterAuth } from "better-auth/minimal";
 import type { DataModel } from "@redux/backend/convex/_generated/dataModel";
 import { components, internal } from "@redux/backend/convex/_generated/api";
 
+// eslint-disable-next-line no-restricted-imports
+import { internalAction } from "./_generated/server";
 import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
@@ -59,6 +61,15 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
 export function initAuth(ctx: GenericCtx<DataModel>) {
   return betterAuth(createAuthOptions(ctx));
 }
+
+export const getLatestJwks = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const auth = initAuth(ctx);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return await auth.api.getLatestJwks();
+  },
+});
 
 export type Auth = ReturnType<typeof initAuth>;
 export type Session = Auth["$Infer"]["Session"];

@@ -21,7 +21,7 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
         "openrouter:google/gemini-3-flash-preview",
         "google:gemini-3-flash-preview",
       ],
-      defaultProviderId: "google:gemini-3-flash-preview",
+      defaultProviderId: "openrouter:google/gemini-3-flash-preview",
       attachments: {
         maxFiles: 4,
       },
@@ -32,7 +32,7 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
         "openrouter:google/gemini-3.1-pro-preview",
         "google:gemini-3.1-pro-preview",
       ],
-      defaultProviderId: "google:gemini-3.1-pro-preview",
+      defaultProviderId: "openrouter:google/gemini-3.1-pro-preview",
       attachments: {
         maxFiles: 4,
       },
