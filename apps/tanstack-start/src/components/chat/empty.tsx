@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import { useMemo } from "react";
-import { useMutation } from "convex/react";
+import { useNavigate } from "@tanstack/react-router";
+import { useConvexAuth, useMutation } from "convex/react";
 import { toast } from "sonner";
 
 import type { MessageSettings } from "@redux/types";
@@ -58,10 +59,21 @@ export const EmptyChat = ({
   convexMessages,
   settings,
 }: EmptyChatProps) => {
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const { allocate: allocateSignedIds } = useSignedCid();
   const createMessage = useMutation(api.functions.threads.sendMessage);
 
   const handleSuggestionClick = async (text: string) => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      void navigate({ to: "/auth/sign-in" });
+      return;
+    }
+
     try {
       await submitMessage({
         messageContent: text,

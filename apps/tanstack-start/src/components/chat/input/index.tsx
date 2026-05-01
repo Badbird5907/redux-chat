@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { isTextUIPart } from "ai";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
@@ -83,6 +83,7 @@ export function ChatInput({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toolsDialogOpen, setToolsDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
@@ -370,6 +371,19 @@ export function ChatInput({
     [deleteDraftAttachmentFn],
   );
 
+  const canSubmitAuthenticatedMessage = useCallback(() => {
+    if (isAuthLoading) {
+      return false;
+    }
+
+    if (!isAuthenticated) {
+      void navigate({ to: "/auth/sign-in" });
+      return false;
+    }
+
+    return true;
+  }, [isAuthenticated, isAuthLoading, navigate]);
+
   const submitNewUserPayload = useCallback(
     async (
       messageContent: string,
@@ -396,6 +410,10 @@ export function ChatInput({
       }
 
       if (!trimmed && currentAttachments.length === 0) {
+        return false;
+      }
+
+      if (!canSubmitAuthenticatedMessage()) {
         return false;
       }
 
@@ -470,6 +488,7 @@ export function ChatInput({
       attachmentUsesDerivative,
       chatProjectId,
       clientId,
+      canSubmitAuthenticatedMessage,
       convexMessages,
       createMessage,
       draftReady,
@@ -635,6 +654,10 @@ export function ChatInput({
       return;
     }
 
+    if (!canSubmitAuthenticatedMessage()) {
+      return;
+    }
+
     if (isOutOfCredits) {
       toast.error("You are out of credits.");
       return;
@@ -724,6 +747,7 @@ export function ChatInput({
   }, [
     attachments,
     attachmentUsesDerivative,
+    canSubmitAuthenticatedMessage,
     clearDraft,
     draftReady,
     editMessage,

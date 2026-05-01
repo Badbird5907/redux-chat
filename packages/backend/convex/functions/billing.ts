@@ -199,6 +199,14 @@ export const syncSubscriptionTierAndCredits = action({
   },
 });
 
+export const ensureCurrentUserPolarCustomer = action({
+  args: {},
+  handler: async (ctx): Promise<{ customerId: string }> => {
+    const customerId = await ensurePolarCustomerForCurrentUser(ctx);
+    return { customerId };
+  },
+});
+
 export const recordUsageEvent = action({
   args: {
     requestId: v.string(),

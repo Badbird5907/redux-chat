@@ -1,7 +1,7 @@
 import type { ConvexQueryClient } from "@convex-dev/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import {
   ClientOnly,
@@ -12,7 +12,9 @@ import {
   useRouteContext,
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useAction, useConvexAuth } from "convex/react";
 
+import { api } from "@redux/backend/convex/_generated/api";
 import { Toaster } from "@redux/ui/components/sonner";
 import { ThemeProvider } from "@redux/ui/components/theme";
 import { cn } from "@redux/ui/lib/utils";
@@ -116,10 +118,42 @@ function RootComponent() {
       initialToken={context.token}
     >
       <RootDocument>
+        <EnsurePolarCustomerOnAuth />
         <Outlet />
       </RootDocument>
     </ConvexBetterAuthProvider>
   );
+}
+
+function EnsurePolarCustomerOnAuth() {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const ensurePolarCustomer = useAction(
+    api.functions.billing.ensureCurrentUserPolarCustomer,
+  );
+  const didRequest = useRef(false);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      didRequest.current = false;
+      return;
+    }
+
+    if (didRequest.current) {
+      return;
+    }
+
+    didRequest.current = true;
+    void ensurePolarCustomer({}).catch((error: unknown) => {
+      didRequest.current = false;
+      console.error("Failed to ensure Polar customer", error);
+    });
+  }, [ensurePolarCustomer, isAuthenticated, isLoading]);
+
+  return null;
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
