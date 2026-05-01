@@ -43,7 +43,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.11.5",
+    "@better-auth/infra": "^0.2.5",
+    "@convex-dev/better-auth": "^0.12.1",
     "@convex-dev/polar": "^0.9.0",
     "@openrouter/ai-sdk-provider": "2.8.1",
     "@polar-sh/sdk": "^0.47.1",

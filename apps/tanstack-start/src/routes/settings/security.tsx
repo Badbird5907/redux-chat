@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -7,6 +7,7 @@ import {
   LockKeyhole,
   Mail,
   ShieldCheck,
+  Unlink,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -39,7 +40,7 @@ const emailSchema = z.object({
 
 const passwordSchema = z
   .object({
-    currentPassword: z.string().min(1, "Current password is required"),
+    currentPassword: z.string(),
     newPassword: z.string().min(8, "Use at least 8 characters"),
     confirmPassword: z.string().min(1, "Please confirm the new password"),
   })
@@ -48,13 +49,53 @@ const passwordSchema = z
     message: "Passwords do not match",
   });
 
+type AuthAccount = NonNullable<
+  Awaited<ReturnType<typeof authClient.listAccounts>>["data"]
+>[number];
+
 export const Route = createFileRoute("/settings/security")({
   component: SecurityRouteComponent,
 });
 
 function SecurityRouteComponent() {
-  const { data: session, isPending } = authClient.useSession();
+  const {
+    data: session,
+    isPending,
+    refetch: refetchSession,
+  } = authClient.useSession();
+  const [accounts, setAccounts] = useState<AuthAccount[] | null>(null);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
   const [isLinkingGithub, setIsLinkingGithub] = useState(false);
+  const [isUnlinkingGithub, setIsUnlinkingGithub] = useState(false);
+
+  const hasPassword = accounts?.some(
+    (account) => account.providerId === "credential",
+  );
+  const hasGithub = accounts?.some((account) => account.providerId === "github");
+  const canUnlinkGithub = Boolean(hasGithub && accounts && accounts.length > 1);
+
+  const loadAccounts = useCallback(async () => {
+    if (!session) {
+      setAccounts(null);
+      return;
+    }
+
+    setIsLoadingAccounts(true);
+    const result = await authClient.listAccounts();
+
+    if (result.error) {
+      toast.error(result.error.message);
+      setIsLoadingAccounts(false);
+      return;
+    }
+
+    setAccounts(result.data ?? []);
+    setIsLoadingAccounts(false);
+  }, [session]);
+
+  useEffect(() => {
+    void loadAccounts();
+  }, [loadAccounts]);
 
   const emailForm = useForm({
     defaultValues: {
@@ -97,11 +138,20 @@ function SecurityRouteComponent() {
       onSubmit: passwordSchema,
     },
     onSubmit: async ({ value }) => {
-      const result = await authClient.changePassword({
-        currentPassword: value.currentPassword,
-        newPassword: value.newPassword,
-        revokeOtherSessions: true,
-      });
+      if (hasPassword && value.currentPassword.length === 0) {
+        toast.error("Current password is required.");
+        return;
+      }
+
+      const result = hasPassword
+        ? await authClient.changePassword({
+            currentPassword: value.currentPassword,
+            newPassword: value.newPassword,
+            revokeOtherSessions: true,
+          })
+        : await authClient.setPassword({
+            newPassword: value.newPassword,
+          });
 
       if (result.error) {
         toast.error(result.error.message);
@@ -109,7 +159,12 @@ function SecurityRouteComponent() {
       }
 
       passwordForm.reset();
-      toast.success("Password updated. Other sessions were signed out.");
+      await loadAccounts();
+      toast.success(
+        hasPassword
+          ? "Password updated. Other sessions were signed out."
+          : "Password set. You can now sign in with email and password.",
+      );
     },
   });
 
@@ -126,6 +181,37 @@ function SecurityRouteComponent() {
     }
 
     toast.success("GitHub connection started.");
+  };
+
+  const handleUnlinkGithub = async () => {
+    if (!canUnlinkGithub) {
+      toast.error("Add a password before disconnecting GitHub.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Disconnect GitHub from this account? You will need another sign-in method to get back in.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsUnlinkingGithub(true);
+    const result = await authClient.unlinkAccount({
+      providerId: "github",
+    });
+
+    if (result.error) {
+      toast.error(result.error.message);
+      setIsUnlinkingGithub(false);
+      return;
+    }
+
+    await loadAccounts();
+    await refetchSession();
+    setIsUnlinkingGithub(false);
+    toast.success("GitHub disconnected.");
   };
 
   if (isPending) {
@@ -183,14 +269,18 @@ function SecurityRouteComponent() {
           <SecurityTile
             icon={<KeyRound className="size-4" />}
             label="Password"
-            value="Email and password sign-in"
-            status="Enabled"
+            value={
+              hasPassword
+                ? "Email and password sign-in"
+                : "No password on this account"
+            }
+            status={hasPassword ? "Enabled" : "Not set"}
           />
           <SecurityTile
             icon={<GithubIcon className="size-4" />}
             label="OAuth"
             value="GitHub social sign-in"
-            status="Available"
+            status={hasGithub ? "Connected" : "Available"}
           />
         </CardContent>
       </Card>
@@ -200,8 +290,7 @@ function SecurityRouteComponent() {
           <CardHeader>
             <CardTitle>Email address</CardTitle>
             <CardDescription>
-              Better Auth will either update your email or start a verification
-              flow, depending on server configuration.
+              Update your email address.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -259,7 +348,9 @@ function SecurityRouteComponent() {
           <CardHeader>
             <CardTitle>Password</CardTitle>
             <CardDescription>
-              Change your password and revoke other active sessions.
+              {hasPassword
+                ? "Change your password and revoke other active sessions."
+                : "Add a password so you can sign in without GitHub."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -271,26 +362,36 @@ function SecurityRouteComponent() {
               }}
               className="space-y-4"
             >
-              <passwordForm.Field
-                name="currentPassword"
-                children={(field) => (
-                  <Field>
-                    <FieldLabel>Current password</FieldLabel>
-                    <Input
-                      name={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                      type="password"
-                    />
-                    {field.state.meta.errors.length > 0 ? (
-                      <FieldError errors={field.state.meta.errors} />
-                    ) : null}
-                  </Field>
-                )}
-              />
+              {hasPassword ? (
+                <passwordForm.Field
+                  name="currentPassword"
+                  children={(field) => (
+                    <Field>
+                      <FieldLabel>Current password</FieldLabel>
+                      <Input
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        type="password"
+                      />
+                      {field.state.meta.errors.length > 0 ? (
+                        <FieldError errors={field.state.meta.errors} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
+              ) : (
+                <div className="border-border/60 bg-background/50 rounded-xl border p-4 text-sm">
+                  <p className="font-medium">No password is set</p>
+                  <p className="text-muted-foreground mt-1">
+                    Your account currently signs in with GitHub only. Set a
+                    password before removing GitHub.
+                  </p>
+                </div>
+              )}
 
               <passwordForm.Field
                 name="newPassword"
@@ -340,7 +441,7 @@ function SecurityRouteComponent() {
                 ) : (
                   <LockKeyhole className="size-4" />
                 )}
-                Change password
+                {hasPassword ? "Change password" : "Set password"}
               </Button>
             </form>
           </CardContent>
@@ -363,29 +464,51 @@ function SecurityRouteComponent() {
               </span>
               <div>
                 <p className="text-sm font-medium">GitHub</p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Connect your GitHub account using Better Auth social linking.
+                <p className="text-muted-foreground text-sm">
+                  {hasGithub
+                    ? "Connected as a sign-in method."
+                    : "Not connected."}
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleLinkGithub}
-              disabled={isLinkingGithub}
-            >
-              {isLinkingGithub ? (
-                <Loader2 className="size-4 animate-spin" />
+            <div className="flex flex-wrap gap-2">
+              {hasGithub ? (
+                <Button
+                  variant="destructive"
+                  onClick={handleUnlinkGithub}
+                  disabled={
+                    isLoadingAccounts || isUnlinkingGithub || !canUnlinkGithub
+                  }
+                  tooltip={
+                    canUnlinkGithub
+                      ? undefined
+                      : "Set a password before disconnecting GitHub."
+                  }
+                >
+                  {isUnlinkingGithub ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Unlink className="size-4" />
+                  )}
+                  Disconnect
+                </Button>
               ) : (
-                <GithubIcon className="size-4" />
+                <Button
+                  variant="outline"
+                  onClick={handleLinkGithub}
+                  disabled={isLinkingGithub}
+                >
+                  {isLinkingGithub ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <GithubIcon className="size-4" />
+                  )}
+                  Link GitHub
+                </Button>
               )}
-              Link GitHub
-            </Button>
+            </div>
           </div>
           <Separator />
-          <p className="text-muted-foreground text-sm">
-            Connection removal and detailed provider metadata can be added once
-            linked account listing is exposed through the app&apos;s auth API.
-          </p>
         </CardContent>
       </Card>
     </div>
