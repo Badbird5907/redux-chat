@@ -4353,6 +4353,36 @@ export const openrouterModels = {
         output: 30000,
       },
     },
+    "x-ai/grok-4.3": {
+      id: "x-ai/grok-4.3",
+      name: "Grok 4.3",
+      family: "grok",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: true,
+      release_date: "2026-04-30",
+      last_updated: "2026-04-30",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["text"],
+      },
+      cost: {
+        cache_read: 0.2,
+        context_over_200k: {
+          input: 2.5,
+          output: 5,
+        },
+        input: 1.25,
+        output: 2.5,
+      },
+      limit: {
+        context: 1000000,
+        output: 1000000,
+      },
+    },
     "x-ai/grok-code-fast-1": {
       id: "x-ai/grok-code-fast-1",
       name: "Grok Code Fast 1",

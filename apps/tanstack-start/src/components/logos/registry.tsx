@@ -112,8 +112,11 @@ export const LOGO_REGISTRY = {
 
 const sharedProviderLogos = {
   anthropic: LOGO_REGISTRY.anthropic,
+  deepseek: LOGO_REGISTRY.deepseek,
   google: LOGO_REGISTRY.google,
+  moonshot: LOGO_REGISTRY.moonshot,
   openai: LOGO_REGISTRY.openai,
+  xai: LOGO_REGISTRY.xai,
 } satisfies Record<(typeof PROVIDERS)[number]["slug"], LogoRegistryItem>;
 
 export type SharedModelProviderSlug = keyof typeof sharedProviderLogos;
