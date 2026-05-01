@@ -377,7 +377,7 @@ export function ChatInput({
     }
 
     if (!isAuthenticated) {
-      void navigate({ to: "/auth/sign-in" });
+      void navigate({ to: "/auth/sign-up" });
       return false;
     }
 
