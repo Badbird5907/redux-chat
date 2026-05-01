@@ -21,6 +21,8 @@ import {
 import { Field, FieldError, FieldLabel } from "@redux/ui/components/field";
 import { Input } from "@redux/ui/components/input";
 
+import { GithubOAuthSection } from "@/components/auth/github-oauth-section";
+import { ReduxChatBrand } from "@/components/auth/redux-chat-brand";
 import { authClient } from "@/lib/auth/client";
 
 const signUpSchema = z.object({
@@ -69,12 +71,16 @@ function SignUpPage() {
   });
 
   return (
-    <Card className="w-full">
+    <>
+      <ReduxChatBrand />
+      <Card className="w-full">
       <CardHeader>
         <CardTitle>Sign Up</CardTitle>
         <CardDescription>Create an account to get started.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <GithubOAuthSection buttonLabel="Sign up with GitHub" />
+
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -159,5 +165,6 @@ function SignUpPage() {
         </div>
       </CardFooter>
     </Card>
+    </>
   );
 }

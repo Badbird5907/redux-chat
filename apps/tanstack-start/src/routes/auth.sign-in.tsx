@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useForm } from "@tanstack/react-form";
 import {
   createFileRoute,
@@ -10,7 +9,6 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import * as z from "zod";
 
-import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import {
   Card,
@@ -22,9 +20,9 @@ import {
 } from "@redux/ui/components/card";
 import { Field, FieldError, FieldLabel } from "@redux/ui/components/field";
 import { Input } from "@redux/ui/components/input";
-import { Separator } from "@redux/ui/components/separator";
-import GithubIcon from "@redux/ui/icons/github";
 
+import { GithubOAuthSection } from "@/components/auth/github-oauth-section";
+import { ReduxChatBrand } from "@/components/auth/redux-chat-brand";
 import { authClient } from "@/lib/auth/client";
 
 const signInSchema = z.object({
@@ -44,12 +42,6 @@ export const Route = createFileRoute("/auth/sign-in")({
 
 function SignInPage() {
   const navigate = useNavigate();
-  const [lastUsed] = React.useState<string | null>(() =>
-    typeof window === "undefined"
-      ? null
-      : localStorage.getItem("last-used-provider"),
-  );
-  const [isGitHubLoading, setIsGitHubLoading] = React.useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -76,25 +68,10 @@ function SignInPage() {
     },
   });
 
-  const handleGitHubSignIn = async () => {
-    setIsGitHubLoading(true);
-    await authClient.signIn.social({
-      provider: "github",
-      callbackURL: "/",
-      fetchOptions: {
-        onSuccess: () => {
-          localStorage.setItem("last-used-provider", "github");
-        },
-        onError: (ctx) => {
-          toast.error(ctx.error.message);
-          setIsGitHubLoading(false);
-        },
-      },
-    });
-  };
-
   return (
-    <Card className="w-full">
+    <>
+      <ReduxChatBrand />
+      <Card className="w-full">
       <CardHeader>
         <CardTitle>Sign In</CardTitle>
         <CardDescription>
@@ -102,35 +79,7 @@ function SignInPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="relative">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleGitHubSignIn}
-            disabled={isGitHubLoading}
-          >
-            {isGitHubLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <GithubIcon width={24} height={24} />
-            )}
-            Sign in with GitHub
-          </Button>
-          {lastUsed === "github" && (
-            <Badge
-              variant="outline"
-              className="bg-muted absolute -top-2 -right-2"
-            >
-              Last Used
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Separator className="flex-1" />
-          <span className="text-muted-foreground text-xs">OR</span>
-          <Separator className="flex-1" />
-        </div>
+        <GithubOAuthSection buttonLabel="Sign in with GitHub" />
 
         <form
           onSubmit={async (e) => {
@@ -206,5 +155,6 @@ function SignInPage() {
         </div>
       </CardFooter>
     </Card>
+    </>
   );
 }
