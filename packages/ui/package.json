@@ -102,6 +102,7 @@
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./hooks/use-sidebar-resize": "./src/hooks/use-sidebar-resize.ts",
     "./icons/github": "./src/icons/github.tsx",
+    "./icons/google": "./src/icons/google.tsx",
     "./lib/merge-button-refs": "./src/lib/merge-button-refs.ts",
     "./lib/utils": "./src/lib/utils.ts"
   }

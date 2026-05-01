@@ -16,7 +16,7 @@ const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
 const ATTACHED_ATTACHMENT_TTL_MS =
   ATTACHED_ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
 
-function createBackendSiloCore() {
+export function createBackendSiloCore() {
   const env = backendEnv();
   return createSiloCoreFromToken({
     url: env.SILO_URL,

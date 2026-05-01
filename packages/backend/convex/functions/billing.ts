@@ -24,11 +24,13 @@ import {
 import type { BillingGrantReason, BillingGrantSource } from "../billing";
 import { polar } from "../polar";
 import { action, query } from "./index";
-import { internalMutation, internalQuery } from "./internal";
+import { internalAction, internalMutation, internalQuery } from "./internal";
 
 type BillingActionCtx = GenericActionCtx<DataModel> & {
   userId: string;
 };
+
+type BillingInternalActionCtx = GenericActionCtx<DataModel>;
 
 type BillingSubscriptionState = {
   tier: PlanTier;
@@ -44,6 +46,20 @@ type BillingRefreshResult = {
   overageAllowed: boolean;
   grantApplied: boolean;
   periodKey: string;
+};
+
+type BillingAdminResetResult = {
+  userId: string;
+  tier: PlanTier;
+  periodKey: string;
+  targetCredits: number;
+  availableCreditsBefore: number | undefined;
+  overageCreditsBefore: number | undefined;
+  adjustmentCredits: number;
+  availableCredits: number | undefined;
+  overageCredits: number | undefined;
+  polarIngestedAt: number | undefined;
+  grantId: string | undefined;
 };
 
 const usageValidator = v.object({
@@ -196,6 +212,16 @@ export const syncSubscriptionTierAndCredits = action({
   args: {},
   handler: async (ctx): Promise<BillingRefreshResult> => {
     return await refreshBillingStateForUser(ctx, ctx.userId);
+  },
+});
+
+export const internal_resetUserCredits = internalAction({
+  args: {
+    userId: v.string(),
+    targetCredits: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<BillingAdminResetResult> => {
+    return await resetCreditsForUser(ctx, args.userId, args.targetCredits);
   },
 });
 
@@ -761,6 +787,110 @@ async function refreshBillingStateForUser(
   }
 }
 
+async function resetCreditsForUser(
+  ctx: BillingInternalActionCtx,
+  userId: string,
+  targetCreditsOverride: number | undefined,
+): Promise<BillingAdminResetResult> {
+  if (targetCreditsOverride !== undefined && targetCreditsOverride < 0) {
+    throw new Error("targetCredits must be greater than or equal to 0");
+  }
+
+  const subscriptionState = await resolveCurrentSubscriptionState(ctx, userId);
+  const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
+  const targetCredits = targetCreditsOverride ?? plan.includedMonthlyCredits;
+  const periodKey = getPeriodKeyForTier(subscriptionState);
+  const polarSdk = getPolarSdkClient();
+  const meterName = getBillingConfig().meterName;
+  const stateBefore = await polarSdk.customers.getStateExternal({
+    externalId: userId,
+  });
+  const {
+    availableCredits: availableCreditsBefore,
+    overageCredits: overageCreditsBefore,
+  } = extractMeterCreditSummary(stateBefore, meterName);
+  const adjustmentCredits = Math.max(
+    0,
+    targetCredits -
+      (availableCreditsBefore ?? 0) +
+      (overageCreditsBefore ?? 0),
+  );
+
+  if (adjustmentCredits === 0) {
+    await ctx.runMutation(internal.functions.billing.internal_upsertBalanceCache, {
+      userId,
+      availableCredits: availableCreditsBefore,
+      overageCredits: overageCreditsBefore,
+      meterName,
+      periodKey,
+    });
+
+    return {
+      userId,
+      tier: subscriptionState.tier,
+      periodKey,
+      targetCredits,
+      availableCreditsBefore,
+      overageCreditsBefore,
+      adjustmentCredits,
+      availableCredits: availableCreditsBefore,
+      overageCredits: overageCreditsBefore,
+      polarIngestedAt: undefined,
+      grantId: undefined,
+    };
+  }
+
+  const grantId = crypto.randomUUID();
+  await polarSdk.events.ingest({
+    events: [
+      buildPolarCreditGrantEvent({
+        userId,
+        credits: adjustmentCredits,
+        tier: subscriptionState.tier,
+        periodKey,
+        reason: "admin_adjustment",
+        source: "admin_adjustment",
+      }),
+    ],
+  });
+  const polarIngestedAt = Date.now();
+
+  await ctx.runMutation(internal.functions.billing.internal_insertCreditGrant, {
+    userId,
+    grantId,
+    tier: subscriptionState.tier,
+    periodKey,
+    credits: adjustmentCredits,
+    reason: "admin_adjustment",
+    polarIngestedAt,
+    sourceRef: `admin:${userId}:${periodKey}:${grantId}`,
+  });
+
+  const availableCredits = targetCredits;
+  const overageCredits = 0;
+  await ctx.runMutation(internal.functions.billing.internal_upsertBalanceCache, {
+    userId,
+    availableCredits,
+    overageCredits,
+    meterName,
+    periodKey,
+  });
+
+  return {
+    userId,
+    tier: subscriptionState.tier,
+    periodKey,
+    targetCredits,
+    availableCreditsBefore,
+    overageCreditsBefore,
+    adjustmentCredits,
+    availableCredits,
+    overageCredits,
+    polarIngestedAt,
+    grantId,
+  };
+}
+
 async function ensureMonthlyCreditsForUser(
   ctx: BillingActionCtx,
   userId: string,
@@ -880,7 +1010,7 @@ async function ensureMonthlyCreditsForUser(
 }
 
 async function resolveCurrentSubscriptionState(
-  ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
+  ctx: GenericQueryCtx<DataModel> | BillingActionCtx | BillingInternalActionCtx,
   userId: string,
 ): Promise<BillingSubscriptionState> {
   const subscription = toSubscriptionSnapshot(

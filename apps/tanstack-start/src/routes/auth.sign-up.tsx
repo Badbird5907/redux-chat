@@ -21,7 +21,7 @@ import {
 import { Field, FieldError, FieldLabel } from "@redux/ui/components/field";
 import { Input } from "@redux/ui/components/input";
 
-import { GithubOAuthSection } from "@/components/auth/github-oauth-section";
+import { SocialOAuthSection } from "@/components/auth/social-oauth-section";
 import { ReduxChatBrand } from "@/components/auth/redux-chat-brand";
 import { authClient } from "@/lib/auth/client";
 
@@ -79,7 +79,10 @@ function SignUpPage() {
         <CardDescription>Create an account to get started.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <GithubOAuthSection buttonLabel="Sign up with GitHub" />
+        <SocialOAuthSection
+          googleButtonLabel="Sign up with Google"
+          githubButtonLabel="Sign up with GitHub"
+        />
 
         <form
           onSubmit={async (e) => {

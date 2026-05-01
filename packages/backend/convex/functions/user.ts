@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { authComponent, initAuth } from "../auth";
 import { backendEnv } from "../env";
 import { mutation, query } from "./index";
+import { createBackendSiloCore } from "./attachments";
 
 export const getUserImage = query({
   args: {
@@ -20,10 +21,15 @@ export const getUserImage = query({
       if (target.image.startsWith("http")) {
         return { image: target.image };
       }
-      const env = backendEnv();
-      return {
-        image: `${env.VITE_S3_AVATARS_URL}/${target._id}/avatar/${target.image}`,
-      };
+      // target is a silo image
+      const siloCore = createBackendSiloCore(); // TODO make sure this actually works in a query
+      const imageUrl = await siloCore.generateImageUrl({
+        accessKey: target.image,
+        fileName: target.image,
+        isPublic: true,
+        serveImage: true,
+      });
+      return { image: imageUrl };
     }
     return { image: null };
   },

@@ -15,7 +15,7 @@ export const SETTINGS_NAV_ITEMS = [
     title: "Security",
     subtitle: "Manage email, password, and OAuth connections",
     searchBlob:
-      "security authentication auth account email password oauth github social connections",
+      "security authentication auth account email password oauth github google social connections",
   },
   {
     value: "settings-instructions",

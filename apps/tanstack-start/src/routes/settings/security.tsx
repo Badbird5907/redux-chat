@@ -30,9 +30,9 @@ import {
   FieldLabel,
 } from "@redux/ui/components/field";
 import { Input } from "@redux/ui/components/input";
-import { Separator } from "@redux/ui/components/separator";
 import { Skeleton } from "@redux/ui/components/skeleton";
 import GithubIcon from "@redux/ui/icons/github";
+import GoogleIcon from "@redux/ui/icons/google";
 
 import { authClient } from "@/lib/auth/client";
 
@@ -73,6 +73,8 @@ function SecurityRouteComponent() {
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
   const [isLinkingGithub, setIsLinkingGithub] = useState(false);
   const [isUnlinkingGithub, setIsUnlinkingGithub] = useState(false);
+  const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
+  const [isUnlinkingGoogle, setIsUnlinkingGoogle] = useState(false);
   const setPassword = useMutation(api.functions.user.setPassword);
 
   const hasLoadedAccounts = accounts !== null;
@@ -80,7 +82,10 @@ function SecurityRouteComponent() {
     accounts?.some((account) => account.providerId === "credential") === true;
   const hasGithub =
     accounts?.some((account) => account.providerId === "github") === true;
+  const hasGoogle =
+    accounts?.some((account) => account.providerId === "google") === true;
   const canUnlinkGithub = hasGithub && accounts.length > 1;
+  const canUnlinkGoogle = hasGoogle && accounts.length > 1;
 
   const loadAccounts = useCallback(async () => {
     if (!session) {
@@ -201,9 +206,57 @@ function SecurityRouteComponent() {
     toast.success("GitHub connection started.");
   };
 
+  const handleLinkGoogle = async () => {
+    setIsLinkingGoogle(true);
+    const result = await authClient.linkSocial({
+      provider: "google",
+    });
+
+    if (result.error) {
+      toast.error(result.error.message);
+      setIsLinkingGoogle(false);
+      return;
+    }
+
+    toast.success("Google connection started.");
+  };
+
+  const handleUnlinkGoogle = async () => {
+    if (!canUnlinkGoogle) {
+      toast.error("Add a password or another sign-in method before disconnecting Google.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Disconnect Google from this account? You will need another sign-in method to get back in.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsUnlinkingGoogle(true);
+    const result = await authClient.unlinkAccount({
+      providerId: "google",
+    });
+
+    if (result.error) {
+      toast.error(result.error.message);
+      setIsUnlinkingGoogle(false);
+      return;
+    }
+
+    await loadAccounts();
+    await refetchSession();
+    setIsUnlinkingGoogle(false);
+    toast.success("Google disconnected.");
+  };
+
   const handleUnlinkGithub = async () => {
     if (!canUnlinkGithub) {
-      toast.error("Add a password before disconnecting GitHub.");
+      toast.error(
+        "Add a password or another sign-in method before disconnecting GitHub.",
+      );
       return;
     }
 
@@ -301,13 +354,20 @@ function SecurityRouteComponent() {
             }
           />
           <SecurityTile
-            icon={<GithubIcon className="size-4" />}
+            icon={<ShieldCheck className="size-4" />}
             label="OAuth"
-            value="GitHub social sign-in"
+            value={
+              !hasLoadedAccounts
+                ? "Checking linked providers…"
+                : [
+                      hasGithub && "GitHub",
+                      hasGoogle && "Google",
+                    ].filter(Boolean).join(" · ") || "None linked"
+            }
             status={
               !hasLoadedAccounts
                 ? "Checking"
-                : hasGithub
+                : hasGithub || hasGoogle
                   ? "Connected"
                   : "Available"
             }
@@ -417,8 +477,11 @@ function SecurityRouteComponent() {
                 <div className="border-border/60 bg-background/50 rounded-xl border p-4 text-sm">
                   <p className="font-medium">No password is set</p>
                   <p className="text-muted-foreground mt-1">
-                    Your account currently signs in with GitHub only. Set a
-                    password before removing GitHub.
+                    Your account currently signs in with{" "}
+                    {[hasGithub && "GitHub", hasGoogle && "Google"]
+                      .filter(Boolean)
+                      .join(" and ") || "OAuth"}{" "}
+                    only. Set a password before removing your last social login.
                   </p>
                 </div>
               )}
@@ -522,7 +585,7 @@ function SecurityRouteComponent() {
                   tooltip={
                     canUnlinkGithub
                       ? undefined
-                      : "Set a password before disconnecting GitHub."
+                      : "Add a password or another social login before disconnecting."
                   }
                 >
                   {isUnlinkingGithub ? (
@@ -548,7 +611,67 @@ function SecurityRouteComponent() {
               )}
             </div>
           </div>
-          <Separator />
+
+          <div className="border-border/60 bg-background/50 flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="bg-primary/10 text-primary rounded-lg p-2">
+                <GoogleIcon className="size-4" />
+              </span>
+              <div>
+                <p className="text-sm font-medium">Google</p>
+                <p className="text-muted-foreground text-sm">
+                  {!hasLoadedAccounts
+                    ? "Checking connection..."
+                    : hasGoogle
+                      ? "Connected as a sign-in method."
+                      : "Not connected."}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!hasLoadedAccounts ? (
+                <Button variant="outline" disabled>
+                  <Loader2 className="size-4 animate-spin" />
+                  Checking
+                </Button>
+              ) : hasGoogle ? (
+                <Button
+                  variant="destructive"
+                  onClick={handleUnlinkGoogle}
+                  disabled={
+                    isLoadingAccounts ||
+                    isUnlinkingGoogle ||
+                    !canUnlinkGoogle
+                  }
+                  tooltip={
+                    canUnlinkGoogle
+                      ? undefined
+                      : "Add a password or another social login before disconnecting."
+                  }
+                >
+                  {isUnlinkingGoogle ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Unlink className="size-4" />
+                  )}
+                  Disconnect
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={handleLinkGoogle}
+                  disabled={isLinkingGoogle}
+                >
+                  {isLinkingGoogle ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <GoogleIcon className="size-4" />
+                  )}
+                  Link Google
+                </Button>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

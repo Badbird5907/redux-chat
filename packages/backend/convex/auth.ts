@@ -29,6 +29,7 @@ export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
   const env = backendEnv();
+
   return {
     database: authComponent.adapter(ctx),
     baseURL: env.SITE_URL,
@@ -45,6 +46,10 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
         // redirectURI: `${env.NEXT_PUBLIC_CONVEX_SITE_URL}/api/auth/callback/github`,
         clientId: env.AUTH_GITHUB_ID,
         clientSecret: env.AUTH_GITHUB_SECRET,
+      },
+      google: {
+        clientId: env.AUTH_GOOGLE_ID,
+        clientSecret: env.AUTH_GOOGLE_SECRET,
       },
     },
     emailAndPassword: {

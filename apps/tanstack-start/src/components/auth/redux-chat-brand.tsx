@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-/** Same markup as the sidebar header brand, larger type for auth screens. */
 export function ReduxChatBrand() {
   return (
     <div className="mb-8 flex justify-center">

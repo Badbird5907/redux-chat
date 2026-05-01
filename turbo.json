@@ -52,6 +52,8 @@
       "SITE_URL",
       "AUTH_GITHUB_ID",
       "AUTH_GITHUB_SECRET",
+      "AUTH_GOOGLE_ID",
+      "AUTH_GOOGLE_SECRET",
       "PORT",
       "OPENAI_API_KEY",
       "VITE_CONVEX_URL",
