@@ -2,10 +2,19 @@ import { ConvexQueryClient } from "@convex-dev/react-query";
 import { notifyManager, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import * as Sentry from "@sentry/tanstackstart-react";
 import SuperJSON from "superjson";
+import { useEffect } from "react";
 
-import { env } from "./env";
+import { env, getSentryPublicDsn } from "./env";
 import { routeTree } from "./routeTree.gen";
+
+function DefaultRouterError({ error }: { error: Error }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+  return <p>{error.stack}</p>;
+}
 
 export function getRouter() {
   if (typeof document !== "undefined") {
@@ -31,12 +40,19 @@ export function getRouter() {
   });
   convexQueryClient.connect(queryClient);
 
+  if (typeof document !== "undefined") {
+    Sentry.init({
+      dsn: getSentryPublicDsn(),
+      sendDefaultPii: true,
+    });
+  }
+
   const router = createRouter({
     routeTree,
     defaultPreload: "intent",
     context: { queryClient, convexQueryClient },
     scrollRestoration: true,
-    defaultErrorComponent: ({ error }) => <p>{error.stack}</p>,
+    defaultErrorComponent: DefaultRouterError,
     defaultNotFoundComponent: () => <p>not found</p>,
   });
   setupRouterSsrQueryIntegration({

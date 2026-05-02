@@ -1,3 +1,4 @@
+import { sentryTanstackStart } from "@sentry/tanstackstart-react/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -30,6 +31,12 @@ export default defineConfig({
     }),
     tanstackStart({
       srcDirectory: "src",
+    }),
+    sentryTanstackStart({
+      org: "evan-yu",
+      project: "redux-chat",
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      tunnelRoute: "/tunnel",
     }),
     viteReact(),
     tailwindcss(),

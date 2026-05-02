@@ -61,7 +61,18 @@ function RouteComponent() {
         <MarkdownRenderer content={MARKDOWN_FIXTURE} mode="static" />
       </div>
 
-      <Button onClick={() => toast.success("Hello")}>Click me</Button>
+      <div className="fixed bottom-8 left-1/2 flex -translate-x-1/2 gap-2">
+        <Button onClick={() => toast.success("Hello")}>Click me</Button>
+        <Button
+          variant="destructive"
+          type="button"
+          onClick={() => {
+            throw new Error("Sentry Test Error");
+          }}
+        >
+          Sentry test error
+        </Button>
+      </div>
     </div>
   );
 }
