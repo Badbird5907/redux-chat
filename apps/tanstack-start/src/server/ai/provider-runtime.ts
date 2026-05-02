@@ -51,10 +51,10 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
   },
   vertex: {
     key: "vertex",
-    requiredEnv: ["GEMINI_API_KEY"],
+    requiredEnv: ["GOOGLE_VERTEX_API_KEY"],
     createModel: (route) => {
       const provider = createVertex({
-        apiKey: env.GOOGLE_VERTEX_API_KEY as string,
+        apiKey: env.GOOGLE_VERTEX_API_KEY,
       });
       console.log("created vertex provider");
 
