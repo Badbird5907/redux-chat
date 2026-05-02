@@ -71,6 +71,26 @@ export type BillingGrantSource =
 
 export const POLAR_CREDITS_EVENT_NAME = "credits";
 
+/**
+ * Polar's API rejects decimal inputs with more than 17 total digits (Pydantic
+ * `decimal_max_digits`). Floating-point arithmetic on USD costs routinely
+ * produces trailing-precision noise like `0.0011797500000000002` (19 digits)
+ * which trips the validator. Rounding to 12 decimal places gives sub-pico-USD
+ * precision — far more than billing needs — while staying safely under the
+ * 17-digit ceiling for any plausible per-event amount.
+ */
+const POLAR_DECIMAL_MAX_DIGITS = 12;
+
+export function toPolarSafeAmount(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  // `Number(x.toFixed(n))` collapses representational noise by re-parsing the
+  // rounded string, so the resulting JSON serialization stays within the
+  // digit budget Polar enforces.
+  return Number(value.toFixed(POLAR_DECIMAL_MAX_DIGITS));
+}
+
 export function getBillingConfig() {
   const env = backendEnv();
   return {
@@ -257,7 +277,7 @@ export function buildPolarCreditUsageEvent(args: {
       usedPricingFallback: args.charge.usedPricingFallback,
       toolSummaryJson: JSON.stringify(toolSummary),
       _cost: {
-        amount: args.charge.rawUsdCost,
+        amount: toPolarSafeAmount(args.charge.rawUsdCost),
         currency: "usd",
       },
       _llm: llmMetadata,
