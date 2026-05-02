@@ -11,6 +11,9 @@ export default defineConfig({
   server: {
     port: 3712,
   },
+  build: {
+    sourcemap: "hidden",
+  },
   ssr: {
     noExternal: ["@convex-dev/better-auth", "streamdown"],
     // These CJS libs ship ES5 + tslib helpers (`__extends` etc). When Vite/esbuild
