@@ -39,6 +39,9 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
     "generate": "dotenv -e ../../.env -- pnpx @better-auth/cli generate --config scripts/auth-cli.ts --output convex/betterAuth/schema.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -61,13 +64,17 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "catalog:",
     "@redux/eslint-config": "workspace:*",
     "@redux/prettier-config": "workspace:*",
     "@redux/tsconfig": "workspace:*",
     "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "convex-test": "^0.0.51",
     "eslint": "catalog:",
     "prettier": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "prettier": "@redux/prettier-config"
 }
