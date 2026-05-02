@@ -275,14 +275,15 @@ function RouteComponent() {
             <DialogDescription>
               {planSwitchConfirm?.isUpgrade ? (
                 <>
-                  Your subscription updates now and Polar bills the prorated upgrade
-                  immediately on a separate invoice (not deferred to the next renewal).
+                  Your new plan starts right away. You&apos;ll pay a one-time amount for the
+                  rest of this billing period (it appears as its own line on your statement),
+                  then your usual renewal price after that.
                 </>
               ) : (
                 <>
-                  The lower plan is scheduled for the start of your next billing period.
-                  You keep your current benefits until then; there is no mid-cycle credit or
-                  downgrade charge.
+                  Nothing changes until your next renewal—you keep your current plan and
+                  benefits until then. After that, you&apos;ll move to the lower plan
+                  automatically, with no extra fee for switching early.
                 </>
               )}
             </DialogDescription>
@@ -346,9 +347,10 @@ function RouteComponent() {
           Plans
         </p>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          New subscriptions use checkout. If you already pay for Plus or Pro, you can switch
-          plans here (upgrades bill now; downgrades apply at renewal). Use Manage billing for
-          payment method, invoices, and cancellation.
+          Pick a paid plan below to subscribe. Already on Plus or Pro? You can switch between
+          those two here—upgrades start today with a one-time charge for the rest of this
+          period; downgrades take effect on your next renewal. For your card, receipts, or to
+          cancel, open Manage billing.
         </p>
         <div className="grid gap-4 lg:grid-cols-3">
           <TierColumn
