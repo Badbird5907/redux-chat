@@ -295,7 +295,11 @@ export function buildPolarLlmMetadata(args: {
   const [fallbackProvider, ...fallbackModelParts] = args.routeId.split(":");
   const fallbackModel = fallbackModelParts.join(":");
 
-  const vendor = route?.vendorId ?? route?.provider ?? fallbackProvider ?? "unknown";
+  const vendor = getPolarLlmVendor({
+    canonicalModelId: route?.canonicalModelId,
+    provider: route?.provider ?? fallbackProvider,
+    vendorId: route?.vendorId ?? fallbackModel,
+  });
   const model =
     route?.canonicalModelId ??
     (fallbackModel.length > 0 ? fallbackModel : route?.displayName ?? args.routeId);
@@ -309,6 +313,45 @@ export function buildPolarLlmMetadata(args: {
     totalTokens,
     cachedInputTokens,
   };
+}
+
+function getPolarLlmVendor(args: {
+  canonicalModelId?: string;
+  provider?: string;
+  vendorId?: string;
+}): string {
+  const canonicalVendor = getModelOwnerPrefix(args.canonicalModelId);
+  if (canonicalVendor) {
+    return canonicalVendor;
+  }
+
+  const providerModelVendor = getModelOwnerPrefix(args.vendorId);
+  if (providerModelVendor) {
+    return normalizeProviderVendor(providerModelVendor) ?? providerModelVendor;
+  }
+
+  return normalizeProviderVendor(args.provider) ?? "unknown";
+}
+
+function getModelOwnerPrefix(modelId: string | undefined) {
+  if (!modelId) {
+    return undefined;
+  }
+
+  const [owner] = modelId.split("/");
+  return owner && owner !== modelId ? owner : undefined;
+}
+
+function normalizeProviderVendor(provider: string | undefined) {
+  if (!provider) {
+    return undefined;
+  }
+
+  if (provider === "vertex") {
+    return "google";
+  }
+
+  return provider;
 }
 
 export function buildPolarCreditGrantEvent(args: {
