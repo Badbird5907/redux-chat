@@ -23,7 +23,15 @@ export default defineConfig({
     // no business in the SSR bundle. Nitro's tracer (default `noExternals: false`)
     // ships them into the Lambda's node_modules, so the deployment stays
     // self-contained.
-    external: ["xlsx", "mammoth", "pdf-lib", "unpdf", "tslib"],
+    //
+    // NOTE: do NOT externalize `tslib` itself — Vite SSR's `external` only
+    // affects the first build stage; the resulting `import "tslib"` then leaks
+    // into Nitro's second-stage Rolldown bundle, which can't resolve it from
+    // `.nitro/vite/services/ssr/assets/` and fails the build. tslib bundles
+    // cleanly on its own; it only breaks when fed through esbuild's interop
+    // from a CJS caller, which we've already eliminated by externalizing the
+    // CJS callers above.
+    external: ["xlsx", "mammoth", "pdf-lib", "unpdf"],
   },
   plugins: [
     tsConfigPaths({
