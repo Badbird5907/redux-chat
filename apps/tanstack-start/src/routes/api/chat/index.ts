@@ -318,16 +318,26 @@ export const Route = createFileRoute("/api/chat/")({
           enabledMcpServerIds,
         });
 
-        const billingState = await fetchAuthAction(
-          api.functions.billing.refreshCurrentUserMeterState,
-          {},
-        );
+        const [billingSnapshot, billingState] = await Promise.all([
+          fetchAuthQuery(api.functions.billing.getCurrentBillingState, {}),
+          fetchAuthAction(api.functions.billing.refreshCurrentUserMeterState, {}),
+        ]);
         if (
           billingState.availableCredits !== undefined &&
           billingState.availableCredits <= 0 &&
           !billingState.overageAllowed
         ) {
-          return new Response("You are out of credits.", { status: 402 });
+          return new Response(
+            JSON.stringify({
+              error: "out_of_credits",
+              tier: billingSnapshot.tier,
+              availableCredits: billingState.availableCredits,
+            }),
+            {
+              status: 402,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
         }
 
         let cleanupTools: (() => Promise<void>) | undefined;

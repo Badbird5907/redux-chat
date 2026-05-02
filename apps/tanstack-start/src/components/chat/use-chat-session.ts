@@ -4,7 +4,8 @@ import { useChat } from "@ai-sdk/react";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { DefaultChatTransport } from "ai";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
@@ -160,6 +161,10 @@ export function useChatSession({
     [currentThreadId],
   );
 
+  const refreshBillingState = useAction(
+    api.functions.billing.refreshCurrentUserMeterState,
+  );
+
   const {
     messages,
     status,
@@ -176,6 +181,20 @@ export function useChatSession({
     onError: (error) => {
       locallyStartedStreamRef.current = false;
       console.error("Chat error:", error);
+
+      // Detect a backend 402 "out of credits" rejection and surface a clear
+      // toast + force a refresh of cached billing state so the input gates
+      // disable on the next render. The /api/chat handler returns a JSON body
+      // shaped { error: "out_of_credits", tier, availableCredits }; the AI SDK
+      // surfaces it in the Error message.
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("out_of_credits")) {
+        toast.error("You are out of credits.");
+        void refreshBillingState({}).catch(() => {
+          // Best-effort — the reactive billing query will still pick up the
+          // backend's last-written cache value on its own.
+        });
+      }
     },
     onFinish: (message) => {
       console.log("Finish:", message);
@@ -519,7 +538,6 @@ export function useChatSession({
     convexMessages?.forEach((m) => {
       if (m.role === "assistant") {
         map.set(m.messageId, {
-          creditsConsumed: m.creditsConsumed,
           usage: m.usage,
           generationStats: m.generationStats,
           model: m.model,

@@ -155,6 +155,10 @@ export function resolveTierFromSubscription(
     return "plus" satisfies PlanTier;
   }
 
+  if (subscription.productKey === "free") {
+    return "free" satisfies PlanTier;
+  }
+
   if (subscription.productId && subscription.productId === env.POLAR_PRO_PRODUCT_ID) {
     return "pro" satisfies PlanTier;
   }
@@ -164,6 +168,13 @@ export function resolveTierFromSubscription(
     subscription.productId === env.POLAR_PLUS_PRODUCT_ID
   ) {
     return "plus" satisfies PlanTier;
+  }
+
+  if (
+    subscription.productId &&
+    subscription.productId === env.POLAR_FREE_PRODUCT_ID
+  ) {
+    return "free" satisfies PlanTier;
   }
 
   return "free" satisfies PlanTier;
@@ -277,7 +288,12 @@ export function buildPolarCreditUsageEvent(args: {
       usedPricingFallback: args.charge.usedPricingFallback,
       toolSummaryJson: JSON.stringify(toolSummary),
       _cost: {
-        amount: toPolarSafeAmount(args.charge.rawUsdCost),
+        // Polar's cost-events API expects the amount in **cents** (integer minor units),
+        // not dollars. https://polar.sh/docs/features/cost-insights/cost-events
+        // We pass cents as a float to retain sub-cent precision per event since LLM
+        // calls routinely cost fractions of a cent. `toPolarSafeAmount` then clamps
+        // decimal-precision noise so Polar's 17-digit decimal validator accepts it.
+        amount: toPolarSafeAmount(args.charge.rawUsdCost * 100),
         currency: "usd",
       },
       _llm: llmMetadata,
@@ -436,12 +452,17 @@ export function extractMeterCreditSummary(
       typeof candidate.consumedUnits === "number"
         ? candidate.consumedUnits
         : undefined;
+    const creditedUnits =
+      typeof candidate.creditedUnits === "number"
+        ? candidate.creditedUnits
+        : undefined;
 
     return [
       {
         candidateName,
         balance,
         consumedUnits,
+        creditedUnits,
       },
     ];
   });
@@ -459,6 +480,7 @@ export function extractMeterCreditSummary(
       candidateName: matchingMeter.candidateName,
       balance: matchingMeter.balance,
       consumedUnits: matchingMeter.consumedUnits,
+      creditedUnits: matchingMeter.creditedUnits,
       availableCredits,
       overageCredits,
       usedSingleMeterFallback:
@@ -476,42 +498,60 @@ export function extractMeterCreditSummary(
   return { availableCredits: undefined, overageCredits: undefined };
 }
 
+/**
+ * Compute available/overage credits from a Polar meter snapshot.
+ *
+ * The unified formula is `balance = creditedUnits - consumedUnits`, which works
+ * across both meter usage patterns Polar supports:
+ *
+ * - Pattern A (legacy "negative-units ingest" — the previous default):
+ *   `creditedUnits` is 0 and `consumedUnits` is the running Sum of all
+ *   `metadata.units` events (negative means net credits granted, positive means
+ *   net usage). `balance = 0 - consumedUnits = -consumedUnits`, so a negative
+ *   `consumedUnits` ⇒ positive balance ⇒ available credits.
+ *
+ * - Pattern B (modern `meter_credit` Benefit — the path we are migrating to):
+ *   `creditedUnits` is incremented by Polar at every subscription cycle and
+ *   `consumedUnits` is the positive running Sum of usage events. `balance` is
+ *   directly the available credit balance.
+ *
+ * In both cases `balance >= 0` ⇒ available credits, `balance < 0` ⇒ overage.
+ * If the SDK reports `balance` directly we trust it; otherwise we derive it.
+ */
 function deriveMeterCreditSummary(meter: {
   balance?: number;
   consumedUnits?: number;
+  creditedUnits?: number;
 }) {
-  if (typeof meter.consumedUnits === "number" && meter.consumedUnits > 0) {
-    return {
-      availableCredits: 0,
-      overageCredits:
-        typeof meter.balance === "number" && meter.balance > 0
-          ? Math.max(meter.balance, meter.consumedUnits)
-          : meter.consumedUnits,
-    };
+  const balance = computeMeterBalance(meter);
+  if (balance === undefined) {
+    return { availableCredits: undefined, overageCredits: undefined };
   }
 
-  if (typeof meter.consumedUnits === "number" && meter.consumedUnits <= 0) {
-    return {
-      availableCredits: Math.abs(meter.consumedUnits),
-      overageCredits: 0,
-    };
+  if (balance >= 0) {
+    return { availableCredits: balance, overageCredits: 0 };
   }
 
-  if (typeof meter.balance === "number" && meter.balance >= 0) {
-    return {
-      availableCredits: meter.balance,
-      overageCredits: 0,
-    };
-  }
+  return { availableCredits: 0, overageCredits: -balance };
+}
 
+function computeMeterBalance(meter: {
+  balance?: number;
+  consumedUnits?: number;
+  creditedUnits?: number;
+}): number | undefined {
   if (typeof meter.balance === "number") {
-    return {
-      availableCredits: Math.max(0, -meter.balance),
-      overageCredits: meter.balance > 0 ? meter.balance : 0,
-    };
+    return meter.balance;
   }
 
-  return { availableCredits: undefined, overageCredits: undefined };
+  if (
+    typeof meter.creditedUnits === "number" ||
+    typeof meter.consumedUnits === "number"
+  ) {
+    return (meter.creditedUnits ?? 0) - (meter.consumedUnits ?? 0);
+  }
+
+  return undefined;
 }
 
 function toTimestamp(value: unknown) {
