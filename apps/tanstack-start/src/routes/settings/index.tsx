@@ -283,7 +283,7 @@ function RouteComponent() {
                 <>
                   Nothing changes until your next renewal—you keep your current plan and
                   benefits until then. After that, you&apos;ll move to the lower plan
-                  automatically, with no extra fee for switching early.
+                  automatically.
                 </>
               )}
             </DialogDescription>
