@@ -44,6 +44,7 @@ export function getRouter() {
     Sentry.init({
       dsn: getSentryPublicDsn(),
       sendDefaultPii: true,
+      enabled: env.NODE_ENV === "production",
     });
   }
 

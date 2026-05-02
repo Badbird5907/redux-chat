@@ -7,4 +7,5 @@ const dsn =
 Sentry.init({
   dsn,
   sendDefaultPii: true,
+  enabled: process.env.NODE_ENV === "production",
 });
