@@ -23,7 +23,6 @@ export const polar: Polar<DataModel> = new Polar<DataModel>(components.polar, {
 });
 
 export const {
-  changeCurrentSubscription,
   cancelCurrentSubscription,
   getConfiguredProducts,
   listAllProducts,

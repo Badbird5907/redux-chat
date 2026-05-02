@@ -22,6 +22,30 @@ import {
 import { polar } from "../polar";
 import { action, query } from "./index";
 
+function planTierRank(tier: PlanTier): number {
+  if (tier === "free") {
+    return 0;
+  }
+  if (tier === "plus") {
+    return 1;
+  }
+  return 2;
+}
+
+function tierFromPolarProductId(productId: string): PlanTier {
+  const env = backendEnv();
+  if (productId === env.POLAR_FREE_PRODUCT_ID) {
+    return "free";
+  }
+  if (productId === env.POLAR_PLUS_PRODUCT_ID) {
+    return "plus";
+  }
+  if (productId === env.POLAR_PRO_PRODUCT_ID) {
+    return "pro";
+  }
+  throw new Error("That product is not a configured plan.");
+}
+
 type BillingActionCtx = GenericActionCtx<DataModel> & {
   userId: string;
 };
@@ -115,6 +139,65 @@ export const refreshCurrentUserMeterState = action({
   args: {},
   handler: async (ctx): Promise<BillingRefreshResult> => {
     return await refreshBillingStateForUser(ctx, ctx.userId);
+  },
+});
+
+/**
+ * Switch between Plus and Pro with per-call Polar proration: upgrades use
+ * `invoice` (charge now); downgrades use `next_period` (change at renewal).
+ * Free users must use checkout instead.
+ */
+export const switchCurrentUserPaidPlan = action({
+  args: { productId: v.string() },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ prorationBehavior: "invoice" | "next_period"; targetTier: PlanTier }> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(ctx, ctx.userId);
+    if (subscriptionState.tier === "free") {
+      throw new Error(
+        "Use checkout to subscribe. Plan switches from this page are only for existing paid subscriptions.",
+      );
+    }
+
+    let targetTier: PlanTier;
+    try {
+      targetTier = tierFromPolarProductId(args.productId);
+    } catch {
+      throw new Error("That product is not a configured plan.");
+    }
+
+    if (targetTier === "free") {
+      throw new Error(
+        "Moving to the free tier is not available here. Cancel from Manage billing when you want to end a paid plan.",
+      );
+    }
+
+    const subscription = subscriptionState.subscription;
+    const subscriptionId = subscription?.subscriptionId;
+    if (!subscriptionId) {
+      throw new Error("No subscription found to update.");
+    }
+
+    if (subscription?.productId === args.productId) {
+      throw new Error("You are already on this plan.");
+    }
+
+    const fromRank = planTierRank(subscriptionState.tier);
+    const toRank = planTierRank(targetTier);
+    const prorationBehavior =
+      toRank > fromRank ? ("invoice" as const) : ("next_period" as const);
+
+    const polarSdk = getPolarSdkClient();
+    await polarSdk.subscriptions.update({
+      id: subscriptionId,
+      subscriptionUpdate: {
+        productId: args.productId,
+        prorationBehavior,
+      },
+    });
+
+    return { prorationBehavior, targetTier };
   },
 });
 

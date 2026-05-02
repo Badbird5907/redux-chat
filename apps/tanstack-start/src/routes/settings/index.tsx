@@ -10,6 +10,14 @@ import { ChevronRight, RefreshCw } from "lucide-react";
 import { api } from "@redux/backend/convex/_generated/api";
 import { Button, buttonVariants } from "@redux/ui/components/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@redux/ui/components/dialog";
+import {
   Progress,
   ProgressLabel,
   ProgressValue,
@@ -75,6 +83,7 @@ function RouteComponent() {
   const polarProducts = useQuery(api.polar.getConfiguredProducts, {});
   const baseBillingState = useQuery(api.functions.billing.getCurrentBillingState, {});
   const refreshMeterState = useAction(api.functions.billing.refreshCurrentUserMeterState);
+  const switchPaidPlan = useAction(api.functions.billing.switchCurrentUserPaidPlan);
   const [liveMeterState, setLiveMeterState] = useState<
     | {
         tier: PlanTier;
@@ -87,6 +96,12 @@ function RouteComponent() {
   >(undefined);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [planSwitchConfirm, setPlanSwitchConfirm] = useState<{
+    productId: string;
+    planName: string;
+    isUpgrade: boolean;
+  } | null>(null);
+  const [planSwitchLoading, setPlanSwitchLoading] = useState(false);
 
   const billingState = useMemo(() => {
     if (!baseBillingState) {
@@ -182,6 +197,7 @@ function RouteComponent() {
 
   const subscriptionId = billingState?.subscription?.subscriptionId;
   const showPaidManage = tierRank(currentTier) >= 1;
+  const isOnPaidPlan = showPaidManage;
 
   const renewSummary = renewalSummary(billingState?.currentPeriodEnd);
 
@@ -189,6 +205,30 @@ function RouteComponent() {
     "inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md px-3 text-sm font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 pointer-events-auto";
 
   const rank = tierRank(currentTier);
+
+  const confirmPlanSwitch = async () => {
+    if (!planSwitchConfirm) {
+      return;
+    }
+    setPlanSwitchLoading(true);
+    setSyncError(null);
+    try {
+      await switchPaidPlan({ productId: planSwitchConfirm.productId });
+      setPlanSwitchConfirm(null);
+      const result = await refreshMeterState({});
+      setLiveMeterState({
+        tier: result.tier,
+        availableCredits: result.availableCredits,
+        overageCredits: result.overageCredits,
+        overageAllowed: result.overageAllowed,
+        syncedAt: Date.now(),
+      });
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Plan switch failed");
+    } finally {
+      setPlanSwitchLoading(false);
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-8">
@@ -220,6 +260,52 @@ function RouteComponent() {
           ) : null}
         </div>
       </div>
+
+      <Dialog
+        open={planSwitchConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open && !planSwitchLoading) {
+            setPlanSwitchConfirm(null);
+          }
+        }}
+      >
+        <DialogContent showCloseButton={!planSwitchLoading}>
+          <DialogHeader>
+            <DialogTitle>Switch to {planSwitchConfirm?.planName}?</DialogTitle>
+            <DialogDescription>
+              {planSwitchConfirm?.isUpgrade ? (
+                <>
+                  Your subscription updates now and Polar bills the prorated upgrade
+                  immediately on a separate invoice (not deferred to the next renewal).
+                </>
+              ) : (
+                <>
+                  The lower plan is scheduled for the start of your next billing period.
+                  You keep your current benefits until then; there is no mid-cycle credit or
+                  downgrade charge.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPlanSwitchConfirm(null)}
+              disabled={planSwitchLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmPlanSwitch()}
+              disabled={planSwitchLoading}
+            >
+              {planSwitchLoading ? "Switching…" : "Confirm switch"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <section className="space-y-3">
         <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
@@ -259,6 +345,11 @@ function RouteComponent() {
         <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
           Plans
         </p>
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          New subscriptions use checkout. If you already pay for Plus or Pro, you can switch
+          plans here (upgrades bill now; downgrades apply at renewal). Use Manage billing for
+          payment method, invoices, and cancellation.
+        </p>
         <div className="grid gap-4 lg:grid-cols-3">
           <TierColumn
             name="Free"
@@ -273,7 +364,7 @@ function RouteComponent() {
             name="Plus"
             plan={getPlanConfig("plus", billingConfig)}
             priceLabel={formatPolarRecurringPrice(plusProduct ?? undefined)}
-            state={rank === 1 ? "current" : rank === 0 ? "available" : "inactive"}
+            state={rank === 1 ? "current" : rank === 0 ? "available" : "available"}
             polarApi={polarApi}
             checkoutAnchorClass={checkoutAnchorClass}
             productId={plusProduct?.id}
@@ -281,6 +372,19 @@ function RouteComponent() {
             buttonLabel="Plus"
             emphasize={rank === 0}
             renewalSummary={renewSummary}
+            paidSwitch={
+              isOnPaidPlan && rank === 2 && plusProduct?.id
+                ? {
+                    isUpgrade: false,
+                    onRequest: () =>
+                      setPlanSwitchConfirm({
+                        productId: plusProduct.id,
+                        planName: "Plus",
+                        isUpgrade: false,
+                      }),
+                  }
+                : undefined
+            }
           />
           <TierColumn
             name="Pro"
@@ -294,6 +398,19 @@ function RouteComponent() {
             buttonLabel="Pro"
             emphasize={rank === 1}
             renewalSummary={renewSummary}
+            paidSwitch={
+              isOnPaidPlan && rank === 1 && proProduct?.id
+                ? {
+                    isUpgrade: true,
+                    onRequest: () =>
+                      setPlanSwitchConfirm({
+                        productId: proProduct.id,
+                        planName: "Pro",
+                        isUpgrade: true,
+                      }),
+                  }
+                : undefined
+            }
           />
         </div>
       </section>
@@ -331,6 +448,7 @@ function TierColumn({
   emphasize,
   buttonLabel,
   renewalSummary: renewalLine,
+  paidSwitch,
 }: {
   name: string;
   plan: ReturnType<typeof getPlanConfig>;
@@ -343,6 +461,7 @@ function TierColumn({
   emphasize?: boolean;
   buttonLabel?: string;
   renewalSummary?: string | null;
+  paidSwitch?: { isUpgrade: boolean; onRequest: () => void };
 }) {
   const priced =
     priceLabel !== undefined
@@ -358,6 +477,18 @@ function TierColumn({
       </Button>
     ) : state === "inactive" ? (
       <div className="mt-auto pt-6" aria-hidden />
+    ) : productId !== undefined && paidSwitch ? (
+      <Button
+        type="button"
+        variant={emphasize ? "default" : "outline"}
+        size="sm"
+        className={cn("mt-auto w-full text-xs", !emphasize && "bg-transparent")}
+        onClick={paidSwitch.onRequest}
+      >
+        {paidSwitch.isUpgrade
+          ? `Upgrade to ${buttonLabel ?? name}`
+          : `Downgrade to ${buttonLabel ?? name} (next renewal)`}
+      </Button>
     ) : productId !== undefined ? (
       <CheckoutLink
         polarApi={polarApi}
