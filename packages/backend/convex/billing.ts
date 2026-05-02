@@ -32,6 +32,14 @@ type BillingSubscriptionSnapshot = {
   currentPeriodEnd?: number;
   customerId?: string;
   subscriptionId?: string;
+  cancelAtPeriodEnd?: boolean;
+};
+
+/** Fields only Polar’s live subscription API exposes (Convex Polar DB omits pending updates). */
+export type BillingSubscriptionSchedule = {
+  cancelAtPeriodEnd: boolean;
+  pendingProductId: string | undefined;
+  pendingAppliesAtMs: number | undefined;
 };
 
 export const BILLING_DEBUG_LOGGING = false;
@@ -189,6 +197,13 @@ export function toSubscriptionSnapshot(
 
   const value = subscription as Record<string, unknown>;
 
+  const cancelAtPeriodEnd =
+    typeof value.cancelAtPeriodEnd === "boolean"
+      ? value.cancelAtPeriodEnd
+      : typeof value.cancel_at_period_end === "boolean"
+        ? value.cancel_at_period_end
+        : undefined;
+
   return {
     productId:
       typeof value.productId === "string"
@@ -209,7 +224,54 @@ export function toSubscriptionSnapshot(
         : typeof value.subscriptionId === "string"
           ? value.subscriptionId
           : undefined,
+    cancelAtPeriodEnd,
   };
+}
+
+export function subscriptionScheduleFromPolarSdkSubscription(
+  subscription: unknown,
+): BillingSubscriptionSchedule {
+  if (!subscription || typeof subscription !== "object") {
+    return {
+      cancelAtPeriodEnd: false,
+      pendingProductId: undefined,
+      pendingAppliesAtMs: undefined,
+    };
+  }
+
+  const value = subscription as Record<string, unknown>;
+  const cancelAtPeriodEnd =
+    typeof value.cancelAtPeriodEnd === "boolean"
+      ? value.cancelAtPeriodEnd
+      : typeof value.cancel_at_period_end === "boolean"
+        ? value.cancel_at_period_end
+        : false;
+
+  const pendingRaw = value.pendingUpdate ?? value.pending_update;
+  let pendingProductId: string | undefined;
+  let pendingAppliesAtMs: number | undefined;
+
+  if (pendingRaw && typeof pendingRaw === "object") {
+    const pending = pendingRaw as Record<string, unknown>;
+    const pid = pending.productId ?? pending.product_id;
+    if (typeof pid === "string") {
+      pendingProductId = pid;
+    }
+    pendingAppliesAtMs = toTimestamp(pending.appliesAt ?? pending.applies_at);
+  }
+
+  return { cancelAtPeriodEnd, pendingProductId, pendingAppliesAtMs };
+}
+
+export function polarLiveSubscriptionProductId(
+  subscription: unknown,
+): string | undefined {
+  if (!subscription || typeof subscription !== "object") {
+    return undefined;
+  }
+  const value = subscription as Record<string, unknown>;
+  const id = value.productId ?? value.product_id;
+  return typeof id === "string" ? id : undefined;
 }
 
 export function buildBillingAccountRecord(
@@ -557,6 +619,10 @@ function computeMeterBalance(meter: {
 function toTimestamp(value: unknown) {
   if (typeof value === "number") {
     return value;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
   }
 
   if (typeof value === "string") {

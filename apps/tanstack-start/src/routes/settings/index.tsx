@@ -42,6 +42,38 @@ function tierRank(tier: PlanTier): number {
   return 2;
 }
 
+function planTierLabel(tier: PlanTier): string {
+  if (tier === "free") {
+    return "Free";
+  }
+  if (tier === "plus") {
+    return "Plus";
+  }
+  return "Pro";
+}
+
+function tierForConfiguredProductId(
+  productId: string | undefined,
+  products:
+    | { free?: { id: string } | null; plus?: { id: string } | null; pro?: { id: string } | null }
+    | null
+    | undefined,
+): PlanTier | null {
+  if (!productId || !products) {
+    return null;
+  }
+  if (products.free?.id === productId) {
+    return "free";
+  }
+  if (products.plus?.id === productId) {
+    return "plus";
+  }
+  if (products.pro?.id === productId) {
+    return "pro";
+  }
+  return null;
+}
+
 function formatPolarRecurringPrice(
   product:
     | { prices?: readonly { priceAmount?: number | null; priceCurrency?: string | null }[] }
@@ -77,6 +109,35 @@ function renewalSummary(periodEnd: number | undefined): string | null {
   return `${dateStr} (${days}d)`;
 }
 
+/** Convex action payloads are loosely typed from generated API; coerce for React state safely. */
+function coerceSubscriptionSchedule(
+  input: unknown,
+): {
+  cancelAtPeriodEnd: boolean;
+  pendingProductId: string | undefined;
+  pendingAppliesAtMs: number | undefined;
+} {
+  if (!input || typeof input !== "object") {
+    return {
+      cancelAtPeriodEnd: false,
+      pendingProductId: undefined,
+      pendingAppliesAtMs: undefined,
+    };
+  }
+  const schedule = input as Record<string, unknown>;
+  return {
+    cancelAtPeriodEnd: schedule.cancelAtPeriodEnd === true,
+    pendingProductId:
+      typeof schedule.pendingProductId === "string"
+        ? schedule.pendingProductId
+        : undefined,
+    pendingAppliesAtMs:
+      typeof schedule.pendingAppliesAtMs === "number"
+        ? schedule.pendingAppliesAtMs
+        : undefined,
+  };
+}
+
 type PolarCheckoutApi = { generateCheckoutLink: typeof api.polar.generateCheckoutLink };
 
 function RouteComponent() {
@@ -84,6 +145,12 @@ function RouteComponent() {
   const baseBillingState = useQuery(api.functions.billing.getCurrentBillingState, {});
   const refreshMeterState = useAction(api.functions.billing.refreshCurrentUserMeterState);
   const switchPaidPlan = useAction(api.functions.billing.switchCurrentUserPaidPlan);
+  const rescindCancellation = useAction(
+    api.functions.billing.rescindPaidSubscriptionCancellation,
+  );
+  const discardPendingPlanChange = useAction(
+    api.functions.billing.discardScheduledPaidPlanChange,
+  );
   const [liveMeterState, setLiveMeterState] = useState<
     | {
         tier: PlanTier;
@@ -102,6 +169,17 @@ function RouteComponent() {
     isUpgrade: boolean;
   } | null>(null);
   const [planSwitchLoading, setPlanSwitchLoading] = useState(false);
+  const [liveSubscriptionSchedule, setLiveSubscriptionSchedule] = useState<
+    | {
+        cancelAtPeriodEnd: boolean;
+        pendingProductId: string | undefined;
+        pendingAppliesAtMs: number | undefined;
+      }
+    | undefined
+  >(undefined);
+  const [billingScheduleMutation, setBillingScheduleMutation] = useState<
+    "rescind" | "discard" | null
+  >(null);
 
   const billingState = useMemo(() => {
     if (!baseBillingState) {
@@ -152,6 +230,7 @@ function RouteComponent() {
           overageAllowed: state.overageAllowed,
           syncedAt: Date.now(),
         });
+        setLiveSubscriptionSchedule(coerceSubscriptionSchedule(state.subscriptionSchedule));
       })
       .catch((error) => {
         setSyncError(
@@ -173,6 +252,7 @@ function RouteComponent() {
         overageAllowed: result.overageAllowed,
         syncedAt,
       });
+      setLiveSubscriptionSchedule(coerceSubscriptionSchedule(result.subscriptionSchedule));
       if (result.availableCredits === undefined) {
         setSyncError("Credits could not be synced.");
       }
@@ -206,6 +286,130 @@ function RouteComponent() {
 
   const rank = tierRank(currentTier);
 
+  const cancelAtPeriodEndMerged =
+    liveSubscriptionSchedule !== undefined
+      ? liveSubscriptionSchedule.cancelAtPeriodEnd
+      : baseBillingState?.subscription?.cancelAtPeriodEnd === true;
+
+  const freeProductId = polarProducts?.free?.id;
+
+  const scheduleNotice = useMemo(() => {
+    if (!billingState) {
+      return null;
+    }
+
+    if (polarProducts) {
+      const pendingId = liveSubscriptionSchedule?.pendingProductId;
+      const pendingTier = tierForConfiguredProductId(pendingId, polarProducts);
+      const whenRaw =
+        pendingId != null && pendingId !== ""
+          ? (liveSubscriptionSchedule?.pendingAppliesAtMs ?? billingState.currentPeriodEnd)
+          : undefined;
+      const whenPhrase = renewalSummary(whenRaw);
+
+      if (pendingId && pendingTier !== null && pendingTier !== currentTier) {
+        const when =
+          whenPhrase ??
+          (billingState.currentPeriodEnd != null
+            ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
+                billingState.currentPeriodEnd,
+              )
+            : "your next renewal");
+        return `Starting ${when}, your plan will change from ${planTierLabel(currentTier)} to ${planTierLabel(pendingTier)}. Until then you keep ${planTierLabel(currentTier)} benefits.`;
+      }
+
+      if (pendingId && pendingTier === null) {
+        const when = whenPhrase ?? "your next renewal";
+        return `You have a scheduled plan change on ${when}.`;
+      }
+    }
+
+    if (cancelAtPeriodEndMerged && rank >= 1) {
+      const when =
+        renewSummary ??
+        "the end of this billing period";
+      return `Your paid subscription is set to cancel after ${when} and will not renew. You can change this in Manage billing or by choosing a plan below.`;
+    }
+
+    return null;
+  }, [
+    polarProducts,
+    billingState,
+    liveSubscriptionSchedule,
+    currentTier,
+    cancelAtPeriodEndMerged,
+    rank,
+    renewSummary,
+  ]);
+
+  const pendingProductIdSynced = liveSubscriptionSchedule?.pendingProductId;
+  const pendingTierSynced = tierForConfiguredProductId(
+    pendingProductIdSynced,
+    polarProducts,
+  );
+
+  const showRescindCancellation =
+    cancelAtPeriodEndMerged && rank >= 1 && Boolean(subscriptionId);
+
+  const hasPendingPlanChange =
+    rank >= 1 &&
+    Boolean(subscriptionId) &&
+    pendingProductIdSynced != null &&
+    pendingProductIdSynced !== "" &&
+    (polarProducts == null ||
+      pendingTierSynced === null ||
+      pendingTierSynced !== currentTier);
+
+  const showBillingSchedulePanel =
+    scheduleNotice !== null || showRescindCancellation || hasPendingPlanChange;
+
+  const stayOnPlanButtonLabel =
+    pendingTierSynced === null || !polarProducts
+      ? "Keep current plan at renewal"
+      : `Stay on ${planTierLabel(currentTier)}`;
+
+  const applyBillingScheduleRefresh = async () => {
+    const result = await refreshMeterState({});
+    setLiveMeterState({
+      tier: result.tier,
+      availableCredits: result.availableCredits,
+      overageCredits: result.overageCredits,
+      overageAllowed: result.overageAllowed,
+      syncedAt: Date.now(),
+    });
+    setLiveSubscriptionSchedule(coerceSubscriptionSchedule(result.subscriptionSchedule));
+  };
+
+  const runRescindCancellation = async () => {
+    setBillingScheduleMutation("rescind");
+    setSyncError(null);
+    try {
+      await rescindCancellation({});
+      await applyBillingScheduleRefresh();
+    } catch (error) {
+      setSyncError(
+        error instanceof Error ? error.message : "Could not resume your subscription renewal",
+      );
+    } finally {
+      setBillingScheduleMutation(null);
+    }
+  };
+
+  const runDiscardPendingPlanChange = async () => {
+    setBillingScheduleMutation("discard");
+    setSyncError(null);
+    try {
+      await discardPendingPlanChange({});
+      await applyBillingScheduleRefresh();
+    } catch (error) {
+      setSyncError(
+        error instanceof Error ? error.message : "Could not clear the scheduled plan change",
+      );
+    } finally {
+      setBillingScheduleMutation(null);
+    }
+  };
+
   const confirmPlanSwitch = async () => {
     if (!planSwitchConfirm) {
       return;
@@ -223,6 +427,7 @@ function RouteComponent() {
         overageAllowed: result.overageAllowed,
         syncedAt: Date.now(),
       });
+      setLiveSubscriptionSchedule(coerceSubscriptionSchedule(result.subscriptionSchedule));
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "Plan switch failed");
     } finally {
@@ -275,15 +480,12 @@ function RouteComponent() {
             <DialogDescription>
               {planSwitchConfirm?.isUpgrade ? (
                 <>
-                  Your new plan starts right away. You&apos;ll pay a one-time amount for the
-                  rest of this billing period (it appears as its own line on your statement),
-                  then your usual renewal price after that.
+                  Your new plan starts right away. You&apos;ll be charged a prorated amount
+                  for the rest of this billing period, then your usual renewal price.
                 </>
               ) : (
                 <>
-                  Nothing changes until your next renewal—you keep your current plan and
-                  benefits until then. After that, you&apos;ll move to the lower plan
-                  automatically.
+                  You will be downgraded to {planSwitchConfirm?.planName} at the end of this billing cycle.
                 </>
               )}
             </DialogDescription>
@@ -347,20 +549,82 @@ function RouteComponent() {
           Plans
         </p>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Pick a paid plan below to subscribe. Already on Plus or Pro? You can switch between
-          those two here—upgrades start today with a one-time charge for the rest of this
-          period; downgrades take effect on your next renewal. For your card, receipts, or to
-          cancel, open Manage billing.
+          Pick a plan below to subscribe or change tiers. On Plus or Pro you can move to a
+          lower tier—including Free—at your next renewal; upgrades start today with a one-time
+          charge for the rest of this period. Scheduled changes and cancellations appear here
+          after you sync. For your card, receipts, or to cancel in the portal, open Manage
+          billing.
         </p>
+        {showBillingSchedulePanel ? (
+          <Panel className="border-primary/30 bg-primary/4 py-3 text-sm leading-relaxed">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <div className="min-w-0 flex-1">
+                {scheduleNotice ? <p className="m-0">{scheduleNotice}</p> : null}
+              </div>
+              {showRescindCancellation || hasPendingPlanChange ? (
+                <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                  {showRescindCancellation ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs whitespace-nowrap"
+                      disabled={
+                        billingScheduleMutation !== null ||
+                        isRefreshing ||
+                        planSwitchLoading
+                      }
+                      onClick={() => void runRescindCancellation()}
+                    >
+                      {billingScheduleMutation === "rescind" ? "Updating…" : "Undo cancellation"}
+                    </Button>
+                  ) : null}
+                  {hasPendingPlanChange ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs whitespace-nowrap"
+                      disabled={
+                        billingScheduleMutation !== null ||
+                        isRefreshing ||
+                        planSwitchLoading
+                      }
+                      onClick={() => void runDiscardPendingPlanChange()}
+                    >
+                      {billingScheduleMutation === "discard" ? "Updating…" : stayOnPlanButtonLabel}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </Panel>
+        ) : null}
         <div className="grid gap-4 lg:grid-cols-3">
           <TierColumn
             name="Free"
             plan={getPlanConfig("free", billingConfig)}
             priceLabel={formatPolarRecurringPrice(polarProducts?.free ?? undefined)}
-            state={rank === 0 ? "current" : "inactive"}
+            state={rank === 0 ? "current" : "available"}
             polarApi={polarApi}
             checkoutAnchorClass={checkoutAnchorClass}
+            productId={freeProductId}
+            subscriptionId={subscriptionId ?? undefined}
+            buttonLabel="Free"
             renewalSummary={renewSummary}
+            paidSwitch={
+              isOnPaidPlan && freeProductId
+                ? {
+                    isUpgrade: false,
+                    onRequest: () =>
+                      setPlanSwitchConfirm({
+                        productId: freeProductId,
+                        planName: "Free",
+                        isUpgrade: false,
+                      }),
+                  }
+                : undefined
+            }
           />
           <TierColumn
             name="Plus"
@@ -489,7 +753,7 @@ function TierColumn({
       >
         {paidSwitch.isUpgrade
           ? `Upgrade to ${buttonLabel ?? name}`
-          : `Downgrade to ${buttonLabel ?? name} (next renewal)`}
+          : `Downgrade to ${buttonLabel ?? name}`}
       </Button>
     ) : productId !== undefined ? (
       <CheckoutLink

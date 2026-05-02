@@ -6,6 +6,7 @@ import { calculateUsageCharge, getPlanConfig } from "@redux/shared";
 
 import { api } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
+import type { BillingSubscriptionSchedule } from "../billing";
 import { backendEnv } from "../env";
 import {
   billingDebugLog,
@@ -16,7 +17,9 @@ import {
   getBillingPeriodKey,
   getPolarSdkClient,
   getUtcMonthBounds,
+  polarLiveSubscriptionProductId,
   resolveTierFromSubscription,
+  subscriptionScheduleFromPolarSdkSubscription,
   toSubscriptionSnapshot,
 } from "../billing";
 import { polar } from "../polar";
@@ -62,6 +65,7 @@ type BillingRefreshResult = {
   overageAllowed: boolean;
   grantApplied: boolean;
   periodKey: string;
+  subscriptionSchedule: BillingSubscriptionSchedule;
 };
 
 const usageValidator = v.object({
@@ -80,6 +84,23 @@ const toolCallValidator = v.object({
 });
 
 const POLAR_NETWORK_TIMEOUT_MS = 10_000;
+
+type PolarSdkSubscriptions = ReturnType<typeof getPolarSdkClient>;
+
+async function invokePolarSubscriptionGet(
+  polarSdk: PolarSdkSubscriptions,
+  subscriptionId: string,
+): Promise<unknown> {
+  const sub = await polarSdk.subscriptions.get({ id: subscriptionId });
+  return sub;
+}
+
+async function invokePolarSubscriptionUpdate(
+  polarSdk: PolarSdkSubscriptions,
+  payload: { id: string; subscriptionUpdate: Record<string, unknown> },
+): Promise<void> {
+  await polarSdk.subscriptions.update(payload as never);
+}
 
 export const getCurrentBillingState = query({
   args: {},
@@ -143,9 +164,9 @@ export const refreshCurrentUserMeterState = action({
 });
 
 /**
- * Switch between Plus and Pro with per-call Polar proration: upgrades use
- * `invoice` (charge now); downgrades use `next_period` (change at renewal).
- * Free users must use checkout instead.
+ * Switch plans with per-call Polar proration: upgrades use `invoice` (charge
+ * now); downgrades (including to Free) use `next_period` (change at renewal).
+ * Free users must use checkout to start a paid plan.
  */
 export const switchCurrentUserPaidPlan = action({
   args: { productId: v.string() },
@@ -167,19 +188,12 @@ export const switchCurrentUserPaidPlan = action({
       throw new Error("That product is not a configured plan.");
     }
 
-    if (targetTier === "free") {
-      throw new Error(
-        "Moving to the free tier is not available here. Cancel from Manage billing when you want to end a paid plan.",
-      );
-    }
-
     const subscription = subscriptionState.subscription;
-    const subscriptionId = subscription?.subscriptionId;
-    if (!subscriptionId) {
+    if (!subscription?.subscriptionId) {
       throw new Error("No subscription found to update.");
     }
-
-    if (subscription?.productId === args.productId) {
+    const subscriptionId = subscription.subscriptionId;
+    if (subscription.productId === args.productId) {
       throw new Error("You are already on this plan.");
     }
 
@@ -189,7 +203,7 @@ export const switchCurrentUserPaidPlan = action({
       toRank > fromRank ? ("invoice" as const) : ("next_period" as const);
 
     const polarSdk = getPolarSdkClient();
-    await polarSdk.subscriptions.update({
+    await invokePolarSubscriptionUpdate(polarSdk, {
       id: subscriptionId,
       subscriptionUpdate: {
         productId: args.productId,
@@ -198,6 +212,114 @@ export const switchCurrentUserPaidPlan = action({
     });
 
     return { prorationBehavior, targetTier };
+  },
+});
+
+/** Clear Polar’s cancel-at-period-end flag so the paid subscription keeps renewing. */
+export const rescindPaidSubscriptionCancellation = action({
+  args: {},
+  handler: async (ctx): Promise<{ ok: true }> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(ctx, ctx.userId);
+    if (subscriptionState.tier === "free") {
+      throw new Error("Only subscribers on a paid plan can use this action.");
+    }
+    const subscription = subscriptionState.subscription;
+    if (!subscription?.subscriptionId) {
+      throw new Error("No subscription found.");
+    }
+    const subscriptionId = subscription.subscriptionId;
+    const polarSdk = getPolarSdkClient();
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Polar SDK + generated schedule parsing */
+    let liveSchedule: BillingSubscriptionSchedule;
+    try {
+      const liveSub: unknown = await withTimeout(
+        invokePolarSubscriptionGet(polarSdk, subscriptionId),
+        POLAR_NETWORK_TIMEOUT_MS,
+        "polar.subscriptions.get",
+      );
+      liveSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
+    } catch (error) {
+      throw new Error(
+        `Could not read subscription from Polar (${getErrorText(error)}). Try again or use Manage billing.`,
+      );
+    }
+
+    if (!liveSchedule.cancelAtPeriodEnd) {
+      throw new Error("This subscription is not set to cancel at the end of the period.");
+    }
+
+    await invokePolarSubscriptionUpdate(polarSdk, {
+      id: subscriptionId,
+      subscriptionUpdate: { cancelAtPeriodEnd: false },
+    });
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
+    return { ok: true };
+  },
+});
+
+/**
+ * Removes a Polar pending product change (`pending_update`), keeping the subscription on
+ * the current product past the renewal. Uses `invoice` with the active product Id so Polar
+ * applies the current plan immediately and drops the queued downgrade.
+ */
+export const discardScheduledPaidPlanChange = action({
+  args: {},
+  handler: async (ctx): Promise<{ ok: true }> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(ctx, ctx.userId);
+    if (subscriptionState.tier === "free") {
+      throw new Error("Only subscribers on a paid plan can use this action.");
+    }
+    const subscription = subscriptionState.subscription;
+    if (!subscription?.subscriptionId) {
+      throw new Error("No subscription found.");
+    }
+    const subscriptionId = subscription.subscriptionId;
+    const polarSdk = getPolarSdkClient();
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Polar SDK + generated schedule parsing */
+    let liveSub: unknown;
+    try {
+      liveSub = await withTimeout(
+        invokePolarSubscriptionGet(polarSdk, subscriptionId),
+        POLAR_NETWORK_TIMEOUT_MS,
+        "polar.subscriptions.get",
+      );
+    } catch (error) {
+      throw new Error(
+        `Could not read subscription from Polar (${getErrorText(error)}). Try again or use Manage billing.`,
+      );
+    }
+
+    const liveSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
+    if (
+      liveSchedule.pendingProductId == null ||
+      liveSchedule.pendingProductId === ""
+    ) {
+      throw new Error("There is no scheduled plan change to remove.");
+    }
+
+    const currentProductId =
+      polarLiveSubscriptionProductId(liveSub) ?? subscription.productId;
+    if (!currentProductId) {
+      throw new Error("Could not determine your current Polar product.");
+    }
+
+    if (liveSchedule.pendingProductId === currentProductId) {
+      throw new Error("Polar did not report a plan change queued for this renewal.");
+    }
+
+    await invokePolarSubscriptionUpdate(polarSdk, {
+      id: subscriptionId,
+      subscriptionUpdate: {
+        productId: currentProductId,
+        prorationBehavior: "invoice",
+      },
+    });
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
+    return { ok: true };
   },
 });
 
@@ -319,6 +441,33 @@ async function refreshBillingStateForUser(
       meterName,
     );
 
+    const snapshot = subscriptionState.subscription;
+    let subscriptionSchedule: BillingSubscriptionSchedule = {
+      cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
+      pendingProductId: undefined,
+      pendingAppliesAtMs: undefined,
+    };
+
+    const subscriptionId = snapshot?.subscriptionId;
+    if (subscriptionId) {
+      try {
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Polar SDK */
+        const liveSub: unknown = await withTimeout(
+          invokePolarSubscriptionGet(polarSdk, subscriptionId),
+          POLAR_NETWORK_TIMEOUT_MS,
+          "polar.subscriptions.get",
+        );
+        subscriptionSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+      } catch (error) {
+        console.error("Failed to load Polar subscription schedule", {
+          userId,
+          subscriptionId,
+          error: getErrorText(error),
+        });
+      }
+    }
+
     return {
       tier: subscriptionState.tier,
       availableCredits,
@@ -326,6 +475,7 @@ async function refreshBillingStateForUser(
       overageAllowed: plan.overageAllowed,
       grantApplied: false,
       periodKey,
+      subscriptionSchedule,
     };
   } catch (error) {
     console.error("Failed to refresh Polar meter state", {
@@ -334,6 +484,7 @@ async function refreshBillingStateForUser(
       meterName: getBillingConfig().meterName,
       error: getErrorText(error),
     });
+    const snapshot = subscriptionState.subscription;
     return {
       tier: subscriptionState.tier,
       availableCredits: undefined,
@@ -341,6 +492,11 @@ async function refreshBillingStateForUser(
       overageAllowed: plan.overageAllowed,
       grantApplied: false,
       periodKey,
+      subscriptionSchedule: {
+        cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
+        pendingProductId: undefined,
+        pendingAppliesAtMs: undefined,
+      },
     };
   }
 }
