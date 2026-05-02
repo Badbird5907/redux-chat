@@ -397,21 +397,7 @@ async function ensureFreePolarSubscription(
     return;
   }
 
-  type SubscriptionsClient = typeof polarSdk.subscriptions & {
-    create?: (args: {
-      productId: string;
-      customerId: string;
-    }) => Promise<unknown>;
-  };
-  const subscriptionsClient = polarSdk.subscriptions as SubscriptionsClient;
-  if (typeof subscriptionsClient.create !== "function") {
-    billingDebugWarn("billing_free_auto_subscribe_unsupported_sdk", {
-      userId: ctx.userId,
-    });
-    return;
-  }
-
-  await subscriptionsClient.create({
+  await polarSdk.subscriptions.create({
     productId: freeProductId,
     customerId,
   });
