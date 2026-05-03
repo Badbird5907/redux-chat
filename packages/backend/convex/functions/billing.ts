@@ -4,15 +4,13 @@ import { v } from "convex/values";
 import type { PlanTier } from "@redux/shared";
 import { calculateUsageCharge, getPlanConfig } from "@redux/shared";
 
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
 import type { BillingSubscriptionSchedule } from "../billing";
 import { backendEnv } from "../env";
 import {
-  billingDebugLog,
   billingDebugWarn,
   buildPolarCreditUsageEvent,
-  extractMeterCreditSummary,
   getBillingConfig,
   getBillingPeriodKey,
   getPolarSdkClient,
@@ -22,6 +20,7 @@ import {
   subscriptionScheduleFromPolarSdkSubscription,
   toSubscriptionSnapshot,
 } from "../billing";
+import { getCreditBalanceForUser } from "../credits";
 import { polar } from "../polar";
 import { action, query } from "./index";
 
@@ -37,9 +36,6 @@ function planTierRank(tier: PlanTier): number {
 
 function tierFromPolarProductId(productId: string): PlanTier {
   const env = backendEnv();
-  if (productId === env.POLAR_FREE_PRODUCT_ID) {
-    return "free";
-  }
   if (productId === env.POLAR_PLUS_PRODUCT_ID) {
     return "plus";
   }
@@ -62,6 +58,18 @@ type BillingRefreshResult = {
   tier: PlanTier;
   availableCredits: number | undefined;
   overageCredits: number | undefined;
+  spendableCredits: number;
+  bucketBalances: {
+    gifted: number;
+    monthly: number;
+    paid: number;
+  };
+  expiringSoon: {
+    bucket: "gifted" | "monthly" | "paid";
+    grantId: string;
+    remaining: number;
+    expiresAt: number;
+  }[];
   overageAllowed: boolean;
   grantApplied: boolean;
   periodKey: string;
@@ -113,11 +121,21 @@ export const getCurrentBillingState = query({
     const freePeriodBounds =
       subscriptionState.tier === "free" ? getUtcMonthBounds() : undefined;
 
+    const balance = await getCreditBalanceForUser(ctx, ctx.userId);
+    // Backwards-compatible aggregate fields: most existing UI gates on
+    // `availableCredits` / `overageCredits`. Map ledger spendable to
+    // `availableCredits` so legacy reads keep working until UI is migrated.
+    const availableCredits = balance.spendableCredits;
+    const overageCredits = 0;
+
     return {
       tier: subscriptionState.tier,
       subscription: subscriptionState.subscription,
-      availableCredits: undefined,
-      overageCredits: undefined,
+      availableCredits,
+      overageCredits,
+      spendableCredits: balance.spendableCredits,
+      bucketBalances: balance.bucketBalances,
+      expiringSoon: balance.expiringSoon,
       meterName: getBillingConfig().meterName,
       markupMultiplier: plan.markupMultiplier,
       includedMonthlyCredits: plan.includedMonthlyCredits,
@@ -165,8 +183,9 @@ export const refreshCurrentUserMeterState = action({
 
 /**
  * Switch plans with per-call Polar proration: upgrades use `invoice` (charge
- * now); downgrades (including to Free) use `next_period` (change at renewal).
- * Free users must use checkout to start a paid plan.
+ * now); paid-plan downgrades use `next_period` (change at renewal). Free users
+ * must use checkout to start a paid plan. Returning to Free is handled via
+ * cancellation / billing portal, not direct product switch.
  */
 export const switchCurrentUserPaidPlan = action({
   args: { productId: v.string() },
@@ -230,7 +249,6 @@ export const rescindPaidSubscriptionCancellation = action({
     const subscriptionId = subscription.subscriptionId;
     const polarSdk = getPolarSdkClient();
 
-    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Polar SDK + generated schedule parsing */
     let liveSchedule: BillingSubscriptionSchedule;
     try {
       const liveSub: unknown = await withTimeout(
@@ -253,8 +271,6 @@ export const rescindPaidSubscriptionCancellation = action({
       id: subscriptionId,
       subscriptionUpdate: { cancelAtPeriodEnd: false },
     });
-    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-
     return { ok: true };
   },
 });
@@ -278,7 +294,6 @@ export const discardScheduledPaidPlanChange = action({
     const subscriptionId = subscription.subscriptionId;
     const polarSdk = getPolarSdkClient();
 
-    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Polar SDK + generated schedule parsing */
     let liveSub: unknown;
     try {
       liveSub = await withTimeout(
@@ -317,8 +332,6 @@ export const discardScheduledPaidPlanChange = action({
         prorationBehavior: "invoice",
       },
     });
-    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-
     return { ok: true };
   },
 });
@@ -348,6 +361,8 @@ export const recordUsageEvent = action({
     credits: number;
     polarIngestedAt: number | undefined;
     tier: PlanTier;
+    debitId: string | undefined;
+    overdraftAmount: number;
   }> => {
     const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
       ctx,
@@ -372,8 +387,53 @@ export const recordUsageEvent = action({
     }
 
     const eventId = crypto.randomUUID();
-    let polarIngestedAt: number | undefined;
 
+    // Authoritative debit against the Convex credit ledger. Idempotent on
+    // `(userId, requestKey)` so AI SDK retries / stream reconnection cannot
+    // double-charge the same generation. We use the assistant `messageId`
+    // as the request key — every chat finish event carries one.
+    const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
+    let debitId: string | undefined;
+    let overdraftAmount = 0;
+    try {
+      const debit = await ctx.runMutation(
+        internal.functions.credits.internal_debitCredits,
+        {
+          userId: ctx.userId,
+          requestKey: args.messageId,
+          amount: charge.credits,
+          overageAllowed: plan.overageAllowed,
+          routeId: args.routeId,
+          threadId: args.threadId,
+          messageId: args.messageId,
+          rawUsdCost: charge.rawUsdCost,
+          effectiveUsdCost: charge.effectiveUsdCost,
+          markupMultiplier: charge.markupMultiplier,
+          tier: subscriptionState.tier,
+          metadata: {
+            requestId: args.requestId,
+            usedPricingFallback: charge.usedPricingFallback,
+            toolUsdCost: charge.toolUsdCost,
+            modelUsdCost: charge.modelUsdCost,
+          },
+        },
+      );
+      debitId = debit.debitId;
+      overdraftAmount = debit.overdraftAmount;
+    } catch (error) {
+      console.error("Failed to debit Convex credits", {
+        userId: ctx.userId,
+        requestId: args.requestId,
+        messageId: args.messageId,
+        error: getErrorText(error),
+      });
+    }
+
+    let polarIngestedAt: number | undefined;
+    // Polar cost event ingest is now best-effort analytics only — Convex is
+    // authoritative for balances. We continue emitting so Cost Insights
+    // (https://polar.sh/docs/features/cost-insights/cost-events) stays
+    // populated.
     try {
       const polarSdk = getPolarSdkClient();
       const event = buildPolarCreditUsageEvent({
@@ -410,6 +470,8 @@ export const recordUsageEvent = action({
       credits: charge.credits,
       polarIngestedAt,
       tier: subscriptionState.tier,
+      debitId,
+      overdraftAmount,
     };
   },
 });
@@ -426,79 +488,71 @@ async function refreshBillingStateForUser(
   const periodKey = getPeriodKeyForTier(subscriptionState);
   const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
 
-  try {
-    const polarSdk = getPolarSdkClient();
-    const meterName = getBillingConfig().meterName;
-    const state = await withTimeout(
-      polarSdk.customers.getStateExternal({
-        externalId: userId,
-      }),
-      POLAR_NETWORK_TIMEOUT_MS,
-      "polar.customers.getStateExternal",
-    );
-    const { availableCredits, overageCredits } = extractMeterCreditSummary(
-      state,
-      meterName,
-    );
-
-    const snapshot = subscriptionState.subscription;
-    let subscriptionSchedule: BillingSubscriptionSchedule = {
-      cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
-      pendingProductId: undefined,
-      pendingAppliesAtMs: undefined,
-    };
-
-    const subscriptionId = snapshot?.subscriptionId;
-    if (subscriptionId) {
-      try {
-        /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Polar SDK */
-        const liveSub: unknown = await withTimeout(
-          invokePolarSubscriptionGet(polarSdk, subscriptionId),
-          POLAR_NETWORK_TIMEOUT_MS,
-          "polar.subscriptions.get",
-        );
-        subscriptionSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
-        /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-      } catch (error) {
-        console.error("Failed to load Polar subscription schedule", {
-          userId,
-          subscriptionId,
-          error: getErrorText(error),
-        });
-      }
+  // Idempotently refresh free-monthly credits before reading the balance so
+  // the very first read in a new month still sees the user's allowance even
+  // if scheduled jobs haven't fired yet.
+  let grantApplied = false;
+  if (subscriptionState.tier === "free") {
+    try {
+      const grant = await ctx.runMutation(
+        internal.functions.credits.internal_ensureMonthlyFreeCredits,
+        { userId, tier: subscriptionState.tier },
+      );
+      grantApplied = grant.created === true;
+    } catch (error) {
+      console.error("free_monthly_grant_failed", {
+        userId,
+        error: getErrorText(error),
+      });
     }
-
-    return {
-      tier: subscriptionState.tier,
-      availableCredits,
-      overageCredits,
-      overageAllowed: plan.overageAllowed,
-      grantApplied: false,
-      periodKey,
-      subscriptionSchedule,
-    };
-  } catch (error) {
-    console.error("Failed to refresh Polar meter state", {
-      userId,
-      tier: subscriptionState.tier,
-      meterName: getBillingConfig().meterName,
-      error: getErrorText(error),
-    });
-    const snapshot = subscriptionState.subscription;
-    return {
-      tier: subscriptionState.tier,
-      availableCredits: undefined,
-      overageCredits: undefined,
-      overageAllowed: plan.overageAllowed,
-      grantApplied: false,
-      periodKey,
-      subscriptionSchedule: {
-        cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
-        pendingProductId: undefined,
-        pendingAppliesAtMs: undefined,
-      },
-    };
   }
+
+  // Convex is now authoritative for credit balance. Polar lookups are kept
+  // only for subscription schedule details (pending plan changes, cancel
+  // flags) which the Convex Polar component does not mirror.
+  const balance = await ctx.runQuery(
+    internal.functions.credits.internal_getBalance,
+    { userId },
+  );
+
+  const snapshot = subscriptionState.subscription;
+  let subscriptionSchedule: BillingSubscriptionSchedule = {
+    cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
+    pendingProductId: undefined,
+    pendingAppliesAtMs: undefined,
+  };
+
+  const subscriptionId = snapshot?.subscriptionId;
+  if (subscriptionId) {
+    try {
+      const polarSdk = getPolarSdkClient();
+      const liveSub: unknown = await withTimeout(
+        invokePolarSubscriptionGet(polarSdk, subscriptionId),
+        POLAR_NETWORK_TIMEOUT_MS,
+        "polar.subscriptions.get",
+      );
+      subscriptionSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
+    } catch (error) {
+      console.error("Failed to load Polar subscription schedule", {
+        userId,
+        subscriptionId,
+        error: getErrorText(error),
+      });
+    }
+  }
+
+  return {
+    tier: subscriptionState.tier,
+    availableCredits: balance.spendableCredits,
+    overageCredits: 0,
+    spendableCredits: balance.spendableCredits,
+    bucketBalances: balance.bucketBalances,
+    expiringSoon: balance.expiringSoon,
+    overageAllowed: plan.overageAllowed,
+    grantApplied,
+    periodKey,
+    subscriptionSchedule,
+  };
 }
 
 async function resolveCurrentSubscriptionState(
@@ -602,102 +656,16 @@ async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
     }
   }
 
-  try {
-    await ensureFreePolarSubscription(ctx, customerId);
-  } catch (error) {
-    console.error("billing_free_auto_subscribe_failed", {
-      userId: ctx.userId,
-      customerId,
-      error: getErrorText(error),
-    });
-  }
+  // NOTE: free auto-subscribe is intentionally disabled after the Convex
+  // credit ledger migration. Free users now receive their monthly credit
+  // allowance via `internal_ensureMonthlyFreeCredits`; subscribing to the
+  // Polar free product would still grant the deprecated `meter_credit`
+  // benefit and double-fund balances. See plan: credit_bucket_ledger.
 
   return customerId;
 }
 
-async function ensureFreePolarSubscription(
-  ctx: BillingActionCtx,
-  customerId: string,
-): Promise<void> {
-  const env = backendEnv();
-  const freeProductId = String(env.POLAR_FREE_PRODUCT_ID);
-
-  const existingSubscription = await polar.getCurrentSubscription(ctx, {
-    userId: ctx.userId,
-  });
-  if (existingSubscription) {
-    return;
-  }
-
-  const polarSdk = getPolarSdkClient();
-  if (
-    await hasActivePolarSubscriptionForCustomer(polarSdk.subscriptions, customerId)
-  ) {
-    return;
-  }
-
-  await polarSdk.subscriptions.create({
-    productId: freeProductId,
-    customerId,
-  });
-
-  billingDebugLog("billing_free_auto_subscribed", {
-    userId: ctx.userId,
-    customerId,
-    productId: freeProductId,
-  });
-}
-
 type PolarCustomersClient = ReturnType<typeof getPolarSdkClient>["customers"];
-type PolarSubscriptionsClient =
-  ReturnType<typeof getPolarSdkClient>["subscriptions"];
-
-async function hasActivePolarSubscriptionForCustomer(
-  subscriptions: PolarSubscriptionsClient,
-  customerId: string,
-): Promise<boolean> {
-  const result = await subscriptions.list({
-    customerId,
-    active: true,
-    limit: 1,
-  });
-
-  for await (const page of result as AsyncIterable<unknown>) {
-    if (getPolarSubscriptionsFromPage(page).length > 0) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function getPolarSubscriptionsFromPage(page: unknown): unknown[] {
-  if (Array.isArray(page)) {
-    return page;
-  }
-
-  if (!page || typeof page !== "object") {
-    return [];
-  }
-
-  const candidate = page as Record<string, unknown>;
-  const result = candidate.result;
-  if (result && typeof result === "object") {
-    const resultItems = (result as { items?: unknown }).items;
-    if (Array.isArray(resultItems)) {
-      return resultItems;
-    }
-  }
-
-  for (const key of ["items", "subscriptions", "data"]) {
-    const value = candidate[key];
-    if (Array.isArray(value)) {
-      return value;
-    }
-  }
-
-  return [];
-}
 
 type PolarCustomerRecord = {
   id: string;

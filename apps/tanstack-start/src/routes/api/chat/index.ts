@@ -318,19 +318,22 @@ export const Route = createFileRoute("/api/chat/")({
           enabledMcpServerIds,
         });
 
+        // Preflight gate: read the Convex credit ledger directly (cheap query)
+        // and refresh subscription state to know if overage is allowed. The
+        // refresh action also idempotently grants the free monthly allowance
+        // on the first read each month.
         const [billingSnapshot, billingState] = await Promise.all([
           fetchAuthQuery(api.functions.billing.getCurrentBillingState, {}),
           fetchAuthAction(api.functions.billing.refreshCurrentUserMeterState, {}),
         ]);
-        if (
-          billingState.availableCredits !== undefined &&
-          billingState.availableCredits <= 0 &&
-          !billingState.overageAllowed
-        ) {
+        const spendableCredits =
+          billingState.spendableCredits ?? billingState.availableCredits ?? 0;
+        if (spendableCredits <= 0 && !billingState.overageAllowed) {
           return new Response(
             JSON.stringify({
               error: "out_of_credits",
               tier: billingSnapshot.tier,
+              spendableCredits,
               availableCredits: billingState.availableCredits,
             }),
             {

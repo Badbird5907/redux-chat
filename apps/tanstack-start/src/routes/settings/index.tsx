@@ -1,14 +1,19 @@
 import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
-import type { ComponentProps, ReactNode } from "react";
-import type { PlanTier } from "@redux/shared";
-import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
-import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import type { CreditBucket, PlanTier } from "@redux/shared";
+import {
+  CREDIT_BUCKETS,
+  DEFAULT_BILLING_CONFIG,
+  getPlanConfig,
+} from "@redux/shared";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAction } from "convex/react";
-import { ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronRight, Info } from "lucide-react";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import { Button, buttonVariants } from "@redux/ui/components/button";
+import { Card } from "@redux/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +27,12 @@ import {
   ProgressLabel,
   ProgressValue,
 } from "@redux/ui/components/progress";
+import { Separator } from "@redux/ui/components/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@redux/ui/components/tooltip";
 import { cn } from "@redux/ui/lib/utils";
 
 import { useQuery } from "@/lib/hooks/convex";
@@ -55,7 +66,11 @@ function planTierLabel(tier: PlanTier): string {
 function tierForConfiguredProductId(
   productId: string | undefined,
   products:
-    | { free?: { id: string } | null; plus?: { id: string } | null; pro?: { id: string } | null }
+    | {
+        free?: { id: string } | null;
+        plus?: { id: string } | null;
+        pro?: { id: string } | null;
+      }
     | null
     | undefined,
 ): PlanTier | null {
@@ -76,7 +91,12 @@ function tierForConfiguredProductId(
 
 function formatPolarRecurringPrice(
   product:
-    | { prices?: readonly { priceAmount?: number | null; priceCurrency?: string | null }[] }
+    | {
+        prices?: readonly {
+          priceAmount?: number | null;
+          priceCurrency?: string | null;
+        }[];
+      }
     | null
     | undefined,
 ): string | undefined {
@@ -103,16 +123,14 @@ function renewalSummary(periodEnd: number | undefined): string | null {
     return null;
   }
   const days = Math.max(0, Math.ceil((periodEnd - Date.now()) / 86_400_000));
-  const dateStr = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
-    periodEnd,
-  );
+  const dateStr = new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+  }).format(periodEnd);
   return `${dateStr} (${days}d)`;
 }
 
 /** Convex action payloads are loosely typed from generated API; coerce for React state safely. */
-function coerceSubscriptionSchedule(
-  input: unknown,
-): {
+function coerceSubscriptionSchedule(input: unknown): {
   cancelAtPeriodEnd: boolean;
   pendingProductId: string | undefined;
   pendingAppliesAtMs: number | undefined;
@@ -138,31 +156,29 @@ function coerceSubscriptionSchedule(
   };
 }
 
-type PolarCheckoutApi = { generateCheckoutLink: typeof api.polar.generateCheckoutLink };
+type PolarCheckoutApi = {
+  generateCheckoutLink: typeof api.polar.generateCheckoutLink;
+};
 
 function RouteComponent() {
   const polarProducts = useQuery(api.polar.getConfiguredProducts, {});
-  const baseBillingState = useQuery(api.functions.billing.getCurrentBillingState, {});
-  const refreshMeterState = useAction(api.functions.billing.refreshCurrentUserMeterState);
-  const switchPaidPlan = useAction(api.functions.billing.switchCurrentUserPaidPlan);
+  const baseBillingState = useQuery(
+    api.functions.billing.getCurrentBillingState,
+    {},
+  );
+  const refreshBillingStatus = useAction(
+    api.functions.billing.refreshCurrentUserMeterState,
+  );
+  const switchPaidPlan = useAction(
+    api.functions.billing.switchCurrentUserPaidPlan,
+  );
   const rescindCancellation = useAction(
     api.functions.billing.rescindPaidSubscriptionCancellation,
   );
   const discardPendingPlanChange = useAction(
     api.functions.billing.discardScheduledPaidPlanChange,
   );
-  const [liveMeterState, setLiveMeterState] = useState<
-    | {
-        tier: PlanTier;
-        availableCredits: number | undefined;
-        overageCredits: number | undefined;
-        overageAllowed: boolean;
-        syncedAt: number;
-      }
-    | undefined
-  >(undefined);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const [planSwitchConfirm, setPlanSwitchConfirm] = useState<{
     productId: string;
     planName: string;
@@ -181,87 +197,48 @@ function RouteComponent() {
     "rescind" | "discard" | null
   >(null);
 
-  const billingState = useMemo(() => {
-    if (!baseBillingState) {
-      return undefined;
-    }
-    if (!liveMeterState) {
-      return baseBillingState;
-    }
-    return {
-      ...baseBillingState,
-      tier: liveMeterState.tier,
-      availableCredits: liveMeterState.availableCredits,
-      overageCredits: liveMeterState.overageCredits,
-      overageAllowed: liveMeterState.overageAllowed,
-      syncedAt: liveMeterState.syncedAt,
-    };
-  }, [baseBillingState, liveMeterState]);
+  const hydratedScheduleForSubIdRef = useRef<string | null>(null);
+  const billingQuerySettled = baseBillingState !== undefined;
+  const subscriptionIdForHydration =
+    baseBillingState?.subscription?.subscriptionId;
 
-  const availableCredits =
-    typeof billingState?.availableCredits === "number"
-      ? billingState.availableCredits
-      : undefined;
-  const overageCredits =
-    typeof billingState?.overageCredits === "number" ? billingState.overageCredits : 0;
+  useEffect(() => {
+    if (!billingQuerySettled) {
+      return;
+    }
+    if (!subscriptionIdForHydration) {
+      hydratedScheduleForSubIdRef.current = null;
+      return;
+    }
+    if (hydratedScheduleForSubIdRef.current === subscriptionIdForHydration) {
+      return;
+    }
+    hydratedScheduleForSubIdRef.current = subscriptionIdForHydration;
+    let cancelled = false;
+    void refreshBillingStatus({}).then((result) => {
+      if (cancelled) {
+        return;
+      }
+      setLiveSubscriptionSchedule(
+        coerceSubscriptionSchedule(result.subscriptionSchedule),
+      );
+    });
+    return () => {
+      cancelled = true;
+      hydratedScheduleForSubIdRef.current = null;
+    };
+  }, [
+    billingQuerySettled,
+    subscriptionIdForHydration,
+    refreshBillingStatus,
+  ]);
+
+  const billingState = baseBillingState;
+
   const includedMonthlyCredits =
     typeof billingState?.includedMonthlyCredits === "number"
       ? billingState.includedMonthlyCredits
       : undefined;
-  const creditsUsed =
-    availableCredits !== undefined && includedMonthlyCredits !== undefined
-      ? Math.max(0, includedMonthlyCredits - availableCredits + overageCredits)
-      : undefined;
-
-  const creditProgressPct =
-    includedMonthlyCredits !== undefined &&
-    includedMonthlyCredits > 0 &&
-    creditsUsed !== undefined
-      ? Math.min(100, Math.round((creditsUsed / includedMonthlyCredits) * 100))
-      : undefined;
-
-  useEffect(() => {
-    void refreshMeterState({})
-      .then((state) => {
-        setLiveMeterState({
-          tier: state.tier,
-          availableCredits: state.availableCredits,
-          overageCredits: state.overageCredits,
-          overageAllowed: state.overageAllowed,
-          syncedAt: Date.now(),
-        });
-        setLiveSubscriptionSchedule(coerceSubscriptionSchedule(state.subscriptionSchedule));
-      })
-      .catch((error) => {
-        setSyncError(
-          error instanceof Error ? error.message : "Failed to load billing state",
-        );
-      });
-  }, [refreshMeterState]);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setSyncError(null);
-    try {
-      const result = await refreshMeterState({});
-      const syncedAt = Date.now();
-      setLiveMeterState({
-        tier: result.tier,
-        availableCredits: result.availableCredits,
-        overageCredits: result.overageCredits,
-        overageAllowed: result.overageAllowed,
-        syncedAt,
-      });
-      setLiveSubscriptionSchedule(coerceSubscriptionSchedule(result.subscriptionSchedule));
-      if (result.availableCredits === undefined) {
-        setSyncError("Credits could not be synced.");
-      }
-    } catch (error) {
-      setSyncError(error instanceof Error ? error.message : "Failed to refresh");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   const currentTier = billingState?.tier ?? "free";
   const plusProduct = polarProducts?.plus ?? null;
@@ -276,6 +253,10 @@ function RouteComponent() {
   );
 
   const subscriptionId = billingState?.subscription?.subscriptionId;
+  const effectiveLiveSubscriptionSchedule =
+    subscriptionId != null && subscriptionId !== ""
+      ? liveSubscriptionSchedule
+      : undefined;
   const showPaidManage = tierRank(currentTier) >= 1;
   const isOnPaidPlan = showPaidManage;
 
@@ -287,11 +268,9 @@ function RouteComponent() {
   const rank = tierRank(currentTier);
 
   const cancelAtPeriodEndMerged =
-    liveSubscriptionSchedule !== undefined
-      ? liveSubscriptionSchedule.cancelAtPeriodEnd
+    effectiveLiveSubscriptionSchedule !== undefined
+      ? effectiveLiveSubscriptionSchedule.cancelAtPeriodEnd
       : baseBillingState?.subscription?.cancelAtPeriodEnd === true;
-
-  const freeProductId = polarProducts?.free?.id;
 
   const scheduleNotice = useMemo(() => {
     if (!billingState) {
@@ -299,11 +278,12 @@ function RouteComponent() {
     }
 
     if (polarProducts) {
-      const pendingId = liveSubscriptionSchedule?.pendingProductId;
+      const pendingId = effectiveLiveSubscriptionSchedule?.pendingProductId;
       const pendingTier = tierForConfiguredProductId(pendingId, polarProducts);
       const whenRaw =
         pendingId != null && pendingId !== ""
-          ? (liveSubscriptionSchedule?.pendingAppliesAtMs ?? billingState.currentPeriodEnd)
+          ? (effectiveLiveSubscriptionSchedule?.pendingAppliesAtMs ??
+            billingState.currentPeriodEnd)
           : undefined;
       const whenPhrase = renewalSummary(whenRaw);
 
@@ -325,9 +305,7 @@ function RouteComponent() {
     }
 
     if (cancelAtPeriodEndMerged && rank >= 1) {
-      const when =
-        renewSummary ??
-        "the end of this billing period";
+      const when = renewSummary ?? "the end of this billing period";
       return `Your paid subscription is set to cancel after ${when} and will not renew. You can change this in Manage billing or by choosing a plan below.`;
     }
 
@@ -335,16 +313,16 @@ function RouteComponent() {
   }, [
     polarProducts,
     billingState,
-    liveSubscriptionSchedule,
+    effectiveLiveSubscriptionSchedule,
     currentTier,
     cancelAtPeriodEndMerged,
     rank,
     renewSummary,
   ]);
 
-  const pendingProductIdSynced = liveSubscriptionSchedule?.pendingProductId;
-  const pendingTierSynced = tierForConfiguredProductId(
-    pendingProductIdSynced,
+  const pendingProductIdLive = effectiveLiveSubscriptionSchedule?.pendingProductId;
+  const pendingTierLive = tierForConfiguredProductId(
+    pendingProductIdLive,
     polarProducts,
   );
 
@@ -354,41 +332,38 @@ function RouteComponent() {
   const hasPendingPlanChange =
     rank >= 1 &&
     Boolean(subscriptionId) &&
-    pendingProductIdSynced != null &&
-    pendingProductIdSynced !== "" &&
+    pendingProductIdLive != null &&
+    pendingProductIdLive !== "" &&
     (polarProducts == null ||
-      pendingTierSynced === null ||
-      pendingTierSynced !== currentTier);
+      pendingTierLive === null ||
+      pendingTierLive !== currentTier);
 
   const showBillingSchedulePanel =
     scheduleNotice !== null || showRescindCancellation || hasPendingPlanChange;
 
   const stayOnPlanButtonLabel =
-    pendingTierSynced === null || !polarProducts
+    pendingTierLive === null || !polarProducts
       ? "Keep current plan at renewal"
       : `Stay on ${planTierLabel(currentTier)}`;
 
   const applyBillingScheduleRefresh = async () => {
-    const result = await refreshMeterState({});
-    setLiveMeterState({
-      tier: result.tier,
-      availableCredits: result.availableCredits,
-      overageCredits: result.overageCredits,
-      overageAllowed: result.overageAllowed,
-      syncedAt: Date.now(),
-    });
-    setLiveSubscriptionSchedule(coerceSubscriptionSchedule(result.subscriptionSchedule));
+    const result = await refreshBillingStatus({});
+    setLiveSubscriptionSchedule(
+      coerceSubscriptionSchedule(result.subscriptionSchedule),
+    );
   };
 
   const runRescindCancellation = async () => {
     setBillingScheduleMutation("rescind");
-    setSyncError(null);
+    setBillingError(null);
     try {
       await rescindCancellation({});
       await applyBillingScheduleRefresh();
     } catch (error) {
-      setSyncError(
-        error instanceof Error ? error.message : "Could not resume your subscription renewal",
+      setBillingError(
+        error instanceof Error
+          ? error.message
+          : "Could not resume your subscription renewal",
       );
     } finally {
       setBillingScheduleMutation(null);
@@ -397,13 +372,15 @@ function RouteComponent() {
 
   const runDiscardPendingPlanChange = async () => {
     setBillingScheduleMutation("discard");
-    setSyncError(null);
+    setBillingError(null);
     try {
       await discardPendingPlanChange({});
       await applyBillingScheduleRefresh();
     } catch (error) {
-      setSyncError(
-        error instanceof Error ? error.message : "Could not clear the scheduled plan change",
+      setBillingError(
+        error instanceof Error
+          ? error.message
+          : "Could not clear the scheduled plan change",
       );
     } finally {
       setBillingScheduleMutation(null);
@@ -414,43 +391,66 @@ function RouteComponent() {
     if (!planSwitchConfirm) {
       return;
     }
+    const { productId } = planSwitchConfirm;
+    const periodEndAtConfirm = billingState?.currentPeriodEnd;
+    const cancelAtPeriodEndAtConfirm =
+      baseBillingState?.subscription?.cancelAtPeriodEnd === true;
+
     setPlanSwitchLoading(true);
-    setSyncError(null);
+    setBillingError(null);
     try {
-      await switchPaidPlan({ productId: planSwitchConfirm.productId });
+      const switchResult = await switchPaidPlan({ productId });
       setPlanSwitchConfirm(null);
-      const result = await refreshMeterState({});
-      setLiveMeterState({
-        tier: result.tier,
-        availableCredits: result.availableCredits,
-        overageCredits: result.overageCredits,
-        overageAllowed: result.overageAllowed,
-        syncedAt: Date.now(),
+
+      // Downgrades use `next_period`; Polar can return the subscription GET
+      // one tick behind the update, so `pending_update` may be missing until
+      // a later poll. Apply a schedule we already know is correct.
+      if (switchResult.prorationBehavior === "next_period") {
+        setLiveSubscriptionSchedule({
+          cancelAtPeriodEnd: cancelAtPeriodEndAtConfirm,
+          pendingProductId: productId,
+          pendingAppliesAtMs: periodEndAtConfirm,
+        });
+      }
+
+      const result = await refreshBillingStatus({});
+      const refreshed = coerceSubscriptionSchedule(result.subscriptionSchedule);
+
+      setLiveSubscriptionSchedule((prev) => {
+        if (switchResult.prorationBehavior === "next_period") {
+          if (
+            typeof refreshed.pendingProductId === "string" &&
+            refreshed.pendingProductId !== ""
+          ) {
+            return refreshed;
+          }
+          return {
+            cancelAtPeriodEnd: refreshed.cancelAtPeriodEnd,
+            pendingProductId: productId,
+            pendingAppliesAtMs:
+              refreshed.pendingAppliesAtMs ??
+              prev?.pendingAppliesAtMs ??
+              (typeof periodEndAtConfirm === "number"
+                ? periodEndAtConfirm
+                : undefined),
+          };
+        }
+        return refreshed;
       });
-      setLiveSubscriptionSchedule(coerceSubscriptionSchedule(result.subscriptionSchedule));
     } catch (error) {
-      setSyncError(error instanceof Error ? error.message : "Plan switch failed");
+      setBillingError(
+        error instanceof Error ? error.message : "Plan switch failed",
+      );
     } finally {
       setPlanSwitchLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 pb-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">Billing</h1>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 px-2.5 text-xs"
-            onClick={() => void handleRefresh()}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
-            Sync
-          </Button>
           {showPaidManage ? (
             <CustomerPortalLink
               polarApi={portalApi}
@@ -480,12 +480,14 @@ function RouteComponent() {
             <DialogDescription>
               {planSwitchConfirm?.isUpgrade ? (
                 <>
-                  Your new plan starts right away. You&apos;ll be charged a prorated amount
-                  for the rest of this billing period, then your usual renewal price.
+                  Your new plan starts right away. You&apos;ll be charged a
+                  prorated amount for the rest of this billing period, then your
+                  usual renewal price.
                 </>
               ) : (
                 <>
-                  You will be downgraded to {planSwitchConfirm?.planName} at the end of this billing cycle.
+                  You will be downgraded to {planSwitchConfirm?.planName} at the
+                  end of this billing cycle.
                 </>
               )}
             </DialogDescription>
@@ -510,56 +512,25 @@ function RouteComponent() {
         </DialogContent>
       </Dialog>
 
-      <section className="space-y-3">
-        <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-          Included credits
-        </p>
-        <Panel className="py-5">
-          {creditProgressPct !== undefined ? (
-            <Progress
-              value={creditProgressPct}
-              aria-label="Included credits used this period"
-              className="flex-col gap-3 [&_[data-slot=progress-track]]:h-2"
-            >
-              <div className="flex w-full items-baseline justify-between gap-3">
-                <ProgressLabel className="text-muted-foreground text-xs font-normal">
-                  Used
-                </ProgressLabel>
-                <ProgressValue className="text-foreground shrink-0 text-sm font-medium tabular-nums" />
-              </div>
-            </Progress>
-          ) : (
-            <p className="text-muted-foreground text-sm">Sync to load usage.</p>
-          )}
-          {creditsUsed !== undefined &&
-          includedMonthlyCredits !== undefined &&
-          availableCredits !== undefined ? (
-            <p className="text-muted-foreground mt-4 text-xs tabular-nums">
-              {formatNumber(creditsUsed)} used · {formatNumber(availableCredits)} left ·{" "}
-              {formatNumber(includedMonthlyCredits)} included
-            </p>
-          ) : (
-            <p className="text-muted-foreground mt-4 text-xs">Figures update after a successful sync.</p>
-          )}
-        </Panel>
-      </section>
+      <CreditBalancePanel
+        bucketBalances={billingState?.bucketBalances}
+        expiringSoon={billingState?.expiringSoon}
+        includedMonthlyCredits={includedMonthlyCredits}
+        currentPeriodStart={billingState?.currentPeriodStart}
+        currentPeriodEnd={billingState?.currentPeriodEnd}
+      />
 
-      <section className="space-y-3">
+      <section id="plans" className="scroll-mt-6 space-y-3">
         <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
           Plans
         </p>
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          Pick a plan below to subscribe or change tiers. On Plus or Pro you can move to a
-          lower tier—including Free—at your next renewal; upgrades start today with a one-time
-          charge for the rest of this period. Scheduled changes and cancellations appear here
-          after you sync. For your card, receipts, or to cancel in the portal, open Manage
-          billing.
-        </p>
         {showBillingSchedulePanel ? (
-          <Panel className="border-primary/30 bg-primary/4 py-3 text-sm leading-relaxed">
+          <Card className="gap-0 bg-primary/4 px-5 py-3 text-sm leading-relaxed ring-primary/30">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="min-w-0 flex-1">
-                {scheduleNotice ? <p className="m-0">{scheduleNotice}</p> : null}
+                {scheduleNotice ? (
+                  <p className="m-0">{scheduleNotice}</p>
+                ) : null}
               </div>
               {showRescindCancellation || hasPendingPlanChange ? (
                 <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
@@ -570,13 +541,13 @@ function RouteComponent() {
                       size="sm"
                       className="text-xs whitespace-nowrap"
                       disabled={
-                        billingScheduleMutation !== null ||
-                        isRefreshing ||
-                        planSwitchLoading
+                        billingScheduleMutation !== null || planSwitchLoading
                       }
                       onClick={() => void runRescindCancellation()}
                     >
-                      {billingScheduleMutation === "rescind" ? "Updating…" : "Undo cancellation"}
+                      {billingScheduleMutation === "rescind"
+                        ? "Updating…"
+                        : "Undo cancellation"}
                     </Button>
                   ) : null}
                   {hasPendingPlanChange ? (
@@ -586,51 +557,38 @@ function RouteComponent() {
                       size="sm"
                       className="text-xs whitespace-nowrap"
                       disabled={
-                        billingScheduleMutation !== null ||
-                        isRefreshing ||
-                        planSwitchLoading
+                        billingScheduleMutation !== null || planSwitchLoading
                       }
                       onClick={() => void runDiscardPendingPlanChange()}
                     >
-                      {billingScheduleMutation === "discard" ? "Updating…" : stayOnPlanButtonLabel}
+                      {billingScheduleMutation === "discard"
+                        ? "Updating…"
+                        : stayOnPlanButtonLabel}
                     </Button>
                   ) : null}
                 </div>
               ) : null}
             </div>
-          </Panel>
+          </Card>
         ) : null}
         <div className="grid gap-4 lg:grid-cols-3">
           <TierColumn
             name="Free"
             plan={getPlanConfig("free", billingConfig)}
-            priceLabel={formatPolarRecurringPrice(polarProducts?.free ?? undefined)}
-            state={rank === 0 ? "current" : "available"}
+            state={rank === 0 ? "current" : "inactive"}
             polarApi={polarApi}
             checkoutAnchorClass={checkoutAnchorClass}
-            productId={freeProductId}
             subscriptionId={subscriptionId ?? undefined}
             buttonLabel="Free"
             renewalSummary={renewSummary}
-            paidSwitch={
-              isOnPaidPlan && freeProductId
-                ? {
-                    isUpgrade: false,
-                    onRequest: () =>
-                      setPlanSwitchConfirm({
-                        productId: freeProductId,
-                        planName: "Free",
-                        isUpgrade: false,
-                      }),
-                  }
-                : undefined
-            }
           />
           <TierColumn
             name="Plus"
             plan={getPlanConfig("plus", billingConfig)}
             priceLabel={formatPolarRecurringPrice(plusProduct ?? undefined)}
-            state={rank === 1 ? "current" : rank === 0 ? "available" : "available"}
+            state={
+              rank === 1 ? "current" : rank === 0 ? "available" : "available"
+            }
             polarApi={polarApi}
             checkoutAnchorClass={checkoutAnchorClass}
             productId={plusProduct?.id}
@@ -681,24 +639,12 @@ function RouteComponent() {
         </div>
       </section>
 
-      {syncError ? (
+      {billingError ? (
         <p className="text-destructive text-sm" role="alert">
-          {syncError}
+          {billingError}
         </p>
       ) : null}
     </div>
-  );
-}
-
-function Panel({ className, ...props }: ComponentProps<"div">) {
-  return (
-    <div
-      className={cn(
-        "border-border bg-muted/35 rounded-xl border px-5 py-4 shadow-none",
-        className,
-      )}
-      {...props}
-    />
   );
 }
 
@@ -738,7 +684,12 @@ function TierColumn({
 
   const footer: ReactNode =
     state === "current" ? (
-      <Button disabled variant="outline" size="sm" className="mt-auto w-full text-xs">
+      <Button
+        disabled
+        variant="outline"
+        size="sm"
+        className="mt-auto w-full text-xs"
+      >
         Current plan
       </Button>
     ) : state === "inactive" ? (
@@ -766,24 +717,33 @@ function TierColumn({
           checkoutAnchorClass,
           emphasize
             ? buttonVariants({ variant: "default", size: "sm" })
-            : buttonVariants({ variant: "outline", size: "sm", className: "bg-transparent" }),
+            : buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "bg-transparent",
+              }),
           "mt-auto",
         )}
       >
         Subscribe to {buttonLabel ?? name}
       </CheckoutLink>
     ) : (
-      <Button disabled variant="outline" size="sm" className="mt-auto w-full text-xs">
+      <Button
+        disabled
+        variant="outline"
+        size="sm"
+        className="mt-auto w-full text-xs"
+      >
         Unavailable
       </Button>
     );
 
   return (
-    <Panel
+    <Card
       className={cn(
-        "flex min-h-[192px] flex-col py-5",
+        "bg-muted/35 flex min-h-[192px] flex-col gap-0 px-5 py-5 shadow-none ring-border",
         emphasize && state === "available"
-          ? "border-primary/40 bg-primary/[0.03] ring-primary/12 ring-1"
+          ? "bg-primary/3 ring-1 ring-primary/40"
           : null,
       )}
     >
@@ -793,9 +753,13 @@ function TierColumn({
       </p>
       {state === "current" ? (
         renewalLine != null ? (
-          <p className="text-muted-foreground mt-2 text-xs">Renews {renewalLine}</p>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Renews {renewalLine}
+          </p>
         ) : (
-          <p className="text-muted-foreground mt-2 text-xs">Renewal loads after meter sync.</p>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Renewal details are loading.
+          </p>
         )
       ) : null}
       <ul className="text-muted-foreground mt-3 flex-1 space-y-1.5 text-xs leading-relaxed">
@@ -804,10 +768,327 @@ function TierColumn({
         <li>Overdraft {plan.overageAllowed ? "on" : "off"}</li>
       </ul>
       {footer}
-    </Panel>
+    </Card>
   );
 }
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function useNowMs(tickMs = 60_000) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+    }, tickMs);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [tickMs]);
+
+  return nowMs;
+}
+
+/**
+ * Credit Balance card — stacked-row layout that lists every bucket plus
+ * a period-summary block (big total, usage progress, period dates, plan
+ * stats). The currently-draining bucket (the lowest-priority bucket with
+ * credits remaining) is highlighted to mirror allocation order:
+ * gifted → monthly → paid.
+ */
+function CreditBalancePanel({
+  bucketBalances,
+  expiringSoon,
+  includedMonthlyCredits,
+  currentPeriodStart,
+  currentPeriodEnd,
+}: {
+  bucketBalances: Record<CreditBucket, number> | undefined;
+  expiringSoon:
+    | {
+        bucket: CreditBucket;
+        grantId: string;
+        remaining: number;
+        expiresAt: number;
+      }[]
+    | undefined;
+  includedMonthlyCredits: number | undefined;
+  currentPeriodStart: number | undefined;
+  currentPeriodEnd: number | undefined;
+}) {
+  const nowMs = useNowMs();
+  const orderedBuckets = useMemo<CreditBucket[]>(
+    () =>
+      (Object.keys(CREDIT_BUCKETS) as CreditBucket[]).sort(
+        (a, b) => CREDIT_BUCKETS[a].priority - CREDIT_BUCKETS[b].priority,
+      ),
+    [],
+  );
+
+  const balances: Record<CreditBucket, number> = bucketBalances ?? {
+    gifted: 0,
+    monthly: 0,
+    paid: 0,
+  };
+  const total = orderedBuckets.reduce((sum, b) => sum + balances[b], 0);
+
+  // The bucket that drains next is the lowest-priority bucket (gifted first)
+  // that still has remaining credits. Highlighting it mirrors what the
+  // backend allocator will actually consume on the next debit.
+  const activeBucket: CreditBucket | undefined = orderedBuckets.find(
+    (b) => balances[b] > 0,
+  );
+
+  // The bucket tied to the user's plan period — what "this period" means.
+  // Free and paid tiers both use the unified `monthly` recurring allowance.
+  const periodBucket: CreditBucket = "monthly";
+  const periodRemaining = balances[periodBucket];
+  const periodMax = includedMonthlyCredits;
+
+  // "Used this period" = max - remaining (clamped). When max is unknown
+  // (e.g. data still loading) we leave the secondary copy blank.
+  const periodUsed =
+    periodMax !== undefined
+      ? Math.max(0, periodMax - periodRemaining)
+      : undefined;
+  const periodUsedPct =
+    periodMax !== undefined && periodMax > 0 && periodUsed !== undefined
+      ? Math.min(100, Math.round((periodUsed / periodMax) * 100))
+      : undefined;
+
+  // Maxes for the current period: only the bucket tied to the user's tier
+  // has a known "out of N" denominator. Others just show remaining.
+  const periodMaxByBucket: Partial<Record<CreditBucket, number>> = {};
+  if (periodMax !== undefined) {
+    periodMaxByBucket[periodBucket] = periodMax;
+  }
+
+  const daysUntilReset =
+    currentPeriodEnd != null
+      ? Math.max(0, Math.ceil((currentPeriodEnd - nowMs) / 86_400_000))
+      : undefined;
+
+  const periodEndDateLabel =
+    currentPeriodEnd != null
+      ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
+          currentPeriodEnd,
+        )
+      : null;
+  const periodStartDateLabel =
+    currentPeriodStart != null
+      ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
+          currentPeriodStart,
+        )
+      : null;
+
+  return (
+    <section className="space-y-3">
+      <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+        Credit balance
+      </p>
+      <Card className="gap-0 overflow-hidden bg-muted/35 p-0 py-0 shadow-none ring-border">
+        {/* Period summary: big totals + usage progress + plan info */}
+        <div className="space-y-4 px-5 py-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Stat
+              label="Total available"
+              value={formatNumber(total)}
+              hint={
+                total === 0
+                  ? "Credits left to spend"
+                  : `Across ${
+                      orderedBuckets.filter((b) => balances[b] > 0)
+                        .length
+                    } bucket${
+                      orderedBuckets.filter((b) => balances[b] > 0)
+                        .length === 1
+                        ? ""
+                        : "s"
+                    }`
+              }
+            />
+            <Stat
+              label="Used this period"
+              value={periodUsed !== undefined ? formatNumber(periodUsed) : "—"}
+              hint={
+                periodMax !== undefined
+                  ? `of ${formatNumber(periodMax)} included`
+                  : "Usage details loading"
+              }
+            />
+            <Stat
+              label="Resets"
+              value={daysUntilReset !== undefined ? `${daysUntilReset}d` : "—"}
+              hint={periodEndDateLabel ?? "Renewal date loading"}
+            />
+          </div>
+
+          {periodUsedPct !== undefined ? (
+            <Progress
+              value={periodUsedPct}
+              aria-label={`${CREDIT_BUCKETS[periodBucket].label} credits used this period`}
+              className="flex-col gap-2 [&_[data-slot=progress-track]]:h-1.5"
+            >
+              <div className="flex w-full items-baseline justify-between gap-3">
+                <ProgressLabel className="text-muted-foreground text-xs font-normal">
+                  {CREDIT_BUCKETS[periodBucket].label} credits ·{" "}
+                  {periodStartDateLabel
+                    ? `${periodStartDateLabel} →`
+                    : "this period"}{" "}
+                  {periodEndDateLabel ?? ""}
+                </ProgressLabel>
+                <ProgressValue
+                  className="text-foreground shrink-0 text-xs font-medium tabular-nums"
+                  render={
+                    <span>{`${formatNumber(periodRemaining)} / ${formatNumber(
+                      periodMax ?? 0,
+                    )}`}</span>
+                  }
+                />
+              </div>
+            </Progress>
+          ) : null}
+        </div>
+
+        <Separator />
+
+        <ul className="px-3 py-3">
+          {orderedBuckets.map((bucket) => {
+            const remaining = balances[bucket];
+            const max = periodMaxByBucket[bucket];
+            return (
+              <CreditBucketRow
+                key={bucket}
+                label={`${CREDIT_BUCKETS[bucket].label} Credits`}
+                tooltip={creditBucketTooltip(bucket)}
+                remaining={remaining}
+                max={max}
+                active={bucket === activeBucket}
+              />
+            );
+          })}
+          <CreditBucketRow
+            label="Total Available Credits"
+            remaining={total}
+            emphasized
+          />
+        </ul>
+
+        {expiringSoon && expiringSoon.length > 0 ? (
+          <>
+            <Separator />
+            <p className="text-muted-foreground px-5 py-3 text-xs">
+            <Info
+              className="mr-1.5 inline-block size-3.5 align-[-2px]"
+              aria-hidden
+            />
+            {expiringSoon
+              .slice(0, 3)
+              .map(
+                (g) =>
+                  `${formatNumber(g.remaining)} ${CREDIT_BUCKETS[g.bucket].label.toLowerCase()} credits expire ${new Intl.DateTimeFormat(
+                    "en-US",
+                    { dateStyle: "medium" },
+                  ).format(g.expiresAt)}`,
+              )
+              .join(" · ")}
+            </p>
+          </>
+        ) : null}
+      </Card>
+    </section>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+        {label}
+      </p>
+      <p className="text-foreground font-mono text-2xl leading-none font-semibold tabular-nums">
+        {value}
+      </p>
+      {hint ? (
+        <p className="text-muted-foreground text-[11px]">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function CreditBucketRow({
+  label,
+  tooltip,
+  remaining,
+  max,
+  active,
+  emphasized,
+}: {
+  label: string;
+  tooltip?: string;
+  remaining: number;
+  max?: number;
+  active?: boolean;
+  emphasized?: boolean;
+}) {
+  return (
+    <li
+      className={cn(
+        "flex items-center justify-between rounded-md px-3 py-2.5 text-sm",
+        active && "bg-primary/10 ring-primary/20 ring-1",
+        emphasized && "mt-1 font-semibold",
+      )}
+    >
+      <span className="flex items-center gap-1.5">
+        <span
+          className={cn(emphasized ? "text-foreground" : "text-foreground")}
+        >
+          {label}
+        </span>
+        {tooltip ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`${label} info`}
+                  className="text-muted-foreground hover:text-foreground inline-flex size-4 items-center justify-center rounded-full transition-colors"
+                />
+              }
+            >
+              <Info className="size-3" aria-hidden />
+            </TooltipTrigger>
+            <TooltipContent>{tooltip}</TooltipContent>
+          </Tooltip>
+        ) : null}
+      </span>
+      <span className="text-foreground tabular-nums">
+        {max !== undefined
+          ? `${formatNumber(remaining)} / ${formatNumber(max)}`
+          : formatNumber(remaining)}
+      </span>
+    </li>
+  );
+}
+
+function creditBucketTooltip(bucket: CreditBucket): string {
+  switch (bucket) {
+    case "gifted":
+      return "Promotional credits granted to your account. Spent first.";
+    case "monthly":
+      return "Recurring plan allowance (free, plus, or pro). Resets each plan period and expires at period end.";
+    case "paid":
+      return "Credits you purchased as a one-time top-up. Spent last; long-lived.";
+  }
 }

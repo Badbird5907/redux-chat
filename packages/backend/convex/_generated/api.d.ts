@@ -10,9 +10,11 @@
 
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
+import type * as credits from "../credits.js";
 import type * as env from "../env.js";
 import type * as functions_attachments from "../functions/attachments.js";
 import type * as functions_billing from "../functions/billing.js";
+import type * as functions_credits from "../functions/credits.js";
 import type * as functions_defaultMessageSettings from "../functions/defaultMessageSettings.js";
 import type * as functions_embeddings from "../functions/embeddings.js";
 import type * as functions_index from "../functions/index.js";
@@ -37,9 +39,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   billing: typeof billing;
+  credits: typeof credits;
   env: typeof env;
   "functions/attachments": typeof functions_attachments;
   "functions/billing": typeof functions_billing;
+  "functions/credits": typeof functions_credits;
   "functions/defaultMessageSettings": typeof functions_defaultMessageSettings;
   "functions/embeddings": typeof functions_embeddings;
   "functions/index": typeof functions_index;

@@ -178,13 +178,6 @@ export function resolveTierFromSubscription(
     return "plus" satisfies PlanTier;
   }
 
-  if (
-    subscription.productId &&
-    subscription.productId === env.POLAR_FREE_PRODUCT_ID
-  ) {
-    return "free" satisfies PlanTier;
-  }
-
   return "free" satisfies PlanTier;
 }
 

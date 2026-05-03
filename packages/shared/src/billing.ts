@@ -11,6 +11,41 @@ export const PLAN_TIERS = ["free", "plus", "pro"] as const;
 
 export type PlanTier = (typeof PLAN_TIERS)[number];
 
+/**
+ * Credit buckets are spendable lots categorized by source/policy. Allocation
+ * order is determined by the numeric `priority` field — lower values are
+ * consumed first, so for example `gifted` (10) drains before `paid` (40).
+ *
+ * Ordering rationale:
+ * - `gifted`: promo / admin grants, often time-limited; consume first so they
+ *   don't go to waste.
+ * - `monthly`: recurring plan allowance for the current tier (free/plus/pro);
+ *   expires at period end so it should be used before non-expiring lots.
+ * - `paid`: prepaid one-time purchases; long-lived, so spent last.
+ */
+export const CREDIT_BUCKETS = {
+  gifted: { priority: 10, label: "Gifted", description: "Promotional / admin credits" },
+  monthly: { priority: 20, label: "Monthly", description: "Recurring plan credits" },
+  paid: { priority: 30, label: "Purchased", description: "One-time purchased credits" },
+} as const;
+
+export type CreditBucket = keyof typeof CREDIT_BUCKETS;
+
+export const CREDIT_BUCKET_NAMES = Object.keys(CREDIT_BUCKETS) as CreditBucket[];
+
+/**
+ * Stable bucket allocation order. Lower priority numbers go first, ties
+ * broken alphabetically. Use `getCreditBucketAllocationOrder()` rather
+ * than relying on object key insertion order.
+ */
+export function getCreditBucketAllocationOrder(): CreditBucket[] {
+  return [...CREDIT_BUCKET_NAMES].sort((a, b) => {
+    const diff = CREDIT_BUCKETS[a].priority - CREDIT_BUCKETS[b].priority;
+    if (diff !== 0) return diff;
+    return a.localeCompare(b);
+  });
+}
+
 export type ToolBillingKey = string;
 
 export interface PlanConfig {
