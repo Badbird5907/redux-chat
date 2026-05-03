@@ -4,9 +4,9 @@ import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
 
 import { internal } from "./_generated/api";
 import { authComponent, initAuth } from "./auth";
-import { polar } from "./polar";
-import { backendEnv } from "./env";
 import { resolveTierFromSubscription, toSubscriptionSnapshot } from "./billing";
+import { backendEnv } from "./env";
+import { polar } from "./polar";
 
 const http = httpRouter();
 
@@ -152,7 +152,9 @@ async function handleSubscriptionPeriodGrant(
         data.external_id,
     );
     if (!customerExternalId) {
-      console.warn("subscription_event_missing_external_id", { subscriptionId });
+      console.warn("subscription_event_missing_external_id", {
+        subscriptionId,
+      });
       return;
     }
 
@@ -164,7 +166,9 @@ async function handleSubscriptionPeriodGrant(
       return;
     }
 
-    const periodStart = toMs(data.currentPeriodStart ?? data.current_period_start);
+    const periodStart = toMs(
+      data.currentPeriodStart ?? data.current_period_start,
+    );
     const periodEnd = toMs(data.currentPeriodEnd ?? data.current_period_end);
     if (periodStart === undefined || periodEnd === undefined) {
       console.warn("subscription_event_missing_period", { subscriptionId });
@@ -183,10 +187,13 @@ async function handleSubscriptionPeriodGrant(
     // Upgrading to paid should zero out any active free-tier monthly allowance
     // so users don't stack free monthly credits on top of paid recurring grants.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    await ctx.runMutation(internal.functions.credits.internal_revokeFreeMonthlyCredits, {
-      userId: customerExternalId,
-      reason: "upgraded_to_paid",
-    });
+    await ctx.runMutation(
+      internal.functions.credits.internal_revokeFreeMonthlyCredits,
+      {
+        userId: customerExternalId,
+        reason: "upgraded_to_paid",
+      },
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await ctx.runMutation(internal.functions.credits.internal_grantCredits, {
@@ -216,7 +223,9 @@ async function handleOneTimeOrderGrant(
     const data = (event as { data?: Record<string, unknown> }).data ?? {};
 
     // Skip subscription invoice orders; those are handled by subscription.* events.
-    const subscriptionId = pickString(data.subscriptionId ?? data.subscription_id);
+    const subscriptionId = pickString(
+      data.subscriptionId ?? data.subscription_id,
+    );
     if (subscriptionId) {
       return;
     }

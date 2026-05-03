@@ -20,9 +20,9 @@ export const getCurrentBillingState = createServerFn({ method: "GET" }).handler(
       tier: refreshed.tier,
       availableCredits: refreshed.availableCredits,
       overageCredits: refreshed.overageCredits,
-      spendableCredits: refreshed.spendableCredits ?? baseState.spendableCredits,
-      bucketBalances: refreshed.bucketBalances ?? baseState.bucketBalances,
-      expiringSoon: refreshed.expiringSoon ?? baseState.expiringSoon,
+      spendableCredits: refreshed.spendableCredits,
+      bucketBalances: refreshed.bucketBalances,
+      expiringSoon: refreshed.expiringSoon,
       overageAllowed: refreshed.overageAllowed,
       syncedAt: Date.now(),
     };

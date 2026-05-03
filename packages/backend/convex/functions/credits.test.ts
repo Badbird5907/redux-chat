@@ -1,8 +1,6 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import schema from "../schema";
-import { modules } from "../test.setup";
 import {
   debitCreditsTx,
   getCreditBalanceForUser,
@@ -11,6 +9,8 @@ import {
   revokeSubscriptionMonthlyCreditsTx,
   sweepExpiredGrantsTx,
 } from "../credits";
+import schema from "../schema";
+import { modules } from "../test.setup";
 
 // convex-test exposes `t.run(handler)` which gives us a real `MutationCtx` so
 // we can drive the pure helpers in `credits.ts` without going through the
@@ -243,7 +243,9 @@ describe("credit ledger helpers", () => {
     );
     expect(balance.spendableCredits).toBe(25);
 
-    const swept = await t.run(async (ctx) => sweepExpiredGrantsTx(ctx, USER_ID));
+    const swept = await t.run(async (ctx) =>
+      sweepExpiredGrantsTx(ctx, USER_ID),
+    );
     expect(swept.expired).toBe(1);
   });
 

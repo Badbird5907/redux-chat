@@ -1,16 +1,18 @@
 import { Polar as PolarSdkClient } from "@polar-sh/sdk";
 
-import {
-  DEFAULT_BILLING_CONFIG,
-  aggregateBillableToolCalls,
-  getPlanConfig,
-  resolveModelRoute,
-} from "@redux/shared";
 import type {
   BillableToolCall,
   PlanTier,
   UsageChargeComputationResult,
 } from "@redux/shared";
+import {
+  aggregateBillableToolCalls,
+  DEFAULT_BILLING_CONFIG,
+  getPlanConfig,
+  resolveModelRoute,
+} from "@redux/shared";
+
+import { backendEnv } from "./env";
 
 type BillingUsage = {
   inputTokens?: number;
@@ -21,8 +23,6 @@ type BillingUsage = {
   inputAudioTokens?: number;
   outputAudioTokens?: number;
 };
-
-import { backendEnv } from "./env";
 
 type BillingSubscriptionSnapshot = {
   productId?: string;
@@ -45,9 +45,7 @@ export type BillingSubscriptionSchedule = {
 export const BILLING_DEBUG_LOGGING = false;
 
 /** Checkpoint / trace logs; enable only by flipping `BILLING_DEBUG_LOGGING` locally. */
-export function billingDebugLog(
-  ...args: Parameters<typeof console.log>
-): void {
+export function billingDebugLog(...args: Parameters<typeof console.log>): void {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- BILLING_DEBUG_LOGGING gate
   if (BILLING_DEBUG_LOGGING) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- delegated to console
@@ -103,8 +101,7 @@ export function getBillingConfig() {
   const env = backendEnv();
   return {
     ...DEFAULT_BILLING_CONFIG,
-    meterName:
-      env.POLAR_CREDITS_METER_NAME,
+    meterName: env.POLAR_CREDITS_METER_NAME,
   };
 }
 
@@ -129,7 +126,15 @@ export function getBillingPeriodKey(timestamp = Date.now()) {
 
 export function getUtcMonthBounds(timestamp = Date.now()) {
   const date = new Date(timestamp);
-  const start = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 0, 0, 0, 0);
+  const start = Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    1,
+    0,
+    0,
+    0,
+    0,
+  );
   const end = Date.UTC(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1,
@@ -167,7 +172,10 @@ export function resolveTierFromSubscription(
     return "free" satisfies PlanTier;
   }
 
-  if (subscription.productId && subscription.productId === env.POLAR_PRO_PRODUCT_ID) {
+  if (
+    subscription.productId &&
+    subscription.productId === env.POLAR_PRO_PRODUCT_ID
+  ) {
     return "pro" satisfies PlanTier;
   }
 
@@ -393,7 +401,9 @@ export function buildPolarLlmMetadata(args: {
   });
   const model =
     route?.canonicalModelId ??
-    (fallbackModel.length > 0 ? fallbackModel : route?.displayName ?? args.routeId);
+    (fallbackModel.length > 0
+      ? fallbackModel
+      : (route?.displayName ?? args.routeId));
 
   // The SDK expects camelCase here; it serializes to snake_case on the wire.
   return {
@@ -473,10 +483,7 @@ export function extractMeterBalance(
   return extractMeterCreditSummary(state, meterName).availableCredits;
 }
 
-export function extractMeterCreditSummary(
-  state: unknown,
-  meterName: string,
-) {
+export function extractMeterCreditSummary(state: unknown, meterName: string) {
   if (!state || typeof state !== "object") {
     return { availableCredits: undefined, overageCredits: undefined };
   }
@@ -539,7 +546,8 @@ export function extractMeterCreditSummary(
       availableCredits,
       overageCredits,
       usedSingleMeterFallback:
-        matchingMeter.candidateName === undefined && normalizedMeters.length === 1,
+        matchingMeter.candidateName === undefined &&
+        normalizedMeters.length === 1,
     });
 
     return { availableCredits, overageCredits };

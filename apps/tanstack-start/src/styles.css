@@ -42,13 +42,13 @@
    actions wrapper (see below) a positioning context. */
 .chat-markdown [data-streamdown="code-block"],
 .chat-markdown [data-streamdown="table-wrapper"] {
-  @apply relative gap-0 overflow-hidden rounded-xl border border-border bg-card p-0;
+  @apply border-border bg-card relative gap-0 overflow-hidden rounded-xl border p-0;
 }
 
 /* Body fills the outer card, lighter than the header bar. */
 .chat-markdown [data-streamdown="code-block-body"],
 .chat-markdown [data-streamdown="table-wrapper"] > div:has(> table) {
-  @apply rounded-none border-0 bg-muted;
+  @apply bg-muted rounded-none border-0;
 }
 
 /* Code-block header: horizontal padding for the language label. */
@@ -82,9 +82,10 @@
 .chat-markdown [data-streamdown="code-block-actions"] {
   @apply border-0 bg-transparent px-0 py-0 backdrop-blur-none supports-[backdrop-filter]:bg-transparent;
 }
-.chat-markdown [data-streamdown="code-block-header"]
+.chat-markdown
+  [data-streamdown="code-block-header"]
   + div:not([data-streamdown="code-block-body"]) {
-  @apply absolute right-0 top-0 m-0 pr-4;
+  @apply absolute top-0 right-0 m-0 pr-4;
 }
 
 /* Match code-block button icon size to the table buttons. Streamdown passes
@@ -100,4 +101,3 @@
 .chat-markdown [data-streamdown="code-block-body"] code > span {
   @apply block min-h-lh;
 }
-

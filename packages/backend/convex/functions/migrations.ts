@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
-import { DEFAULT_BILLING_CONFIG, type PlanTier, getPlanConfig } from "@redux/shared";
+import type { PlanTier } from "@redux/shared";
+import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
 
 import {
   getMonthlyExpiresAt,

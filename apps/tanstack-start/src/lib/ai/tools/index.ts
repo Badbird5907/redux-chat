@@ -5,9 +5,9 @@ import { webSearch } from "@exalabs/ai-sdk";
 import { tool } from "ai";
 import { z } from "zod";
 
+import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
 import type { MessageSettings } from "@redux/types";
 import { getEnabledMessageTools } from "@redux/types";
-import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
 
 import {
   createSandboxRuntime,
@@ -82,31 +82,31 @@ export async function createToolRuntime(
 
     tools.analysis_workspace = instrumentTool(
       tool({
-      description: uploadsEnabled
-        ? [
-            "Execute Python code in a Jupyter notebook cell and return the result.",
-            "Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
-            `Before execution, uploaded chat files are synced into ${SANDBOX_UPLOADS_DIR}.`,
-          ].join(" ")
-        : "Execute Python code in a Jupyter notebook cell and return the result. Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
-      inputSchema: z.object({
-        code: z
-          .string()
-          .describe("The Python code to execute in a single notebook cell."),
-      }),
-      execute: async ({ code }) => {
-        const sandbox = await getSandbox();
-        const uploadedFiles = await syncUploadsToSandbox();
-        const execution = await sandbox.runCode(code);
+        description: uploadsEnabled
+          ? [
+              "Execute Python code in a Jupyter notebook cell and return the result.",
+              "Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
+              `Before execution, uploaded chat files are synced into ${SANDBOX_UPLOADS_DIR}.`,
+            ].join(" ")
+          : "Execute Python code in a Jupyter notebook cell and return the result. Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
+        inputSchema: z.object({
+          code: z
+            .string()
+            .describe("The Python code to execute in a single notebook cell."),
+        }),
+        execute: async ({ code }) => {
+          const sandbox = await getSandbox();
+          const uploadedFiles = await syncUploadsToSandbox();
+          const execution = await sandbox.runCode(code);
 
-        return {
-          error: execution.error,
-          logs: execution.logs,
-          results: execution.results,
-          text: execution.text,
-          uploadedFiles,
-        };
-      },
+          return {
+            error: execution.error,
+            logs: execution.logs,
+            results: execution.results,
+            text: execution.text,
+            uploadedFiles,
+          };
+        },
       }),
       "analysis_workspace",
       toolUsageCounts,

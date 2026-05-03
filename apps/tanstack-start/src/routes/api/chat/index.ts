@@ -324,10 +324,12 @@ export const Route = createFileRoute("/api/chat/")({
         // on the first read each month.
         const [billingSnapshot, billingState] = await Promise.all([
           fetchAuthQuery(api.functions.billing.getCurrentBillingState, {}),
-          fetchAuthAction(api.functions.billing.refreshCurrentUserMeterState, {}),
+          fetchAuthAction(
+            api.functions.billing.refreshCurrentUserMeterState,
+            {},
+          ),
         ]);
-        const spendableCredits =
-          billingState.spendableCredits ?? billingState.availableCredits ?? 0;
+        const spendableCredits = billingState.spendableCredits;
         if (spendableCredits <= 0 && !billingState.overageAllowed) {
           return new Response(
             JSON.stringify({
@@ -627,24 +629,30 @@ export const Route = createFileRoute("/api/chat/")({
                 );
 
                 try {
-                  await fetchAuthAction(api.functions.billing.recordUsageEvent, {
-                    requestId: assistantMessageId,
-                    messageId: assistantMessageId,
-                    threadId,
-                    routeId: resolvedModel.route.id,
-                    usage: {
-                      inputTokens: usage.inputTokens,
-                      outputTokens: usage.outputTokens,
-                      reasoningTokens: usage.reasoningTokens,
-                      cacheReadTokens: usage.cachedInputTokens,
-                      cacheWriteTokens: undefined,
-                      inputAudioTokens: undefined,
-                      outputAudioTokens: undefined,
+                  await fetchAuthAction(
+                    api.functions.billing.recordUsageEvent,
+                    {
+                      requestId: assistantMessageId,
+                      messageId: assistantMessageId,
+                      threadId,
+                      routeId: resolvedModel.route.id,
+                      usage: {
+                        inputTokens: usage.inputTokens,
+                        outputTokens: usage.outputTokens,
+                        reasoningTokens: usage.reasoningTokens,
+                        cacheReadTokens: usage.cachedInputTokens,
+                        cacheWriteTokens: undefined,
+                        inputAudioTokens: undefined,
+                        outputAudioTokens: undefined,
+                      },
+                      toolCalls: toolRuntime.getBillableToolCalls(),
                     },
-                    toolCalls: toolRuntime.getBillableToolCalls(),
-                  });
+                  );
                 } catch (billingError) {
-                  console.error("Failed to record usage billing event", billingError);
+                  console.error(
+                    "Failed to record usage billing event",
+                    billingError,
+                  );
                 }
               } finally {
                 await cleanupTools?.();

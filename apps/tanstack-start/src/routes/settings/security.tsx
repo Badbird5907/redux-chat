@@ -13,8 +13,8 @@ import {
 import { toast } from "sonner";
 import * as z from "zod";
 
-import { Badge } from "@redux/ui/components/badge";
 import { api } from "@redux/backend/convex/_generated/api";
+import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import {
   Card,
@@ -223,7 +223,9 @@ function SecurityRouteComponent() {
 
   const handleUnlinkGoogle = async () => {
     if (!canUnlinkGoogle) {
-      toast.error("Add a password or another sign-in method before disconnecting Google.");
+      toast.error(
+        "Add a password or another sign-in method before disconnecting Google.",
+      );
       return;
     }
 
@@ -359,10 +361,9 @@ function SecurityRouteComponent() {
             value={
               !hasLoadedAccounts
                 ? "Checking linked providers…"
-                : [
-                      hasGithub && "GitHub",
-                      hasGoogle && "Google",
-                    ].filter(Boolean).join(" · ") || "None linked"
+                : [hasGithub && "GitHub", hasGoogle && "Google"]
+                    .filter(Boolean)
+                    .join(" · ") || "None linked"
             }
             status={
               !hasLoadedAccounts
@@ -379,9 +380,7 @@ function SecurityRouteComponent() {
         <Card className="bg-card/70">
           <CardHeader>
             <CardTitle>Email address</CardTitle>
-            <CardDescription>
-              Update your email address.
-            </CardDescription>
+            <CardDescription>Update your email address.</CardDescription>
           </CardHeader>
           <CardContent>
             <form
@@ -639,9 +638,7 @@ function SecurityRouteComponent() {
                   variant="destructive"
                   onClick={handleUnlinkGoogle}
                   disabled={
-                    isLoadingAccounts ||
-                    isUnlinkingGoogle ||
-                    !canUnlinkGoogle
+                    isLoadingAccounts || isUnlinkingGoogle || !canUnlinkGoogle
                   }
                   tooltip={
                     canUnlinkGoogle

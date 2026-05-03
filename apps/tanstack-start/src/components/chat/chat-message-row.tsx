@@ -399,9 +399,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           </div>
         )}
         {message.role === "user" && (
-          <div
-            className="text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
-          >
+          <div className="text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
             <BranchSwitcher
               branchGroup={branchGroup}
               disabled={controlsDisabled}
@@ -434,7 +432,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               "text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs transition-opacity duration-200",
               isStreamingAssistant
                 ? "opacity-0"
-                : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+                : "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
             )}
           >
             <div className="flex items-center gap-1">

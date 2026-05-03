@@ -1,5 +1,5 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 
 import { getCurrentBillingState } from "@/server/billing/get-current-billing-state";
 
@@ -11,8 +11,8 @@ export function useBillingState() {
 
   useEffect(() => {
     let cancelled = false;
-    const sync = () =>
-      fetchBillingState()
+    const sync = () => {
+      void fetchBillingState()
         .then((state) => {
           if (!cancelled) {
             setBillingState(state);
@@ -21,7 +21,8 @@ export function useBillingState() {
         .catch((error) => {
           console.error("Failed to fetch billing state", error);
         });
-    void sync();
+    };
+    sync();
     const interval = window.setInterval(sync, 30_000);
 
     return () => {
@@ -36,9 +37,7 @@ export function useBillingState() {
   const spendable =
     billingState?.spendableCredits ?? billingState?.availableCredits;
   const isOutOfCredits =
-    spendable !== undefined &&
-    spendable <= 0 &&
-    !billingState?.overageAllowed;
+    spendable !== undefined && spendable <= 0 && !billingState?.overageAllowed;
 
   return useMemo(
     () => ({

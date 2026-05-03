@@ -49,7 +49,10 @@ export function backendEnv() {
       INTERNAL_CONVEX_SECRET: process.env.INTERNAL_CONVEX_SECRET,
       POLAR_ACCESS_TOKEN: process.env.POLAR_ACCESS_TOKEN,
       POLAR_WEBHOOK_SECRET: process.env.POLAR_WEBHOOK_SECRET,
-      POLAR_SERVER: process.env.POLAR_SERVER as "sandbox" | "production" | undefined,
+      POLAR_SERVER: process.env.POLAR_SERVER as
+        | "sandbox"
+        | "production"
+        | undefined,
       POLAR_CREDITS_METER_NAME: process.env.POLAR_CREDITS_METER_NAME,
       POLAR_PLUS_PRODUCT_ID: process.env.POLAR_PLUS_PRODUCT_ID,
       POLAR_PRO_PRODUCT_ID: process.env.POLAR_PRO_PRODUCT_ID,

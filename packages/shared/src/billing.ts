@@ -1,8 +1,8 @@
 import type { ModelCostComputationInput } from "@redux/models";
 
 import {
-  DEFAULT_CHAT_MODEL_ID,
   calculateModelCost,
+  DEFAULT_CHAT_MODEL_ID,
   getModelRoute,
   resolveModelRoute,
 } from "./models";
@@ -24,14 +24,28 @@ export type PlanTier = (typeof PLAN_TIERS)[number];
  * - `paid`: prepaid one-time purchases; long-lived, so spent last.
  */
 export const CREDIT_BUCKETS = {
-  gifted: { priority: 10, label: "Gifted", description: "Promotional / admin credits" },
-  monthly: { priority: 20, label: "Monthly", description: "Recurring plan credits" },
-  paid: { priority: 30, label: "Purchased", description: "One-time purchased credits" },
+  gifted: {
+    priority: 10,
+    label: "Gifted",
+    description: "Promotional / admin credits",
+  },
+  monthly: {
+    priority: 20,
+    label: "Monthly",
+    description: "Recurring plan credits",
+  },
+  paid: {
+    priority: 30,
+    label: "Purchased",
+    description: "One-time purchased credits",
+  },
 } as const;
 
 export type CreditBucket = keyof typeof CREDIT_BUCKETS;
 
-export const CREDIT_BUCKET_NAMES = Object.keys(CREDIT_BUCKETS) as CreditBucket[];
+export const CREDIT_BUCKET_NAMES = Object.keys(
+  CREDIT_BUCKETS,
+) as CreditBucket[];
 
 /**
  * Stable bucket allocation order. Lower priority numbers go first, ties
@@ -228,7 +242,8 @@ export function calculateDisplayMultiplier(
   }
 
   const baselineRoute =
-    getModelRoute(config.baselineRouteId) ?? resolveModelRoute(config.baselineRouteId);
+    getModelRoute(config.baselineRouteId) ??
+    resolveModelRoute(config.baselineRouteId);
   const baselineRepresentativePricePerMillion = baselineRoute
     ? getRepresentativePricePerMillion(baselineRoute)
     : undefined;
@@ -243,7 +258,8 @@ export function calculateDisplayMultiplier(
   // Display multipliers should be relative to a baseline model class, not to
   // the credit/USD exchange rate. This keeps cheap models near 1x and makes
   // the badge a simple comparative UX hint rather than a billing formula.
-  const ratio = representativePricePerMillion / baselineRepresentativePricePerMillion;
+  const ratio =
+    representativePricePerMillion / baselineRepresentativePricePerMillion;
   if (!Number.isFinite(ratio) || ratio <= 1) {
     return 1;
   }
@@ -260,7 +276,8 @@ export function calculateUsageCharge(
   config: BillingConfig = DEFAULT_BILLING_CONFIG,
 ): UsageChargeComputationResult {
   const plan = getPlanConfig(input.tier, config);
-  const route = getModelRoute(input.routeId) ?? resolveModelRoute(input.routeId);
+  const route =
+    getModelRoute(input.routeId) ?? resolveModelRoute(input.routeId);
   const toolUsdCost = calculateToolUsdCost(input.toolCalls, config);
 
   if (!route) {

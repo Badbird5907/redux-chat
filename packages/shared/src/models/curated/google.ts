@@ -9,7 +9,10 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
   models: [
     {
       id: "gemini-2.5-pro",
-      providerIds: ["openrouter:google/gemini-2.5-pro", "vertex:gemini-2.5-pro"],
+      providerIds: [
+        "openrouter:google/gemini-2.5-pro",
+        "vertex:gemini-2.5-pro",
+      ],
       defaultProviderId: "vertex:gemini-2.5-pro",
     },
     {

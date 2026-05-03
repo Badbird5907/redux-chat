@@ -1,10 +1,9 @@
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 
+import type { AllocatableGrant, CreditBucket } from "@redux/shared";
 import {
-  type AllocatableGrant,
-  CREDIT_BUCKETS,
-  type CreditBucket,
   allocateDebit,
+  CREDIT_BUCKETS,
   summarizeBalances,
 } from "@redux/shared";
 
@@ -112,18 +111,20 @@ export async function getCreditBalanceForUser(
 
   const expiringWindowMs = nowMs + 7 * 86_400_000;
   const expiringSoon = grants
-    .filter(
-      (g) =>
-        g.expiresAt !== undefined &&
-        g.expiresAt > nowMs &&
-        g.expiresAt <= expiringWindowMs,
-    )
-    .map((g) => ({
-      bucket: g.bucket,
-      grantId: g.grantId,
-      remaining: g.remaining,
-      expiresAt: g.expiresAt as number,
-    }))
+    .flatMap((g) => {
+      const exp = g.expiresAt;
+      if (exp === undefined || exp <= nowMs || exp > expiringWindowMs) {
+        return [];
+      }
+      return [
+        {
+          bucket: g.bucket,
+          grantId: g.grantId,
+          remaining: g.remaining,
+          expiresAt: exp,
+        },
+      ];
+    })
     .sort((a, b) => a.expiresAt - b.expiresAt);
 
   return {
@@ -162,9 +163,6 @@ export async function grantCreditsTx(
 ): Promise<GrantCreditsResult> {
   if (args.amount <= 0) {
     throw new Error("Grant amount must be positive");
-  }
-  if (!CREDIT_BUCKETS[args.bucket]) {
-    throw new Error(`Unknown credit bucket: ${String(args.bucket)}`);
   }
 
   const existing = await ctx.db
@@ -262,14 +260,13 @@ export async function debitCreditsTx(
       amount: existing.amount,
       allocatedAmount: existing.allocatedAmount,
       overdraftAmount: existing.overdraftAmount,
-      allocations: allocations
-        .flatMap((a) => {
-          const bucket = normalizeGrantBucket(a.bucket);
-          if (!bucket) {
-            return [];
-          }
-          return [{ grantId: a.grantId, bucket, amount: a.amount }];
-        }),
+      allocations: allocations.flatMap((a) => {
+        const bucket = normalizeGrantBucket(a.bucket);
+        if (!bucket) {
+          return [];
+        }
+        return [{ grantId: a.grantId, bucket, amount: a.amount }];
+      }),
       insufficientFunds: false,
     };
   }

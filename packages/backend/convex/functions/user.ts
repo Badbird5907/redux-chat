@@ -3,8 +3,8 @@ import { v } from "convex/values";
 
 import { authComponent, initAuth } from "../auth";
 import { backendEnv } from "../env";
-import { mutation, query } from "./index";
 import { createBackendSiloCore } from "./attachments";
+import { mutation, query } from "./index";
 
 export const getUserImage = query({
   args: {

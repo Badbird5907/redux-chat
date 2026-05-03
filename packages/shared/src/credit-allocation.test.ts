@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  type AllocatableGrant,
-  allocateDebit,
-  summarizeBalances,
-} from "./credit-allocation";
+import type { AllocatableGrant } from "./credit-allocation";
+import { allocateDebit, summarizeBalances } from "./credit-allocation";
 
 const NOW = 1_700_000_000_000;
 const ONE_DAY = 86_400_000;
@@ -26,7 +23,11 @@ describe("allocateDebit", () => {
       grants: [grant({})],
       nowMs: NOW,
     });
-    expect(result).toEqual({ allocations: [], allocatedAmount: 0, shortfall: 0 });
+    expect(result).toEqual({
+      allocations: [],
+      allocatedAmount: 0,
+      shortfall: 0,
+    });
   });
 
   it("consumes buckets in priority order: gifted → monthly → paid", () => {
@@ -50,10 +51,25 @@ describe("allocateDebit", () => {
 
   it("skips expired grants and prefers earliest-expiring eligible first", () => {
     const grants: AllocatableGrant[] = [
-      grant({ grantId: "expired", bucket: "monthly", remaining: 100, expiresAt: NOW - 1 }),
+      grant({
+        grantId: "expired",
+        bucket: "monthly",
+        remaining: 100,
+        expiresAt: NOW - 1,
+      }),
       grant({ grantId: "neverExpires", bucket: "monthly", remaining: 100 }),
-      grant({ grantId: "expiresLater", bucket: "monthly", remaining: 100, expiresAt: NOW + 30 * ONE_DAY }),
-      grant({ grantId: "expiresSooner", bucket: "monthly", remaining: 100, expiresAt: NOW + ONE_DAY }),
+      grant({
+        grantId: "expiresLater",
+        bucket: "monthly",
+        remaining: 100,
+        expiresAt: NOW + 30 * ONE_DAY,
+      }),
+      grant({
+        grantId: "expiresSooner",
+        bucket: "monthly",
+        remaining: 100,
+        expiresAt: NOW + ONE_DAY,
+      }),
     ];
 
     const result = allocateDebit({ amount: 150, grants, nowMs: NOW });
@@ -81,9 +97,24 @@ describe("allocateDebit", () => {
 
   it("breaks ties within a bucket by grantedAt FIFO then grantId", () => {
     const grants: AllocatableGrant[] = [
-      grant({ grantId: "b", bucket: "monthly", remaining: 10, grantedAt: NOW - 2 * ONE_DAY }),
-      grant({ grantId: "a", bucket: "monthly", remaining: 10, grantedAt: NOW - 2 * ONE_DAY }),
-      grant({ grantId: "c", bucket: "monthly", remaining: 10, grantedAt: NOW - 3 * ONE_DAY }),
+      grant({
+        grantId: "b",
+        bucket: "monthly",
+        remaining: 10,
+        grantedAt: NOW - 2 * ONE_DAY,
+      }),
+      grant({
+        grantId: "a",
+        bucket: "monthly",
+        remaining: 10,
+        grantedAt: NOW - 2 * ONE_DAY,
+      }),
+      grant({
+        grantId: "c",
+        bucket: "monthly",
+        remaining: 10,
+        grantedAt: NOW - 3 * ONE_DAY,
+      }),
     ];
 
     const result = allocateDebit({ amount: 25, grants, nowMs: NOW });
@@ -110,7 +141,12 @@ describe("summarizeBalances", () => {
       grant({ grantId: "g1", bucket: "gifted", remaining: 50 }),
       grant({ grantId: "g2", bucket: "monthly", remaining: 100 }),
       grant({ grantId: "g3", bucket: "monthly", remaining: 25 }),
-      grant({ grantId: "expired", bucket: "monthly", remaining: 999, expiresAt: NOW - 1 }),
+      grant({
+        grantId: "expired",
+        bucket: "monthly",
+        remaining: 999,
+        expiresAt: NOW - 1,
+      }),
       grant({ grantId: "empty", bucket: "paid", remaining: 0 }),
     ];
 

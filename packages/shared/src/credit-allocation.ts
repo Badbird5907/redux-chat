@@ -1,8 +1,5 @@
-import {
-  CREDIT_BUCKETS,
-  type CreditBucket,
-  getCreditBucketAllocationOrder,
-} from "./billing";
+import type { CreditBucket } from "./billing";
+import { CREDIT_BUCKETS, getCreditBucketAllocationOrder } from "./billing";
 
 export interface AllocatableGrant {
   grantId: string;
@@ -52,7 +49,10 @@ export function allocateDebit(args: {
   }
 
   const eligible = args.grants
-    .filter((g) => g.remaining > 0 && (g.expiresAt === undefined || g.expiresAt > nowMs))
+    .filter(
+      (g) =>
+        g.remaining > 0 && (g.expiresAt === undefined || g.expiresAt > nowMs),
+    )
     .slice()
     .sort((a, b) => {
       const ap = CREDIT_BUCKETS[a.bucket].priority;

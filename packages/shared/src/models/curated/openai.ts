@@ -9,18 +9,12 @@ export const OPENAI_PROVIDER: CuratedProviderDefinition = {
   models: [
     {
       id: "gpt-5.4-mini",
-      providerIds: [
-        "openrouter:openai/gpt-5.4-mini",
-        "openai:gpt-5.4-mini",
-      ],
+      providerIds: ["openrouter:openai/gpt-5.4-mini", "openai:gpt-5.4-mini"],
       defaultProviderId: "openai:gpt-5.4-mini",
     },
     {
       id: "gpt-5.4-nano",
-      providerIds: [
-        "openrouter:openai/gpt-5.4-nano",
-        "openai:gpt-5.4-nano",
-      ],
+      providerIds: ["openrouter:openai/gpt-5.4-nano", "openai:gpt-5.4-nano"],
       defaultProviderId: "openai:gpt-5.4-nano",
     },
     {

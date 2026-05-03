@@ -18,7 +18,6 @@ export const polar: Polar<DataModel> = new Polar<DataModel>(components.polar, {
     await ctx.runQuery(api.functions.user.getCurrentUserPolarInfo, {}),
 });
 
-
 export const {
   cancelCurrentSubscription,
   getConfiguredProducts,

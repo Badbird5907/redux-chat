@@ -74,10 +74,7 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
 function toolsInputForNormalization(
   input: MessageSettingsInput | null | undefined,
 ): MessageToolSettingsInput {
-  if (
-    input == null ||
-    !Object.prototype.hasOwnProperty.call(input, "tools")
-  ) {
+  if (input == null || !Object.prototype.hasOwnProperty.call(input, "tools")) {
     return { ...DEFAULT_MESSAGE_SETTINGS.tools };
   }
   return input.tools ?? {};

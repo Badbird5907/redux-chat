@@ -4,10 +4,9 @@ import { v } from "convex/values";
 import type { PlanTier } from "@redux/shared";
 import { calculateUsageCharge, getPlanConfig } from "@redux/shared";
 
-import { api, internal } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
 import type { BillingSubscriptionSchedule } from "../billing";
-import { backendEnv } from "../env";
+import { api, internal } from "../_generated/api";
 import {
   billingDebugWarn,
   buildPolarCreditUsageEvent,
@@ -21,6 +20,7 @@ import {
   toSubscriptionSnapshot,
 } from "../billing";
 import { getCreditBalanceForUser } from "../credits";
+import { backendEnv } from "../env";
 import { polar } from "../polar";
 import { action, query } from "./index";
 
@@ -144,7 +144,8 @@ export const getCurrentBillingState = query({
         subscriptionState.subscription?.currentPeriodStart ??
         freePeriodBounds?.start,
       currentPeriodEnd:
-        subscriptionState.subscription?.currentPeriodEnd ?? freePeriodBounds?.end,
+        subscriptionState.subscription?.currentPeriodEnd ??
+        freePeriodBounds?.end,
       syncedAt: undefined,
     };
   },
@@ -192,8 +193,14 @@ export const switchCurrentUserPaidPlan = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ prorationBehavior: "invoice" | "next_period"; targetTier: PlanTier }> => {
-    const subscriptionState = await resolveCurrentSubscriptionState(ctx, ctx.userId);
+  ): Promise<{
+    prorationBehavior: "invoice" | "next_period";
+    targetTier: PlanTier;
+  }> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(
+      ctx,
+      ctx.userId,
+    );
     if (subscriptionState.tier === "free") {
       throw new Error(
         "Use checkout to subscribe. Plan switches from this page are only for existing paid subscriptions.",
@@ -238,7 +245,10 @@ export const switchCurrentUserPaidPlan = action({
 export const rescindPaidSubscriptionCancellation = action({
   args: {},
   handler: async (ctx): Promise<{ ok: true }> => {
-    const subscriptionState = await resolveCurrentSubscriptionState(ctx, ctx.userId);
+    const subscriptionState = await resolveCurrentSubscriptionState(
+      ctx,
+      ctx.userId,
+    );
     if (subscriptionState.tier === "free") {
       throw new Error("Only subscribers on a paid plan can use this action.");
     }
@@ -264,7 +274,9 @@ export const rescindPaidSubscriptionCancellation = action({
     }
 
     if (!liveSchedule.cancelAtPeriodEnd) {
-      throw new Error("This subscription is not set to cancel at the end of the period.");
+      throw new Error(
+        "This subscription is not set to cancel at the end of the period.",
+      );
     }
 
     await invokePolarSubscriptionUpdate(polarSdk, {
@@ -283,7 +295,10 @@ export const rescindPaidSubscriptionCancellation = action({
 export const discardScheduledPaidPlanChange = action({
   args: {},
   handler: async (ctx): Promise<{ ok: true }> => {
-    const subscriptionState = await resolveCurrentSubscriptionState(ctx, ctx.userId);
+    const subscriptionState = await resolveCurrentSubscriptionState(
+      ctx,
+      ctx.userId,
+    );
     if (subscriptionState.tier === "free") {
       throw new Error("Only subscribers on a paid plan can use this action.");
     }
@@ -322,7 +337,9 @@ export const discardScheduledPaidPlanChange = action({
     }
 
     if (liveSchedule.pendingProductId === currentProductId) {
-      throw new Error("Polar did not report a plan change queued for this renewal.");
+      throw new Error(
+        "Polar did not report a plan change queued for this renewal.",
+      );
     }
 
     await invokePolarSubscriptionUpdate(polarSdk, {
@@ -531,7 +548,8 @@ async function refreshBillingStateForUser(
         POLAR_NETWORK_TIMEOUT_MS,
         "polar.subscriptions.get",
       );
-      subscriptionSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
+      subscriptionSchedule =
+        subscriptionScheduleFromPolarSdkSubscription(liveSub);
     } catch (error) {
       console.error("Failed to load Polar subscription schedule", {
         userId,
@@ -733,7 +751,9 @@ function getPeriodKeyForTier(subscriptionState: BillingSubscriptionState) {
     subscriptionState.tier !== "free" &&
     subscriptionState.subscription?.currentPeriodStart !== undefined
   ) {
-    return getBillingPeriodKey(subscriptionState.subscription.currentPeriodStart);
+    return getBillingPeriodKey(
+      subscriptionState.subscription.currentPeriodStart,
+    );
   }
 
   return getBillingPeriodKey();

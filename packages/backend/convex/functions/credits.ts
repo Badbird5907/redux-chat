@@ -1,12 +1,17 @@
 import { ConvexError, v } from "convex/values";
 
+import type { CreditBucket, PlanTier } from "@redux/shared";
 import {
   CREDIT_BUCKETS,
   DEFAULT_BILLING_CONFIG,
   getPlanConfig,
 } from "@redux/shared";
-import type { CreditBucket, PlanTier } from "@redux/shared";
 
+import type {
+  CreditBalance,
+  DebitCreditsResult,
+  GrantCreditsResult,
+} from "../credits";
 import { internal } from "../_generated/api";
 import {
   debitCreditsTx,
@@ -18,13 +23,8 @@ import {
   revokeSubscriptionMonthlyCreditsTx,
   sweepExpiredGrantsTx,
 } from "../credits";
-import type {
-  CreditBalance,
-  DebitCreditsResult,
-  GrantCreditsResult,
-} from "../credits";
-import { internalMutation, internalQuery } from "./internal";
 import { backendMutation, mutation, query } from "./index";
+import { internalMutation, internalQuery } from "./internal";
 
 const bucketValidator = v.union(
   v.literal("gifted"),
@@ -203,7 +203,10 @@ export const internal_getBalance = internalQuery({
  */
 export const internal_ensureMonthlyFreeCredits = internalMutation({
   args: { userId: v.string(), tier: v.string() },
-  handler: async (ctx, args): Promise<GrantCreditsResult & { skipped?: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<GrantCreditsResult & { skipped?: boolean }> => {
     const tier = args.tier as PlanTier;
     if (tier !== "free") {
       return {
@@ -251,7 +254,6 @@ export const internal_revokeSubscriptionMonthlyCredits = internalMutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ revoked: number }> => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return await revokeSubscriptionMonthlyCreditsTx(ctx, {
       userId: args.userId,
       subscriptionId: args.subscriptionId,
@@ -269,7 +271,6 @@ export const internal_revokeFreeMonthlyCredits = internalMutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ revoked: number }> => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return await revokeFreeMonthlyCreditsTx(ctx, {
       userId: args.userId,
       reason: args.reason,

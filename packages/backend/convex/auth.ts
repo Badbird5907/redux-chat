@@ -72,7 +72,7 @@ export const getLatestJwks = internalAction({
   handler: async (ctx) => {
     const auth = initAuth(ctx);
     // idk
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return await auth.api.getLatestJwks();
   },
 });

@@ -1,17 +1,17 @@
-import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
 import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useAction } from "convex/react";
+import { ChevronRight, Info } from "lucide-react";
+
 import type { CreditBucket, PlanTier } from "@redux/shared";
+import { api } from "@redux/backend/convex/_generated/api";
 import {
   CREDIT_BUCKETS,
   DEFAULT_BILLING_CONFIG,
   getPlanConfig,
 } from "@redux/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { useAction } from "convex/react";
-import { ChevronRight, Info } from "lucide-react";
-
-import { api } from "@redux/backend/convex/_generated/api";
 import { Button, buttonVariants } from "@redux/ui/components/button";
 import { Card } from "@redux/ui/components/card";
 import {
@@ -227,11 +227,7 @@ function RouteComponent() {
       cancelled = true;
       hydratedScheduleForSubIdRef.current = null;
     };
-  }, [
-    billingQuerySettled,
-    subscriptionIdForHydration,
-    refreshBillingStatus,
-  ]);
+  }, [billingQuerySettled, subscriptionIdForHydration, refreshBillingStatus]);
 
   const billingState = baseBillingState;
 
@@ -320,7 +316,8 @@ function RouteComponent() {
     renewSummary,
   ]);
 
-  const pendingProductIdLive = effectiveLiveSubscriptionSchedule?.pendingProductId;
+  const pendingProductIdLive =
+    effectiveLiveSubscriptionSchedule?.pendingProductId;
   const pendingTierLive = tierForConfiguredProductId(
     pendingProductIdLive,
     polarProducts,
@@ -525,7 +522,7 @@ function RouteComponent() {
           Plans
         </p>
         {showBillingSchedulePanel ? (
-          <Card className="gap-0 bg-primary/4 px-5 py-3 text-sm leading-relaxed ring-primary/30">
+          <Card className="bg-primary/4 ring-primary/30 gap-0 px-5 py-3 text-sm leading-relaxed">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="min-w-0 flex-1">
                 {scheduleNotice ? (
@@ -741,9 +738,9 @@ function TierColumn({
   return (
     <Card
       className={cn(
-        "bg-muted/35 flex min-h-[192px] flex-col gap-0 px-5 py-5 shadow-none ring-border",
+        "bg-muted/35 ring-border flex min-h-[192px] flex-col gap-0 px-5 py-5 shadow-none",
         emphasize && state === "available"
-          ? "bg-primary/3 ring-1 ring-primary/40"
+          ? "bg-primary/3 ring-primary/40 ring-1"
           : null,
       )}
     >
@@ -889,7 +886,7 @@ function CreditBalancePanel({
       <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
         Credit balance
       </p>
-      <Card className="gap-0 overflow-hidden bg-muted/35 p-0 py-0 shadow-none ring-border">
+      <Card className="bg-muted/35 ring-border gap-0 overflow-hidden p-0 py-0 shadow-none">
         {/* Period summary: big totals + usage progress + plan info */}
         <div className="space-y-4 px-5 py-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -900,11 +897,9 @@ function CreditBalancePanel({
                 total === 0
                   ? "Credits left to spend"
                   : `Across ${
-                      orderedBuckets.filter((b) => balances[b] > 0)
-                        .length
+                      orderedBuckets.filter((b) => balances[b] > 0).length
                     } bucket${
-                      orderedBuckets.filter((b) => balances[b] > 0)
-                        .length === 1
+                      orderedBuckets.filter((b) => balances[b] > 0).length === 1
                         ? ""
                         : "s"
                     }`
@@ -981,20 +976,20 @@ function CreditBalancePanel({
           <>
             <Separator />
             <p className="text-muted-foreground px-5 py-3 text-xs">
-            <Info
-              className="mr-1.5 inline-block size-3.5 align-[-2px]"
-              aria-hidden
-            />
-            {expiringSoon
-              .slice(0, 3)
-              .map(
-                (g) =>
-                  `${formatNumber(g.remaining)} ${CREDIT_BUCKETS[g.bucket].label.toLowerCase()} credits expire ${new Intl.DateTimeFormat(
-                    "en-US",
-                    { dateStyle: "medium" },
-                  ).format(g.expiresAt)}`,
-              )
-              .join(" · ")}
+              <Info
+                className="mr-1.5 inline-block size-3.5 align-[-2px]"
+                aria-hidden
+              />
+              {expiringSoon
+                .slice(0, 3)
+                .map(
+                  (g) =>
+                    `${formatNumber(g.remaining)} ${CREDIT_BUCKETS[g.bucket].label.toLowerCase()} credits expire ${new Intl.DateTimeFormat(
+                      "en-US",
+                      { dateStyle: "medium" },
+                    ).format(g.expiresAt)}`,
+                )
+                .join(" · ")}
             </p>
           </>
         ) : null}
