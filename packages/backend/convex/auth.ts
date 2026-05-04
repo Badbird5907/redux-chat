@@ -4,6 +4,7 @@ import type { BetterAuthOptions } from "better-auth/minimal";
 import { createClient } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
+import { admin } from "better-auth/plugins";
 
 import type { DataModel } from "@redux/backend/convex/_generated/dataModel";
 import { components, internal } from "@redux/backend/convex/_generated/api";
@@ -39,6 +40,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
       // oAuthProxy({
       //   productionURL: env.BASE_URL,
       // }),
+      admin(),
       convex({ authConfig }),
     ],
     socialProviders: {

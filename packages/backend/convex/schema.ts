@@ -107,6 +107,25 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  userUsageStats: defineTable({
+    userId: v.string(),
+    userMessageCount: v.number(),
+    threadCount: v.number(),
+    attachmentCount: v.number(),
+    storageBytes: v.number(),
+    lastActiveAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  userDailyUsageStats: defineTable({
+    userId: v.string(),
+    dayKey: v.string(),
+    assistantApiCalls: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_day", ["userId", "dayKey"]),
+
   modelFavorites: defineTable({
     userId: v.string(),
     modelId: v.string(),

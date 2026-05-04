@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
 import type * as credits from "../credits.js";
 import type * as env from "../env.js";
+import type * as functions_adminUserDetail from "../functions/adminUserDetail.js";
 import type * as functions_attachments from "../functions/attachments.js";
 import type * as functions_billing from "../functions/billing.js";
 import type * as functions_credits from "../functions/credits.js";
@@ -28,6 +29,7 @@ import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
 import type * as polar from "../polar.js";
+import type * as usageStats from "../usageStats.js";
 import type * as zod from "../zod.js";
 
 import type {
@@ -41,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   credits: typeof credits;
   env: typeof env;
+  "functions/adminUserDetail": typeof functions_adminUserDetail;
   "functions/attachments": typeof functions_attachments;
   "functions/billing": typeof functions_billing;
   "functions/credits": typeof functions_credits;
@@ -57,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   "functions/user": typeof functions_user;
   http: typeof http;
   polar: typeof polar;
+  usageStats: typeof usageStats;
   zod: typeof zod;
 }>;
 

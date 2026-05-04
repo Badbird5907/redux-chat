@@ -27,7 +27,7 @@ export const CREDIT_BUCKETS = {
   gifted: {
     priority: 10,
     label: "Gifted",
-    description: "Promotional / admin credits",
+    description: "Promotional credits",
   },
   monthly: {
     priority: 20,

@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 
 import type { DataModel } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
+import { updateUserUsageStats } from "../usageStats";
 import { mutation, query } from "./index";
 
 function generateProjectId() {
@@ -210,6 +211,11 @@ export const deleteProject = mutation({
       );
       await deleteAttachmentEmbeddings(ctx, file.attachmentId);
       await ctx.db.delete(file._id);
+      await updateUserUsageStats(ctx, ctx.userId, {
+        attachmentsDelta: -1,
+        storageBytesDelta: -file.size,
+        lastActiveAt: Date.now(),
+      });
     }
 
     await ctx.db.delete(project._id);
@@ -316,6 +322,11 @@ export const deleteProjectFile = mutation({
     );
     await deleteAttachmentEmbeddings(ctx, args.attachmentId);
     await ctx.db.delete(attachment._id);
+    await updateUserUsageStats(ctx, ctx.userId, {
+      attachmentsDelta: -1,
+      storageBytesDelta: -attachment.size,
+      lastActiveAt: Date.now(),
+    });
     return { success: true };
   },
 });

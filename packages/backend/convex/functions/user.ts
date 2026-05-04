@@ -64,6 +64,27 @@ export const getCurrentUserId = query({
   },
 });
 
+function rolesFromAuthRoleField(role: string | null | undefined): string[] {
+  if (role == null || role === "") {
+    return ["user"];
+  }
+  return role
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+}
+
+/** Better Auth admin plugin stores multiple roles as a comma-separated string. */
+export const getAdminDashboardAccess = query({
+  handler: async (ctx) => {
+    const user = await authComponent.getAuthUser(ctx);
+    const roleField = (user as { role?: string | null }).role;
+    const roles = rolesFromAuthRoleField(roleField);
+    const isAdmin = roles.includes("admin");
+    return { isAdmin, roles };
+  },
+});
+
 export const getCurrentUserPolarInfo = query({
   handler: async (ctx) => {
     const user = await authComponent.getAnyUserById(ctx, ctx.userId);

@@ -8,6 +8,7 @@ import {
   getMonthlyPeriodKey,
   grantCreditsTx,
 } from "../credits";
+import { usageStatsDayKey } from "../usageStats";
 import { backendMutation, backendQuery } from "./index";
 
 export const getLegacyMessageSettingsCounts = backendQuery({
@@ -122,6 +123,110 @@ export const getUserCreditLedgerSummary = backendQuery({
       totalRemaining: grants.reduce((sum, g) => sum + g.remaining, 0),
       recentDebits: debits.length,
       recentDebitTotal: debits.reduce((sum, d) => sum + d.amount, 0),
+    };
+  },
+});
+
+export const backfillUserUsageStats = backendMutation({
+  args: {
+    secret: v.string(),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const threads = await ctx.db
+      .query("threads")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const messagesByThread = await Promise.all(
+      threads.map((thread) =>
+        ctx.db
+          .query("messages")
+          .withIndex("by_threadId", (q) => q.eq("threadId", thread.threadId))
+          .collect(),
+      ),
+    );
+
+    const attachments = await ctx.db
+      .query("attachments")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const messages = messagesByThread.flat();
+    const now = Date.now();
+    const lastActiveAt = Math.max(
+      0,
+      ...threads.map((thread) => thread.updatedAt),
+      ...attachments.map((attachment) => attachment.updatedAt),
+      ...messages.map((message) => message._creationTime),
+    );
+
+    const existingTotals = await ctx.db
+      .query("userUsageStats")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+
+    const totals = {
+      userMessageCount: messages.filter((message) => message.role === "user")
+        .length,
+      threadCount: threads.length,
+      attachmentCount: attachments.length,
+      storageBytes: attachments.reduce(
+        (total, attachment) => total + attachment.size,
+        0,
+      ),
+      lastActiveAt: lastActiveAt > 0 ? lastActiveAt : undefined,
+      updatedAt: now,
+    };
+
+    if (existingTotals === null) {
+      await ctx.db.insert("userUsageStats", {
+        userId: args.userId,
+        ...totals,
+        createdAt: now,
+      });
+    } else {
+      await ctx.db.patch(existingTotals._id, totals);
+    }
+
+    const existingDailyRows = await ctx.db
+      .query("userDailyUsageStats")
+      .withIndex("by_user_day", (q) => q.eq("userId", args.userId))
+      .collect();
+    for (const row of existingDailyRows) {
+      await ctx.db.delete(row._id);
+    }
+
+    const assistantCallsByDay = new Map<string, number>();
+    for (const message of messages) {
+      if (message.role !== "assistant" || message.usage === undefined) {
+        continue;
+      }
+      const dayKey = usageStatsDayKey(message._creationTime);
+      assistantCallsByDay.set(
+        dayKey,
+        (assistantCallsByDay.get(dayKey) ?? 0) + 1,
+      );
+    }
+
+    for (const [dayKey, assistantApiCalls] of assistantCallsByDay) {
+      await ctx.db.insert("userDailyUsageStats", {
+        userId: args.userId,
+        dayKey,
+        assistantApiCalls,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return {
+      userId: args.userId,
+      totalMessages: totals.userMessageCount,
+      threadsCreated: totals.threadCount,
+      attachmentsUploaded: totals.attachmentCount,
+      storageBytes: totals.storageBytes,
+      dailyBuckets: assistantCallsByDay.size,
+      completedAt: now,
     };
   },
 });
