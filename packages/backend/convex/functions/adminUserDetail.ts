@@ -1,49 +1,23 @@
 import { ConvexError, v } from "convex/values";
 
 import { components } from "../_generated/api";
-import { authComponent } from "../auth";
 import { getDenormalizedUsageStats } from "../usageStats";
-import { mutation, query } from "./index";
+import { adminMutation, adminQuery } from "./index";
 
-function rolesFromAuthRoleField(role: string | null | undefined): string[] {
-  if (role == null || role === "") {
-    return ["user"];
-  }
-  return role
-    .split(",")
-    .map((r) => r.trim())
-    .filter((r) => r.length > 0);
-}
-
-async function ensureAdmin(
-  ctx: Parameters<typeof authComponent.getAuthUser>[0],
-) {
-  const me = await authComponent.getAuthUser(ctx);
-  const roleField = (me as { role?: string | null }).role;
-  const roles = rolesFromAuthRoleField(roleField);
-  if (!roles.includes("admin")) {
-    throw new ConvexError("Forbidden");
-  }
-}
-
-export const getUsageStatsForUser = query({
+export const getUsageStatsForUser = adminQuery({
   args: {
     targetUserId: v.string(),
   },
   handler: async (ctx, { targetUserId }) => {
-    await ensureAdmin(ctx);
-
     return await getDenormalizedUsageStats(ctx, targetUserId);
   },
 });
 
-export const listLinkedAccountsForUser = query({
+export const listLinkedAccountsForUser = adminQuery({
   args: {
     targetUserId: v.string(),
   },
   handler: async (ctx, { targetUserId }) => {
-    await ensureAdmin(ctx);
-
     const paginated: unknown = await ctx.runQuery(
       components.betterAuth.adapter.findMany,
       {
@@ -101,15 +75,13 @@ export const listLinkedAccountsForUser = query({
   },
 });
 
-export const unlinkLinkedAccountForUser = mutation({
+export const unlinkLinkedAccountForUser = adminMutation({
   args: {
     targetUserId: v.string(),
     providerId: v.string(),
     externalAccountId: v.string(),
   },
   handler: async (ctx, { targetUserId, providerId, externalAccountId }) => {
-    await ensureAdmin(ctx);
-
     const paginated: unknown = await ctx.runQuery(
       components.betterAuth.adapter.findMany,
       {

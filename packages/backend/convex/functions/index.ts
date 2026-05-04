@@ -18,7 +18,30 @@ import {
   mutation as rawMutation,
   query as rawQuery,
 } from "../_generated/server";
+import { authComponent } from "../auth";
 import { backendEnv } from "../env";
+
+function rolesFromAuthRoleField(role: string | null | undefined): string[] {
+  if (role == null || role === "") {
+    return ["user"];
+  }
+  return role
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+}
+
+async function assertAuthUserIsAdmin(
+  ctx: Parameters<typeof authComponent.getAuthUser>[0],
+) {
+  const me = await authComponent.getAuthUser(ctx);
+  const roleField = (me as { role?: string | null }).role;
+  const roles = rolesFromAuthRoleField(roleField);
+  if (!roles.includes("admin")) {
+    throw new ConvexError("Forbidden");
+  }
+  return {};
+}
 
 const triggers = new Triggers<DataModel>();
 
@@ -67,6 +90,22 @@ export const action = customAction(
       throw new ConvexError("Unauthorized");
     }
     return { user, userId: user.subject };
+  }),
+);
+
+export const adminQuery = customQuery(
+  query,
+  customCtx(async (ctx) => {
+    await assertAuthUserIsAdmin(ctx);
+    return {};
+  }),
+);
+
+export const adminMutation = customMutation(
+  mutation,
+  customCtx(async (ctx) => {
+    await assertAuthUserIsAdmin(ctx);
+    return {};
   }),
 );
 
