@@ -8,13 +8,62 @@ import { adminMutation, adminQuery } from "./index";
 export const listAuditLogsForUser = adminQuery({
   args: {
     targetUserId: v.string(),
+    from: v.optional(v.number()),
+    to: v.optional(v.number()),
+    status: v.optional(v.union(v.literal("success"), v.literal("failed"))),
+    severity: v.optional(
+      v.union(
+        v.literal("low"),
+        v.literal("medium"),
+        v.literal("high"),
+        v.literal("critical"),
+      ),
+    ),
+    actions: v.optional(v.array(v.string())),
+    ipAddresses: v.optional(v.array(v.string())),
     paginationOpts: paginationOptsValidator,
   },
-  handler: async (ctx, { targetUserId, paginationOpts }) => {
+  handler: async (
+    ctx,
+    {
+      targetUserId,
+      paginationOpts,
+      from,
+      to,
+      status,
+      severity,
+      actions,
+      ipAddresses,
+    },
+  ) => {
+    const where: {
+      field: string;
+      operator?: "eq" | "gte" | "lte" | "in";
+      value: string | number | Array<string>;
+    }[] = [{ field: "userId", operator: "eq", value: targetUserId }];
+    if (from !== undefined) {
+      where.push({ field: "createdAt", operator: "gte", value: from });
+    }
+    if (to !== undefined) {
+      where.push({ field: "createdAt", operator: "lte", value: to });
+    }
+    if (status !== undefined) {
+      where.push({ field: "status", operator: "eq", value: status });
+    }
+    if (severity !== undefined) {
+      where.push({ field: "severity", operator: "eq", value: severity });
+    }
+    if (actions !== undefined && actions.length > 0) {
+      where.push({ field: "action", operator: "in", value: actions });
+    }
+    if (ipAddresses !== undefined && ipAddresses.length > 0) {
+      where.push({ field: "ipAddress", operator: "in", value: ipAddresses });
+    }
+
     return (await ctx.runQuery(components.betterAuth.adapter.findMany, {
       model: "auditLog",
       paginationOpts,
-      where: [{ field: "userId", operator: "eq", value: targetUserId }],
+      where,
       sortBy: { field: "createdAt", direction: "desc" },
     })) as {
       page: {
@@ -27,6 +76,38 @@ export const listAuditLogsForUser = adminQuery({
       }[];
       isDone: boolean;
       continueCursor: string;
+    };
+  },
+});
+
+export const listAuditLogFacetsForUser = adminQuery({
+  args: {
+    targetUserId: v.string(),
+  },
+  handler: async (ctx, { targetUserId }) => {
+    const FACET_SCAN_LIMIT = 1000;
+    const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "auditLog",
+      paginationOpts: { numItems: FACET_SCAN_LIMIT, cursor: null },
+      where: [{ field: "userId", operator: "eq", value: targetUserId }],
+      sortBy: { field: "createdAt", direction: "desc" },
+    })) as {
+      page: { action: string; ipAddress?: string | null }[];
+    };
+
+    const actions = new Set<string>();
+    const ipAddresses = new Set<string>();
+    for (const row of result.page) {
+      if (typeof row.action === "string" && row.action.length > 0) {
+        actions.add(row.action);
+      }
+      if (typeof row.ipAddress === "string" && row.ipAddress.length > 0) {
+        ipAddresses.add(row.ipAddress);
+      }
+    }
+    return {
+      actions: Array.from(actions).sort(),
+      ipAddresses: Array.from(ipAddresses).sort(),
     };
   },
 });
