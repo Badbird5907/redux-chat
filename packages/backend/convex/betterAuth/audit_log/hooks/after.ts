@@ -17,11 +17,37 @@ export function createAfterHooks(opts: ResolvedOptions, modelName: string) {
         try {
           const path = ctx.path;
           if (!path) return;
-          const isError = ctx.context.returned instanceof Error;
+
+          const returned = ctx.context.returned;
+          // BetterAuth signals redirects (e.g. OAuth callback success) as an
+          // APIError with status "FOUND". That is not a real failure.
+          const isRedirect =
+            returned instanceof Error &&
+            "status" in returned &&
+            (returned as { status?: unknown }).status === "FOUND";
+          const isError = returned instanceof Error && !isRedirect;
           const status: AuditLogStatus = isError ? "failed" : "success";
 
           const user =
             ctx.context.newSession?.user ?? ctx.context.session?.user;
+
+          // Skip pre-auth redirects where no user identity is available yet
+          // (e.g. the initial /sign-in/social hop to the provider).
+          if (user == null && !isError) return;
+
+          // BetterAuth only fires sign-in/* for credential flows. OAuth
+          // sign-ins complete at /callback/:provider — rewrite to
+          // /sign-in/social/:provider so the event is consistent with
+          // credential sign-ins and carries the provider name.
+          // Note: `path` is the route pattern (/callback/:id), so we read
+          // the actual provider from the request URL instead.
+          const effectivePath = (() => {
+            if (!isRedirect || !path.startsWith("/callback/")) return path;
+            const provider = ctx.request
+              ? new URL(ctx.request.url).pathname.split("/").pop()
+              : undefined;
+            return `/sign-in/social/${provider ?? "unknown"}`;
+          })();
 
           const pathConfig = opts.getPathConfig(path);
 
@@ -32,8 +58,8 @@ export function createAfterHooks(opts: ResolvedOptions, modelName: string) {
           }
 
           if (isError) {
-            const err = ctx.context.returned as Error & {
-              status?: number;
+            const err = returned as Error & {
+              status?: unknown;
               code?: string;
             };
             metadata.error = {
@@ -43,7 +69,7 @@ export function createAfterHooks(opts: ResolvedOptions, modelName: string) {
             };
           }
 
-          const entry = await buildLogEntry(path, status, {
+          const entry = await buildLogEntry(effectivePath, status, {
             userId: user?.id ?? null,
             request: ctx.request,
             headers: ctx.headers,

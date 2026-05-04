@@ -1,8 +1,35 @@
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { components } from "../_generated/api";
 import { getDenormalizedUsageStats } from "../usageStats";
 import { adminMutation, adminQuery } from "./index";
+
+export const listAuditLogsForUser = adminQuery({
+  args: {
+    targetUserId: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { targetUserId, paginationOpts }) => {
+    return (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "auditLog",
+      paginationOpts,
+      where: [{ field: "userId", operator: "eq", value: targetUserId }],
+      sortBy: { field: "createdAt", direction: "desc" },
+    })) as {
+      page: {
+        _id: string;
+        action: string;
+        status: string;
+        severity: string;
+        ipAddress?: string | null;
+        createdAt: number;
+      }[];
+      isDone: boolean;
+      continueCursor: string;
+    };
+  },
+});
 
 export const getUsageStatsForUser = adminQuery({
   args: {

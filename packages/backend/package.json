@@ -30,6 +30,10 @@
     "./convex/functions": {
       "types": "./convex/functions/index.ts",
       "default": "./convex/functions/index.ts"
+    },
+    "./convex/betterAuth/audit_log/client": {
+      "types": "./convex/betterAuth/audit_log/client.ts",
+      "default": "./convex/betterAuth/audit_log/client.ts"
     }
   },
   "license": "MIT",

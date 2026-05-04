@@ -25,7 +25,7 @@ import { DeleteDialog } from "./dialogs/delete-dialog";
 import { EditProfileDialog } from "./dialogs/edit-profile-dialog";
 import { ImpersonateDialog } from "./dialogs/impersonate-dialog";
 import { UnbanDialog } from "./dialogs/unban-dialog";
-import { EmptyTab } from "./empty-tab";
+import { AdminUserActivityTab } from "./activity-tab";
 import { AdminUserOverviewTab } from "./overview-tab";
 import { AdminUserSessionsTab } from "./sessions-tab";
 import { AdminUserDetailHeader } from "./user-detail-header";
@@ -133,7 +133,7 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
         onOpenDialog={(d) => setActiveDialog(d)}
       />
 
-      <Tabs defaultValue="overview" className="gap-6">
+      <Tabs defaultValue="overview" className="gap-6" queryParam>
         <TabsList variant="line" className="self-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
@@ -154,10 +154,7 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
         </TabsContent>
 
         <TabsContent value="activity">
-          <EmptyTab
-            title="Activity"
-            description="Audit log and timeline view is not implemented yet."
-          />
+          <AdminUserActivityTab userId={userId} displayName={displayName} />
         </TabsContent>
       </Tabs>
 

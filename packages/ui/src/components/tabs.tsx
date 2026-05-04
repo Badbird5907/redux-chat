@@ -1,6 +1,6 @@
 "use client";
 
-import type * as React from "react";
+import * as React from "react";
 import type { VariantProps } from "class-variance-authority";
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 import { cva } from "class-variance-authority";
@@ -15,11 +15,129 @@ const tabsTriggerClassName = cn(
   "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
 );
 
+export type TabsProps = TabsPrimitive.Root.Props & {
+  /**
+   * When true, the active tab value is synced to `?<queryParamKey>=…` via
+   * `history.replaceState` on tab changes (no extra history entries).
+   *
+   * **Uncontrolled:** the tab from the query string overrides `defaultValue` after
+   * mount (reload / open with `?tab=…`).
+   *
+   * **Controlled:** initialize `value` from the route search params yourself on
+   * the server/client; switching tabs updates the URL when the inner trigger
+   * fires `onValueChange`. Browser back/forward calls `onValueChange` when the
+   * query param differs from `value` (needs a handler that updates React state).
+   */
+  queryParam?: boolean | undefined;
+  /** URL query key used when `queryParam` is true. @default "tab" */
+  queryParamKey?: string | undefined;
+};
+
+function readTabFromSearch(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get(key);
+  return raw !== null && raw !== "" ? raw : null;
+}
+
+function writeTabToSearch(
+  key: string,
+  value: TabsPrimitive.Tab.Value | undefined,
+) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (value === undefined || value === null || value === "") {
+    url.searchParams.delete(key);
+  } else {
+    url.searchParams.set(key, String(value));
+  }
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
 function Tabs({
   className,
   orientation = "horizontal",
+  queryParam = false,
+  queryParamKey = "tab",
+  value: valueProp,
+  defaultValue,
+  onValueChange,
   ...props
-}: TabsPrimitive.Root.Props) {
+}: TabsProps) {
+  const isControlled = valueProp !== undefined;
+  const [internalValue, setInternalValue] = React.useState<
+    TabsPrimitive.Tab.Value | undefined
+  >(() => (defaultValue !== undefined ? defaultValue : 0));
+
+  React.useLayoutEffect(() => {
+    if (!queryParam) return;
+    if (isControlled) return;
+    const fromUrl = readTabFromSearch(queryParamKey);
+    if (fromUrl === null) return;
+    setInternalValue((current: TabsPrimitive.Tab.Value | undefined) => {
+      if (String(current) === fromUrl) return current;
+      return coerceTabValue(fromUrl, current);
+    });
+  }, [queryParam, queryParamKey, isControlled]);
+
+  React.useEffect(() => {
+    if (!queryParam) return;
+    if (isControlled) {
+      const onPopState = () => {
+        const fromUrl = readTabFromSearch(queryParamKey);
+        if (fromUrl === null) return;
+        const next = coerceTabValue(fromUrl, valueProp);
+        if (String(next) === String(valueProp)) return;
+        onValueChange?.(next, POPSTATE_CHANGE_DETAILS);
+      };
+      window.addEventListener("popstate", onPopState);
+      return () => window.removeEventListener("popstate", onPopState);
+    }
+    const onPopState = () => {
+      const fromUrl = readTabFromSearch(queryParamKey);
+      if (fromUrl === null) return;
+      setInternalValue((current: TabsPrimitive.Tab.Value | undefined) =>
+        coerceTabValue(fromUrl, current),
+      );
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [queryParam, queryParamKey, isControlled, valueProp, onValueChange]);
+
+  const handleValueChange = React.useCallback<
+    NonNullable<TabsProps["onValueChange"]>
+  >(
+    (next, details) => {
+      if (!isControlled) {
+        setInternalValue(next);
+      }
+      if (queryParam) {
+        writeTabToSearch(queryParamKey, next);
+      }
+      onValueChange?.(next, details);
+    },
+    [isControlled, onValueChange, queryParam, queryParamKey],
+  );
+
+  const rootControlledProps =
+    queryParam ?
+      ({
+        value: isControlled ? valueProp : internalValue,
+        onValueChange: handleValueChange,
+      } as const)
+    : isControlled ?
+      ({
+        value: valueProp,
+        onValueChange,
+      } as const)
+    : ({
+        ...(defaultValue !== undefined ? { defaultValue } : {}),
+        onValueChange,
+      } as const);
+
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
@@ -29,9 +147,37 @@ function Tabs({
         className,
       )}
       {...props}
+      {...rootControlledProps}
     />
   );
 }
+
+/** Coerce URL string to match prior value type when possible (e.g. numeric tab values). */
+function coerceTabValue(
+  fromUrl: string,
+  fallback: TabsPrimitive.Tab.Value | undefined,
+): TabsPrimitive.Tab.Value {
+  if (typeof fallback === "number") {
+    const n = Number(fromUrl);
+    if (!Number.isNaN(n)) return n;
+  }
+  return fromUrl;
+}
+
+type TabsValueChangeDetails = Parameters<
+  NonNullable<TabsPrimitive.Root.Props["onValueChange"]>
+>[1];
+
+const POPSTATE_CHANGE_DETAILS = {
+  reason: "none",
+  event: new Event("popstate"),
+  cancel: () => {},
+  allowPropagation: () => {},
+  isCanceled: false,
+  isPropagationAllowed: true,
+  trigger: undefined,
+  activationDirection: "none",
+} as unknown as TabsValueChangeDetails;
 
 const tabsListVariants = cva(
   "group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-8 group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col data-[variant=line]:rounded-none",

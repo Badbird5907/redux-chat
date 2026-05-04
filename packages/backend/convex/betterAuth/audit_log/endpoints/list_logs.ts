@@ -23,8 +23,9 @@ export function createListLogsEndpoint(opts: ResolvedOptions, modelName: string)
     async (ctx) => {
       const session = ctx.context.session;
       const targetUserId = ctx.query.userId ?? session.user.id;
+      const isAdmin = (session.user as Record<string, unknown>).role === "admin";
 
-      if (targetUserId !== session.user.id) {
+      if (targetUserId !== session.user.id && !isAdmin) {
         throw new APIError("FORBIDDEN", {
           message: "Cannot query other users' audit logs",
         });

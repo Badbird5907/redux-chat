@@ -11,7 +11,7 @@ import type {
   PathConfig,
   ResolvedOptions,
 } from "./types";
-import { DEFAULT_METADATA_LIMITS } from "./utils/validate-metadata";
+import { DEFAULT_METADATA_LIMITS } from "./utils/validate_metadata";
 
 const DEFAULT_BEFORE_PATHS = [
   "/sign-out",

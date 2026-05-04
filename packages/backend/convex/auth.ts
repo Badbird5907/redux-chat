@@ -14,7 +14,8 @@ import { internalAction } from "./_generated/server";
 import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
-import { auditLog } from "better-auth-audit-logs";
+import { auditLog } from "./betterAuth/audit_log";
+import fa from "zod/v4/locales/fa.cjs";
 
 const authFunctions: AuthFunctions = internal.auth;
 export const authComponent = createClient<DataModel, typeof authSchema>(
@@ -43,10 +44,12 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
       // }),
       admin(),
       auditLog({
-        nonBlocking: true,
+        nonBlocking: false,
         // eslint-disable-next-line @typescript-eslint/require-await
         beforeLog: async (entry) => {
-          if (entry.action.startsWith("convex:")) { // we don't want to log internal stuff
+          console.log("entry", entry);
+          const { action } = entry;
+          if (action.startsWith("convex:") || action === "get-session") { // we don't want to log internal stuff
             return null;
           }
           return entry;
