@@ -14,6 +14,7 @@ import { internalAction } from "./_generated/server";
 import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
+import { auditLog } from "better-auth-audit-logs";
 
 const authFunctions: AuthFunctions = internal.auth;
 export const authComponent = createClient<DataModel, typeof authSchema>(
@@ -41,6 +42,20 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
       //   productionURL: env.BASE_URL,
       // }),
       admin(),
+      auditLog({
+        nonBlocking: true,
+        // eslint-disable-next-line @typescript-eslint/require-await
+        beforeLog: async (entry) => {
+          if (entry.action.startsWith("convex:")) { // we don't want to log internal stuff
+            return null;
+          }
+          return entry;
+        },
+        retention: {
+          enabled: false,
+          days: 0,
+        }
+      }),
       convex({ authConfig }),
     ],
     socialProviders: {

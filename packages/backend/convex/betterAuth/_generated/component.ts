@@ -87,6 +87,19 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               }
             | {
                 data: {
+                  action: string;
+                  createdAt: number;
+                  ipAddress?: null | string;
+                  metadata?: null | string;
+                  severity: string;
+                  status: string;
+                  userAgent?: null | string;
+                  userId?: null | string;
+                };
+                model: "auditLog";
+              }
+            | {
+                data: {
                   createdAt: number;
                   expiresAt?: null | number;
                   privateKey: string;
@@ -230,6 +243,42 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
+                  operator?:
+                    | "lt"
+                    | "lte"
+                    | "gt"
+                    | "gte"
+                    | "eq"
+                    | "in"
+                    | "not_in"
+                    | "ne"
+                    | "contains"
+                    | "starts_with"
+                    | "ends_with";
+                  value:
+                    | string
+                    | number
+                    | boolean
+                    | Array<string>
+                    | Array<number>
+                    | null;
+                }>;
+              }
+            | {
+                model: "auditLog";
+                where?: Array<{
+                  connector?: "AND" | "OR";
+                  field:
+                    | "userId"
+                    | "action"
+                    | "status"
+                    | "severity"
+                    | "ipAddress"
+                    | "userAgent"
+                    | "metadata"
+                    | "createdAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -452,6 +501,42 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 }>;
               }
             | {
+                model: "auditLog";
+                where?: Array<{
+                  connector?: "AND" | "OR";
+                  field:
+                    | "userId"
+                    | "action"
+                    | "status"
+                    | "severity"
+                    | "ipAddress"
+                    | "userAgent"
+                    | "metadata"
+                    | "createdAt"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
+                  operator?:
+                    | "lt"
+                    | "lte"
+                    | "gt"
+                    | "gte"
+                    | "eq"
+                    | "in"
+                    | "not_in"
+                    | "ne"
+                    | "contains"
+                    | "starts_with"
+                    | "ends_with";
+                  value:
+                    | string
+                    | number
+                    | boolean
+                    | Array<string>
+                    | Array<number>
+                    | null;
+                }>;
+              }
+            | {
                 model: "jwks";
                 where?: Array<{
                   connector?: "AND" | "OR";
@@ -494,7 +579,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           join?: any;
           limit?: number;
-          model: "user" | "session" | "account" | "verification" | "jwks";
+          model:
+            | "user"
+            | "session"
+            | "account"
+            | "verification"
+            | "auditLog"
+            | "jwks";
           offset?: number;
           paginationOpts: {
             cursor: string | null;
@@ -539,7 +630,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         {
           join?: any;
-          model: "user" | "session" | "account" | "verification" | "jwks";
+          model:
+            | "user"
+            | "session"
+            | "account"
+            | "verification"
+            | "auditLog"
+            | "jwks";
           select?: Array<string>;
           where?: Array<{
             connector?: "AND" | "OR";
@@ -743,6 +840,52 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
+                  operator?:
+                    | "lt"
+                    | "lte"
+                    | "gt"
+                    | "gte"
+                    | "eq"
+                    | "in"
+                    | "not_in"
+                    | "ne"
+                    | "contains"
+                    | "starts_with"
+                    | "ends_with";
+                  value:
+                    | string
+                    | number
+                    | boolean
+                    | Array<string>
+                    | Array<number>
+                    | null;
+                }>;
+              }
+            | {
+                model: "auditLog";
+                update: {
+                  action?: string;
+                  createdAt?: number;
+                  ipAddress?: null | string;
+                  metadata?: null | string;
+                  severity?: string;
+                  status?: string;
+                  userAgent?: null | string;
+                  userId?: null | string;
+                };
+                where?: Array<{
+                  connector?: "AND" | "OR";
+                  field:
+                    | "userId"
+                    | "action"
+                    | "status"
+                    | "severity"
+                    | "ipAddress"
+                    | "userAgent"
+                    | "metadata"
+                    | "createdAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -991,6 +1134,52 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
+                  operator?:
+                    | "lt"
+                    | "lte"
+                    | "gt"
+                    | "gte"
+                    | "eq"
+                    | "in"
+                    | "not_in"
+                    | "ne"
+                    | "contains"
+                    | "starts_with"
+                    | "ends_with";
+                  value:
+                    | string
+                    | number
+                    | boolean
+                    | Array<string>
+                    | Array<number>
+                    | null;
+                }>;
+              }
+            | {
+                model: "auditLog";
+                update: {
+                  action?: string;
+                  createdAt?: number;
+                  ipAddress?: null | string;
+                  metadata?: null | string;
+                  severity?: string;
+                  status?: string;
+                  userAgent?: null | string;
+                  userId?: null | string;
+                };
+                where?: Array<{
+                  connector?: "AND" | "OR";
+                  field:
+                    | "userId"
+                    | "action"
+                    | "status"
+                    | "severity"
+                    | "ipAddress"
+                    | "userAgent"
+                    | "metadata"
+                    | "createdAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
