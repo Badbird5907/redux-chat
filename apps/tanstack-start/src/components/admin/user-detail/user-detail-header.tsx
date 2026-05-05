@@ -3,6 +3,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  ExternalLink,
   KeyRound,
   MoreHorizontal,
   ShieldOff,
@@ -26,6 +27,8 @@ import {
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 
+import type { UserBillingState } from "@redux/shared";
+
 import type { ActiveDialog, AdminUserDetail } from "./types";
 
 export function AdminUserDetailHeader({
@@ -34,12 +37,14 @@ export function AdminUserDetailHeader({
   copied,
   onCopyId,
   onOpenDialog,
+  billingState,
 }: {
   user: AdminUserDetail;
   displayName: string;
   copied: boolean;
   onCopyId: () => void;
   onOpenDialog: (d: Exclude<ActiveDialog, null>) => void;
+  billingState?: UserBillingState;
 }) {
   const initials = displayName
     .split(/\s+/)
@@ -89,19 +94,33 @@ export function AdminUserDetailHeader({
         <p className="text-muted-foreground mt-1 truncate text-sm">
           {user.email}
         </p>
-        <button
-          type="button"
-          onClick={() => void onCopyId()}
-          className="text-muted-foreground/80 hover:text-foreground mt-2 inline-flex max-w-full items-center gap-1.5 font-mono text-[11px] transition-colors"
-          aria-label="Copy user ID"
-        >
-          <span className="truncate">{user.id}</span>
-          {copied ? (
-            <Check className="size-3 shrink-0 text-emerald-500" />
-          ) : (
-            <Copy className="size-3 shrink-0" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void onCopyId()}
+            className="text-muted-foreground/80 hover:text-foreground mt-2 inline-flex max-w-full items-center gap-1.5 font-mono text-[11px] transition-colors"
+            aria-label="Copy user ID"
+          >
+            <span className="truncate">{user.id}</span>
+            {copied ? (
+              <Check className="size-3 shrink-0 text-emerald-500" />
+            ) : (
+              <Copy className="size-3 shrink-0" />
+            )}
+          </button>
+          {billingState?.url ? (
+            <a
+              href={billingState.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground/80 hover:text-foreground mt-1.5 inline-flex max-w-full items-center gap-1 text-xs underline-offset-4 hover:underline"
+              aria-label="Open Polar customer (opens in a new tab)"
+            >
+              <span className="truncate">Polar customer</span>
+              <ExternalLink className="size-3 shrink-0" aria-hidden />
+            </a>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

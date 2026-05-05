@@ -5,6 +5,7 @@ import {
   debitCreditsTx,
   getCreditBalanceForUser,
   grantCreditsTx,
+  revokeCreditGrantForUserTx,
   revokeFreeMonthlyCreditsTx,
   revokeSubscriptionMonthlyCreditsTx,
   sweepExpiredGrantsTx,
@@ -341,5 +342,31 @@ describe("credit ledger helpers", () => {
       paid: 1_000,
     });
     expect(balance.spendableCredits).toBe(251_000);
+  });
+
+  it("admin single-grant revoke removes remaining balance", async () => {
+    const t = convexTest(schema, modules);
+
+    const created = await t.run(async (ctx) =>
+      grantCreditsTx(ctx, {
+        userId: USER_ID,
+        bucket: "gifted",
+        amount: 500,
+        source: "admin_grant",
+        sourceId: "admin:test-single-revoke",
+      }),
+    );
+
+    await t.run(async (ctx) => {
+      await revokeCreditGrantForUserTx(ctx, {
+        userId: USER_ID,
+        grantId: created.grantId,
+      });
+    });
+
+    const balance = await t.run(async (ctx) =>
+      getCreditBalanceForUser(ctx, USER_ID),
+    );
+    expect(balance.spendableCredits).toBe(0);
   });
 });

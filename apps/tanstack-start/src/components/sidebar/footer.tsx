@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
-import { LogIn, LogOut, Settings, UserRoundX } from "lucide-react";
+import { LogIn, LogOut, Settings, Shield, UserRoundX } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@redux/ui/components/button";
@@ -98,6 +98,11 @@ export const AppSidebarFooter = () => {
   const isImpersonating = Boolean(
     (session.session as { impersonatedBy?: string | null }).impersonatedBy,
   );
+  const roles = ((session.user as { role?: string | null }).role ?? "user")
+    .split(",")
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0);
+  const isAdmin = roles.includes("admin");
 
   if (isMobile) {
     return (
@@ -128,6 +133,20 @@ export const AppSidebarFooter = () => {
               <Settings className="size-4" />
               <span>Settings</span>
             </SheetClose>
+            {isAdmin ? (
+              <SheetClose
+                render={
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    render={<Link to="/admin" />}
+                  />
+                }
+              >
+                <Shield className="size-4" />
+                <span>Admin</span>
+              </SheetClose>
+            ) : null}
             {isImpersonating ? (
               <Button
                 variant="outline"
@@ -166,6 +185,12 @@ export const AppSidebarFooter = () => {
           <Settings className="size-4" />
           <span>Settings</span>
         </DropdownMenuItem>
+        {isAdmin ? (
+          <DropdownMenuItem render={<Link to="/admin" />}>
+            <Shield className="size-4" />
+            <span>Admin</span>
+          </DropdownMenuItem>
+        ) : null}
         {isImpersonating ? (
           <>
             <DropdownMenuSeparator />

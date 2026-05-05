@@ -137,7 +137,7 @@ function AdminUsersPage() {
           Users
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Results are limited to your admin API permissions.
+          List, search, and inspect accounts
         </p>
       </div>
 

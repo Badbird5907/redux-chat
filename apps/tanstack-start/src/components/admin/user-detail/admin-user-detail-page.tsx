@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useQuery as useConvexQuery } from "@/lib/hooks/convex";
 
 import {
   Card,
@@ -26,9 +27,11 @@ import { EditProfileDialog } from "./dialogs/edit-profile-dialog";
 import { ImpersonateDialog } from "./dialogs/impersonate-dialog";
 import { UnbanDialog } from "./dialogs/unban-dialog";
 import { AdminUserActivityTab } from "./activity-tab";
+import { AdminUserCreditsTab } from "./credits-tab";
 import { AdminUserOverviewTab } from "./overview-tab";
 import { AdminUserSessionsTab } from "./sessions-tab";
 import { AdminUserDetailHeader } from "./user-detail-header";
+import { api } from "@redux/backend/convex/_generated/api";
 
 export function AdminUserDetailPage({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);
@@ -47,6 +50,11 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
       return res.data;
     },
   });
+
+  const billingState = useConvexQuery(
+    api.functions.adminUserDetail.getBillingStateForUser,
+    { targetUserId: userId },
+  );
 
   const user = userQuery.data as AdminUserDetail | undefined;
 
@@ -129,6 +137,7 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
         user={user}
         displayName={displayName}
         copied={copied}
+        billingState={billingState}
         onCopyId={copyId}
         onOpenDialog={(d) => setActiveDialog(d)}
       />
@@ -138,6 +147,7 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
+          <TabsTrigger value="credits">Credits</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -151,6 +161,14 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
 
         <TabsContent value="sessions">
           <AdminUserSessionsTab userId={userId} displayName={displayName} />
+        </TabsContent>
+
+        <TabsContent value="credits">
+          <AdminUserCreditsTab
+            userId={userId}
+            displayName={displayName}
+            billingState={billingState}
+          />
         </TabsContent>
 
         <TabsContent value="activity">

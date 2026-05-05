@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useQuery as useConvexQuery, usePaginatedQuery } from "convex/react";
 import {
   AlertTriangle,
-  Check,
   CheckCircle2,
   ChevronDown,
   Flame,
@@ -17,20 +16,13 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@redux/ui/components/command";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@redux/ui/components/dropdown-menu";
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@redux/ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -46,13 +38,13 @@ const PAGE_SIZE = 25;
 const ALL_FILTER_VALUE = "all";
 
 const STATUS_OPTIONS = [
-  { value: ALL_FILTER_VALUE, label: "Any status" },
+  { value: ALL_FILTER_VALUE, label: "Any Status" },
   { value: "success", label: "Success" },
   { value: "failed", label: "Failed" },
 ] as const;
 
 const SEVERITY_OPTIONS = [
-  { value: ALL_FILTER_VALUE, label: "Any severity" },
+  { value: ALL_FILTER_VALUE, label: "Any Severity" },
   { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
@@ -177,7 +169,6 @@ function MultiSelect({
   options,
   onChange,
   placeholder,
-  searchPlaceholder,
   emptyMessage,
   renderLabel,
 }: {
@@ -186,36 +177,26 @@ function MultiSelect({
   options: string[];
   onChange: (next: string[]) => void;
   placeholder: string;
-  searchPlaceholder: string;
   emptyMessage: string;
   renderLabel?: (value: string) => string;
 }) {
-  const [open, setOpen] = useState(false);
   const display = renderLabel ?? ((v: string) => v);
+  const first = values.at(0);
   const triggerLabel =
     values.length === 0
       ? placeholder
       : values.length === 1
-        ? display(values[0]!)
+        ? display(first ?? placeholder)
         : `${values.length} selected`;
 
-  const toggle = (value: string) => {
-    if (values.includes(value)) {
-      onChange(values.filter((v) => v !== value));
-    } else {
-      onChange([...values, value]);
-    }
-  };
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
+    <DropdownMenu>
+      <DropdownMenuTrigger
         render={
           <Button
             id={id}
             type="button"
             variant="outline"
-            aria-expanded={open}
             className="w-full justify-between font-normal"
           />
         }
@@ -228,33 +209,32 @@ function MultiSelect({
           {triggerLabel}
         </span>
         <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => {
-                const selected = values.includes(option);
-                return (
-                  <CommandItem
-                    key={option}
-                    value={option}
-                    onSelect={() => toggle(option)}
-                  >
-                    <Check
-                      className={`mr-2 size-4 ${selected ? "opacity-100" : "opacity-0"}`}
-                    />
-                    {display(option)}
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="max-h-72 overflow-y-auto">
+        {options.length === 0 ? (
+          <p className="text-muted-foreground px-2 py-1.5 text-xs">
+            {emptyMessage}
+          </p>
+        ) : (
+          options.map((option) => (
+            <DropdownMenuCheckboxItem
+              key={option}
+              closeOnClick={false}
+              checked={values.includes(option)}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  onChange([...values, option]);
+                } else {
+                  onChange(values.filter((v) => v !== option));
+                }
+              }}
+            >
+              {display(option)}
+            </DropdownMenuCheckboxItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -368,7 +348,12 @@ export function AdminUserActivityTab({
               }}
             >
               <SelectTrigger id="activity-status" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string) =>
+                    STATUS_OPTIONS.find((o) => o.value === value)?.label ??
+                    value
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((option) => (
@@ -390,7 +375,12 @@ export function AdminUserActivityTab({
               }}
             >
               <SelectTrigger id="activity-severity" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string) =>
+                    SEVERITY_OPTIONS.find((o) => o.value === value)?.label ??
+                    value
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {SEVERITY_OPTIONS.map((option) => (
@@ -411,7 +401,6 @@ export function AdminUserActivityTab({
               options={actionOptions}
               onChange={setActionValues}
               placeholder="Any action"
-              searchPlaceholder="Search actions..."
               emptyMessage={
                 facets === undefined ? "Loading..." : "No actions yet"
               }
@@ -426,7 +415,6 @@ export function AdminUserActivityTab({
               options={ipOptions}
               onChange={setIpValues}
               placeholder="Any IP"
-              searchPlaceholder="Search IPs..."
               emptyMessage={
                 facets === undefined ? "Loading..." : "No IPs recorded"
               }

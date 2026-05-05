@@ -15,7 +15,6 @@ import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
 import { auditLog } from "./betterAuth/audit_log";
-import fa from "zod/v4/locales/fa.cjs";
 
 const authFunctions: AuthFunctions = internal.auth;
 export const authComponent = createClient<DataModel, typeof authSchema>(
@@ -49,7 +48,17 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
         beforeLog: async (entry) => {
           console.log("entry", entry);
           const { action } = entry;
-          if (action.startsWith("convex:") || action === "get-session") { // we don't want to log internal stuff
+          const ignoredPatterns = [
+            /^convex:.*$/,
+            /^get-session$/,
+            /^list-accounts$/,
+            /^admin:get-user$/,
+            /^admin:list-.*$/,
+            /^audit-log:list$/
+          ];
+          const isIgnored = ignoredPatterns.some((pattern) => pattern.test(action));
+          if (isIgnored) { // we don't want to log internal stuff/useless
+
             return null;
           }
           return entry;

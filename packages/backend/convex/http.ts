@@ -88,20 +88,27 @@ async function handleSubscriptionCancellationRevoke(
   event: unknown,
   reason: "subscription.canceled" | "subscription.revoked",
 ): Promise<void> {
-  try {
-    const data = (event as { data?: Record<string, unknown> }).data ?? {};
-    const subscriptionId = pickString(data.id);
-    const userId = pickString(
-      (data.customer as Record<string, unknown> | undefined)?.externalId ??
-        (data.customer as Record<string, unknown> | undefined)?.external_id ??
-        data.externalId ??
-        data.external_id,
-    );
+  const data = (event as { data?: Record<string, unknown> }).data ?? {};
+  const subscriptionId = pickString(data.id);
+  const userId = pickString(
+    (data.customer as Record<string, unknown> | undefined)?.externalId ??
+      (data.customer as Record<string, unknown> | undefined)?.external_id ??
+      data.externalId ??
+      data.external_id,
+  );
 
+  try {
     if (!userId) {
       console.warn("subscription_cancel_missing_external_id", {
         reason,
         subscriptionId,
+      });
+      await recordPolarAuditEvent(ctx, {
+        userId: null,
+        action: `polar:${reason}`,
+        status: "failed",
+        severity: "high",
+        metadata: { subscriptionId, reason: "missing_external_id" },
       });
       return;
     }
@@ -129,8 +136,26 @@ async function handleSubscriptionCancellationRevoke(
       subscriptionId,
       revoked,
     });
+
+    await recordPolarAuditEvent(ctx, {
+      userId,
+      action: `polar:${reason}`,
+      status: "success",
+      severity: "high",
+      metadata: { subscriptionId, revoked },
+    });
   } catch (error) {
     console.error("subscription_cancel_revoke_failed", { reason, error });
+    await recordPolarAuditEvent(ctx, {
+      userId: userId ?? null,
+      action: `polar:${reason}`,
+      status: "failed",
+      severity: "high",
+      metadata: {
+        subscriptionId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
   }
 }
 
@@ -138,19 +163,24 @@ async function handleSubscriptionPeriodGrant(
   ctx: { runMutation: typeof internal extends never ? never : any }, // eslint-disable-line @typescript-eslint/no-explicit-any
   event: unknown,
 ): Promise<void> {
+  const data = (event as { data?: Record<string, unknown> }).data ?? {};
+  const subscriptionId = pickString(data.id);
+  const customerExternalId = pickString(
+    (data.customer as Record<string, unknown> | undefined)?.externalId ??
+      (data.customer as Record<string, unknown> | undefined)?.external_id ??
+      data.externalId ??
+      data.external_id,
+  );
+  const eventType = pickString(
+    (event as { type?: unknown }).type ?? (event as { event?: unknown }).event,
+  );
+  const action = `polar:${eventType ?? "subscription"}`;
+
   try {
-    const data = (event as { data?: Record<string, unknown> }).data ?? {};
-    const subscriptionId = pickString(data.id);
     if (!subscriptionId) {
       console.warn("subscription_event_missing_id", event);
       return;
     }
-    const customerExternalId = pickString(
-      (data.customer as Record<string, unknown> | undefined)?.externalId ??
-        (data.customer as Record<string, unknown> | undefined)?.external_id ??
-        data.externalId ??
-        data.external_id,
-    );
     if (!customerExternalId) {
       console.warn("subscription_event_missing_external_id", {
         subscriptionId,
@@ -210,8 +240,32 @@ async function handleSubscriptionPeriodGrant(
         productId: pickString(data.productId ?? data.product_id),
       },
     });
+
+    await recordPolarAuditEvent(ctx, {
+      userId: customerExternalId,
+      action,
+      status: "success",
+      severity: "medium",
+      metadata: {
+        subscriptionId,
+        tier,
+        amount: plan.includedMonthlyCredits,
+        periodStart,
+        periodEnd,
+      },
+    });
   } catch (error) {
     console.error("subscription_period_grant_failed", error);
+    await recordPolarAuditEvent(ctx, {
+      userId: customerExternalId ?? null,
+      action,
+      status: "failed",
+      severity: "high",
+      metadata: {
+        subscriptionId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
   }
 }
 
@@ -219,9 +273,14 @@ async function handleOneTimeOrderGrant(
   ctx: { runMutation: typeof internal extends never ? never : any }, // eslint-disable-line @typescript-eslint/no-explicit-any
   event: unknown,
 ): Promise<void> {
-  try {
-    const data = (event as { data?: Record<string, unknown> }).data ?? {};
+  const data = (event as { data?: Record<string, unknown> }).data ?? {};
+  const orderId = pickString(data.id);
+  const customerExternalId = pickString(
+    (data.customer as Record<string, unknown> | undefined)?.externalId ??
+      (data.customer as Record<string, unknown> | undefined)?.external_id,
+  );
 
+  try {
     // Skip subscription invoice orders; those are handled by subscription.* events.
     const subscriptionId = pickString(
       data.subscriptionId ?? data.subscription_id,
@@ -230,15 +289,10 @@ async function handleOneTimeOrderGrant(
       return;
     }
 
-    const orderId = pickString(data.id);
     if (!orderId) {
       console.warn("order_event_missing_id", event);
       return;
     }
-    const customerExternalId = pickString(
-      (data.customer as Record<string, unknown> | undefined)?.externalId ??
-        (data.customer as Record<string, unknown> | undefined)?.external_id,
-    );
     if (!customerExternalId) {
       console.warn("order_event_missing_external_id", { orderId });
       return;
@@ -274,8 +328,51 @@ async function handleOneTimeOrderGrant(
         productId: pickString(product?.id),
       },
     });
+
+    await recordPolarAuditEvent(ctx, {
+      userId: customerExternalId,
+      action: "polar:order.paid",
+      status: "success",
+      severity: "medium",
+      metadata: {
+        orderId,
+        productId: pickString(product?.id),
+        credits: Math.floor(credits),
+      },
+    });
   } catch (error) {
     console.error("one_time_order_grant_failed", error);
+    await recordPolarAuditEvent(ctx, {
+      userId: customerExternalId ?? null,
+      action: "polar:order.paid",
+      status: "failed",
+      severity: "high",
+      metadata: {
+        orderId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+}
+
+async function recordPolarAuditEvent(
+  ctx: { runMutation: typeof internal extends never ? never : any }, // eslint-disable-line @typescript-eslint/no-explicit-any
+  args: {
+    userId: string | null;
+    action: string;
+    status: "success" | "failed";
+    severity: "low" | "medium" | "high" | "critical";
+    metadata?: unknown;
+  },
+): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await ctx.runMutation(
+      internal.functions.auditLog.internal_recordEvent,
+      args,
+    );
+  } catch (error) {
+    console.error("audit_log_record_failed", { action: args.action, error });
   }
 }
 

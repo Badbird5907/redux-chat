@@ -1,6 +1,12 @@
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
+import { ConvexError } from "convex/values";
 
-import type { AllocatableGrant, CreditBucket } from "@redux/shared";
+import type {
+  AllocatableGrant,
+  CreditBalance,
+  CreditBucket,
+  CreditGrantSource,
+} from "@redux/shared";
 import {
   allocateDebit,
   CREDIT_BUCKETS,
@@ -11,24 +17,6 @@ import type { DataModel } from "./_generated/dataModel";
 
 export type LedgerQueryCtx = GenericQueryCtx<DataModel>;
 export type LedgerMutationCtx = GenericMutationCtx<DataModel>;
-
-export type CreditGrantSource =
-  | "polar_subscription_renewal"
-  | "polar_one_time_purchase"
-  | "free_monthly_reset"
-  | "admin_grant"
-  | "migration_backfill";
-
-export interface CreditBalance {
-  spendableCredits: number;
-  bucketBalances: Record<CreditBucket, number>;
-  expiringSoon: {
-    bucket: CreditBucket;
-    grantId: string;
-    remaining: number;
-    expiresAt: number;
-  }[];
-}
 
 /** UTC YYYY-MM key for monthly plan allowances. */
 export function getMonthlyPeriodKey(timestamp = Date.now()): string {
@@ -563,4 +551,56 @@ export async function revokeFreeMonthlyCreditsTx(
   }
 
   return { revoked };
+}
+
+export interface RevokeCreditGrantForUserArgs {
+  userId: string;
+  grantId: string;
+  reason?: string;
+}
+
+/**
+ * Revoke a single grant by `grantId` for a user. Only `active` rows are
+ * patched to `revoked` (remaining zeroed) so exhausted / expired / revoked
+ * grants are rejected.
+ */
+export async function revokeCreditGrantForUserTx(
+  ctx: LedgerMutationCtx,
+  args: RevokeCreditGrantForUserArgs,
+): Promise<void> {
+  const row = await ctx.db
+    .query("creditGrants")
+    .withIndex("by_grantId", (q) => q.eq("grantId", args.grantId))
+    .unique();
+
+  if (!row) {
+    throw new ConvexError("Grant not found");
+  }
+  if (row.userId !== args.userId) {
+    throw new ConvexError("Grant does not belong to this user");
+  }
+  if (row.status !== "active") {
+    throw new ConvexError("Only active grants can be revoked");
+  }
+
+  const nowMs = Date.now();
+  const revokedReason = args.reason ?? "admin_revoke";
+  const nextMetadata =
+    row.metadata && typeof row.metadata === "object"
+      ? {
+          ...(row.metadata as Record<string, unknown>),
+          revokedReason,
+          revokedAt: nowMs,
+        }
+      : {
+          revokedReason,
+          revokedAt: nowMs,
+        };
+
+  await ctx.db.patch(row._id, {
+    status: "revoked",
+    remaining: 0,
+    updatedAt: nowMs,
+    metadata: nextMetadata,
+  });
 }

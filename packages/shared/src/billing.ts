@@ -43,6 +43,38 @@ export const CREDIT_BUCKETS = {
 
 export type CreditBucket = keyof typeof CREDIT_BUCKETS;
 
+export type CreditGrantSource =
+  | "polar_subscription_renewal"
+  | "polar_one_time_purchase"
+  | "free_monthly_reset"
+  | "admin_grant"
+  | "migration_backfill";
+
+export interface CreditBalance {
+  spendableCredits: number;
+  bucketBalances: Record<CreditBucket, number>;
+  expiringSoon: {
+    bucket: CreditBucket;
+    grantId: string;
+    remaining: number;
+    expiresAt: number;
+  }[];
+}
+
+export interface UserBillingState
+  extends Pick<
+    CreditBalance,
+    "spendableCredits" | "bucketBalances" | "expiringSoon"
+  > {
+  tier: PlanTier;
+  markupMultiplier: number;
+  includedMonthlyCredits: number;
+  overageAllowed: boolean;
+  currentPeriodStart: number | undefined;
+  currentPeriodEnd: number | undefined;
+  url: string | undefined;
+}
+
 export const CREDIT_BUCKET_NAMES = Object.keys(
   CREDIT_BUCKETS,
 ) as CreditBucket[];

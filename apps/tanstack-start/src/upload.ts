@@ -15,6 +15,10 @@ import {
 } from "@/lib/silo/core.server";
 import { embedAndIndexProjectFile } from "@/server/rag/index-attachment";
 
+export const FREE_PLAN_MAX_ATTACHMENTS = 1;
+export const FREE_PLAN_MAX_FILE_SIZE_MB = 10;
+export const FREE_PLAN_MAX_FILE_SIZE_BYTES = FREE_PLAN_MAX_FILE_SIZE_MB * 1024 * 1024;
+
 export interface UploadContext {
   userId?: string;
 }
@@ -73,18 +77,30 @@ export const fileRouter = {
       }
       await requireOwnedThread(input.threadId);
 
+      const billingState = await fetchAuthQuery(
+        api.functions.billing.getCurrentBillingState,
+        {},
+      );
+      const tier = billingState.tier;
+
       return {
         userId,
         threadId: input.threadId,
         modelId: input.modelId,
         expiresAt: Date.now() + DRAFT_ATTACHMENT_TTL_MS,
+        tier,
       };
     })
-    .expects(({ input }) => {
-      const parsedInput = chatAttachmentInput.parse(input);
-      return getModelAttachmentExpects(
-        parsedInput.modelId,
-      ) as SiloRouteConfigInput;
+    .expects(({ modelId, tier }) => {
+      const baseExpects = getModelAttachmentExpects(modelId);
+      if (tier === "free" && baseExpects.length > 0) {
+        return baseExpects.map((bucket) => ({
+          ...bucket,
+          maxFileCount: FREE_PLAN_MAX_ATTACHMENTS,
+          maxFileSize: `${FREE_PLAN_MAX_FILE_SIZE_MB}MB`,
+        })) as SiloRouteConfigInput;
+      }
+      return baseExpects as SiloRouteConfigInput;
     })
     .public(false)
     .serveImage(true)

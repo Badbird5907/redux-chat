@@ -35,7 +35,7 @@ function AdminOverviewPage() {
               Users
             </CardTitle>
             <CardDescription>
-              List, search, and inspect accounts from your Better Auth database.
+              List, search, and inspect accounts
             </CardDescription>
           </div>
           <Button render={<Link to="/admin/users" />}>Open</Button>

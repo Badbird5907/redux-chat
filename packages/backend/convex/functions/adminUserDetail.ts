@@ -1,9 +1,25 @@
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
+import type { UserBillingState } from "@redux/shared";
+import { getPlanConfig } from "@redux/shared";
+
 import { components } from "../_generated/api";
+import {
+  getBillingConfig,
+  getUtcMonthBounds,
+  resolveTierFromSubscription,
+  toSubscriptionSnapshot,
+} from "../billing";
+import {
+  getCreditBalanceForUser,
+  grantCreditsTx,
+  revokeCreditGrantForUserTx,
+} from "../credits";
+import { polar } from "../polar";
 import { getDenormalizedUsageStats } from "../usageStats";
 import { adminMutation, adminQuery } from "./index";
+import { backendEnv } from "../env";
 
 export const listAuditLogsForUser = adminQuery({
   args: {
@@ -39,7 +55,7 @@ export const listAuditLogsForUser = adminQuery({
     const where: {
       field: string;
       operator?: "eq" | "gte" | "lte" | "in";
-      value: string | number | Array<string>;
+      value: string | number | string[];
     }[] = [{ field: "userId", operator: "eq", value: targetUserId }];
     if (from !== undefined) {
       where.push({ field: "createdAt", operator: "gte", value: from });
@@ -180,6 +196,103 @@ export const listLinkedAccountsForUser = adminQuery({
       });
     }
     return mapped;
+  },
+});
+
+export const listGrantsForUser = adminQuery({
+  args: {
+    targetUserId: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { targetUserId, paginationOpts }) => {
+    return await ctx.db
+      .query("creditGrants")
+      .withIndex("by_user_granted_at", (q) => q.eq("userId", targetUserId))
+      .order("desc")
+      .paginate(paginationOpts);
+  },
+});
+
+export const getBillingStateForUser = adminQuery({
+  args: {
+    targetUserId: v.string(),
+  },
+  handler: async (ctx, { targetUserId }) => {
+    const polarCustomer = await polar.getCustomerByUserId(ctx, targetUserId);
+    const subscription = toSubscriptionSnapshot(
+      await polar.getCurrentSubscription(ctx, { userId: targetUserId }),
+    );
+    const tier = resolveTierFromSubscription(subscription);
+    const plan = getPlanConfig(tier, getBillingConfig());
+    const freePeriodBounds = tier === "free" ? getUtcMonthBounds() : undefined;
+    const balance = await getCreditBalanceForUser(ctx, targetUserId);
+
+    const env = backendEnv();
+    const baseUrl =
+      env.POLAR_SERVER === "sandbox"
+        ? "https://sandbox.polar.sh"
+        : "https://polar.sh";
+
+    return {
+      tier,
+      spendableCredits: balance.spendableCredits,
+      bucketBalances: balance.bucketBalances,
+      expiringSoon: balance.expiringSoon,
+      markupMultiplier: plan.markupMultiplier,
+      includedMonthlyCredits: plan.includedMonthlyCredits,
+      overageAllowed: plan.overageAllowed,
+      currentPeriodStart:
+        subscription?.currentPeriodStart ?? freePeriodBounds?.start,
+      currentPeriodEnd: subscription?.currentPeriodEnd ?? freePeriodBounds?.end,
+      url: polarCustomer
+        ? `${baseUrl}/dashboard/redux/customers/${polarCustomer.id}`
+        : undefined,
+    } satisfies UserBillingState;
+  },
+});
+
+export const adminGrantCreditsForUser = adminMutation({
+  args: {
+    targetUserId: v.string(),
+    bucket: v.union(
+      v.literal("gifted"),
+      v.literal("monthly"),
+      v.literal("paid"),
+    ),
+    amount: v.number(),
+    note: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, { targetUserId, bucket, amount, note, expiresAt }) => {
+    if (amount <= 0) {
+      throw new ConvexError("Amount must be positive");
+    }
+    if (expiresAt !== undefined && expiresAt <= Date.now()) {
+      throw new ConvexError("Expiry must be in the future");
+    }
+    return await grantCreditsTx(ctx, {
+      userId: targetUserId,
+      bucket,
+      amount,
+      source: "admin_grant",
+      sourceId: `admin:${crypto.randomUUID()}`,
+      metadata: note ? { note } : undefined,
+      expiresAt,
+    });
+  },
+});
+
+export const adminRevokeCreditGrantForUser = adminMutation({
+  args: {
+    targetUserId: v.string(),
+    grantId: v.string(),
+  },
+  handler: async (ctx, { targetUserId, grantId }) => {
+    await revokeCreditGrantForUserTx(ctx, {
+      userId: targetUserId,
+      grantId,
+    });
+    return null;
   },
 });
 

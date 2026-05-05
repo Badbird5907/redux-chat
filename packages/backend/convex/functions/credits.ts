@@ -1,17 +1,13 @@
 import { ConvexError, v } from "convex/values";
 
-import type { CreditBucket, PlanTier } from "@redux/shared";
+import type { CreditBalance, CreditBucket, PlanTier } from "@redux/shared";
 import {
   CREDIT_BUCKETS,
   DEFAULT_BILLING_CONFIG,
   getPlanConfig,
 } from "@redux/shared";
 
-import type {
-  CreditBalance,
-  DebitCreditsResult,
-  GrantCreditsResult,
-} from "../credits";
+import type { DebitCreditsResult, GrantCreditsResult } from "../credits";
 import { internal } from "../_generated/api";
 import {
   debitCreditsTx,

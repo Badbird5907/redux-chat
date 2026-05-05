@@ -158,6 +158,9 @@ importers:
       '@exalabs/ai-sdk':
         specifier: ^2.0.1
         version: 2.0.1(ai@6.0.168(zod@4.3.6))
+      '@hookform/resolvers':
+        specifier: ^5.2.2
+        version: 5.2.2(react-hook-form@7.73.1(react@19.2.5))
       '@openrouter/ai-sdk-provider':
         specifier: 2.8.1
         version: 2.8.1(ai@6.0.168(zod@4.3.6))(zod@4.3.6)
@@ -296,6 +299,9 @@ importers:
       react-dom:
         specifier: catalog:react19
         version: 19.2.5(react@19.2.5)
+      react-hook-form:
+        specifier: ^7.73.1
+        version: 7.73.1(react@19.2.5)
       react-resizable-panels:
         specifier: ^4.10.0
         version: 4.10.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)

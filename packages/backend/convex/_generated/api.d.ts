@@ -14,6 +14,7 @@ import type * as credits from "../credits.js";
 import type * as env from "../env.js";
 import type * as functions_adminUserDetail from "../functions/adminUserDetail.js";
 import type * as functions_attachments from "../functions/attachments.js";
+import type * as functions_auditLog from "../functions/auditLog.js";
 import type * as functions_billing from "../functions/billing.js";
 import type * as functions_credits from "../functions/credits.js";
 import type * as functions_defaultMessageSettings from "../functions/defaultMessageSettings.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   env: typeof env;
   "functions/adminUserDetail": typeof functions_adminUserDetail;
   "functions/attachments": typeof functions_attachments;
+  "functions/auditLog": typeof functions_auditLog;
   "functions/billing": typeof functions_billing;
   "functions/credits": typeof functions_credits;
   "functions/defaultMessageSettings": typeof functions_defaultMessageSettings;

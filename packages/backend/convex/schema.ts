@@ -312,6 +312,7 @@ export default defineSchema({
       "bucket",
       "expiresAt",
     ])
+    .index("by_user_granted_at", ["userId", "grantedAt"])
     .index("by_user_bucket_period", ["userId", "bucket", "periodKey"])
     .index("by_source_sourceId", ["source", "sourceId"]),
 

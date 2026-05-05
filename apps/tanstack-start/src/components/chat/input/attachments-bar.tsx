@@ -1,3 +1,5 @@
+import { useCallback, useState } from "react";
+
 import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -138,7 +140,7 @@ function tileIconForKind(kind: AttachmentTileKind): LucideIcon {
 interface ChatInputAttachmentsBarProps {
   attachments: DraftAttachment[];
   onPreview: (file: PreviewableFile) => void;
-  onRemove: (attachmentId: string) => void;
+  onRemove: (attachmentId: string) => void | Promise<void>;
 }
 
 export function ChatInputAttachmentsBar({
@@ -146,6 +148,24 @@ export function ChatInputAttachmentsBar({
   onPreview,
   onRemove,
 }: ChatInputAttachmentsBarProps) {
+  const [removingById, setRemovingById] = useState<Record<string, true>>({});
+
+  const handleRemoveClick = useCallback(
+    async (attachmentId: string) => {
+      setRemovingById((prev) => ({ ...prev, [attachmentId]: true }));
+      try {
+        await Promise.resolve(onRemove(attachmentId));
+      } finally {
+        setRemovingById((prev) => {
+          const next = { ...prev };
+          delete next[attachmentId];
+          return next;
+        });
+      }
+    },
+    [onRemove],
+  );
+
   if (attachments.length === 0) {
     return null;
   }
@@ -163,6 +183,7 @@ export function ChatInputAttachmentsBar({
         const Icon = tileIconForKind(kind);
         const docTileClass =
           kind !== "image" ? DOCUMENT_TILE_STYLES[kind] : undefined;
+        const isRemoving = Boolean(removingById[file.attachmentId]);
         return (
           <div key={file.attachmentId} className="group relative">
             <Tooltip delay={300}>
@@ -177,6 +198,7 @@ export function ChatInputAttachmentsBar({
                       if (
                         !file.uploading &&
                         !isExpired &&
+                        !isRemoving &&
                         !e.defaultPrevented
                       ) {
                         onPreview({
@@ -191,7 +213,7 @@ export function ChatInputAttachmentsBar({
                       "border-border bg-muted hover:border-primary relative inline-flex h-16 w-16 overflow-hidden rounded-lg border transition-colors",
                       props.className,
                     )}
-                    disabled={file.uploading || isExpired}
+                    disabled={file.uploading || isExpired || isRemoving}
                   >
                     {isImage && file.url && !isExpired ? (
                       <img
@@ -215,6 +237,13 @@ export function ChatInputAttachmentsBar({
                         </span>
                       </div>
                     )}
+                    <div
+                      aria-hidden
+                      className={cn(
+                        "pointer-events-none absolute inset-0 bg-red-500/45 transition-opacity duration-300 ease-out dark:bg-red-600/40",
+                        isRemoving ? "opacity-100" : "opacity-0",
+                      )}
+                    />
                     {isExpired && !file.uploading && (
                       <div className="bg-background/85 text-muted-foreground absolute inset-0 flex items-center justify-center text-[10px] font-medium">
                         Expired
@@ -238,10 +267,26 @@ export function ChatInputAttachmentsBar({
             {!file.uploading && (
               <button
                 type="button"
-                onClick={() => void onRemove(file.attachmentId)}
-                className="bg-background border-border hover:bg-muted absolute -top-1.5 -right-1.5 rounded-full border p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                onClick={() => void handleRemoveClick(file.attachmentId)}
+                disabled={isRemoving}
+                aria-busy={isRemoving}
+                aria-label={
+                  isRemoving
+                    ? "Removing attachment…"
+                    : `Remove attachment ${file.fileName}`
+                }
+                className={cn(
+                  "bg-background border-border hover:bg-muted absolute -top-1.5 -right-1.5 rounded-full border p-0.5 transition-opacity disabled:pointer-events-none disabled:opacity-70",
+                  isRemoving
+                    ? "opacity-100"
+                    : "opacity-0 group-hover:opacity-100",
+                )}
               >
-                <X className="text-muted-foreground h-3 w-3" />
+                {isRemoving ? (
+                  <Loader2 className="text-muted-foreground h-3 w-3 animate-spin" />
+                ) : (
+                  <X className="text-muted-foreground h-3 w-3" />
+                )}
               </button>
             )}
           </div>

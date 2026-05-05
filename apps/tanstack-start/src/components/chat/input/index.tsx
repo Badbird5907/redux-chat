@@ -33,6 +33,10 @@ import { submitMessage } from "@/components/chat/use-submit-message";
 import { useQuery } from "@/lib/hooks/convex";
 import { useInstructions } from "@/lib/hooks/use-instructions";
 import { deleteDraftAttachment } from "@/server/attachments";
+import {
+  FREE_PLAN_MAX_ATTACHMENTS,
+  FREE_PLAN_MAX_FILE_SIZE_BYTES,
+} from "@/upload";
 import { useBillingState } from "../use-billing-state";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
@@ -96,7 +100,14 @@ export function ChatInput({
   } = useInstructions();
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
-  const { isOutOfCredits } = useBillingState();
+  const { billingState, isOutOfCredits } = useBillingState();
+  const attachmentLimits =
+    billingState?.tier === "free"
+      ? {
+          maxPerMessage: FREE_PLAN_MAX_ATTACHMENTS,
+          maxFileSizeBytes: FREE_PLAN_MAX_FILE_SIZE_BYTES,
+        }
+      : null;
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
@@ -272,6 +283,8 @@ export function ChatInput({
     updateAttachment,
     setAttachments,
     beforeOpenFilePicker,
+    attachmentLimits,
+    currentAttachmentCount: attachments.length,
   });
 
   const handleRemoveAttachment = useCallback(
