@@ -3,6 +3,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Dot,
   ExternalLink,
   KeyRound,
   MoreHorizontal,
@@ -30,6 +31,8 @@ import {
 import type { UserBillingState } from "@redux/shared";
 
 import type { ActiveDialog, AdminUserDetail } from "./types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@redux/ui/components/tooltip";
+import { formatDate } from "@/components/admin/user-detail/utils";
 
 export function AdminUserDetailHeader({
   user,
@@ -69,36 +72,48 @@ export function AdminUserDetailHeader({
           <h1 className="text-foreground text-xl font-semibold tracking-tight">
             {displayName}
           </h1>
-          {user.banned ? (
-            <Badge variant="destructive">Banned</Badge>
-          ) : (
-            <Badge
-              variant="secondary"
-              className="border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            >
-              Active
+          {billingState?.tier && (
+            <Badge variant="outline" className="font-normal" color={billingState.tier === "free" ? undefined : billingState.tier === "plus" ? "orange" : "critical"}>
+              {billingState.tier.charAt(0).toUpperCase() + billingState.tier.slice(1)}
             </Badge>
+          )}
+          {user.banned && (
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge variant="destructive">Banned</Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>User is banned for {user.banReason} {user.banExpires && `until ${formatDate(user.banExpires)}`}</p>
+              </TooltipContent>
+            </Tooltip>
           )}
           {user.role ? (
             <Badge variant="outline" className="font-normal">
               {user.role}
             </Badge>
           ) : null}
-          {user.emailVerified ? (
-            <span className="text-muted-foreground/90 inline-flex items-center gap-1 text-xs">
-              <CheckCircle2 className="size-3.5 text-emerald-500" />
-              Verified
-            </span>
-          ) : null}
         </div>
-        <p className="text-muted-foreground mt-1 truncate text-sm">
-          {user.email}
-        </p>
         <div className="flex items-center gap-2">
+          <p className="text-muted-foreground mt-1 truncate text-sm">
+            {user.email}
+          </p>
+          {user.emailVerified ? (
+              <Badge
+                variant="secondary"
+                color="green"
+                // className="inline-flex items-center gap-1 border-emerald-500/20 bg-emerald-500/10 text-xs font-normal text-emerald-700 dark:text-emerald-400"
+              >
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                Verified
+              </Badge>
+         
+            ) : null}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={() => void onCopyId()}
-            className="text-muted-foreground/80 hover:text-foreground mt-2 inline-flex max-w-full items-center gap-1.5 font-mono text-[11px] transition-colors"
+            className="text-muted-foreground/80 hover:text-foreground inline-flex max-w-full items-center gap-1.5 font-mono text-[11px] transition-colors"
             aria-label="Copy user ID"
           >
             <span className="truncate">{user.id}</span>
@@ -109,16 +124,21 @@ export function AdminUserDetailHeader({
             )}
           </button>
           {billingState?.url ? (
-            <a
-              href={billingState.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground/80 hover:text-foreground mt-1.5 inline-flex max-w-full items-center gap-1 text-xs underline-offset-4 hover:underline"
-              aria-label="Open Polar customer (opens in a new tab)"
-            >
-              <span className="truncate">Polar customer</span>
-              <ExternalLink className="size-3 shrink-0" aria-hidden />
-            </a>
+            <>
+              <span className="text-muted-foreground/80 inline-flex shrink-0 items-center justify-center">
+                <Dot className="size-3 shrink-0" aria-hidden />
+              </span>
+              <a
+                href={billingState.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground/80 hover:text-foreground inline-flex max-w-full items-center gap-1 text-xs underline-offset-4 hover:underline"
+                aria-label="Open Polar customer (opens in a new tab)"
+              >
+                <span className="truncate">Polar customer</span>
+                <ExternalLink className="size-3 shrink-0" aria-hidden />
+              </a>
+            </>
           ) : null}
         </div>
       </div>

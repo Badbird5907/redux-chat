@@ -624,6 +624,8 @@ async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
       throw error;
     }
   }
+  // const userIdentity = await authComponent.getAuthUser(ctx);
+  // console.log("userIdentity", userIdentity);
 
   if (customerId === undefined) {
     const user = await ctx.runQuery(
@@ -631,9 +633,12 @@ async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
       {},
     );
     try {
+      // const image = await ctx.runQuery(api.functions.user.getUserImage, {
+      //   userId: ctx.userId,
+      // });
       const customer = await polarSdk.customers.create({
         email: user.email,
-        externalId: user.userId,
+        // avatarUrl: image.image ?? undefined,
         metadata: {
           userId: user.userId,
         },

@@ -21,6 +21,18 @@ const badgeVariants = cva(
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      color: {
+        green:
+          "font-normal border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+        red: "font-normal border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
+        critical:
+          "font-normal border-red-500/35 text-red-700 dark:text-red-400",
+        orange:
+          "font-normal border-orange-500/35 text-orange-700 dark:text-orange-400",
+        yellow:
+          "font-normal border-yellow-500/35 text-yellow-700 dark:text-yellow-400",
+        muted: "font-normal text-muted-foreground",
+      },
     },
     defaultVariants: {
       variant: "default",
@@ -31,6 +43,7 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = "default",
+  color,
   render,
   ...props
 }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
@@ -38,7 +51,7 @@ function Badge({
     defaultTagName: "span",
     props: mergeProps<"span">(
       {
-        className: cn(badgeVariants({ className, variant })),
+        className: cn(badgeVariants({ className, variant, color })),
       },
       props,
     ),

@@ -131,7 +131,7 @@ function SessionRows({
   const activeCount = ordered.filter((s) => !isExpired(s.expiresAt)).length;
 
   return (
-    <div className="space-y-4">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-1">
         <p className="text-muted-foreground text-xs">
           {sessions.length === 0

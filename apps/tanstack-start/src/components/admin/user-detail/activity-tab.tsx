@@ -77,18 +77,12 @@ function formatAction(raw: string): string {
 
 function StatusBadge({ status }: { status: string }) {
   return status === "success" ? (
-    <Badge
-      variant="secondary"
-      className="gap-1 border-emerald-500/20 bg-emerald-500/10 font-normal text-emerald-700 dark:text-emerald-400"
-    >
+    <Badge variant="secondary" color="green">
       <CheckCircle2 className="size-3" />
       Success
     </Badge>
   ) : (
-    <Badge
-      variant="secondary"
-      className="gap-1 border-red-500/20 bg-red-500/10 font-normal text-red-700 dark:text-red-400"
-    >
+    <Badge variant="secondary" color="red">
       <XCircle className="size-3" />
       Failed
     </Badge>
@@ -99,40 +93,28 @@ function SeverityBadge({ severity }: { severity: string }) {
   switch (severity) {
     case "critical":
       return (
-        <Badge
-          variant="outline"
-          className="gap-1 border-red-500/35 font-normal text-red-700 dark:text-red-400"
-        >
+        <Badge variant="outline" color="critical">
           <Flame className="size-3" />
           Critical
         </Badge>
       );
     case "high":
       return (
-        <Badge
-          variant="outline"
-          className="gap-1 border-orange-500/35 font-normal text-orange-700 dark:text-orange-400"
-        >
+        <Badge variant="outline" color="orange">
           <AlertTriangle className="size-3" />
           High
         </Badge>
       );
     case "medium":
       return (
-        <Badge
-          variant="outline"
-          className="gap-1 border-yellow-500/35 font-normal text-yellow-700 dark:text-yellow-400"
-        >
+        <Badge variant="outline" color="yellow">
           <Info className="size-3" />
           Medium
         </Badge>
       );
     default:
       return (
-        <Badge
-          variant="outline"
-          className="text-muted-foreground gap-1 font-normal"
-        >
+        <Badge variant="outline" color="muted">
           <Minus className="size-3" />
           Low
         </Badge>

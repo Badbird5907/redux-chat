@@ -32,6 +32,13 @@ export const Route = createFileRoute("/settings/")({
 
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
+type PolarPlanProduct = {
+  prices?: readonly {
+    priceAmount?: number | null;
+    priceCurrency?: string | null;
+  }[];
+} | null;
+
 function tierRank(tier: PlanTier): number {
   if (tier === "free") {
     return 0;
@@ -79,32 +86,116 @@ function tierForConfiguredProductId(
 }
 
 function formatPolarRecurringPrice(
-  product:
-    | {
-        prices?: readonly {
-          priceAmount?: number | null;
-          priceCurrency?: string | null;
-        }[];
-      }
-    | null
-    | undefined,
+  product: PolarPlanProduct | undefined,
 ): string | undefined {
-  if (!product?.prices?.[0]) {
-    return undefined;
-  }
-  const { priceAmount, priceCurrency } = product.prices[0];
-  if (typeof priceAmount !== "number" || priceAmount < 0) {
+  const price = getPolarRecurringPrice(product);
+  if (!price) {
     return undefined;
   }
 
+  return formatCurrencyFromMinorUnits(price.amount, price.currency);
+}
+
+function getPolarRecurringPrice(product: PolarPlanProduct | undefined):
+  | {
+      amount: number;
+      currency: string;
+    }
+  | undefined {
+  const price = product?.prices?.[0];
+  if (!price || typeof price.priceAmount !== "number") {
+    return undefined;
+  }
+  if (price.priceAmount < 0) {
+    return undefined;
+  }
+  return {
+    amount: price.priceAmount,
+    currency: (price.priceCurrency ?? "USD").toUpperCase(),
+  };
+}
+
+function formatCurrencyFromMinorUnits(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: (priceCurrency ?? "USD").toUpperCase(),
-    }).format(priceAmount / 100);
+      currency,
+    }).format(amount / 100);
   } catch {
-    return `$${String(priceAmount / 100)}`;
+    return `$${String(amount / 100)}`;
   }
+}
+
+function getProratedUpgradeBreakdown({
+  currentProduct,
+  targetProduct,
+  periodStart,
+  periodEnd,
+}: {
+  currentProduct: PolarPlanProduct | undefined;
+  targetProduct: PolarPlanProduct | undefined;
+  periodStart: number | undefined;
+  periodEnd: number | undefined;
+}):
+  | {
+      currentCredit: string;
+      currentMonthlyPrice: string;
+      targetCharge: string;
+      targetMonthlyPrice: string;
+      dueToday: string;
+      effectiveDate: string;
+    }
+  | undefined {
+  const currentPrice = getPolarRecurringPrice(currentProduct);
+  const targetPrice = getPolarRecurringPrice(targetProduct);
+  const currentAmount = currentPrice?.amount;
+  const targetAmount = targetPrice?.amount;
+  const targetCurrency = targetPrice?.currency;
+  const periodDuration =
+    typeof periodStart === "number" && typeof periodEnd === "number"
+      ? periodEnd - periodStart
+      : undefined;
+  if (
+    typeof currentAmount !== "number" ||
+    typeof targetAmount !== "number" ||
+    typeof targetCurrency !== "string" ||
+    currentPrice?.currency !== targetCurrency ||
+    typeof periodDuration !== "number" ||
+    typeof periodEnd !== "number" ||
+    periodDuration <= 0
+  ) {
+    return undefined;
+  }
+
+  const remainingRatio = Math.min(
+    1,
+    Math.max(0, (periodEnd - Date.now()) / periodDuration),
+  );
+  const priceDifference = targetAmount - currentAmount;
+  if (priceDifference <= 0) {
+    return undefined;
+  }
+
+  const currentCredit = Math.round(currentAmount * remainingRatio);
+  const targetCharge = Math.round(targetAmount * remainingRatio);
+  const dueToday = targetCharge - currentCredit;
+  if (dueToday <= 0) {
+    return undefined;
+  }
+
+  return {
+    currentCredit: `-${formatCurrencyFromMinorUnits(currentCredit, targetCurrency)}`,
+    currentMonthlyPrice: formatCurrencyFromMinorUnits(
+      currentAmount,
+      targetCurrency,
+    ),
+    targetCharge: formatCurrencyFromMinorUnits(targetCharge, targetCurrency),
+    targetMonthlyPrice: formatCurrencyFromMinorUnits(targetAmount, targetCurrency),
+    dueToday: formatCurrencyFromMinorUnits(dueToday, targetCurrency),
+    effectiveDate: new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+    }).format(Date.now()),
+  };
 }
 
 function renewalSummary(periodEnd: number | undefined): string | null {
@@ -228,6 +319,20 @@ function RouteComponent() {
   const currentTier = billingState?.tier ?? "free";
   const plusProduct = polarProducts?.plus ?? null;
   const proProduct = polarProducts?.pro ?? null;
+  const currentPaidProduct =
+    currentTier === "plus" ? plusProduct : currentTier === "pro" ? proProduct : null;
+  const planSwitchTargetProduct =
+    planSwitchConfirm?.productId === plusProduct?.id
+      ? plusProduct
+      : planSwitchConfirm?.productId === proProduct?.id
+        ? proProduct
+        : null;
+  const proratedUpgradeBreakdown = getProratedUpgradeBreakdown({
+    currentProduct: currentPaidProduct,
+    targetProduct: planSwitchTargetProduct,
+    periodStart: billingState?.currentPeriodStart,
+    periodEnd: billingState?.currentPeriodEnd,
+  });
   const polarApi = useMemo<PolarCheckoutApi>(
     () => ({ generateCheckoutLink: api.polar.generateCheckoutLink }),
     [],
@@ -462,14 +567,26 @@ function RouteComponent() {
       >
         <DialogContent showCloseButton={!planSwitchLoading}>
           <DialogHeader>
-            <DialogTitle>Switch to {planSwitchConfirm?.planName}?</DialogTitle>
+            <DialogTitle>
+              {planSwitchConfirm?.isUpgrade
+                ? `Upgrade to ${planSwitchConfirm.planName}`
+                : `Switch to ${planSwitchConfirm?.planName}?`}
+            </DialogTitle>
             <DialogDescription>
               {planSwitchConfirm?.isUpgrade ? (
-                <>
-                  Your new plan starts right away. You&apos;ll be charged a
-                  prorated amount for the rest of this billing period, then your
-                  usual renewal price.
-                </>
+                proratedUpgradeBreakdown ? (
+                  <>
+                    Your new plan starts right away. Your card will be charged
+                    for the prorated amount below, plus applicable tax.
+                  </>
+                ) : (
+                  <>
+                    Your new plan starts right away. You&apos;ll be charged a
+                    prorated amount for the rest of this billing period, plus
+                    any applicable tax. After that, you&apos;ll pay the usual
+                    renewal price.
+                  </>
+                )
               ) : (
                 <>
                   You will be downgraded to {planSwitchConfirm?.planName} at the
@@ -478,6 +595,38 @@ function RouteComponent() {
               )}
             </DialogDescription>
           </DialogHeader>
+          {planSwitchConfirm?.isUpgrade && proratedUpgradeBreakdown ? (
+            <div className="ring-border bg-muted/25 space-y-4 rounded-lg p-4 ring-1">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <span>
+                    Unused {planTierLabel(currentTier)} -{" "}
+                    {proratedUpgradeBreakdown.currentMonthlyPrice}/mo (from{" "}
+                    {proratedUpgradeBreakdown.effectiveDate})
+                  </span>
+                  <span className="font-mono font-semibold tabular-nums">
+                    {proratedUpgradeBreakdown.currentCredit}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <span>
+                    {planSwitchConfirm.planName} -{" "}
+                    {proratedUpgradeBreakdown.targetMonthlyPrice}/mo (from{" "}
+                    {proratedUpgradeBreakdown.effectiveDate})
+                  </span>
+                  <span className="font-mono font-semibold tabular-nums">
+                    {proratedUpgradeBreakdown.targetCharge}
+                  </span>
+                </div>
+              </div>
+              <div className="border-border flex items-center justify-between gap-4 border-t pt-4 text-base font-semibold">
+                <span>Due today</span>
+                <span className="font-mono tabular-nums">
+                  {proratedUpgradeBreakdown.dueToday} + tax
+                </span>
+              </div>
+            </div>
+          ) : null}
           <DialogFooter>
             <Button
               type="button"
@@ -485,14 +634,22 @@ function RouteComponent() {
               onClick={() => setPlanSwitchConfirm(null)}
               disabled={planSwitchLoading}
             >
-              Cancel
+              {planSwitchConfirm?.isUpgrade
+                ? `Stay on ${planTierLabel(currentTier)}`
+                : "Cancel"}
             </Button>
             <Button
               type="button"
               onClick={() => void confirmPlanSwitch()}
               disabled={planSwitchLoading}
             >
-              {planSwitchLoading ? "Switching…" : "Confirm switch"}
+              {planSwitchLoading
+                ? planSwitchConfirm?.isUpgrade
+                  ? "Upgrading…"
+                  : "Switching…"
+                : planSwitchConfirm?.isUpgrade
+                  ? "Confirm"
+                  : "Confirm switch"}
             </Button>
           </DialogFooter>
         </DialogContent>
