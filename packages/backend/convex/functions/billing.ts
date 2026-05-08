@@ -638,6 +638,7 @@ async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
       // });
       const customer = await polarSdk.customers.create({
         email: user.email,
+        externalId: user.userId,
         // avatarUrl: image.image ?? undefined,
         metadata: {
           userId: user.userId,
