@@ -1,9 +1,9 @@
-import type { UploadContext } from "@/upload";
 import { createRouteHandler } from "@silo-storage/sdk-tanstack-start";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { getSiloCore } from "@/lib/silo/core.server";
-import { fileRouter } from "@/upload";
+import type { UploadContext } from "@/upload.server";
+import { fileRouter } from "@/upload.server";
 
 const handlers = createRouteHandler<UploadContext>({
   router: fileRouter,
