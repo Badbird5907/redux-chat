@@ -577,7 +577,7 @@ export const Route = createFileRoute("/api/chat/")({
               delayInMs: 20,
               chunking: "word",
             }),
-            stopWhen: stepCountIs(15),
+            stopWhen: stepCountIs(20), // we need to tune this
             onError: async ({ error }) => {
               await reportStreamFailure(error);
             },

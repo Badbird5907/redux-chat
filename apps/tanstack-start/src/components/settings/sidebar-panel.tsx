@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Palette,
   BookText,
   Keyboard,
   PlugZap,
@@ -22,6 +23,7 @@ export function SettingsSidebarPanel() {
   });
 
   const isGeneralActive = pathname === "/settings" || pathname === "/settings/";
+  const isAppearanceActive = pathname.startsWith("/settings/appearance");
   const isSecurityActive = pathname.startsWith("/settings/security");
   const isInstructionsActive = pathname.startsWith("/settings/instructions");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
@@ -58,6 +60,16 @@ export function SettingsSidebarPanel() {
             >
               <BookText />
               <span>Instructions</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isAppearanceActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/appearance" />}
+            >
+              <Palette />
+              <span>Appearance</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
