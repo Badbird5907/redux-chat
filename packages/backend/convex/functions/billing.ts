@@ -6,7 +6,7 @@ import { calculateUsageCharge, getPlanConfig } from "@redux/shared";
 
 import type { DataModel } from "../_generated/dataModel";
 import type { BillingSubscriptionSchedule } from "../billing";
-import { api, internal } from "../_generated/api";
+import { api, components, internal } from "../_generated/api";
 import {
   billingDebugWarn,
   buildPolarCreditUsageEvent,
@@ -603,11 +603,42 @@ async function resolveCurrentSubscriptionStateWithFallback(
       error: getErrorText(error),
     });
 
+    try {
+      return await resolveCachedSubscriptionState(ctx, userId);
+    } catch (fallbackError) {
+      console.error("billing_subscription_fallback_failed", {
+        userId,
+        error: getErrorText(fallbackError),
+      });
+    }
+
     return {
       tier: "free",
       subscription: null,
     };
   }
+}
+
+async function resolveCachedSubscriptionState(
+  ctx: BillingActionCtx,
+  userId: string,
+): Promise<BillingSubscriptionState> {
+  const subscriptions = await ctx.runQuery(
+    components.polar.lib.listUserSubscriptions,
+    { userId },
+  );
+
+  return subscriptions.reduce<BillingSubscriptionState>(
+    (best, candidate) => {
+      const subscription = toSubscriptionSnapshot(candidate);
+      const tier = resolveTierFromSubscription(subscription);
+
+      return planTierRank(tier) > planTierRank(best.tier)
+        ? { tier, subscription }
+        : best;
+    },
+    { tier: "free", subscription: null },
+  );
 }
 
 async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
@@ -638,6 +669,7 @@ async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
       // });
       const customer = await polarSdk.customers.create({
         email: user.email,
+        externalId: user.userId,
         // avatarUrl: image.image ?? undefined,
         metadata: {
           userId: user.userId,
