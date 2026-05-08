@@ -117,19 +117,19 @@ function AppLayout() {
     pathname === "/" || desiredChatThreadId !== undefined;
   const chatMatchThreadId = chatMatch?.params.id;
   const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
+  const homeLoaderData = homeMatch?.loaderData as
+    | {
+        settingsJson?: ChatPreload["settingsJson"];
+      }
+    | undefined;
+  const shouldRenderChatSurface =
+    chatThreadId !== undefined || homeLoaderData !== undefined;
   const chatPreload: ChatPreload | undefined =
     chatMatchThreadId === chatThreadId
       ? chatMatch?.loaderData
       : chatThreadId === undefined
         ? {
-            settingsJson:
-              (
-                homeMatch?.loaderData as
-                  | {
-                      settingsJson?: ChatPreload["settingsJson"];
-                    }
-                  | undefined
-              )?.settingsJson ?? null,
+            settingsJson: homeLoaderData?.settingsJson ?? null,
           }
         : undefined;
 
@@ -145,10 +145,12 @@ function AppLayout() {
             <TopLeftActions />
             <div className="h-full overflow-hidden">
               {isChatSurfaceRoute ? (
-                <AppChatRoute
-                  initialThreadId={chatThreadId}
-                  preload={chatPreload}
-                />
+                shouldRenderChatSurface ? (
+                  <AppChatRoute
+                    initialThreadId={chatThreadId}
+                    preload={chatPreload}
+                  />
+                ) : null
               ) : (
                 <Outlet />
               )}
