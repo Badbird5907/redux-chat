@@ -66,7 +66,7 @@ export async function convertAttachmentToPdf(input: {
         fileName,
         size: pdfBytes.byteLength,
         mimeType: "application/pdf",
-        isPublic: false,
+        isPublic: true,
         serveImage: false,
       },
     });
@@ -92,7 +92,7 @@ export async function convertAttachmentToPdf(input: {
       accessKey: prepared.file.accessKey,
       fileName,
       mimeType: "application/pdf",
-      isPublic: false,
+      isPublic: true,
       serveImage: false,
     });
 

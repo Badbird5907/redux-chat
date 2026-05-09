@@ -42,7 +42,6 @@ import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
 import { MessageQueueCard } from "./message-queue-card";
-import { ChatToolsDialog } from "./tools-dialog";
 import { useFileUpload } from "./use-file-upload";
 import { isAttachmentExpired } from "./utils";
 
@@ -85,7 +84,6 @@ export function ChatInput({
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [toolsDialogOpen, setToolsDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -217,8 +215,6 @@ export function ChatInput({
     () => settings.tools.mcpServers?.serverIds ?? [],
     [settings.tools.mcpServers],
   );
-  const syncUploadsToAnalysisWorkspace =
-    settings.tools.analysisWorkspace?.syncUploads !== false;
   const showErrorBorder = status === "error";
   const selectedInstruction =
     (settings.instructionId
@@ -318,27 +314,12 @@ export function ChatInput({
       void onSettingsChange({
         tools: {
           analysisWorkspace: enabled
-            ? (settings.tools.analysisWorkspace ?? { syncUploads: true })
+            ? { syncUploads: true }
             : undefined,
         },
       });
     },
-    [onSettingsChange, settings.tools.analysisWorkspace],
-  );
-
-  const handleAnalysisWorkspaceSyncUploadsChange = useCallback(
-    (syncUploads: boolean) => {
-      if (!isAnalysisWorkspaceEnabled) {
-        return;
-      }
-
-      void onSettingsChange({
-        tools: {
-          analysisWorkspace: { syncUploads },
-        },
-      });
-    },
-    [isAnalysisWorkspaceEnabled, onSettingsChange],
+    [onSettingsChange],
   );
 
   const handleInstructionChange = useCallback(
@@ -957,10 +938,6 @@ export function ChatInput({
               dropdownOpen={dropdownOpen}
               onDropdownOpenChange={setDropdownOpen}
               onOpenFilePicker={openFilePicker}
-              onOpenToolsDialog={() => {
-                setDropdownOpen(false);
-                setToolsDialogOpen(true);
-              }}
               onOpenMcpSettings={() => {
                 setDropdownOpen(false);
                 void navigate({ to: "/settings/mcp" });
@@ -980,7 +957,11 @@ export function ChatInput({
               onInstructionChange={handleInstructionChange}
               instructionsReady={instructionsReady}
               canUploadFiles={canUploadFiles}
+              isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
               isSearchEnabled={isSearchEnabled}
+              onAnalysisWorkspaceEnabledChange={
+                handleAnalysisWorkspaceEnabledChange
+              }
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}
               mcpServers={mcpServers.map((server) => ({
@@ -1016,20 +997,6 @@ export function ChatInput({
       <FilePreviewDialog
         file={previewFile}
         onClose={() => setPreviewFile(null)}
-      />
-
-      <ChatToolsDialog
-        isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
-        isSearchEnabled={isSearchEnabled}
-        onAnalysisWorkspaceEnabledChange={handleAnalysisWorkspaceEnabledChange}
-        onAnalysisWorkspaceSyncUploadsChange={
-          handleAnalysisWorkspaceSyncUploadsChange
-        }
-        onOpenChange={setToolsDialogOpen}
-        onSearchEnabledChange={handleSearchEnabledChange}
-        open={toolsDialogOpen}
-        settingsReady={settingsReady}
-        syncUploads={syncUploadsToAnalysisWorkspace}
       />
     </>
   );

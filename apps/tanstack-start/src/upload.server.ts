@@ -99,9 +99,8 @@ export const fileRouter = {
       }
       return baseExpects as SiloRouteConfigInput;
     })
-    .public(false)
+    .public(true)
     .serveImage(true)
-    // .public(true)
     .expires("7 days")
     .onUploadComplete(async ({ metadata, file }) => {
       const serveImage = file.mimeType.startsWith("image/");
@@ -118,7 +117,7 @@ export const fileRouter = {
         fileName: file.fileName,
         mimeType: file.mimeType,
         size: file.size,
-        isPublic: false,
+        isPublic: true,
         serveImage,
         expiresAt: metadata.expiresAt
           ? new Date(metadata.expiresAt).getTime()
@@ -138,7 +137,7 @@ export const fileRouter = {
           accessKey: file.accessKey,
           fileName: file.fileName,
           mimeType: file.mimeType,
-          isPublic: false,
+          isPublic: true,
           serveImage,
         }),
       };
@@ -158,8 +157,6 @@ export const fileRouter = {
       };
     })
     .expects(() => PROJECT_ATTACHMENT_EXPECTS)
-    // .public(false)
-    // .serveImage(true)
     .public(true)
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("onUploadComplete", metadata, file);
@@ -177,7 +174,7 @@ export const fileRouter = {
         fileName: file.fileName,
         mimeType: file.mimeType,
         size: file.size,
-        isPublic: false,
+        isPublic: true,
         serveImage,
         expiresAt: undefined,
       });
@@ -192,7 +189,7 @@ export const fileRouter = {
         fileName: file.fileName,
         mimeType: file.mimeType,
         accessKey: file.accessKey,
-        isPublic: false,
+        isPublic: true,
         serveImage,
       }).catch((error: unknown) => {
         console.error("Project file indexing failed", error);
@@ -210,7 +207,7 @@ export const fileRouter = {
           accessKey: file.accessKey,
           fileName: file.fileName,
           mimeType: file.mimeType,
-          isPublic: false,
+          isPublic: true,
           serveImage,
         }),
       };

@@ -38,9 +38,9 @@ export function AssistantMessageParts({
   const hasTimelineReasoning = steps.some((step) => step.kind === "reasoning");
   const isReasoningStreaming =
     isStreaming && message.parts.at(-1)?.type === "reasoning";
-  const defaultChainOpen =
-    isLastMessage &&
-    steps.some((step) => step.status === "active" || step.status === "error");
+  const hasActiveOrErroredStep = steps.some(
+    (step) => step.status === "active" || step.status === "error",
+  );
   const hasActiveMessagePart = message.parts.some((part) => {
     if (isReasoningUIPart(part)) {
       return part.state === "streaming";
@@ -61,12 +61,25 @@ export function AssistantMessageParts({
     isLastMessage &&
     steps.length > 0 &&
     (isStreaming || hasActiveMessagePart || textContent.trim().length === 0);
+  const defaultChainOpen =
+    isLastMessage &&
+    steps.length > 0 &&
+    (isChainActive || hasActiveOrErroredStep);
   const headerState = getChainOfThoughtHeaderState(steps);
-  const headerStatus = isChainActive ? "active" : headerState.status;
   const activeStepId =
     [...steps].reverse().find((step) => step.status === "active")?.id ??
     [...steps].reverse().find((step) => step.status === "pending")?.id ??
     (isChainActive ? steps.at(-1)?.id : undefined);
+  const activeStep = steps.find((step) => step.id === activeStepId);
+  const headerIcon =
+    isChainActive && activeStep
+      ? getAssistantStepIcon(activeStep)
+      : headerState.icon;
+  const headerLabel =
+    isChainActive && activeStep
+      ? (activeStep.summary ?? activeStep.label)
+      : headerState.label;
+  const headerStatus = isChainActive ? "active" : headerState.status;
 
   return (
     <>
@@ -92,14 +105,14 @@ export function AssistantMessageParts({
         <ChainOfThought
           className="mb-3"
           defaultOpen={defaultChainOpen}
-          key={`${message.id}:chain:${defaultChainOpen ? "open" : "closed"}`}
+          key={`${message.id}:chain`}
         >
           <ChainOfThoughtHeader
-            icon={headerState.icon}
+            icon={headerIcon}
             shimmer={isChainActive || headerStatus === "active"}
             status={headerStatus}
           >
-            {headerState.label}
+            {headerLabel}
           </ChainOfThoughtHeader>
           <ChainOfThoughtContent>
             {steps.map((step) => (

@@ -26,7 +26,11 @@ import {
   fetchAuthQuery,
   getRequestUserIdFromHeaders,
 } from "@/lib/auth/server";
-import { buildAttachmentUrl } from "@/lib/silo/core.server";
+import {
+  buildAttachmentDownloadUrl,
+  buildAttachmentUrl,
+  makeAttachmentPublic,
+} from "@/lib/silo/core.server";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
 import { resolveAiSdkModel } from "@/server/ai/model-runtime";
@@ -84,6 +88,7 @@ interface ModelAttachment {
   size: number;
   url: string;
   accessKey: string;
+  fileKeyId: string;
   isPublic: boolean;
   serveImage: boolean;
   projectId: string;
@@ -123,6 +128,7 @@ async function resolveModelAttachments(attachmentIds: string[]) {
             serveImage: attachment.serveImage,
           }),
           accessKey: attachment.accessKey,
+          fileKeyId: attachment.fileKeyId,
           isPublic: attachment.isPublic,
           serveImage: attachment.serveImage,
           projectId: attachment.projectId,
@@ -252,21 +258,40 @@ function mergeAttachments(
   return Array.from(mergedById.values());
 }
 
-function getToolAttachments(
+async function getToolAttachments(
   attachmentsByMessageId: Map<string, ModelAttachment[]>,
 ) {
-  return Array.from(
+  const attachments = Array.from(
     new Map(
       Array.from(attachmentsByMessageId.values())
         .flat()
         .map((attachment) => [attachment.attachmentId, attachment] as const),
     ).values(),
-  ).map((attachment) => ({
-    attachmentId: attachment.attachmentId,
-    fileName: attachment.fileName,
-    mimeType: attachment.mimeType,
-    url: attachment.url,
-  }));
+  );
+
+  return Promise.all(
+    attachments.map(async (attachment) => {
+      if (!attachment.isPublic) {
+        await makeAttachmentPublic({
+          projectId: attachment.projectId,
+          environmentId: attachment.environmentId,
+          fileKeyId: attachment.fileKeyId,
+          serveImage: attachment.serveImage,
+        });
+      }
+
+      return {
+        attachmentId: attachment.attachmentId,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        url: await buildAttachmentDownloadUrl({
+          accessKey: attachment.accessKey,
+          fileName: attachment.fileName,
+          isPublic: true,
+        }),
+      };
+    }),
+  );
 }
 
 function getErrorMessage(error: unknown) {
@@ -482,7 +507,7 @@ export const Route = createFileRoute("/api/chat/")({
               : [];
 
           const toolRuntime = await createToolRuntime(settings, {
-            attachments: getToolAttachments(attachmentsByMessageId),
+            attachments: await getToolAttachments(attachmentsByMessageId),
             mcpServers: enabledMcpServers,
             projectContext:
               chatProjectId && threadUserId

@@ -3,6 +3,7 @@ import type { ToolSet } from "ai";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { webSearch } from "@exalabs/ai-sdk";
 import { tool } from "ai";
+import type { Value } from "convex/values";
 import { z } from "zod";
 
 import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
@@ -100,10 +101,13 @@ export async function createToolRuntime(
           const execution = await sandbox.runCode(code);
 
           return {
-            error: execution.error,
-            logs: execution.logs,
-            results: execution.results,
-            text: execution.text,
+            error: toConvexSafeValue(execution.error) ?? null,
+            logs: toConvexSafeValue(execution.logs) ?? {
+              stdout: [],
+              stderr: [],
+            },
+            results: toConvexSafeValue(execution.results) ?? [],
+            text: execution.text ?? null,
             uploadedFiles,
           };
         },
@@ -189,7 +193,71 @@ function instrumentTool(
     ...candidate,
     execute: async (...args: unknown[]) => {
       usageCounts.set(billingKey, (usageCounts.get(billingKey) ?? 0) + 1);
-      return await execute(...args);
+      return toConvexSafeValue(await execute(...args)) ?? null;
     },
   } satisfies ToolSet[string];
+}
+
+function toConvexSafeValue(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): Value | undefined {
+  if (value === undefined || typeof value === "function") {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "symbol") {
+    return value.toString();
+  }
+
+  if (value instanceof ArrayBuffer) {
+    return value;
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    return Array.from(new Uint8Array(value.buffer.slice(0)));
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toConvexSafeValue(item, seen) ?? null);
+  }
+
+  if (typeof value !== "object") {
+    return undefined;
+  }
+
+  if (seen.has(value)) {
+    return "[Circular]";
+  }
+  seen.add(value);
+
+  const output: Record<string, Value> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const safeItem = toConvexSafeValue(item, seen);
+    if (safeItem !== undefined) {
+      output[key] = safeItem;
+    }
+  }
+
+  return output;
 }

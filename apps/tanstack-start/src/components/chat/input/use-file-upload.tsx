@@ -147,6 +147,7 @@ export function useFileUpload({
         });
 
         try {
+          console.log("uploading file", file);
           const completion = await upload.uploadFile(file, {
             input: {
               modelId: selectedModel,

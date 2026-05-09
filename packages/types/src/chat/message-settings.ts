@@ -65,7 +65,7 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
   tools: {
     search: {},
-    analysisWorkspace: { syncUploads: false },
+    analysisWorkspace: { syncUploads: true },
   },
   instructionId: undefined,
   userMessagePreviewMaxLines: DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES,
