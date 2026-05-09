@@ -109,6 +109,26 @@ describe("functions/mcpServers", () => {
     ).resolves.toMatchObject([{ mcpServerId, authHeaders: [] }]);
   });
 
+  it("adds created servers to default message settings", async () => {
+    const t = authedTest();
+
+    const { mcpServerId } = await t.mutation(api.functions.mcpServers.create, {
+      name: "MCP",
+      url: "https://example.com/mcp",
+    });
+
+    const defaultSettings = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("defaultMessageSettings")
+        .withIndex("by_userId", (q) => q.eq("userId", USER_ID))
+        .first();
+    });
+
+    expect(defaultSettings?.settings.tools.mcpServers?.serverIds).toEqual([
+      mcpServerId,
+    ]);
+  });
+
   it("removes deleted server ids from default settings and thread settings", async () => {
     const t = authedTest();
     const { mcpServerId } = await t.mutation(api.functions.mcpServers.create, {
@@ -127,9 +147,16 @@ describe("functions/mcpServers", () => {
           },
         },
       };
+      const defaultSettings = await ctx.db
+        .query("defaultMessageSettings")
+        .withIndex("by_userId", (q) => q.eq("userId", USER_ID))
+        .first();
 
-      await ctx.db.insert("defaultMessageSettings", {
-        userId: USER_ID,
+      if (!defaultSettings) {
+        throw new Error("Expected default settings to be created");
+      }
+
+      await ctx.db.patch(defaultSettings._id, {
         settings,
         updatedAt: NOW,
       });

@@ -178,6 +178,40 @@ function stripDeletedServerIdFromSettings<
   });
 }
 
+async function addServerIdToDefaultSettings(
+  ctx: GenericMutationCtx<DataModel> & { userId: string },
+  mcpServerId: string,
+) {
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("defaultMessageSettings")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .first();
+  const currentServerIds =
+    existing?.settings.tools.mcpServers?.serverIds ?? [];
+  const settings = mergeMessageSettings(existing?.settings, {
+    tools: {
+      mcpServers: {
+        serverIds: [...currentServerIds, mcpServerId],
+      },
+    },
+  });
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      settings,
+      updatedAt: now,
+    });
+    return;
+  }
+
+  await ctx.db.insert("defaultMessageSettings", {
+    userId: ctx.userId,
+    settings,
+    updatedAt: now,
+  });
+}
+
 async function listConfiguredServers(
   ctx: AuthenticatedCtx,
   options: { includeAuthHeaders: boolean },
@@ -301,6 +335,8 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    await addServerIdToDefaultSettings(ctx, mcpServerId);
 
     return { mcpServerId };
   },
