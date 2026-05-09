@@ -55,6 +55,7 @@ export default defineConfig({
       noExternals: [
         /node_modules[/\\]@opentelemetry[/\\]/,
         /node_modules[/\\]@sentry[/\\]/,
+        /node_modules[/\\]tslib[/\\]/,
       ],
     }),
     // Disabled devtools plugin - causes hydration mismatches with SSR
