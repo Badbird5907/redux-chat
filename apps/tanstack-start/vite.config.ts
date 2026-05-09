@@ -51,7 +51,12 @@ export default defineConfig({
     }),
     viteReact(),
     tailwindcss(),
-    nitro(),
+    nitro({
+      noExternals: [
+        /node_modules[/\\]@opentelemetry[/\\]/,
+        /node_modules[/\\]@sentry[/\\]/,
+      ],
+    }),
     // Disabled devtools plugin - causes hydration mismatches with SSR
     // The source tracking attributes differ between server and client builds
     // devtools({
