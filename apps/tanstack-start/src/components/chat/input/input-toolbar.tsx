@@ -1,8 +1,10 @@
 import type React from "react";
 import type { RefObject } from "react";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
 import {
   ArrowUp,
   BookText,
+  FlaskConical,
   Hammer,
   Loader2,
   Maximize2,
@@ -34,6 +36,7 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import { ModelSelector } from "@/components/chat/model-selector";
+import { useResolvedHotkey } from "@/lib/hotkeys";
 
 interface ChatInputToolbarProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -42,7 +45,6 @@ interface ChatInputToolbarProps {
   dropdownOpen: boolean;
   onDropdownOpenChange: (open: boolean) => void;
   onOpenFilePicker: () => void;
-  onOpenToolsDialog: () => void;
   onOpenMcpSettings: () => void;
   instructions: {
     instructionId: string;
@@ -55,8 +57,10 @@ interface ChatInputToolbarProps {
   onInstructionChange: (instructionId: string) => void;
   instructionsReady: boolean;
   canUploadFiles: boolean;
+  isAnalysisWorkspaceEnabled: boolean;
   isSearchEnabled: boolean;
   project?: string;
+  onAnalysisWorkspaceEnabledChange: (enabled: boolean) => void;
   onToggleSearch: () => void;
   settingsReady: boolean;
   mcpServers: {
@@ -90,7 +94,6 @@ export function ChatInputToolbar({
   dropdownOpen,
   onDropdownOpenChange,
   onOpenFilePicker,
-  onOpenToolsDialog,
   onOpenMcpSettings,
   instructions,
   selectedInstructionId,
@@ -98,7 +101,9 @@ export function ChatInputToolbar({
   onInstructionChange,
   instructionsReady,
   canUploadFiles,
+  isAnalysisWorkspaceEnabled,
   isSearchEnabled,
+  onAnalysisWorkspaceEnabledChange,
   onToggleSearch,
   settingsReady,
   mcpServers,
@@ -122,6 +127,7 @@ export function ChatInputToolbar({
   onSubmit,
   onStopGeneration,
 }: ChatInputToolbarProps) {
+  const uploadFileHotkey = useResolvedHotkey("chat.uploadFile");
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
     <div className="flex items-center justify-between px-2 pb-2">
@@ -157,7 +163,7 @@ export function ChatInputToolbar({
                 Upload file
               </span>
               <DropdownMenuShortcut className="shrink-0">
-                Ctrl+U
+                {formatForDisplay(uploadFileHotkey)}
               </DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -197,14 +203,37 @@ export function ChatInputToolbar({
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={onOpenToolsDialog}
-              disabled={!settingsReady}
-            >
-              <Hammer className="size-4 shrink-0" />
-              <span className="min-w-0 grow whitespace-nowrap">Tools</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger disabled={!settingsReady}>
+                <Hammer className="size-4 shrink-0" />
+                <span className="min-w-0 grow whitespace-nowrap">Tools</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-64">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Tools</DropdownMenuLabel>
+                  <DropdownMenuCheckboxItem
+                    checked={isSearchEnabled}
+                    disabled={!settingsReady}
+                    onCheckedChange={onToggleSearch}
+                  >
+                    <Search className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      Search
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={isAnalysisWorkspaceEnabled}
+                    disabled={!settingsReady}
+                    onCheckedChange={onAnalysisWorkspaceEnabledChange}
+                  >
+                    <FlaskConical className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      Analysis
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={!settingsReady}>
                 <PlugZap className="size-4 shrink-0" />

@@ -11,6 +11,10 @@ import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
+import {
+  incrementDailyAssistantApiCalls,
+  updateUserUsageStats,
+} from "../usageStats";
 import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
 import { normalizeInstructionIdForUser } from "./instructions";
@@ -360,10 +364,6 @@ export const getThreadMessages = query({
       .query("attachments")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
-    const billingUsageEvents = await ctx.db
-      .query("billingUsageEvents")
-      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-      .collect();
 
     const attachmentsByMessageId = new Map<
       string,
@@ -378,7 +378,6 @@ export const getThreadMessages = query({
         expiresAt: number | undefined;
       }[]
     >();
-    const creditsByMessageId = new Map<string, number>();
 
     for (const attachment of allAttachments) {
       if (!attachment.messageId) {
@@ -398,15 +397,10 @@ export const getThreadMessages = query({
       attachmentsByMessageId.set(attachment.messageId, existing);
     }
 
-    for (const event of billingUsageEvents) {
-      creditsByMessageId.set(event.messageId, event.credits);
-    }
-
     return allMessages.map((m) => ({
       ...m,
       id: m.messageId,
       attachments: attachmentsByMessageId.get(m.messageId) ?? [],
-      creditsConsumed: creditsByMessageId.get(m.messageId),
     }));
   },
 });
@@ -507,6 +501,12 @@ export const internal_updateMessageUsage = backendMutation({
     );
     if (message.role !== "assistant") {
       throw new ConvexError("Assistant message not found");
+    }
+    if (message.usage === undefined) {
+      await incrementDailyAssistantApiCalls(ctx, args.userId);
+      await updateUserUsageStats(ctx, args.userId, {
+        lastActiveAt: Date.now(),
+      });
     }
     await ctx.db.patch(message._id, {
       usage: args.usage,
@@ -736,6 +736,11 @@ export const sendMessage = mutation({
       siblingIndex,
       mutation: { type: "original" },
     });
+    await updateUserUsageStats(ctx, ctx.userId, {
+      userMessagesDelta: 1,
+      threadsDelta: createdNewThread ? 1 : 0,
+      lastActiveAt: Date.now(),
+    });
 
     if (args.attachmentIds?.length) {
       await attachDraftAttachmentsToMessage(ctx, {
@@ -847,6 +852,10 @@ export const editUserMessageBranch = mutation({
       depth: sourceMessage.depth,
       siblingIndex: userSiblingIndex,
       mutation: { type: "edit", fromMessageId: sourceMessage.messageId },
+    });
+    await updateUserUsageStats(ctx, ctx.userId, {
+      userMessagesDelta: 1,
+      lastActiveAt: Date.now(),
     });
 
     await attachMixedAttachmentsToMessage(ctx, {
@@ -1297,8 +1306,16 @@ export const deleteThread = mutation({
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
 
+    const userMessageCount = messages.filter(
+      (message) => message.role === "user",
+    ).length;
     await Promise.all(messages.map((message) => ctx.db.delete(message._id)));
     await ctx.db.delete(thread._id);
+    await updateUserUsageStats(ctx, ctx.userId, {
+      threadsDelta: -1,
+      userMessagesDelta: -userMessageCount,
+      lastActiveAt: Date.now(),
+    });
 
     return { success: true };
   },

@@ -3,7 +3,6 @@ import type { UIMessage } from "ai";
 import type { api } from "@redux/backend/convex/_generated/api";
 
 export interface MessageStats {
-  creditsConsumed?: number;
   usage?: {
     promptTokens: number;
     responseTokens: number;
@@ -52,7 +51,6 @@ export type PersistedChatMessage =
 export type ChatMessageWithThreadMetadata = UIMessage & {
   attachments?: MessageAttachmentSummary[];
   canceledAt?: number;
-  creditsConsumed?: number;
   createdAt?: number;
   depth?: number;
   error?: string;

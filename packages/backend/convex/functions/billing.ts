@@ -4,64 +4,76 @@ import { v } from "convex/values";
 import type { PlanTier } from "@redux/shared";
 import { calculateUsageCharge, getPlanConfig } from "@redux/shared";
 
-import { api, internal } from "../_generated/api";
-import type { DataModel, Doc } from "../_generated/dataModel";
+import type { DataModel } from "../_generated/dataModel";
+import type { BillingSubscriptionSchedule } from "../billing";
+import { api, components, internal } from "../_generated/api";
 import {
-  buildBillingAccountRecord,
-  billingDebugLog,
   billingDebugWarn,
-  buildPolarCreditGrantEvent,
   buildPolarCreditUsageEvent,
-  buildToolSummaryRecord,
-  extractMeterBalance,
-  extractMeterCreditSummary,
   getBillingConfig,
   getBillingPeriodKey,
   getPolarSdkClient,
   getUtcMonthBounds,
+  polarLiveSubscriptionProductId,
   resolveTierFromSubscription,
+  subscriptionScheduleFromPolarSdkSubscription,
   toSubscriptionSnapshot,
-  POLAR_CREDITS_EVENT_NAME,
 } from "../billing";
-import type { BillingGrantReason, BillingGrantSource } from "../billing";
+import { getCreditBalanceForUser } from "../credits";
+import { backendEnv } from "../env";
 import { polar } from "../polar";
 import { action, query } from "./index";
-import { internalAction, internalMutation, internalQuery } from "./internal";
+
+function planTierRank(tier: PlanTier): number {
+  if (tier === "free") {
+    return 0;
+  }
+  if (tier === "plus") {
+    return 1;
+  }
+  return 2;
+}
+
+function tierFromPolarProductId(productId: string): PlanTier {
+  const env = backendEnv();
+  if (productId === env.POLAR_PLUS_PRODUCT_ID) {
+    return "plus";
+  }
+  if (productId === env.POLAR_PRO_PRODUCT_ID) {
+    return "pro";
+  }
+  throw new Error("That product is not a configured plan.");
+}
 
 type BillingActionCtx = GenericActionCtx<DataModel> & {
   userId: string;
 };
-
-type BillingInternalActionCtx = GenericActionCtx<DataModel>;
 
 type BillingSubscriptionState = {
   tier: PlanTier;
   subscription: ReturnType<typeof toSubscriptionSnapshot>;
 };
 
-type BillingGrantRecord = Doc<"billingCreditGrants">;
-
 type BillingRefreshResult = {
   tier: PlanTier;
   availableCredits: number | undefined;
   overageCredits: number | undefined;
+  spendableCredits: number;
+  bucketBalances: {
+    gifted: number;
+    monthly: number;
+    paid: number;
+  };
+  expiringSoon: {
+    bucket: "gifted" | "monthly" | "paid";
+    grantId: string;
+    remaining: number;
+    expiresAt: number;
+  }[];
   overageAllowed: boolean;
   grantApplied: boolean;
   periodKey: string;
-};
-
-type BillingAdminResetResult = {
-  userId: string;
-  tier: PlanTier;
-  periodKey: string;
-  targetCredits: number;
-  availableCreditsBefore: number | undefined;
-  overageCreditsBefore: number | undefined;
-  adjustmentCredits: number;
-  availableCredits: number | undefined;
-  overageCredits: number | undefined;
-  polarIngestedAt: number | undefined;
-  grantId: string | undefined;
+  subscriptionSchedule: BillingSubscriptionSchedule;
 };
 
 const usageValidator = v.object({
@@ -79,27 +91,24 @@ const toolCallValidator = v.object({
   invocationCount: v.number(),
 });
 
-const billingAccountValidator = {
-  userId: v.string(),
-  tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
-  status: v.string(),
-  polarCustomerId: v.optional(v.string()),
-  polarSubscriptionId: v.optional(v.string()),
-  currentPeriodStart: v.optional(v.number()),
-  currentPeriodEnd: v.optional(v.number()),
-  markupMultiplier: v.number(),
-  includedMonthlyCredits: v.number(),
-  overageAllowed: v.boolean(),
-};
-
-const billingGrantReasonValidator = v.union(
-  v.literal("subscription_created"),
-  v.literal("subscription_renewed"),
-  v.literal("free_monthly_reset"),
-  v.literal("admin_adjustment"),
-);
-
 const POLAR_NETWORK_TIMEOUT_MS = 10_000;
+
+type PolarSdkSubscriptions = ReturnType<typeof getPolarSdkClient>;
+
+async function invokePolarSubscriptionGet(
+  polarSdk: PolarSdkSubscriptions,
+  subscriptionId: string,
+): Promise<unknown> {
+  const sub = await polarSdk.subscriptions.get({ id: subscriptionId });
+  return sub;
+}
+
+async function invokePolarSubscriptionUpdate(
+  polarSdk: PolarSdkSubscriptions,
+  payload: { id: string; subscriptionUpdate: Record<string, unknown> },
+): Promise<void> {
+  await polarSdk.subscriptions.update(payload as never);
+}
 
 export const getCurrentBillingState = query({
   args: {},
@@ -108,21 +117,25 @@ export const getCurrentBillingState = query({
       ctx,
       ctx.userId,
     );
-    const balanceCache = await ctx.db
-      .query("billingBalanceCache")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .first();
     const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
-
     const freePeriodBounds =
       subscriptionState.tier === "free" ? getUtcMonthBounds() : undefined;
+
+    const balance = await getCreditBalanceForUser(ctx, ctx.userId);
+    // Backwards-compatible aggregate fields: most existing UI gates on
+    // `availableCredits` / `overageCredits`. Map ledger spendable to
+    // `availableCredits` while the UI moves to `spendableCredits`.
+    const availableCredits = balance.spendableCredits;
+    const overageCredits = 0;
 
     return {
       tier: subscriptionState.tier,
       subscription: subscriptionState.subscription,
-      availableCredits: balanceCache?.availableCredits,
-      overageCredits: balanceCache?.overageCredits,
-      meterName: balanceCache?.meterName ?? getBillingConfig().meterName,
+      availableCredits,
+      overageCredits,
+      spendableCredits: balance.spendableCredits,
+      bucketBalances: balance.bucketBalances,
+      expiringSoon: balance.expiringSoon,
       markupMultiplier: plan.markupMultiplier,
       includedMonthlyCredits: plan.includedMonthlyCredits,
       overageAllowed: plan.overageAllowed,
@@ -130,45 +143,10 @@ export const getCurrentBillingState = query({
         subscriptionState.subscription?.currentPeriodStart ??
         freePeriodBounds?.start,
       currentPeriodEnd:
-        subscriptionState.subscription?.currentPeriodEnd ?? freePeriodBounds?.end,
-      syncedAt: balanceCache?.syncedAt,
-    };
-  },
-});
-
-export const getCurrentCreditBalance = query({
-  args: {},
-  handler: async (ctx) => {
-    const cachedBalance = await ctx.db
-      .query("billingBalanceCache")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .first();
-
-    if (cachedBalance) {
-      return cachedBalance;
-    }
-
-    return {
-      availableCredits: undefined,
-      overageCredits: undefined,
-      meterName: getBillingConfig().meterName,
-      periodKey: getBillingPeriodKey(),
+        subscriptionState.subscription?.currentPeriodEnd ??
+        freePeriodBounds?.end,
       syncedAt: undefined,
     };
-  },
-});
-
-export const listBillingUsageEvents = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const limit = Math.min(Math.max(args.limit ?? 25, 1), 100);
-    return await ctx.db
-      .query("billingUsageEvents")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .order("desc")
-      .take(limit);
   },
 });
 
@@ -196,34 +174,181 @@ export const previewGenerationCharge = query({
   },
 });
 
-export const refreshCurrentUserMeterState = action({
+export const refreshCurrentUserBillingState = action({
   args: {},
   handler: async (ctx): Promise<BillingRefreshResult> => {
     return await refreshBillingStateForUser(ctx, ctx.userId);
   },
 });
 
-export const grantMonthlyCreditsForCurrentUserIfNeeded = action({
-  args: {},
-  handler: async (ctx): Promise<BillingRefreshResult> => {
-    return await refreshBillingStateForUser(ctx, ctx.userId);
+/**
+ * Switch plans with per-call Polar proration: upgrades use `invoice` (charge
+ * now); paid-plan downgrades use `next_period` (change at renewal). Free users
+ * must use checkout to start a paid plan. Returning to Free is handled via
+ * cancellation / billing portal, not direct product switch.
+ */
+export const switchCurrentUserPaidPlan = action({
+  args: { productId: v.string() },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    prorationBehavior: "invoice" | "next_period";
+    targetTier: PlanTier;
+  }> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(
+      ctx,
+      ctx.userId,
+    );
+    if (subscriptionState.tier === "free") {
+      throw new Error(
+        "Use checkout to subscribe. Plan switches from this page are only for existing paid subscriptions.",
+      );
+    }
+
+    let targetTier: PlanTier;
+    try {
+      targetTier = tierFromPolarProductId(args.productId);
+    } catch {
+      throw new Error("That product is not a configured plan.");
+    }
+
+    const subscription = subscriptionState.subscription;
+    if (!subscription?.subscriptionId) {
+      throw new Error("No subscription found to update.");
+    }
+    const subscriptionId = subscription.subscriptionId;
+    if (subscription.productId === args.productId) {
+      throw new Error("You are already on this plan.");
+    }
+
+    const fromRank = planTierRank(subscriptionState.tier);
+    const toRank = planTierRank(targetTier);
+    const prorationBehavior =
+      toRank > fromRank ? ("invoice" as const) : ("next_period" as const);
+
+    const polarSdk = getPolarSdkClient();
+    await invokePolarSubscriptionUpdate(polarSdk, {
+      id: subscriptionId,
+      subscriptionUpdate: {
+        productId: args.productId,
+        prorationBehavior,
+      },
+    });
+
+    return { prorationBehavior, targetTier };
   },
 });
 
-export const syncSubscriptionTierAndCredits = action({
+/** Clear Polar’s cancel-at-period-end flag so the paid subscription keeps renewing. */
+export const rescindPaidSubscriptionCancellation = action({
   args: {},
-  handler: async (ctx): Promise<BillingRefreshResult> => {
-    return await refreshBillingStateForUser(ctx, ctx.userId);
+  handler: async (ctx): Promise<{ ok: true }> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(
+      ctx,
+      ctx.userId,
+    );
+    if (subscriptionState.tier === "free") {
+      throw new Error("Only subscribers on a paid plan can use this action.");
+    }
+    const subscription = subscriptionState.subscription;
+    if (!subscription?.subscriptionId) {
+      throw new Error("No subscription found.");
+    }
+    const subscriptionId = subscription.subscriptionId;
+    const polarSdk = getPolarSdkClient();
+
+    let liveSchedule: BillingSubscriptionSchedule;
+    try {
+      const liveSub: unknown = await withTimeout(
+        invokePolarSubscriptionGet(polarSdk, subscriptionId),
+        POLAR_NETWORK_TIMEOUT_MS,
+        "polar.subscriptions.get",
+      );
+      liveSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
+    } catch (error) {
+      throw new Error(
+        `Could not read subscription from Polar (${getErrorText(error)}). Try again or use Manage billing.`,
+      );
+    }
+
+    if (!liveSchedule.cancelAtPeriodEnd) {
+      throw new Error(
+        "This subscription is not set to cancel at the end of the period.",
+      );
+    }
+
+    await invokePolarSubscriptionUpdate(polarSdk, {
+      id: subscriptionId,
+      subscriptionUpdate: { cancelAtPeriodEnd: false },
+    });
+    return { ok: true };
   },
 });
 
-export const internal_resetUserCredits = internalAction({
-  args: {
-    userId: v.string(),
-    targetCredits: v.optional(v.number()),
-  },
-  handler: async (ctx, args): Promise<BillingAdminResetResult> => {
-    return await resetCreditsForUser(ctx, args.userId, args.targetCredits);
+/**
+ * Removes a Polar pending product change (`pending_update`), keeping the subscription on
+ * the current product past the renewal. Uses `invoice` with the active product Id so Polar
+ * applies the current plan immediately and drops the queued downgrade.
+ */
+export const discardScheduledPaidPlanChange = action({
+  args: {},
+  handler: async (ctx): Promise<{ ok: true }> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(
+      ctx,
+      ctx.userId,
+    );
+    if (subscriptionState.tier === "free") {
+      throw new Error("Only subscribers on a paid plan can use this action.");
+    }
+    const subscription = subscriptionState.subscription;
+    if (!subscription?.subscriptionId) {
+      throw new Error("No subscription found.");
+    }
+    const subscriptionId = subscription.subscriptionId;
+    const polarSdk = getPolarSdkClient();
+
+    let liveSub: unknown;
+    try {
+      liveSub = await withTimeout(
+        invokePolarSubscriptionGet(polarSdk, subscriptionId),
+        POLAR_NETWORK_TIMEOUT_MS,
+        "polar.subscriptions.get",
+      );
+    } catch (error) {
+      throw new Error(
+        `Could not read subscription from Polar (${getErrorText(error)}). Try again or use Manage billing.`,
+      );
+    }
+
+    const liveSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
+    if (
+      liveSchedule.pendingProductId == null ||
+      liveSchedule.pendingProductId === ""
+    ) {
+      throw new Error("There is no scheduled plan change to remove.");
+    }
+
+    const currentProductId =
+      polarLiveSubscriptionProductId(liveSub) ?? subscription.productId;
+    if (!currentProductId) {
+      throw new Error("Could not determine your current Polar product.");
+    }
+
+    if (liveSchedule.pendingProductId === currentProductId) {
+      throw new Error(
+        "Polar did not report a plan change queued for this renewal.",
+      );
+    }
+
+    await invokePolarSubscriptionUpdate(polarSdk, {
+      id: subscriptionId,
+      subscriptionUpdate: {
+        productId: currentProductId,
+        prorationBehavior: "invoice",
+      },
+    });
+    return { ok: true };
   },
 });
 
@@ -252,54 +377,13 @@ export const recordUsageEvent = action({
     credits: number;
     polarIngestedAt: number | undefined;
     tier: PlanTier;
+    debitId: string | undefined;
+    overdraftAmount: number;
   }> => {
-    billingDebugLog("Recording usage event", args);
-    billingDebugLog("billing_record_usage_checkpoint", {
-      stage: "before_existing_lookup",
-      requestId: args.requestId,
-      userId: ctx.userId,
-    });
-    let existing: Doc<"billingUsageEvents"> | null = null;
-    try {
-      existing = await withTimeout(
-        ctx.runQuery(internal.functions.billing.internal_getUsageEventByRequestId, {
-          requestId: args.requestId,
-        }),
-        5_000,
-        "internal_getUsageEventByRequestId",
-      );
-    } catch (error) {
-      console.error("billing_existing_lookup_failed", {
-        requestId: args.requestId,
-        userId: ctx.userId,
-        error: getErrorText(error),
-      });
-    }
-    if (existing) {
-      return {
-        eventId: existing.eventId,
-        credits: existing.credits,
-        polarIngestedAt: existing.polarIngestedAt,
-        tier: existing.tier,
-      };
-    }
-    billingDebugLog("billing_record_usage_checkpoint", {
-      stage: "after_existing_lookup",
-      requestId: args.requestId,
-      userId: ctx.userId,
-    });
-
     const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
       ctx,
       ctx.userId,
     );
-    billingDebugLog("billing_record_usage_checkpoint", {
-      stage: "after_subscription_resolution",
-      requestId: args.requestId,
-      userId: ctx.userId,
-      tier: subscriptionState.tier,
-    });
-
     const charge = calculateUsageCharge(
       {
         routeId: args.routeId,
@@ -310,27 +394,6 @@ export const recordUsageEvent = action({
       getBillingConfig(),
     );
 
-    billingDebugLog("billing_charge_computed", {
-      userId: ctx.userId,
-      tier: subscriptionState.tier,
-      routeId: args.routeId,
-      usage: args.usage,
-      toolCalls: args.toolCalls ?? [],
-      charge,
-      billingConfig: {
-        creditUsdValue: getBillingConfig().creditUsdValue,
-        markupMultiplier: getPlanConfig(subscriptionState.tier, getBillingConfig())
-          .markupMultiplier,
-      },
-    });
-
-    billingDebugLog("billing_record_usage_checkpoint", {
-      stage: "after_charge_computation",
-      requestId: args.requestId,
-      userId: ctx.userId,
-      credits: charge.credits,
-    });
-
     if (charge.usedPricingFallback) {
       billingDebugWarn("billing_missing_model_pricing", {
         routeId: args.routeId,
@@ -340,57 +403,53 @@ export const recordUsageEvent = action({
     }
 
     const eventId = crypto.randomUUID();
-    let polarIngestedAt: number | undefined;
 
-    await ctx.runMutation(internal.functions.billing.internal_insertUsageEvent, {
-      eventId,
-      userId: ctx.userId,
-      requestId: args.requestId,
-      messageId: args.messageId,
-      threadId: args.threadId,
-      routeId: args.routeId,
-      tier: subscriptionState.tier,
-      credits: charge.credits,
-      modelUsdCost: charge.modelUsdCost,
-      toolUsdCost: charge.toolUsdCost,
-      rawUsdCost: charge.rawUsdCost,
-      effectiveUsdCost: charge.effectiveUsdCost,
-      markupMultiplier: charge.markupMultiplier,
-      displayMultiplier: charge.displayMultiplier,
-      usedPricingFallback: charge.usedPricingFallback,
-      toolSummary: buildToolSummaryRecord(args.toolCalls),
-      polarIngestedAt,
-      polarEventName: POLAR_CREDITS_EVENT_NAME,
-    });
-
-    billingDebugLog("billing_record_usage_checkpoint", {
-      stage: "after_local_insert",
-      requestId: args.requestId,
-      userId: ctx.userId,
-      eventId,
-    });
-
+    // Authoritative debit against the Convex credit ledger. Idempotent on
+    // `(userId, requestKey)` so AI SDK retries / stream reconnection cannot
+    // double-charge the same generation. We use the assistant `messageId`
+    // as the request key — every chat finish event carries one.
+    const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
+    let debitId: string | undefined;
+    let overdraftAmount = 0;
     try {
-      const grantResult = await withTimeout(
-        ensureMonthlyCreditsForUser(ctx, ctx.userId, subscriptionState),
-        POLAR_NETWORK_TIMEOUT_MS,
-        "ensureMonthlyCreditsForUser",
+      const debit = await ctx.runMutation(
+        internal.functions.credits.internal_debitCredits,
+        {
+          userId: ctx.userId,
+          requestKey: args.messageId,
+          amount: charge.credits,
+          overageAllowed: plan.overageAllowed,
+          routeId: args.routeId,
+          threadId: args.threadId,
+          messageId: args.messageId,
+          rawUsdCost: charge.rawUsdCost,
+          effectiveUsdCost: charge.effectiveUsdCost,
+          markupMultiplier: charge.markupMultiplier,
+          tier: subscriptionState.tier,
+          metadata: {
+            requestId: args.requestId,
+            usedPricingFallback: charge.usedPricingFallback,
+            toolUsdCost: charge.toolUsdCost,
+            modelUsdCost: charge.modelUsdCost,
+          },
+        },
       );
-      billingDebugLog("billing_record_usage_checkpoint", {
-        stage: "after_monthly_credit_check",
-        requestId: args.requestId,
-        userId: ctx.userId,
-        grantApplied: grantResult.grantApplied,
-        periodKey: grantResult.periodKey,
-      });
+      debitId = debit.debitId;
+      overdraftAmount = debit.overdraftAmount;
     } catch (error) {
-      console.error("billing_monthly_credit_check_failed", {
-        requestId: args.requestId,
+      console.error("Failed to debit Convex credits", {
         userId: ctx.userId,
+        requestId: args.requestId,
+        messageId: args.messageId,
         error: getErrorText(error),
       });
     }
 
+    let polarIngestedAt: number | undefined;
+    // Polar cost event ingest is now best-effort analytics only — Convex is
+    // authoritative for balances. We continue emitting so Cost Insights
+    // (https://polar.sh/docs/features/cost-insights/cost-events) stays
+    // populated.
     try {
       const polarSdk = getPolarSdkClient();
       const event = buildPolarCreditUsageEvent({
@@ -415,29 +474,9 @@ export const recordUsageEvent = action({
 
       polarIngestedAt = Date.now();
     } catch (error) {
-      console.error("Failed to ingest Polar credit usage event", error);
-    }
-
-    if (polarIngestedAt !== undefined) {
-      await ctx.runMutation(
-        internal.functions.billing.internal_markUsageEventPolarIngested,
-        {
-          requestId: args.requestId,
-          polarIngestedAt,
-        },
-      );
-    }
-
-    try {
-      await withTimeout(
-        refreshBillingStateForUser(ctx, ctx.userId),
-        POLAR_NETWORK_TIMEOUT_MS,
-        "refreshBillingStateForUser",
-      );
-    } catch (error) {
-      console.error("billing_refresh_after_usage_failed", {
-        requestId: args.requestId,
+      console.error("Failed to ingest Polar credit usage event", {
         userId: ctx.userId,
+        requestId: args.requestId,
         error: getErrorText(error),
       });
     }
@@ -447,225 +486,9 @@ export const recordUsageEvent = action({
       credits: charge.credits,
       polarIngestedAt,
       tier: subscriptionState.tier,
+      debitId,
+      overdraftAmount,
     };
-  },
-});
-
-export const internal_getUsageEventByRequestId = internalQuery({
-  args: {
-    requestId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    return (
-      (await ctx.db
-        .query("billingUsageEvents")
-        .withIndex("by_requestId", (q) => q.eq("requestId", args.requestId))
-        .first()) ?? null
-    );
-  },
-});
-
-export const internal_insertUsageEvent = internalMutation({
-  args: {
-    eventId: v.string(),
-    userId: v.string(),
-    requestId: v.string(),
-    messageId: v.string(),
-    threadId: v.string(),
-    routeId: v.string(),
-    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
-    credits: v.number(),
-    modelUsdCost: v.number(),
-    toolUsdCost: v.number(),
-    rawUsdCost: v.number(),
-    effectiveUsdCost: v.number(),
-    markupMultiplier: v.number(),
-    displayMultiplier: v.number(),
-    usedPricingFallback: v.boolean(),
-    toolSummary: v.record(v.string(), v.number()),
-    polarIngestedAt: v.optional(v.number()),
-    polarEventName: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("billingUsageEvents")
-      .withIndex("by_requestId", (q) => q.eq("requestId", args.requestId))
-      .first();
-
-    if (existing) {
-      return existing.eventId;
-    }
-
-    await ctx.db.insert("billingUsageEvents", {
-      ...args,
-      createdAt: Date.now(),
-    });
-
-    return args.eventId;
-  },
-});
-
-export const internal_markUsageEventPolarIngested = internalMutation({
-  args: {
-    requestId: v.string(),
-    polarIngestedAt: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("billingUsageEvents")
-      .withIndex("by_requestId", (q) => q.eq("requestId", args.requestId))
-      .first();
-
-    if (!existing) {
-      return;
-    }
-
-    await ctx.db.patch(existing._id, {
-      polarIngestedAt: args.polarIngestedAt,
-    });
-  },
-});
-
-export const internal_upsertBillingAccount = internalMutation({
-  args: billingAccountValidator,
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("billingAccounts")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .first();
-
-    const patch = {
-      ...args,
-      updatedAt: Date.now(),
-    };
-
-    if (existing) {
-      await ctx.db.patch(existing._id, patch);
-      return;
-    }
-
-    await ctx.db.insert("billingAccounts", patch);
-  },
-});
-
-export const internal_upsertBalanceCache = internalMutation({
-  args: {
-    userId: v.string(),
-    availableCredits: v.optional(v.number()),
-    overageCredits: v.optional(v.number()),
-    meterName: v.string(),
-    periodKey: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("billingBalanceCache")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .first();
-
-    const patch = {
-      ...args,
-      syncedAt: Date.now(),
-    };
-
-    if (existing) {
-      await ctx.db.patch(existing._id, patch);
-      return;
-    }
-
-    await ctx.db.insert("billingBalanceCache", patch);
-  },
-});
-
-export const internal_getCreditGrantForPeriod = internalQuery({
-  args: {
-    userId: v.string(),
-    periodKey: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const rows = await ctx.db
-      .query("billingCreditGrants")
-      .withIndex("by_userId_periodKey", (q) =>
-        q.eq("userId", args.userId).eq("periodKey", args.periodKey),
-      )
-      .collect();
-
-    return rows[0] ?? null;
-  },
-});
-
-export const internal_insertCreditGrant = internalMutation({
-  args: {
-    userId: v.string(),
-    grantId: v.string(),
-    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
-    periodKey: v.string(),
-    credits: v.number(),
-    reason: billingGrantReasonValidator,
-    polarIngestedAt: v.optional(v.number()),
-    sourceRef: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("billingCreditGrants")
-      .withIndex("by_sourceRef", (q) => q.eq("sourceRef", args.sourceRef))
-      .first();
-
-    if (existing) {
-      return;
-    }
-
-    await ctx.db.insert("billingCreditGrants", {
-      ...args,
-      createdAt: Date.now(),
-    });
-  },
-});
-
-export const internal_syncBillingAccountFromSubscription = internalMutation({
-  args: {
-    userId: v.string(),
-    productId: v.string(),
-    status: v.string(),
-    polarCustomerId: v.optional(v.string()),
-    polarSubscriptionId: v.optional(v.string()),
-    currentPeriodStart: v.optional(v.number()),
-    currentPeriodEnd: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const record = buildBillingAccountRecord(args.userId, {
-      productId: args.productId,
-      status: args.status,
-      customerId: args.polarCustomerId,
-      subscriptionId: args.polarSubscriptionId,
-      currentPeriodStart: args.currentPeriodStart,
-      currentPeriodEnd: args.currentPeriodEnd,
-    });
-
-    const existing = await ctx.db
-      .query("billingAccounts")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .first();
-
-    const patch = {
-      userId: record.userId,
-      tier: record.tier,
-      status: record.status,
-      polarCustomerId: record.polarCustomerId,
-      polarSubscriptionId: record.polarSubscriptionId,
-      currentPeriodStart: record.currentPeriodStart,
-      currentPeriodEnd: record.currentPeriodEnd,
-      markupMultiplier: record.markupMultiplier,
-      includedMonthlyCredits: record.includedMonthlyCredits,
-      overageAllowed: record.overageAllowed,
-      updatedAt: Date.now(),
-    };
-
-    if (existing) {
-      await ctx.db.patch(existing._id, patch);
-      return;
-    }
-
-    await ctx.db.insert("billingAccounts", patch);
   },
 });
 
@@ -673,347 +496,84 @@ async function refreshBillingStateForUser(
   ctx: BillingActionCtx,
   userId: string,
 ): Promise<BillingRefreshResult> {
-  billingDebugLog("refreshBillingStateForUser", userId);
-  const subscriptionState = await resolveCurrentSubscriptionState(ctx, userId);
-  const customerId = await ensurePolarCustomerForCurrentUser(ctx);
-  const billingAccount = buildBillingAccountRecord(
+  const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
+    ctx,
     userId,
-    subscriptionState.subscription,
   );
-
-  billingDebugLog("billingAccount", billingAccount);
-
-  await ctx.runMutation(internal.functions.billing.internal_upsertBillingAccount, {
-    userId: billingAccount.userId,
-    tier: billingAccount.tier,
-    status: billingAccount.status,
-    polarCustomerId: billingAccount.polarCustomerId ?? customerId,
-    polarSubscriptionId: billingAccount.polarSubscriptionId,
-    currentPeriodStart: billingAccount.currentPeriodStart,
-    currentPeriodEnd: billingAccount.currentPeriodEnd,
-    markupMultiplier: billingAccount.markupMultiplier,
-    includedMonthlyCredits: billingAccount.includedMonthlyCredits,
-    overageAllowed: billingAccount.overageAllowed,
-  });
-
-  const grant = await ensureMonthlyCreditsForUser(ctx, userId, subscriptionState);
-
-  try {
-    const polarSdk = getPolarSdkClient();
-    const meterName = getBillingConfig().meterName;
-    const state = await polarSdk.customers.getStateExternal({
-      externalId: userId,
-    });
-    billingDebugLog("billing_refresh_customer_state", {
-      userId,
-      tier: subscriptionState.tier,
-      meterName,
-      activeMeters: Array.isArray((state as { activeMeters?: unknown }).activeMeters)
-        ? ((state as { activeMeters?: unknown }).activeMeters as unknown[]).map(
-            (meter) => {
-              if (!meter || typeof meter !== "object") {
-                return null;
-              }
-
-              const candidate = meter as Record<string, unknown>;
-              return {
-                name:
-                  typeof candidate.name === "string"
-                    ? candidate.name
-                    : candidate.meter &&
-                        typeof candidate.meter === "object" &&
-                        "name" in candidate.meter
-                      ? (candidate.meter as { name?: unknown }).name
-                      : undefined,
-                balance:
-                  typeof candidate.balance === "number"
-                    ? candidate.balance
-                    : undefined,
-                consumedUnits:
-                  typeof candidate.consumedUnits === "number"
-                    ? candidate.consumedUnits
-                    : undefined,
-              };
-            },
-          )
-        : [],
-    });
-    const { availableCredits, overageCredits } = extractMeterCreditSummary(
-      state,
-      meterName,
-    );
-    const periodKey = getPeriodKeyForTier(subscriptionState);
-
-    await ctx.runMutation(internal.functions.billing.internal_upsertBalanceCache, {
-      userId,
-      availableCredits,
-      overageCredits,
-      meterName,
-      periodKey,
-    });
-
-    billingDebugLog("billing_refresh_balance_result", {
-      userId,
-      tier: subscriptionState.tier,
-      meterName,
-      availableCredits,
-      overageCredits,
-      periodKey,
-      grantApplied: grant.grantApplied,
-    });
-
-    return {
-      tier: subscriptionState.tier,
-      availableCredits,
-      overageCredits,
-      overageAllowed: getPlanConfig(subscriptionState.tier, getBillingConfig())
-        .overageAllowed,
-      grantApplied: grant.grantApplied,
-      periodKey,
-    };
-  } catch (error) {
-    console.error("Failed to refresh Polar meter state", {
-      userId,
-      tier: subscriptionState.tier,
-      meterName: getBillingConfig().meterName,
-      error,
-    });
-    return {
-      tier: subscriptionState.tier,
-      availableCredits: undefined,
-      overageCredits: undefined,
-      overageAllowed: getPlanConfig(subscriptionState.tier, getBillingConfig())
-        .overageAllowed,
-      grantApplied: grant.grantApplied,
-      periodKey: grant.periodKey,
-    };
-  }
-}
-
-async function resetCreditsForUser(
-  ctx: BillingInternalActionCtx,
-  userId: string,
-  targetCreditsOverride: number | undefined,
-): Promise<BillingAdminResetResult> {
-  if (targetCreditsOverride !== undefined && targetCreditsOverride < 0) {
-    throw new Error("targetCredits must be greater than or equal to 0");
-  }
-
-  const subscriptionState = await resolveCurrentSubscriptionState(ctx, userId);
-  const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
-  const targetCredits = targetCreditsOverride ?? plan.includedMonthlyCredits;
-  const periodKey = getPeriodKeyForTier(subscriptionState);
-  const polarSdk = getPolarSdkClient();
-  const meterName = getBillingConfig().meterName;
-  const stateBefore = await polarSdk.customers.getStateExternal({
-    externalId: userId,
-  });
-  const {
-    availableCredits: availableCreditsBefore,
-    overageCredits: overageCreditsBefore,
-  } = extractMeterCreditSummary(stateBefore, meterName);
-  const adjustmentCredits = Math.max(
-    0,
-    targetCredits -
-      (availableCreditsBefore ?? 0) +
-      (overageCreditsBefore ?? 0),
-  );
-
-  if (adjustmentCredits === 0) {
-    await ctx.runMutation(internal.functions.billing.internal_upsertBalanceCache, {
-      userId,
-      availableCredits: availableCreditsBefore,
-      overageCredits: overageCreditsBefore,
-      meterName,
-      periodKey,
-    });
-
-    return {
-      userId,
-      tier: subscriptionState.tier,
-      periodKey,
-      targetCredits,
-      availableCreditsBefore,
-      overageCreditsBefore,
-      adjustmentCredits,
-      availableCredits: availableCreditsBefore,
-      overageCredits: overageCreditsBefore,
-      polarIngestedAt: undefined,
-      grantId: undefined,
-    };
-  }
-
-  const grantId = crypto.randomUUID();
-  await polarSdk.events.ingest({
-    events: [
-      buildPolarCreditGrantEvent({
-        userId,
-        credits: adjustmentCredits,
-        tier: subscriptionState.tier,
-        periodKey,
-        reason: "admin_adjustment",
-        source: "admin_adjustment",
-      }),
-    ],
-  });
-  const polarIngestedAt = Date.now();
-
-  await ctx.runMutation(internal.functions.billing.internal_insertCreditGrant, {
-    userId,
-    grantId,
-    tier: subscriptionState.tier,
-    periodKey,
-    credits: adjustmentCredits,
-    reason: "admin_adjustment",
-    polarIngestedAt,
-    sourceRef: `admin:${userId}:${periodKey}:${grantId}`,
-  });
-
-  const availableCredits = targetCredits;
-  const overageCredits = 0;
-  await ctx.runMutation(internal.functions.billing.internal_upsertBalanceCache, {
-    userId,
-    availableCredits,
-    overageCredits,
-    meterName,
-    periodKey,
-  });
-
-  return {
-    userId,
-    tier: subscriptionState.tier,
-    periodKey,
-    targetCredits,
-    availableCreditsBefore,
-    overageCreditsBefore,
-    adjustmentCredits,
-    availableCredits,
-    overageCredits,
-    polarIngestedAt,
-    grantId,
-  };
-}
-
-async function ensureMonthlyCreditsForUser(
-  ctx: BillingActionCtx,
-  userId: string,
-  subscriptionState: BillingSubscriptionState,
-): Promise<{ grantApplied: boolean; periodKey: string }> {
-  const periodKey = getPeriodKeyForTier(subscriptionState);
-  const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
-
-  if (plan.includedMonthlyCredits <= 0) {
-    return { grantApplied: false, periodKey };
-  }
-
-  const existingGrant: BillingGrantRecord | null = await ctx.runQuery(
-    internal.functions.billing.internal_getCreditGrantForPeriod,
-    {
-      userId,
-      periodKey,
-    },
-  );
-
-  if (existingGrant) {
-    return { grantApplied: false, periodKey };
-  }
-
   await ensurePolarCustomerForCurrentUser(ctx);
+  const periodKey = getPeriodKeyForTier(subscriptionState);
+  const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
 
-  const priorGrantForTier = await ctx.runQuery(
-    internal.functions.billing.internal_hasAnyCreditGrantForTier,
-    {
-      userId,
-      tier: subscriptionState.tier,
-    },
-  );
-
-  let creditsToGrant = plan.includedMonthlyCredits;
+  // Idempotently refresh free-monthly credits before reading the balance so
+  // the very first read in a new month still sees the user's allowance even
+  // if scheduled jobs haven't fired yet.
+  let grantApplied = false;
   if (subscriptionState.tier === "free") {
     try {
-      const polarSdk = getPolarSdkClient();
-      const state = await polarSdk.customers.getStateExternal({
-        externalId: userId,
-      });
-      const availableCredits =
-        extractMeterBalance(state, getBillingConfig().meterName) ?? 0;
-      creditsToGrant = Math.max(0, plan.includedMonthlyCredits - availableCredits);
-      billingDebugLog("billing_free_top_up_calculated", {
-        userId,
-        periodKey,
-        availableCredits,
-        targetCredits: plan.includedMonthlyCredits,
-        creditsToGrant,
-      });
+      const grant = await ctx.runMutation(
+        internal.functions.credits.internal_ensureMonthlyFreeCredits,
+        { userId, tier: subscriptionState.tier },
+      );
+      grantApplied = grant.created === true;
     } catch (error) {
-      console.error("Failed to calculate free-tier top-up credits", {
+      console.error("free_monthly_grant_failed", {
         userId,
-        periodKey,
-        error,
+        error: getErrorText(error),
       });
     }
   }
 
-  const reason = getGrantReason(subscriptionState.tier, priorGrantForTier);
-  const source = getGrantSource(subscriptionState.tier);
-  const sourceRef = getGrantSourceRef(userId, subscriptionState, periodKey, source);
-  const grantId = crypto.randomUUID();
-  let polarIngestedAt: number | undefined;
+  // Convex is now authoritative for credit balance. Polar lookups are kept
+  // only for subscription schedule details (pending plan changes, cancel
+  // flags) which the Convex Polar component does not mirror.
+  const balance = await ctx.runQuery(
+    internal.functions.credits.internal_getBalance,
+    { userId },
+  );
 
-  if (creditsToGrant === 0) {
-    await ctx.runMutation(internal.functions.billing.internal_insertCreditGrant, {
-      userId,
-      grantId,
-      tier: subscriptionState.tier,
-      periodKey,
-      credits: 0,
-      reason,
-      polarIngestedAt: undefined,
-      sourceRef,
-    });
+  const snapshot = subscriptionState.subscription;
+  let subscriptionSchedule: BillingSubscriptionSchedule = {
+    cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
+    pendingProductId: undefined,
+    pendingAppliesAtMs: undefined,
+  };
 
-    return { grantApplied: false, periodKey };
+  const subscriptionId = snapshot?.subscriptionId;
+  if (subscriptionId) {
+    try {
+      const polarSdk = getPolarSdkClient();
+      const liveSub: unknown = await withTimeout(
+        invokePolarSubscriptionGet(polarSdk, subscriptionId),
+        POLAR_NETWORK_TIMEOUT_MS,
+        "polar.subscriptions.get",
+      );
+      subscriptionSchedule =
+        subscriptionScheduleFromPolarSdkSubscription(liveSub);
+    } catch (error) {
+      console.error("Failed to load Polar subscription schedule", {
+        userId,
+        subscriptionId,
+        error: getErrorText(error),
+      });
+    }
   }
 
-  try {
-    const polarSdk = getPolarSdkClient();
-    await polarSdk.events.ingest({
-      events: [
-        buildPolarCreditGrantEvent({
-          userId,
-          credits: creditsToGrant,
-          tier: subscriptionState.tier,
-          periodKey,
-          reason,
-          source,
-        }),
-      ],
-    });
-    polarIngestedAt = Date.now();
-  } catch (error) {
-    console.error("Failed to ingest Polar credit grant event", error);
-  }
-
-  if (polarIngestedAt === undefined) {
-    return { grantApplied: false, periodKey };
-  }
-
-  await ctx.runMutation(internal.functions.billing.internal_insertCreditGrant, {
-    userId,
-    grantId,
+  return {
     tier: subscriptionState.tier,
+    availableCredits: balance.spendableCredits,
+    overageCredits: 0,
+    spendableCredits: balance.spendableCredits,
+    bucketBalances: balance.bucketBalances,
+    expiringSoon: balance.expiringSoon,
+    overageAllowed: plan.overageAllowed,
+    grantApplied,
     periodKey,
-    credits: creditsToGrant,
-    reason,
-    polarIngestedAt,
-    sourceRef,
-  });
-
-  return { grantApplied: true, periodKey };
+    subscriptionSchedule,
+  };
 }
 
 async function resolveCurrentSubscriptionState(
-  ctx: GenericQueryCtx<DataModel> | BillingActionCtx | BillingInternalActionCtx,
+  ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
   userId: string,
 ): Promise<BillingSubscriptionState> {
   const subscription = toSubscriptionSnapshot(
@@ -1042,89 +602,121 @@ async function resolveCurrentSubscriptionStateWithFallback(
       error: getErrorText(error),
     });
 
-    const cachedBillingAccount = await ctx.runQuery(
-      internal.functions.billing.internal_getBillingAccountByUserId,
-      { userId },
-    );
-
-    const fallbackTier = cachedBillingAccount?.tier ?? "free";
+    try {
+      return await resolveCachedSubscriptionState(ctx, userId);
+    } catch (fallbackError) {
+      console.error("billing_subscription_fallback_failed", {
+        userId,
+        error: getErrorText(fallbackError),
+      });
+    }
 
     return {
-      tier: fallbackTier,
-      subscription:
-        fallbackTier === "free"
-          ? null
-          : {
-              productKey: fallbackTier,
-              status: cachedBillingAccount?.status,
-              currentPeriodStart: cachedBillingAccount?.currentPeriodStart,
-              currentPeriodEnd: cachedBillingAccount?.currentPeriodEnd,
-              customerId: cachedBillingAccount?.polarCustomerId,
-              subscriptionId: cachedBillingAccount?.polarSubscriptionId,
-            },
+      tier: "free",
+      subscription: null,
     };
   }
 }
 
+async function resolveCachedSubscriptionState(
+  ctx: BillingActionCtx,
+  userId: string,
+): Promise<BillingSubscriptionState> {
+  const subscriptions = await ctx.runQuery(
+    components.polar.lib.listUserSubscriptions,
+    { userId },
+  );
+
+  return subscriptions.reduce<BillingSubscriptionState>(
+    (best, candidate) => {
+      const subscription = toSubscriptionSnapshot(candidate);
+      const tier = resolveTierFromSubscription(subscription);
+
+      return planTierRank(tier) > planTierRank(best.tier)
+        ? { tier, subscription }
+        : best;
+    },
+    { tier: "free", subscription: null },
+  );
+}
+
 async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
   const polarSdk = getPolarSdkClient();
+  let customerId: string | undefined;
 
   try {
     const customer = await polarSdk.customers.getExternal({
       externalId: ctx.userId,
     });
-    return customer.id;
+    customerId = customer.id;
   } catch (error) {
     if (!isPolarNotFoundError(error)) {
       throw error;
     }
   }
+  // const userIdentity = await authComponent.getAuthUser(ctx);
+  // console.log("userIdentity", userIdentity);
 
-  const user = await ctx.runQuery(api.functions.user.getCurrentUserPolarInfo, {});
-  try {
-    const customer = await polarSdk.customers.create({
-      email: user.email,
-      externalId: user.userId,
-      metadata: {
-        userId: user.userId,
-      },
-    });
-
-    return customer.id;
-  } catch (error) {
-    if (!isPolarDuplicateCustomerEmailError(error)) {
-      throw error;
-    }
-
-    const existingCustomer = await findPolarCustomerByEmail(
-      polarSdk.customers,
-      user.email,
+  if (customerId === undefined) {
+    const user = await ctx.runQuery(
+      api.functions.user.getCurrentUserPolarInfo,
+      {},
     );
-    if (!existingCustomer) {
-      throw error;
-    }
-
-    const existingExternalId = getPolarCustomerExternalId(existingCustomer);
-    if (existingExternalId && existingExternalId !== user.userId) {
-      throw new Error(
-        `Polar customer ${existingCustomer.id} already belongs to a different external user`,
-      );
-    }
-
-    if (existingExternalId === user.userId) {
-      return existingCustomer.id;
-    }
-
-    const updatedCustomer = await polarSdk.customers.update({
-      id: existingCustomer.id,
-      customerUpdate: {
+    try {
+      // const image = await ctx.runQuery(api.functions.user.getUserImage, {
+      //   userId: ctx.userId,
+      // });
+      const customer = await polarSdk.customers.create({
         email: user.email,
         externalId: user.userId,
-      },
-    });
+        // avatarUrl: image.image ?? undefined,
+        metadata: {
+          userId: user.userId,
+        },
+      });
+      customerId = customer.id;
+    } catch (error) {
+      if (!isPolarDuplicateCustomerEmailError(error)) {
+        throw error;
+      }
 
-    return updatedCustomer.id;
+      const existingCustomer = await findPolarCustomerByEmail(
+        polarSdk.customers,
+        user.email,
+      );
+      if (!existingCustomer) {
+        throw error;
+      }
+
+      const existingExternalId = getPolarCustomerExternalId(existingCustomer);
+      if (existingExternalId && existingExternalId !== user.userId) {
+        throw new Error(
+          `Polar customer ${existingCustomer.id} already belongs to a different external user`,
+        );
+      }
+
+      if (existingExternalId === user.userId) {
+        customerId = existingCustomer.id;
+      } else {
+        const updatedCustomer = await polarSdk.customers.update({
+          id: existingCustomer.id,
+          customerUpdate: {
+            email: user.email,
+            externalId: user.userId,
+          },
+        });
+        customerId = updatedCustomer.id;
+      }
+    }
   }
+
+  // NOTE: free auto-subscribe is intentionally disabled after the Convex
+  // credit ledger migration. Free users now receive their monthly credit
+  // allowance via `internal_ensureMonthlyFreeCredits`; subscribing to the
+  // Polar free product could grant credits outside the ledger and double-fund
+  // balances. See plan: credit_bucket_ledger.
+
+  return customerId;
 }
 
 type PolarCustomersClient = ReturnType<typeof getPolarSdkClient>["customers"];
@@ -1195,41 +787,12 @@ function getPeriodKeyForTier(subscriptionState: BillingSubscriptionState) {
     subscriptionState.tier !== "free" &&
     subscriptionState.subscription?.currentPeriodStart !== undefined
   ) {
-    return getBillingPeriodKey(subscriptionState.subscription.currentPeriodStart);
+    return getBillingPeriodKey(
+      subscriptionState.subscription.currentPeriodStart,
+    );
   }
 
   return getBillingPeriodKey();
-}
-
-function getGrantReason(
-  tier: PlanTier,
-  priorGrantForTier: boolean,
-): BillingGrantReason {
-  if (tier === "free") {
-    return "free_monthly_reset";
-  }
-
-  return priorGrantForTier ? "subscription_renewed" : "subscription_created";
-}
-
-function getGrantSource(tier: PlanTier): BillingGrantSource {
-  return tier === "free" ? "free_monthly_reset" : "subscription_renewal";
-}
-
-function getGrantSourceRef(
-  userId: string,
-  subscriptionState: BillingSubscriptionState,
-  periodKey: string,
-  source: BillingGrantSource,
-) {
-  if (source === "free_monthly_reset") {
-    return `free:${userId}:${periodKey}`;
-  }
-
-  return `${
-    subscriptionState.subscription?.subscriptionId ??
-    `${userId}:${subscriptionState.tier}`
-  }:${periodKey}`;
 }
 
 function isPolarNotFoundError(error: unknown) {
@@ -1276,37 +839,6 @@ function getErrorText(error: unknown): string {
     return "";
   }
 }
-
-export const internal_hasAnyCreditGrantForTier = internalQuery({
-  args: {
-    userId: v.string(),
-    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
-  },
-  handler: async (ctx, args) => {
-    const rows = await ctx.db
-      .query("billingCreditGrants")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .collect();
-
-    return rows.some((row) =>
-      args.tier === "free" ? row.tier === "free" : row.tier === args.tier,
-    );
-  },
-});
-
-export const internal_getBillingAccountByUserId = internalQuery({
-  args: {
-    userId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    return (
-      (await ctx.db
-        .query("billingAccounts")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-        .first()) ?? null
-    );
-  },
-});
 
 async function withTimeout<T>(
   promise: Promise<T>,

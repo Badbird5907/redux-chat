@@ -1,5 +1,5 @@
-import type { ChatModelConfig } from "@redux/shared/models";
 import type { PlanTier } from "@redux/shared";
+import type { ChatModelConfig } from "@redux/shared/models";
 import {
   calculateDisplayMultiplier,
   getRoundedMultiplierLabel,

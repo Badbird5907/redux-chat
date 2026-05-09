@@ -201,31 +201,22 @@ export function McpSettingsManager() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">MCP Servers</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Register HTTP-based MCP servers once, then enable them per chat from
-          the composer menu.
-        </p>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">MCP Servers</h1>
+          <p className="text-muted-foreground max-w-3xl text-sm">
+            Connect external tools and data sources to use in your chats.
+          </p>
+        </div>
+        <Switch
+          checked={mcpEnabled}
+          disabled={savingEnabled}
+          aria-label="Enable MCP servers"
+          className="mt-1"
+          onCheckedChange={(enabled) => void handleEnabledChange(enabled)}
+        />
       </div>
-
-      <Card>
-        <CardContent className="flex items-center justify-between gap-4 py-5">
-          <div className="min-w-0">
-            <div className="text-sm font-medium">Enable MCP servers</div>
-            <div className="text-muted-foreground mt-1 text-sm">
-              When disabled, MCP servers are hidden from chat menus and ignored
-              at runtime.
-            </div>
-          </div>
-          <Switch
-            checked={mcpEnabled}
-            disabled={savingEnabled}
-            onCheckedChange={(enabled) => void handleEnabledChange(enabled)}
-          />
-        </CardContent>
-      </Card>
 
       {!mcpEnabled ? (
         <Card>

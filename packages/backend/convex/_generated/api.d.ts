@@ -10,9 +10,13 @@
 
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
+import type * as credits from "../credits.js";
 import type * as env from "../env.js";
+import type * as functions_adminUserDetail from "../functions/adminUserDetail.js";
 import type * as functions_attachments from "../functions/attachments.js";
+import type * as functions_auditLog from "../functions/auditLog.js";
 import type * as functions_billing from "../functions/billing.js";
+import type * as functions_credits from "../functions/credits.js";
 import type * as functions_defaultMessageSettings from "../functions/defaultMessageSettings.js";
 import type * as functions_embeddings from "../functions/embeddings.js";
 import type * as functions_index from "../functions/index.js";
@@ -26,6 +30,7 @@ import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
 import type * as polar from "../polar.js";
+import type * as usageStats from "../usageStats.js";
 import type * as zod from "../zod.js";
 
 import type {
@@ -37,9 +42,13 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   billing: typeof billing;
+  credits: typeof credits;
   env: typeof env;
+  "functions/adminUserDetail": typeof functions_adminUserDetail;
   "functions/attachments": typeof functions_attachments;
+  "functions/auditLog": typeof functions_auditLog;
   "functions/billing": typeof functions_billing;
+  "functions/credits": typeof functions_credits;
   "functions/defaultMessageSettings": typeof functions_defaultMessageSettings;
   "functions/embeddings": typeof functions_embeddings;
   "functions/index": typeof functions_index;
@@ -53,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "functions/user": typeof functions_user;
   http: typeof http;
   polar: typeof polar;
+  usageStats: typeof usageStats;
   zod: typeof zod;
 }>;
 

@@ -37,6 +37,22 @@ const embeddingModality = v.union(
   v.literal("pdf_page"),
 );
 
+const creditBucket = v.union(
+  v.literal("gifted"),
+  v.literal("monthly"),
+  // Legacy bucket kept for backwards compatibility with pre-migration rows.
+  // New writes should use `monthly` for recurring allowances.
+  v.literal("free"),
+  v.literal("paid"),
+);
+
+const creditGrantStatus = v.union(
+  v.literal("active"),
+  v.literal("exhausted"),
+  v.literal("expired"),
+  v.literal("revoked"),
+);
+
 const messageTools = v.object({
   search: v.optional(v.object({})),
   analysisWorkspace: v.optional(
@@ -91,74 +107,24 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
-  billingAccounts: defineTable({
+  userUsageStats: defineTable({
     userId: v.string(),
-    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
-    status: v.string(),
-    polarCustomerId: v.optional(v.string()),
-    polarSubscriptionId: v.optional(v.string()),
-    currentPeriodStart: v.optional(v.number()),
-    currentPeriodEnd: v.optional(v.number()),
-    markupMultiplier: v.number(),
-    includedMonthlyCredits: v.number(),
-    overageAllowed: v.boolean(),
+    userMessageCount: v.number(),
+    threadCount: v.number(),
+    attachmentCount: v.number(),
+    storageBytes: v.number(),
+    lastActiveAt: v.optional(v.number()),
+    createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
-  billingUsageEvents: defineTable({
+  userDailyUsageStats: defineTable({
     userId: v.string(),
-    eventId: v.string(),
-    requestId: v.string(),
-    messageId: v.string(),
-    threadId: v.string(),
-    routeId: v.string(),
-    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
-    credits: v.number(),
-    modelUsdCost: v.number(),
-    toolUsdCost: v.number(),
-    rawUsdCost: v.number(),
-    effectiveUsdCost: v.number(),
-    markupMultiplier: v.number(),
-    displayMultiplier: v.number(),
-    usedPricingFallback: v.boolean(),
-    toolSummary: v.record(v.string(), v.number()),
-    polarIngestedAt: v.optional(v.number()),
-    polarEventName: v.string(),
+    dayKey: v.string(),
+    assistantApiCalls: v.number(),
     createdAt: v.number(),
-  })
-    .index("by_userId", ["userId", "createdAt"])
-    .index("by_requestId", ["requestId"])
-    .index("by_threadId", ["threadId", "createdAt"])
-    .index("by_messageId", ["messageId"]),
-
-  billingCreditGrants: defineTable({
-    userId: v.string(),
-    grantId: v.string(),
-    tier: v.union(v.literal("free"), v.literal("plus"), v.literal("pro")),
-    periodKey: v.string(),
-    credits: v.number(),
-    reason: v.union(
-      v.literal("subscription_created"),
-      v.literal("subscription_renewed"),
-      v.literal("free_monthly_reset"),
-      v.literal("admin_adjustment"),
-    ),
-    polarIngestedAt: v.optional(v.number()),
-    sourceRef: v.string(),
-    createdAt: v.number(),
-  })
-    .index("by_userId", ["userId", "createdAt"])
-    .index("by_userId_periodKey", ["userId", "periodKey", "createdAt"])
-    .index("by_sourceRef", ["sourceRef"]),
-
-  billingBalanceCache: defineTable({
-    userId: v.string(),
-    availableCredits: v.optional(v.number()),
-    overageCredits: v.optional(v.number()),
-    meterName: v.string(),
-    periodKey: v.string(),
-    syncedAt: v.number(),
-  }).index("by_userId", ["userId"]),
+    updatedAt: v.number(),
+  }).index("by_user_day", ["userId", "dayKey"]),
 
   modelFavorites: defineTable({
     userId: v.string(),
@@ -318,4 +284,75 @@ export default defineSchema({
       dimensions: 3072,
       filterFields: ["chatProjectId"],
     }),
+
+  // Append-only ledger of credit grants (lots). Each grant is a spendable
+  // bucket with `remaining`. Allocation reads only `active` grants for a
+  // given user and consumes from them in priority + earliest-expiry order.
+  // `source + sourceId` is required for idempotency on grant ingestion
+  // (e.g. duplicate Polar webhook deliveries).
+  creditGrants: defineTable({
+    grantId: v.string(),
+    userId: v.string(),
+    bucket: creditBucket,
+    amount: v.number(),
+    remaining: v.number(),
+    status: creditGrantStatus,
+    source: v.string(), // "polar_subscription_renewal", "polar_one_time_purchase", "free_monthly_reset", "admin_grant", "migration_backfill"
+    sourceId: v.string(), // id key for idempotency (e.g. polar order id, subscription period id, "userId:YYYY-MM")
+    periodKey: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    grantedAt: v.number(),
+    updatedAt: v.number(),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_grantId", ["grantId"])
+    .index("by_user_status_expires", [
+      "userId",
+      "status",
+      "bucket",
+      "expiresAt",
+    ])
+    .index("by_user_granted_at", ["userId", "grantedAt"])
+    .index("by_user_bucket_period", ["userId", "bucket", "periodKey"])
+    .index("by_source_sourceId", ["source", "sourceId"]),
+
+  // Idempotent debit records (one per chargeable usage event). Keyed by
+  // `requestKey` (typically an assistant message id) so that retries and
+  // stream reconnections cannot double-charge.
+  creditDebits: defineTable({
+    debitId: v.string(),
+    userId: v.string(),
+    requestKey: v.string(),
+    amount: v.number(),
+    allocatedAmount: v.number(),
+    overdraftAmount: v.number(),
+    overageAllowed: v.boolean(),
+    routeId: v.optional(v.string()),
+    threadId: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+    rawUsdCost: v.optional(v.number()),
+    effectiveUsdCost: v.optional(v.number()),
+    markupMultiplier: v.optional(v.number()),
+    tier: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index("by_debitId", ["debitId"])
+    .index("by_user_requestKey", ["userId", "requestKey"])
+    .index("by_user_createdAt", ["userId", "createdAt"]),
+
+  // Per-debit per-grant allocation rows. Preserved for audit so the
+  // exact slice of each lot consumed by each request is recoverable.
+  creditDebitAllocations: defineTable({
+    allocationId: v.string(),
+    debitId: v.string(),
+    grantId: v.string(),
+    userId: v.string(),
+    bucket: creditBucket,
+    amount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_debitId", ["debitId"])
+    .index("by_grantId", ["grantId"])
+    .index("by_userId", ["userId", "createdAt"]),
 });

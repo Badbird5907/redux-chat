@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 
 import type { DataModel } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
+import { updateUserUsageStats } from "../usageStats";
 import { mutation, query } from "./index";
 
 function generateProjectId() {
@@ -116,6 +117,42 @@ export const getProject = query({
   },
 });
 
+export const searchProjects = query({
+  args: {
+    search: v.string(),
+    limit: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const search = args.search.trim().toLowerCase();
+    const limit = Math.max(1, Math.min(Math.floor(args.limit), 25));
+
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .order("desc")
+      .collect();
+
+    const filteredProjects =
+      search.length === 0
+        ? projects
+        : projects.filter((project) => {
+            const description = project.description?.toLowerCase() ?? "";
+            return (
+              project.name.toLowerCase().includes(search) ||
+              description.includes(search)
+            );
+          });
+
+    return filteredProjects.slice(0, limit).map((project) => ({
+      projectId: project.projectId,
+      name: project.name,
+      description: project.description,
+      updatedAt: project.updatedAt,
+      createdAt: project.createdAt,
+    }));
+  },
+});
+
 export const updateProject = mutation({
   args: {
     projectId: v.string(),
@@ -210,6 +247,11 @@ export const deleteProject = mutation({
       );
       await deleteAttachmentEmbeddings(ctx, file.attachmentId);
       await ctx.db.delete(file._id);
+      await updateUserUsageStats(ctx, ctx.userId, {
+        attachmentsDelta: -1,
+        storageBytesDelta: -file.size,
+        lastActiveAt: Date.now(),
+      });
     }
 
     await ctx.db.delete(project._id);
@@ -316,6 +358,11 @@ export const deleteProjectFile = mutation({
     );
     await deleteAttachmentEmbeddings(ctx, args.attachmentId);
     await ctx.db.delete(attachment._id);
+    await updateUserUsageStats(ctx, ctx.userId, {
+      attachmentsDelta: -1,
+      storageBytesDelta: -attachment.size,
+      lastActiveAt: Date.now(),
+    });
     return { success: true };
   },
 });

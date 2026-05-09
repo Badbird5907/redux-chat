@@ -1,11 +1,12 @@
+import { useEffect } from "react";
 import { ConvexQueryClient } from "@convex-dev/react-query";
+import * as Sentry from "@sentry/tanstackstart-react";
 import { notifyManager, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
-import * as Sentry from "@sentry/tanstackstart-react";
 import SuperJSON from "superjson";
-import { useEffect } from "react";
 
+import { DefaultNotFoundPage } from "./components/not-found-page";
 import { env, getSentryPublicDsn } from "./env";
 import { routeTree } from "./routeTree.gen";
 
@@ -54,7 +55,7 @@ export function getRouter() {
     context: { queryClient, convexQueryClient },
     scrollRestoration: true,
     defaultErrorComponent: DefaultRouterError,
-    defaultNotFoundComponent: () => <p>not found</p>,
+    defaultNotFoundComponent: DefaultNotFoundPage,
   });
   setupRouterSsrQueryIntegration({
     router,

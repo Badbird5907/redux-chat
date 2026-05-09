@@ -55,7 +55,7 @@ export async function ensureAttachmentDerivative(
         fileId: pdf.fileId,
         fileKeyId: pdf.fileKeyId,
         fileName: pdf.fileName,
-        isPublic: false,
+        isPublic: true,
         kind: "converted_pdf",
         mimeType: pdf.mimeType,
         projectId: request.source.projectId,

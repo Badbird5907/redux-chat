@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @redux/tanstack-start typecheck)",
+      "Bash(pnpm --filter @redux/tanstack-start lint)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(xargs grep *)",
+      "Bash(pnpm typecheck *)",
+      "PowerShell(Rename-Item *)"
+    ]
+  }
+}

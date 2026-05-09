@@ -1,13 +1,14 @@
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import type { ToolSet } from "ai";
+import type { Value } from "convex/values";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { webSearch } from "@exalabs/ai-sdk";
 import { tool } from "ai";
 import { z } from "zod";
 
+import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
 import type { MessageSettings } from "@redux/types";
 import { getEnabledMessageTools } from "@redux/types";
-import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
 
 import {
   createSandboxRuntime,
@@ -82,31 +83,34 @@ export async function createToolRuntime(
 
     tools.analysis_workspace = instrumentTool(
       tool({
-      description: uploadsEnabled
-        ? [
-            "Execute Python code in a Jupyter notebook cell and return the result.",
-            "Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
-            `Before execution, uploaded chat files are synced into ${SANDBOX_UPLOADS_DIR}.`,
-          ].join(" ")
-        : "Execute Python code in a Jupyter notebook cell and return the result. Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
-      inputSchema: z.object({
-        code: z
-          .string()
-          .describe("The Python code to execute in a single notebook cell."),
-      }),
-      execute: async ({ code }) => {
-        const sandbox = await getSandbox();
-        const uploadedFiles = await syncUploadsToSandbox();
-        const execution = await sandbox.runCode(code);
+        description: uploadsEnabled
+          ? [
+              "Execute Python code in a Jupyter notebook cell and return the result.",
+              "Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
+              `Before execution, uploaded chat files are synced into ${SANDBOX_UPLOADS_DIR}.`,
+            ].join(" ")
+          : "Execute Python code in a Jupyter notebook cell and return the result. Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
+        inputSchema: z.object({
+          code: z
+            .string()
+            .describe("The Python code to execute in a single notebook cell."),
+        }),
+        execute: async ({ code }) => {
+          const sandbox = await getSandbox();
+          const uploadedFiles = await syncUploadsToSandbox();
+          const execution = await sandbox.runCode(code);
 
-        return {
-          error: execution.error,
-          logs: execution.logs,
-          results: execution.results,
-          text: execution.text,
-          uploadedFiles,
-        };
-      },
+          return {
+            error: toConvexSafeValue(execution.error) ?? null,
+            logs: toConvexSafeValue(execution.logs) ?? {
+              stdout: [],
+              stderr: [],
+            },
+            results: toConvexSafeValue(execution.results) ?? [],
+            text: execution.text ?? null,
+            uploadedFiles,
+          };
+        },
       }),
       "analysis_workspace",
       toolUsageCounts,
@@ -189,7 +193,71 @@ function instrumentTool(
     ...candidate,
     execute: async (...args: unknown[]) => {
       usageCounts.set(billingKey, (usageCounts.get(billingKey) ?? 0) + 1);
-      return await execute(...args);
+      return toConvexSafeValue(await execute(...args)) ?? null;
     },
   } satisfies ToolSet[string];
+}
+
+function toConvexSafeValue(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): Value | undefined {
+  if (value === undefined || typeof value === "function") {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "symbol") {
+    return value.toString();
+  }
+
+  if (value instanceof ArrayBuffer) {
+    return value;
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    return Array.from(new Uint8Array(value.buffer.slice(0)));
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toConvexSafeValue(item, seen) ?? null);
+  }
+
+  if (typeof value !== "object") {
+    return undefined;
+  }
+
+  if (seen.has(value)) {
+    return "[Circular]";
+  }
+  seen.add(value);
+
+  const output: Record<string, Value> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const safeItem = toConvexSafeValue(item, seen);
+    if (safeItem !== undefined) {
+      output[key] = safeItem;
+    }
+  }
+
+  return output;
 }
