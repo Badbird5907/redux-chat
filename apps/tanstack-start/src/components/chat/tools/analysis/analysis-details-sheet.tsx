@@ -70,7 +70,7 @@ export function AnalysisDetailsButton({
 
           <div className="flex-1 space-y-6 overflow-y-auto p-4">
             <AnalysisSection icon={Code2Icon} title="Code">
-              <div className="chat-markdown [&_.chat-markdown__pre]:my-0 [&_.shiki]:my-0">
+              <div className="analysis-code-block chat-markdown">
                 <ShikiCodeBlock
                   code={
                     details.code?.trim() ??

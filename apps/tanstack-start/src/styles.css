@@ -101,3 +101,21 @@
 .chat-markdown [data-streamdown="code-block-body"] code > span {
   @apply block min-h-lh;
 }
+
+/* Analysis tool code uses our Shiki renderer directly, outside Streamdown's
+   code-block wrapper. Give both highlighted and fallback states the same
+   framed treatment so the Python output reads like a deliberate code panel. */
+.analysis-code-block .chat-markdown__code-block {
+  @apply border-border bg-muted/35 overflow-hidden rounded-lg border shadow-sm;
+}
+
+.analysis-code-block .shiki,
+.analysis-code-block .chat-markdown__pre {
+  @apply my-0 overflow-x-auto p-4 text-sm leading-6;
+  background-color: transparent !important;
+}
+
+.analysis-code-block .shiki code,
+.analysis-code-block .chat-markdown__pre code {
+  @apply block min-w-max font-mono text-[13px];
+}
