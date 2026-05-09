@@ -32,8 +32,8 @@ export function useBillingState() {
   }, [fetchBillingState]);
 
   // Prefer the ledger-aware aggregate `spendableCredits` when available.
-  // The legacy Polar-meter shape exposed `availableCredits`; we keep that
-  // as a fallback so a stale cache doesn't accidentally lock users out.
+  // `availableCredits` is still returned as an aggregate alias for older
+  // callers during the UI migration.
   const spendable =
     billingState?.spendableCredits ?? billingState?.availableCredits;
   const isOutOfCredits =

@@ -124,7 +124,7 @@ export const getCurrentBillingState = query({
     const balance = await getCreditBalanceForUser(ctx, ctx.userId);
     // Backwards-compatible aggregate fields: most existing UI gates on
     // `availableCredits` / `overageCredits`. Map ledger spendable to
-    // `availableCredits` so legacy reads keep working until UI is migrated.
+    // `availableCredits` while the UI moves to `spendableCredits`.
     const availableCredits = balance.spendableCredits;
     const overageCredits = 0;
 
@@ -136,7 +136,6 @@ export const getCurrentBillingState = query({
       spendableCredits: balance.spendableCredits,
       bucketBalances: balance.bucketBalances,
       expiringSoon: balance.expiringSoon,
-      meterName: getBillingConfig().meterName,
       markupMultiplier: plan.markupMultiplier,
       includedMonthlyCredits: plan.includedMonthlyCredits,
       overageAllowed: plan.overageAllowed,
@@ -175,7 +174,7 @@ export const previewGenerationCharge = query({
   },
 });
 
-export const refreshCurrentUserMeterState = action({
+export const refreshCurrentUserBillingState = action({
   args: {},
   handler: async (ctx): Promise<BillingRefreshResult> => {
     return await refreshBillingStateForUser(ctx, ctx.userId);
@@ -714,8 +713,8 @@ async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
   // NOTE: free auto-subscribe is intentionally disabled after the Convex
   // credit ledger migration. Free users now receive their monthly credit
   // allowance via `internal_ensureMonthlyFreeCredits`; subscribing to the
-  // Polar free product would still grant the deprecated `meter_credit`
-  // benefit and double-fund balances. See plan: credit_bucket_ledger.
+  // Polar free product could grant credits outside the ledger and double-fund
+  // balances. See plan: credit_bucket_ledger.
 
   return customerId;
 }

@@ -2,19 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import {
-  KeyRound,
-  Loader2,
-  LockKeyhole,
-  Mail,
-  ShieldCheck,
-  Unlink,
-} from "lucide-react";
+import { Loader2, LockKeyhole, Mail, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import * as z from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
-import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import {
   Card,
@@ -310,75 +302,20 @@ function SecurityRouteComponent() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <Badge variant="outline" className="w-fit">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <header className="border-border border-b pb-6">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
           Security
-        </Badge>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Security settings
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Manage your email, password, and OAuth sign-in connections.
-          </p>
-        </div>
-      </div>
+        </p>
+        <h1 className="mt-2 text-xl font-semibold">Security settings</h1>
+        <p className="text-muted-foreground mt-1.5 max-w-2xl text-sm leading-relaxed">
+          Manage your email, password, and OAuth sign-in connections.
+        </p>
+      </header>
 
-      <Card className="bg-card/70">
-        <CardHeader>
-          <CardTitle>Authentication overview</CardTitle>
-          <CardDescription>
-            A quick look at how this account can sign in.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <SecurityTile
-            icon={<Mail className="size-4" />}
-            label="Email"
-            value={session.user.email}
-            status={session.user.emailVerified ? "Verified" : "Pending"}
-          />
-          <SecurityTile
-            icon={<KeyRound className="size-4" />}
-            label="Password"
-            value={
-              hasPassword
-                ? "Email and password sign-in"
-                : "No password on this account"
-            }
-            status={
-              !hasLoadedAccounts
-                ? "Checking"
-                : hasPassword
-                  ? "Enabled"
-                  : "Not set"
-            }
-          />
-          <SecurityTile
-            icon={<ShieldCheck className="size-4" />}
-            label="OAuth"
-            value={
-              !hasLoadedAccounts
-                ? "Checking linked providers…"
-                : [hasGithub && "GitHub", hasGoogle && "Google"]
-                    .filter(Boolean)
-                    .join(" · ") || "None linked"
-            }
-            status={
-              !hasLoadedAccounts
-                ? "Checking"
-                : hasGithub || hasGoogle
-                  ? "Connected"
-                  : "Available"
-            }
-          />
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="bg-card/70">
-          <CardHeader>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="rounded-lg bg-card shadow-none ring-1 ring-border">
+          <CardHeader className="border-border border-b pb-4">
             <CardTitle>Email address</CardTitle>
             <CardDescription>Update your email address.</CardDescription>
           </CardHeader>
@@ -433,8 +370,8 @@ function SecurityRouteComponent() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/70">
-          <CardHeader>
+        <Card className="rounded-lg bg-card shadow-none ring-1 ring-border">
+          <CardHeader className="border-border border-b pb-4">
             <CardTitle>Password</CardTitle>
             <CardDescription>
               {hasPassword
@@ -473,9 +410,9 @@ function SecurityRouteComponent() {
                   )}
                 />
               ) : (
-                <div className="border-border/60 bg-background/50 rounded-xl border p-4 text-sm">
+                <div className="bg-muted/40 border-border rounded-md border px-3 py-2.5 text-sm">
                   <p className="font-medium">No password is set</p>
-                  <p className="text-muted-foreground mt-1">
+                  <p className="text-muted-foreground mt-1.5 leading-relaxed">
                     Your account currently signs in with{" "}
                     {[hasGithub && "GitHub", hasGoogle && "Google"]
                       .filter(Boolean)
@@ -543,130 +480,134 @@ function SecurityRouteComponent() {
         </Card>
       </div>
 
-      <Card className="bg-card/70">
-        <CardHeader>
+      <Card className="rounded-lg bg-card shadow-none ring-1 ring-border">
+        <CardHeader className="border-border border-b pb-4">
           <CardTitle>OAuth connections</CardTitle>
           <CardDescription>
             Link social providers so you can use them as alternate sign-in
             methods.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="border-border/60 bg-background/50 flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="bg-primary/10 text-primary rounded-lg p-2">
-                <GithubIcon className="size-4" />
-              </span>
-              <div>
-                <p className="text-sm font-medium">GitHub</p>
-                <p className="text-muted-foreground text-sm">
-                  {!hasLoadedAccounts
-                    ? "Checking connection..."
-                    : hasGithub
-                      ? "Connected as a sign-in method."
-                      : "Not connected."}
-                </p>
+        <CardContent className="space-y-0 px-0 pt-0">
+          <div className="divide-border divide-y">
+            <div className="flex flex-col gap-3 px-6 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <GithubIcon
+                  className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                  aria-hidden
+                />
+                <div>
+                  <p className="text-sm font-medium">GitHub</p>
+                  <p className="text-muted-foreground text-sm">
+                    {!hasLoadedAccounts
+                      ? "Checking connection..."
+                      : hasGithub
+                        ? "Connected as a sign-in method."
+                        : "Not connected."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!hasLoadedAccounts ? (
+                  <Button variant="outline" disabled>
+                    <Loader2 className="size-4 animate-spin" />
+                    Checking
+                  </Button>
+                ) : hasGithub ? (
+                  <Button
+                    variant="destructive"
+                    onClick={handleUnlinkGithub}
+                    disabled={
+                      isLoadingAccounts || isUnlinkingGithub || !canUnlinkGithub
+                    }
+                    tooltip={
+                      canUnlinkGithub
+                        ? undefined
+                        : "Add a password or another social login before disconnecting."
+                    }
+                  >
+                    {isUnlinkingGithub ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Unlink className="size-4" />
+                    )}
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={handleLinkGithub}
+                    disabled={isLinkingGithub}
+                  >
+                    {isLinkingGithub ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <GithubIcon className="size-4" />
+                    )}
+                    Link GitHub
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {!hasLoadedAccounts ? (
-                <Button variant="outline" disabled>
-                  <Loader2 className="size-4 animate-spin" />
-                  Checking
-                </Button>
-              ) : hasGithub ? (
-                <Button
-                  variant="destructive"
-                  onClick={handleUnlinkGithub}
-                  disabled={
-                    isLoadingAccounts || isUnlinkingGithub || !canUnlinkGithub
-                  }
-                  tooltip={
-                    canUnlinkGithub
-                      ? undefined
-                      : "Add a password or another social login before disconnecting."
-                  }
-                >
-                  {isUnlinkingGithub ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Unlink className="size-4" />
-                  )}
-                  Disconnect
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={handleLinkGithub}
-                  disabled={isLinkingGithub}
-                >
-                  {isLinkingGithub ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <GithubIcon className="size-4" />
-                  )}
-                  Link GitHub
-                </Button>
-              )}
-            </div>
-          </div>
 
-          <div className="border-border/60 bg-background/50 flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="bg-primary/10 text-primary rounded-lg p-2">
-                <GoogleIcon className="size-4" />
-              </span>
-              <div>
-                <p className="text-sm font-medium">Google</p>
-                <p className="text-muted-foreground text-sm">
-                  {!hasLoadedAccounts
-                    ? "Checking connection..."
-                    : hasGoogle
-                      ? "Connected as a sign-in method."
-                      : "Not connected."}
-                </p>
+            <div className="flex flex-col gap-3 px-6 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <GoogleIcon
+                  className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                  aria-hidden
+                />
+                <div>
+                  <p className="text-sm font-medium">Google</p>
+                  <p className="text-muted-foreground text-sm">
+                    {!hasLoadedAccounts
+                      ? "Checking connection..."
+                      : hasGoogle
+                        ? "Connected as a sign-in method."
+                        : "Not connected."}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!hasLoadedAccounts ? (
-                <Button variant="outline" disabled>
-                  <Loader2 className="size-4 animate-spin" />
-                  Checking
-                </Button>
-              ) : hasGoogle ? (
-                <Button
-                  variant="destructive"
-                  onClick={handleUnlinkGoogle}
-                  disabled={
-                    isLoadingAccounts || isUnlinkingGoogle || !canUnlinkGoogle
-                  }
-                  tooltip={
-                    canUnlinkGoogle
-                      ? undefined
-                      : "Add a password or another social login before disconnecting."
-                  }
-                >
-                  {isUnlinkingGoogle ? (
+              <div className="flex flex-wrap gap-2">
+                {!hasLoadedAccounts ? (
+                  <Button variant="outline" disabled>
                     <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Unlink className="size-4" />
-                  )}
-                  Disconnect
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={handleLinkGoogle}
-                  disabled={isLinkingGoogle}
-                >
-                  {isLinkingGoogle ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <GoogleIcon className="size-4" />
-                  )}
-                  Link Google
-                </Button>
-              )}
+                    Checking
+                  </Button>
+                ) : hasGoogle ? (
+                  <Button
+                    variant="destructive"
+                    onClick={handleUnlinkGoogle}
+                    disabled={
+                      isLoadingAccounts || isUnlinkingGoogle || !canUnlinkGoogle
+                    }
+                    tooltip={
+                      canUnlinkGoogle
+                        ? undefined
+                        : "Add a password or another social login before disconnecting."
+                    }
+                  >
+                    {isUnlinkingGoogle ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Unlink className="size-4" />
+                    )}
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={handleLinkGoogle}
+                    disabled={isLinkingGoogle}
+                  >
+                    {isLinkingGoogle ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <GoogleIcon className="size-4" />
+                    )}
+                    Link Google
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -675,49 +616,53 @@ function SecurityRouteComponent() {
   );
 }
 
-function SecurityTile({
-  icon,
-  label,
-  value,
-  status,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  status: string;
-}) {
-  return (
-    <div className="border-border/60 bg-background/50 rounded-xl border p-4">
-      <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
-        {icon}
-        {label}
-      </div>
-      <p className="mt-2 truncate text-sm font-semibold">{value}</p>
-      <Badge variant="outline" className="mt-3">
-        <ShieldCheck className="size-3" />
-        {status}
-      </Badge>
-    </div>
-  );
-}
-
 function SecuritySkeleton() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-      <div className="space-y-3">
-        <Skeleton className="h-5 w-20" />
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-96 max-w-full" />
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <div className="border-border space-y-3 border-b pb-6">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-full max-w-xl" />
       </div>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-72" />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="rounded-lg shadow-none ring-1 ring-border">
+          <CardHeader className="border-border border-b pb-4">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-9 w-28" />
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg shadow-none ring-1 ring-border">
+          <CardHeader className="border-border border-b pb-4">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-9 w-32" />
+          </CardContent>
+        </Card>
+      </div>
+      <Card className="rounded-lg shadow-none ring-1 ring-border">
+        <CardHeader className="border-border border-b pb-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 max-w-md" />
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
+        <CardContent className="divide-border divide-y border-t px-0 pt-0">
+          <div className="flex justify-between gap-4 px-6 py-4">
+            <Skeleton className="h-12 flex-1" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+          <div className="flex justify-between gap-4 px-6 py-4">
+            <Skeleton className="h-12 flex-1" />
+            <Skeleton className="h-9 w-24" />
+          </div>
         </CardContent>
       </Card>
     </div>

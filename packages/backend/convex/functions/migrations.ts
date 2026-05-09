@@ -47,7 +47,7 @@ export const backfillLegacyMessageSettingsTools = backendMutation({
  * migration cutover.
  *
  * Strategy chosen here = "fresh current-period credits" (option 1 from the
- * plan). This is simpler than importing Polar meter balances and avoids
+ * plan). This is simpler than importing historical Polar balances and avoids
  * double-counting since Convex becomes authoritative.
  */
 export const backfillCurrentPeriodCredits = backendMutation({

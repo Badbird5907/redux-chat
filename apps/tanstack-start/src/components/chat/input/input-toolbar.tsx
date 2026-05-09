@@ -1,5 +1,6 @@
 import type React from "react";
 import type { RefObject } from "react";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
 import {
   ArrowUp,
   BookText,
@@ -35,6 +36,7 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import { ModelSelector } from "@/components/chat/model-selector";
+import { useResolvedHotkey } from "@/lib/hotkeys";
 
 interface ChatInputToolbarProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -125,6 +127,7 @@ export function ChatInputToolbar({
   onSubmit,
   onStopGeneration,
 }: ChatInputToolbarProps) {
+  const uploadFileHotkey = useResolvedHotkey("chat.uploadFile");
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
     <div className="flex items-center justify-between px-2 pb-2">
@@ -160,7 +163,7 @@ export function ChatInputToolbar({
                 Upload file
               </span>
               <DropdownMenuShortcut className="shrink-0">
-                Ctrl+U
+                {formatForDisplay(uploadFileHotkey)}
               </DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

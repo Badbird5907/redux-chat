@@ -133,7 +133,6 @@ export interface UsageChargeComputationResult {
 export interface BillingConfig {
   creditUsdValue: number;
   baselineRouteId: string;
-  meterName: string;
   plans: Record<PlanTier, PlanConfig>;
   tools: Record<string, ToolBillingConfig>;
 }
@@ -144,7 +143,6 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
   // from low and mid-priced models.
   creditUsdValue: 0.000005,
   baselineRouteId: DEFAULT_CHAT_MODEL_ID,
-  meterName: "Credit Usage",
   plans: {
     free: {
       tier: "free",

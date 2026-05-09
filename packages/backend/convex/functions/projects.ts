@@ -117,6 +117,42 @@ export const getProject = query({
   },
 });
 
+export const searchProjects = query({
+  args: {
+    search: v.string(),
+    limit: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const search = args.search.trim().toLowerCase();
+    const limit = Math.max(1, Math.min(Math.floor(args.limit), 25));
+
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .order("desc")
+      .collect();
+
+    const filteredProjects =
+      search.length === 0
+        ? projects
+        : projects.filter((project) => {
+            const description = project.description?.toLowerCase() ?? "";
+            return (
+              project.name.toLowerCase().includes(search) ||
+              description.includes(search)
+            );
+          });
+
+    return filteredProjects.slice(0, limit).map((project) => ({
+      projectId: project.projectId,
+      name: project.name,
+      description: project.description,
+      updatedAt: project.updatedAt,
+      createdAt: project.createdAt,
+    }));
+  },
+});
+
 export const updateProject = mutation({
   args: {
     projectId: v.string(),

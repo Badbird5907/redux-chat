@@ -91,6 +91,66 @@ describe("functions/projects", () => {
     ).rejects.toThrow("Project not found");
   });
 
+  it("searches projects by name and description for the owning user", async () => {
+    const root = convexTest(schema, modules);
+    const owner = root.withIdentity({ subject: USER_ID });
+    const otherUser = root.withIdentity({ subject: OTHER_USER_ID });
+
+    await owner.run(async (ctx) => {
+      await ctx.db.insert("projects", {
+        projectId: "alpha",
+        userId: USER_ID,
+        name: "Alpha Workspace",
+        description: "Planning and notes",
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      await ctx.db.insert("projects", {
+        projectId: "research",
+        userId: USER_ID,
+        name: "Research",
+        description: "Alpha experiments",
+        createdAt: NOW + 1,
+        updatedAt: NOW + 1,
+      });
+      await ctx.db.insert("projects", {
+        projectId: "other-user-alpha",
+        userId: OTHER_USER_ID,
+        name: "Alpha Private",
+        createdAt: NOW + 2,
+        updatedAt: NOW + 2,
+      });
+    });
+
+    await expect(
+      owner.query(api.functions.projects.searchProjects, {
+        search: "alpha",
+        limit: 10,
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        projectId: "research",
+        name: "Research",
+      }),
+      expect.objectContaining({
+        projectId: "alpha",
+        name: "Alpha Workspace",
+      }),
+    ]);
+
+    await expect(
+      otherUser.query(api.functions.projects.searchProjects, {
+        search: "alpha",
+        limit: 10,
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        projectId: "other-user-alpha",
+        name: "Alpha Private",
+      }),
+    ]);
+  });
+
   it("lists only project threads for the requested project", async () => {
     const t = authedTest();
 

@@ -11,7 +11,7 @@ export const getCurrentBillingState = createServerFn({ method: "GET" }).handler(
       {},
     );
     const refreshed = await fetchAuthAction(
-      api.functions.billing.refreshCurrentUserMeterState,
+      api.functions.billing.refreshCurrentUserBillingState,
       {},
     );
 

@@ -15,7 +15,20 @@ const tabsTriggerClassName = cn(
   "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
 );
 
-export type TabsProps = TabsPrimitive.Root.Props & {
+type TabValue = string | number | null;
+type TabsValueChangeDetails = TabsPrimitive.Root.ChangeEventDetails;
+type TabsValueChangeHandler = (
+  value: TabValue,
+  eventDetails: TabsValueChangeDetails,
+) => void;
+
+export type TabsProps = Omit<
+  TabsPrimitive.Root.Props,
+  "value" | "defaultValue" | "onValueChange"
+> & {
+  value?: TabValue | undefined;
+  defaultValue?: TabValue | undefined;
+  onValueChange?: TabsValueChangeHandler | undefined;
   /**
    * When true, the active tab value is synced to `?<queryParamKey>=…` via
    * `history.replaceState` on tab changes (no extra history entries).
@@ -41,7 +54,7 @@ function readTabFromSearch(key: string): string | null {
 
 function writeTabToSearch(
   key: string,
-  value: TabsPrimitive.Tab.Value | undefined,
+  value: TabValue | undefined,
 ) {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
@@ -69,19 +82,13 @@ function Tabs({
 }: TabsProps) {
   const isControlled = valueProp !== undefined;
   const [internalValue, setInternalValue] = React.useState<
-    TabsPrimitive.Tab.Value | undefined
-  >(() => (defaultValue !== undefined ? defaultValue : 0));
-
-  React.useLayoutEffect(() => {
-    if (!queryParam) return;
-    if (isControlled) return;
+    TabValue | undefined
+  >(() => {
+    const initialValue = defaultValue !== undefined ? defaultValue : 0;
+    if (!queryParam || isControlled) return initialValue;
     const fromUrl = readTabFromSearch(queryParamKey);
-    if (fromUrl === null) return;
-    setInternalValue((current: TabsPrimitive.Tab.Value | undefined) => {
-      if (String(current) === fromUrl) return current;
-      return coerceTabValue(fromUrl, current);
-    });
-  }, [queryParam, queryParamKey, isControlled]);
+    return fromUrl === null ? initialValue : coerceTabValue(fromUrl, initialValue);
+  });
 
   React.useEffect(() => {
     if (!queryParam) return;
@@ -99,7 +106,7 @@ function Tabs({
     const onPopState = () => {
       const fromUrl = readTabFromSearch(queryParamKey);
       if (fromUrl === null) return;
-      setInternalValue((current: TabsPrimitive.Tab.Value | undefined) =>
+      setInternalValue((current: TabValue | undefined) =>
         coerceTabValue(fromUrl, current),
       );
     };
@@ -107,20 +114,19 @@ function Tabs({
     return () => window.removeEventListener("popstate", onPopState);
   }, [queryParam, queryParamKey, isControlled, valueProp, onValueChange]);
 
-  const handleValueChange = React.useCallback<
-    NonNullable<TabsProps["onValueChange"]>
-  >(
+  const handleValueChange = React.useCallback(
     (next, details) => {
+      const tabValue = normalizeTabValue(next);
       if (!isControlled) {
-        setInternalValue(next);
+        setInternalValue(tabValue);
       }
       if (queryParam) {
-        writeTabToSearch(queryParamKey, next);
+        writeTabToSearch(queryParamKey, tabValue);
       }
-      onValueChange?.(next, details);
+      onValueChange?.(tabValue, details);
     },
     [isControlled, onValueChange, queryParam, queryParamKey],
-  );
+  ) satisfies NonNullable<TabsPrimitive.Root.Props["onValueChange"]>;
 
   const rootControlledProps =
     queryParam ?
@@ -155,8 +161,8 @@ function Tabs({
 /** Coerce URL string to match prior value type when possible (e.g. numeric tab values). */
 function coerceTabValue(
   fromUrl: string,
-  fallback: TabsPrimitive.Tab.Value | undefined,
-): TabsPrimitive.Tab.Value {
+  fallback: TabValue | undefined,
+): TabValue {
   if (typeof fallback === "number") {
     const n = Number(fromUrl);
     if (!Number.isNaN(n)) return n;
@@ -164,15 +170,27 @@ function coerceTabValue(
   return fromUrl;
 }
 
-type TabsValueChangeDetails = Parameters<
-  NonNullable<TabsPrimitive.Root.Props["onValueChange"]>
->[1];
+function normalizeTabValue(value: unknown): TabValue {
+  if (typeof value === "string" || typeof value === "number" || value === null) {
+    return value;
+  }
+  if (
+    typeof value === "boolean" ||
+    typeof value === "bigint" ||
+    typeof value === "symbol"
+  ) {
+    return String(value);
+  }
+  return null;
+}
+
+const noop = () => undefined;
 
 const POPSTATE_CHANGE_DETAILS = {
   reason: "none",
   event: new Event("popstate"),
-  cancel: () => {},
-  allowPropagation: () => {},
+  cancel: noop,
+  allowPropagation: noop,
   isCanceled: false,
   isPropagationAllowed: true,
   trigger: undefined,

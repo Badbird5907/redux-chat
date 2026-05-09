@@ -32,6 +32,7 @@ import {
 import { submitMessage } from "@/components/chat/use-submit-message";
 import { useQuery } from "@/lib/hooks/convex";
 import { useInstructions } from "@/lib/hooks/use-instructions";
+import { useAppHotkey } from "@/lib/hotkeys";
 import { deleteDraftAttachment } from "@/server/attachments";
 import {
   FREE_PLAN_MAX_ATTACHMENTS,
@@ -283,6 +284,10 @@ export function ChatInput({
     currentAttachmentCount: attachments.length,
   });
 
+  useAppHotkey("chat.uploadFile", () => {
+    openFilePicker();
+  });
+
   const handleRemoveAttachment = useCallback(
     async (attachmentId: string) => {
       try {
@@ -313,9 +318,7 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          analysisWorkspace: enabled
-            ? { syncUploads: true }
-            : undefined,
+          analysisWorkspace: enabled ? { syncUploads: true } : undefined,
         },
       });
     },
@@ -760,41 +763,13 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "u") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.repeat) {
-          return;
-        }
-        openFilePicker();
-        return;
-      }
-
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         void handleSubmit();
       }
     },
-    [handleSubmit, openFilePicker],
+    [handleSubmit],
   );
-
-  useEffect(() => {
-    const handleUploadHotkey = (event: KeyboardEvent) => {
-      if (
-        event.ctrlKey &&
-        !event.altKey &&
-        !event.metaKey &&
-        !event.repeat &&
-        event.key.toLowerCase() === "u"
-      ) {
-        event.preventDefault();
-        openFilePicker();
-      }
-    };
-
-    window.addEventListener("keydown", handleUploadHotkey);
-    return () => window.removeEventListener("keydown", handleUploadHotkey);
-  }, [openFilePicker]);
 
   const hasUploadingFiles = attachments.some(
     (attachment) => attachment.uploading,

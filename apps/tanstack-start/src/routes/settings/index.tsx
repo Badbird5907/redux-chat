@@ -247,7 +247,7 @@ function RouteComponent() {
     {},
   );
   const refreshBillingStatus = useAction(
-    api.functions.billing.refreshCurrentUserMeterState,
+    api.functions.billing.refreshCurrentUserBillingState,
   );
   const switchPaidPlan = useAction(
     api.functions.billing.switchCurrentUserPaidPlan,
@@ -907,8 +907,7 @@ function TierColumn({
       ) : null}
       <ul className="text-muted-foreground mt-3 flex-1 space-y-1.5 text-xs leading-relaxed">
         <li>{formatNumber(plan.includedMonthlyCredits)} credits / period</li>
-        <li>{plan.markupMultiplier}× markup vs raw usage</li>
-        <li>Overdraft {plan.overageAllowed ? "on" : "off"}</li>
+        {/* TODO: finish this */}
       </ul>
       {footer}
     </Card>

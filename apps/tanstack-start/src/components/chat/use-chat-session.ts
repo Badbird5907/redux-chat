@@ -162,7 +162,7 @@ export function useChatSession({
   );
 
   const refreshBillingState = useAction(
-    api.functions.billing.refreshCurrentUserMeterState,
+    api.functions.billing.refreshCurrentUserBillingState,
   );
 
   const {

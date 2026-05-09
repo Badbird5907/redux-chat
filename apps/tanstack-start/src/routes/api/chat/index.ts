@@ -350,7 +350,7 @@ export const Route = createFileRoute("/api/chat/")({
         const [billingSnapshot, billingState] = await Promise.all([
           fetchAuthQuery(api.functions.billing.getCurrentBillingState, {}),
           fetchAuthAction(
-            api.functions.billing.refreshCurrentUserMeterState,
+            api.functions.billing.refreshCurrentUserBillingState,
             {},
           ),
         ]);
