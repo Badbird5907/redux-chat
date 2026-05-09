@@ -65,7 +65,7 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
   tools: {
     search: {},
-    analysisWorkspace: { syncUploads: false },
+    analysisWorkspace: { syncUploads: true },
   },
   instructionId: undefined,
   userMessagePreviewMaxLines: DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES,
@@ -74,10 +74,7 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
 function toolsInputForNormalization(
   input: MessageSettingsInput | null | undefined,
 ): MessageToolSettingsInput {
-  if (
-    input == null ||
-    !Object.prototype.hasOwnProperty.call(input, "tools")
-  ) {
+  if (input == null || !Object.prototype.hasOwnProperty.call(input, "tools")) {
     return { ...DEFAULT_MESSAGE_SETTINGS.tools };
   }
   return input.tools ?? {};

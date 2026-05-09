@@ -67,7 +67,7 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
                   sidebarNavIndex === 0 &&
                   "ring-primary/45 ring-offset-background ring-2 ring-offset-2",
                 activeSidebar === "favorites"
-                  ? "bg-muted text-accent-foreground"
+                  ? "bg-muted text-amber-600 dark:text-amber-400"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >

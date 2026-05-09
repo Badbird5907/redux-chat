@@ -1,12 +1,13 @@
 import type { LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createVertex } from "@ai-sdk/google-vertex";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { createVertex } from "@ai-sdk/google-vertex";
 
 import type { ModelRouteInfo } from "@redux/shared/models";
 
 import { env } from "@/env";
+
 export interface RuntimeProviderDefinition {
   key: string;
   requiredEnv: readonly string[];
@@ -60,5 +61,5 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
 
       return provider(route.vendorId);
     },
-  }
+  },
 };

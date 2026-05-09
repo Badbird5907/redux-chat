@@ -72,22 +72,41 @@ export function normalizeAssistantMessage(
   const steps: AssistantTimelineStep[] = [];
   let attachableStepIndex = -1;
 
-  if (reasoningText && hasToolOrSourceActivity) {
-    steps.push({
-      content: reasoningText,
-      id: `${message.id}:reasoning`,
-      kind: "reasoning",
-      label: "Thinking",
-      rawPartIds: reasoningParts.map(({ id }) => id),
-      status: isLastReasoningPartStreaming(message.parts)
-        ? "active"
-        : "complete",
-      summary: "Thinking through the response",
-    });
-    attachableStepIndex = 0;
-  }
-
   for (const { id, part } of indexedParts) {
+    if (isReasoningUIPart(part) && hasToolOrSourceActivity) {
+      const content = part.text.trim();
+
+      if (!content) {
+        continue;
+      }
+
+      const previousStep = steps.at(-1);
+
+      if (previousStep?.kind === "reasoning") {
+        previousStep.content = joinReasoningParts([
+          previousStep.content ?? "",
+          content,
+        ]);
+        previousStep.rawPartIds.push(id);
+        previousStep.status =
+          part.state === "streaming" ? "active" : previousStep.status;
+        attachableStepIndex = steps.length - 1;
+        continue;
+      }
+
+      steps.push({
+        content,
+        id: `${message.id}:reasoning:${id}`,
+        kind: "reasoning",
+        label: "Thinking",
+        rawPartIds: [id],
+        status: part.state === "streaming" ? "active" : "complete",
+        summary: "Thinking through the response",
+      });
+      attachableStepIndex = steps.length - 1;
+      continue;
+    }
+
     if (isToolUIPart(part)) {
       const toolName = getToolName(part);
       const label = getToolLabel(toolName, part.title);
@@ -176,11 +195,6 @@ export function normalizeAssistantMessage(
     steps,
     textContent,
   };
-}
-
-function isLastReasoningPartStreaming(parts: UIMessage["parts"]) {
-  const lastReasoningPart = [...parts].reverse().find(isReasoningUIPart);
-  return lastReasoningPart?.state === "streaming";
 }
 
 function joinReasoningParts(parts: string[]) {

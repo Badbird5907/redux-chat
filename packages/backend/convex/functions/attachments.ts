@@ -5,6 +5,7 @@ import { ConvexError, v } from "convex/values";
 import type { DataModel } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
+import { updateUserUsageStats } from "../usageStats";
 import { backendMutation, mutation, query } from "./index";
 import { internalAction, internalMutation } from "./internal";
 
@@ -179,6 +180,10 @@ export const internal_createUploadedAttachment = backendMutation({
         expiresAt,
         updatedAt: now,
       });
+      await updateUserUsageStats(ctx, args.userId, {
+        storageBytesDelta: args.size - existing.size,
+        lastActiveAt: now,
+      });
       return { attachmentId: existing.attachmentId };
     }
 
@@ -201,6 +206,11 @@ export const internal_createUploadedAttachment = backendMutation({
       expiresAt,
       createdAt: now,
       updatedAt: now,
+    });
+    await updateUserUsageStats(ctx, args.userId, {
+      attachmentsDelta: 1,
+      storageBytesDelta: args.size,
+      lastActiveAt: now,
     });
 
     return { attachmentId: args.attachmentId };
@@ -341,6 +351,11 @@ export const deleteDraftAttachment = mutation({
     }
 
     await ctx.db.delete(attachment._id);
+    await updateUserUsageStats(ctx, ctx.userId, {
+      attachmentsDelta: -1,
+      storageBytesDelta: -attachment.size,
+      lastActiveAt: Date.now(),
+    });
     return { success: true };
   },
 });

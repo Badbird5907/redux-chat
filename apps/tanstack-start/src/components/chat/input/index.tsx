@@ -32,13 +32,17 @@ import {
 import { submitMessage } from "@/components/chat/use-submit-message";
 import { useQuery } from "@/lib/hooks/convex";
 import { useInstructions } from "@/lib/hooks/use-instructions";
+import { useAppHotkey } from "@/lib/hotkeys";
 import { deleteDraftAttachment } from "@/server/attachments";
+import {
+  FREE_PLAN_MAX_ATTACHMENTS,
+  FREE_PLAN_MAX_FILE_SIZE_BYTES,
+} from "@/upload";
 import { useBillingState } from "../use-billing-state";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
 import { MessageQueueCard } from "./message-queue-card";
-import { ChatToolsDialog } from "./tools-dialog";
 import { useFileUpload } from "./use-file-upload";
 import { isAttachmentExpired } from "./utils";
 
@@ -81,7 +85,6 @@ export function ChatInput({
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [toolsDialogOpen, setToolsDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -96,7 +99,14 @@ export function ChatInput({
   } = useInstructions();
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
-  const { isOutOfCredits } = useBillingState();
+  const { billingState, isOutOfCredits } = useBillingState();
+  const attachmentLimits =
+    billingState?.tier === "free"
+      ? {
+          maxPerMessage: FREE_PLAN_MAX_ATTACHMENTS,
+          maxFileSizeBytes: FREE_PLAN_MAX_FILE_SIZE_BYTES,
+        }
+      : null;
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
@@ -206,8 +216,6 @@ export function ChatInput({
     () => settings.tools.mcpServers?.serverIds ?? [],
     [settings.tools.mcpServers],
   );
-  const syncUploadsToAnalysisWorkspace =
-    settings.tools.analysisWorkspace?.syncUploads !== false;
   const showErrorBorder = status === "error";
   const selectedInstruction =
     (settings.instructionId
@@ -272,6 +280,12 @@ export function ChatInput({
     updateAttachment,
     setAttachments,
     beforeOpenFilePicker,
+    attachmentLimits,
+    currentAttachmentCount: attachments.length,
+  });
+
+  useAppHotkey("chat.uploadFile", () => {
+    openFilePicker();
   });
 
   const handleRemoveAttachment = useCallback(
@@ -304,28 +318,11 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          analysisWorkspace: enabled
-            ? (settings.tools.analysisWorkspace ?? { syncUploads: true })
-            : undefined,
+          analysisWorkspace: enabled ? { syncUploads: true } : undefined,
         },
       });
     },
-    [onSettingsChange, settings.tools.analysisWorkspace],
-  );
-
-  const handleAnalysisWorkspaceSyncUploadsChange = useCallback(
-    (syncUploads: boolean) => {
-      if (!isAnalysisWorkspaceEnabled) {
-        return;
-      }
-
-      void onSettingsChange({
-        tools: {
-          analysisWorkspace: { syncUploads },
-        },
-      });
-    },
-    [isAnalysisWorkspaceEnabled, onSettingsChange],
+    [onSettingsChange],
   );
 
   const handleInstructionChange = useCallback(
@@ -766,41 +763,13 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "u") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.repeat) {
-          return;
-        }
-        openFilePicker();
-        return;
-      }
-
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         void handleSubmit();
       }
     },
-    [handleSubmit, openFilePicker],
+    [handleSubmit],
   );
-
-  useEffect(() => {
-    const handleUploadHotkey = (event: KeyboardEvent) => {
-      if (
-        event.ctrlKey &&
-        !event.altKey &&
-        !event.metaKey &&
-        !event.repeat &&
-        event.key.toLowerCase() === "u"
-      ) {
-        event.preventDefault();
-        openFilePicker();
-      }
-    };
-
-    window.addEventListener("keydown", handleUploadHotkey);
-    return () => window.removeEventListener("keydown", handleUploadHotkey);
-  }, [openFilePicker]);
 
   const hasUploadingFiles = attachments.some(
     (attachment) => attachment.uploading,
@@ -944,10 +913,6 @@ export function ChatInput({
               dropdownOpen={dropdownOpen}
               onDropdownOpenChange={setDropdownOpen}
               onOpenFilePicker={openFilePicker}
-              onOpenToolsDialog={() => {
-                setDropdownOpen(false);
-                setToolsDialogOpen(true);
-              }}
               onOpenMcpSettings={() => {
                 setDropdownOpen(false);
                 void navigate({ to: "/settings/mcp" });
@@ -967,7 +932,11 @@ export function ChatInput({
               onInstructionChange={handleInstructionChange}
               instructionsReady={instructionsReady}
               canUploadFiles={canUploadFiles}
+              isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
               isSearchEnabled={isSearchEnabled}
+              onAnalysisWorkspaceEnabledChange={
+                handleAnalysisWorkspaceEnabledChange
+              }
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}
               mcpServers={mcpServers.map((server) => ({
@@ -1003,20 +972,6 @@ export function ChatInput({
       <FilePreviewDialog
         file={previewFile}
         onClose={() => setPreviewFile(null)}
-      />
-
-      <ChatToolsDialog
-        isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
-        isSearchEnabled={isSearchEnabled}
-        onAnalysisWorkspaceEnabledChange={handleAnalysisWorkspaceEnabledChange}
-        onAnalysisWorkspaceSyncUploadsChange={
-          handleAnalysisWorkspaceSyncUploadsChange
-        }
-        onOpenChange={setToolsDialogOpen}
-        onSearchEnabledChange={handleSearchEnabledChange}
-        open={toolsDialogOpen}
-        settingsReady={settingsReady}
-        syncUploads={syncUploadsToAnalysisWorkspace}
       />
     </>
   );

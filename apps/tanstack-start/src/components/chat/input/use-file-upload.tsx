@@ -66,6 +66,8 @@ export interface UseFileUploadParams {
   ) => void;
   setAttachments: Dispatch<SetStateAction<DraftAttachment[]>>;
   beforeOpenFilePicker?: () => void;
+  attachmentLimits?: { maxPerMessage: number; maxFileSizeBytes: number } | null;
+  currentAttachmentCount?: number;
 }
 
 export function useFileUpload({
@@ -77,6 +79,8 @@ export function useFileUpload({
   updateAttachment,
   setAttachments,
   beforeOpenFilePicker,
+  attachmentLimits,
+  currentAttachmentCount,
 }: UseFileUploadParams) {
   const [fileDragHighlight, setFileDragHighlight] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +98,30 @@ export function useFileUpload({
         return;
       }
 
+      const remainingSlots = attachmentLimits
+        ? Math.max(
+            0,
+            attachmentLimits.maxPerMessage - (currentAttachmentCount ?? 0),
+          )
+        : Infinity;
+      let addedInBatch = 0;
+
       for (const file of fileList) {
+        if (attachmentLimits && addedInBatch >= remainingSlots) {
+          toast.error(
+            `Free plan allows only ${attachmentLimits.maxPerMessage} attachment per message. Upgrade for more.`,
+          );
+          break;
+        }
+
+        if (attachmentLimits && file.size > attachmentLimits.maxFileSizeBytes) {
+          const maxMB = attachmentLimits.maxFileSizeBytes / (1024 * 1024);
+          toast.error(
+            `"${file.name}" exceeds the ${maxMB} MB limit on the free plan. Upgrade to attach larger files.`,
+          );
+          continue;
+        }
+
         if (!isFileAllowedForModel(selectedModel, file)) {
           toast.error(
             `File type not supported by ${currentModelConfig.name} (${file.type})`,
@@ -111,6 +138,7 @@ export function useFileUpload({
             ? URL.createObjectURL(file)
             : undefined;
 
+        addedInBatch++;
         appendAttachment({
           attachmentId: tempId,
           fileName: file.name,
@@ -122,6 +150,7 @@ export function useFileUpload({
         });
 
         try {
+          console.log("uploading file", file);
           const completion = await upload.uploadFile(file, {
             input: {
               modelId: selectedModel,
@@ -167,6 +196,8 @@ export function useFileUpload({
     },
     [
       appendAttachment,
+      attachmentLimits,
+      currentAttachmentCount,
       currentModelConfig,
       selectedModel,
       setAttachments,

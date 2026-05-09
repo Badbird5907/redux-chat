@@ -1,16 +1,18 @@
 import { Polar as PolarSdkClient } from "@polar-sh/sdk";
 
-import {
-  DEFAULT_BILLING_CONFIG,
-  aggregateBillableToolCalls,
-  getPlanConfig,
-  resolveModelRoute,
-} from "@redux/shared";
 import type {
   BillableToolCall,
   PlanTier,
   UsageChargeComputationResult,
 } from "@redux/shared";
+import {
+  aggregateBillableToolCalls,
+  DEFAULT_BILLING_CONFIG,
+  getPlanConfig,
+  resolveModelRoute,
+} from "@redux/shared";
+
+import { backendEnv } from "./env";
 
 type BillingUsage = {
   inputTokens?: number;
@@ -22,8 +24,6 @@ type BillingUsage = {
   outputAudioTokens?: number;
 };
 
-import { backendEnv } from "./env";
-
 type BillingSubscriptionSnapshot = {
   productId?: string;
   productKey?: string;
@@ -32,22 +32,19 @@ type BillingSubscriptionSnapshot = {
   currentPeriodEnd?: number;
   customerId?: string;
   subscriptionId?: string;
+  cancelAtPeriodEnd?: boolean;
+};
+
+/** Fields only Polar’s live subscription API exposes (Convex Polar DB omits pending updates). */
+export type BillingSubscriptionSchedule = {
+  cancelAtPeriodEnd: boolean;
+  pendingProductId: string | undefined;
+  pendingAppliesAtMs: number | undefined;
 };
 
 export const BILLING_DEBUG_LOGGING = false;
 
-/** Checkpoint / trace logs; enable only by flipping `BILLING_DEBUG_LOGGING` locally. */
-export function billingDebugLog(
-  ...args: Parameters<typeof console.log>
-): void {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- BILLING_DEBUG_LOGGING gate
-  if (BILLING_DEBUG_LOGGING) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- delegated to console
-    console.log(...args);
-  }
-}
-
-/** Diagnostic warnings (e.g. missing pricing); gated like `billingDebugLog`. */
+/** Diagnostic warnings (e.g. missing pricing); gated like `BILLING_DEBUG_LOGGING`. */
 export function billingDebugWarn(
   ...args: Parameters<typeof console.warn>
 ): void {
@@ -57,17 +54,6 @@ export function billingDebugWarn(
     console.warn(...args);
   }
 }
-
-export type BillingGrantReason =
-  | "subscription_created"
-  | "subscription_renewed"
-  | "free_monthly_reset"
-  | "admin_adjustment";
-
-export type BillingGrantSource =
-  | "subscription_renewal"
-  | "free_monthly_reset"
-  | "admin_adjustment";
 
 export const POLAR_CREDITS_EVENT_NAME = "credits";
 
@@ -92,12 +78,7 @@ export function toPolarSafeAmount(value: number): number {
 }
 
 export function getBillingConfig() {
-  const env = backendEnv();
-  return {
-    ...DEFAULT_BILLING_CONFIG,
-    meterName:
-      env.POLAR_CREDITS_METER_NAME,
-  };
+  return DEFAULT_BILLING_CONFIG;
 }
 
 export function getPolarSdkClient() {
@@ -121,7 +102,15 @@ export function getBillingPeriodKey(timestamp = Date.now()) {
 
 export function getUtcMonthBounds(timestamp = Date.now()) {
   const date = new Date(timestamp);
-  const start = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 0, 0, 0, 0);
+  const start = Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    1,
+    0,
+    0,
+    0,
+    0,
+  );
   const end = Date.UTC(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1,
@@ -155,7 +144,14 @@ export function resolveTierFromSubscription(
     return "plus" satisfies PlanTier;
   }
 
-  if (subscription.productId && subscription.productId === env.POLAR_PRO_PRODUCT_ID) {
+  if (subscription.productKey === "free") {
+    return "free" satisfies PlanTier;
+  }
+
+  if (
+    subscription.productId &&
+    subscription.productId === env.POLAR_PRO_PRODUCT_ID
+  ) {
     return "pro" satisfies PlanTier;
   }
 
@@ -178,6 +174,13 @@ export function toSubscriptionSnapshot(
 
   const value = subscription as Record<string, unknown>;
 
+  const cancelAtPeriodEnd =
+    typeof value.cancelAtPeriodEnd === "boolean"
+      ? value.cancelAtPeriodEnd
+      : typeof value.cancel_at_period_end === "boolean"
+        ? value.cancel_at_period_end
+        : undefined;
+
   return {
     productId:
       typeof value.productId === "string"
@@ -198,7 +201,54 @@ export function toSubscriptionSnapshot(
         : typeof value.subscriptionId === "string"
           ? value.subscriptionId
           : undefined,
+    cancelAtPeriodEnd,
   };
+}
+
+export function subscriptionScheduleFromPolarSdkSubscription(
+  subscription: unknown,
+): BillingSubscriptionSchedule {
+  if (!subscription || typeof subscription !== "object") {
+    return {
+      cancelAtPeriodEnd: false,
+      pendingProductId: undefined,
+      pendingAppliesAtMs: undefined,
+    };
+  }
+
+  const value = subscription as Record<string, unknown>;
+  const cancelAtPeriodEnd =
+    typeof value.cancelAtPeriodEnd === "boolean"
+      ? value.cancelAtPeriodEnd
+      : typeof value.cancel_at_period_end === "boolean"
+        ? value.cancel_at_period_end
+        : false;
+
+  const pendingRaw = value.pendingUpdate ?? value.pending_update;
+  let pendingProductId: string | undefined;
+  let pendingAppliesAtMs: number | undefined;
+
+  if (pendingRaw && typeof pendingRaw === "object") {
+    const pending = pendingRaw as Record<string, unknown>;
+    const pid = pending.productId ?? pending.product_id;
+    if (typeof pid === "string") {
+      pendingProductId = pid;
+    }
+    pendingAppliesAtMs = toTimestamp(pending.appliesAt ?? pending.applies_at);
+  }
+
+  return { cancelAtPeriodEnd, pendingProductId, pendingAppliesAtMs };
+}
+
+export function polarLiveSubscriptionProductId(
+  subscription: unknown,
+): string | undefined {
+  if (!subscription || typeof subscription !== "object") {
+    return undefined;
+  }
+  const value = subscription as Record<string, unknown>;
+  const id = value.productId ?? value.product_id;
+  return typeof id === "string" ? id : undefined;
 }
 
 export function buildBillingAccountRecord(
@@ -277,7 +327,12 @@ export function buildPolarCreditUsageEvent(args: {
       usedPricingFallback: args.charge.usedPricingFallback,
       toolSummaryJson: JSON.stringify(toolSummary),
       _cost: {
-        amount: toPolarSafeAmount(args.charge.rawUsdCost),
+        // Polar's cost-events API expects the amount in **cents** (integer minor units),
+        // not dollars. https://polar.sh/docs/features/cost-insights/cost-events
+        // We pass cents as a float to retain sub-cent precision per event since LLM
+        // calls routinely cost fractions of a cent. `toPolarSafeAmount` then clamps
+        // decimal-precision noise so Polar's 17-digit decimal validator accepts it.
+        amount: toPolarSafeAmount(args.charge.rawUsdCost * 100),
         currency: "usd",
       },
       _llm: llmMetadata,
@@ -322,7 +377,9 @@ export function buildPolarLlmMetadata(args: {
   });
   const model =
     route?.canonicalModelId ??
-    (fallbackModel.length > 0 ? fallbackModel : route?.displayName ?? args.routeId);
+    (fallbackModel.length > 0
+      ? fallbackModel
+      : (route?.displayName ?? args.routeId));
 
   // The SDK expects camelCase here; it serializes to snake_case on the wire.
   return {
@@ -374,149 +431,13 @@ function normalizeProviderVendor(provider: string | undefined) {
   return provider;
 }
 
-export function buildPolarCreditGrantEvent(args: {
-  userId: string;
-  credits: number;
-  tier: PlanTier;
-  periodKey: string;
-  reason: BillingGrantReason;
-  source: BillingGrantSource;
-}) {
-  return {
-    name: POLAR_CREDITS_EVENT_NAME,
-    externalCustomerId: args.userId,
-    metadata: {
-      units: -Math.abs(args.credits),
-      reason: args.reason,
-      tier: args.tier,
-      periodKey: args.periodKey,
-      source: args.source,
-    },
-  };
-}
-
-export function extractMeterBalance(
-  state: unknown,
-  meterName: string,
-): number | undefined {
-  return extractMeterCreditSummary(state, meterName).availableCredits;
-}
-
-export function extractMeterCreditSummary(
-  state: unknown,
-  meterName: string,
-) {
-  if (!state || typeof state !== "object") {
-    return { availableCredits: undefined, overageCredits: undefined };
-  }
-
-  const activeMeters = (state as { activeMeters?: unknown }).activeMeters;
-  if (!Array.isArray(activeMeters)) {
-    return { availableCredits: undefined, overageCredits: undefined };
-  }
-
-  const normalizedMeters = activeMeters.flatMap((meter) => {
-    if (!meter || typeof meter !== "object") {
-      return [];
-    }
-
-    const candidate = meter as Record<string, unknown>;
-    const candidateName =
-      typeof candidate.name === "string"
-        ? candidate.name
-        : candidate.meter &&
-            typeof candidate.meter === "object" &&
-            "name" in candidate.meter &&
-            typeof (candidate.meter as { name?: unknown }).name === "string"
-          ? (candidate.meter as { name: string }).name
-          : undefined;
-    const balance =
-      typeof candidate.balance === "number" ? candidate.balance : undefined;
-    const consumedUnits =
-      typeof candidate.consumedUnits === "number"
-        ? candidate.consumedUnits
-        : undefined;
-
-    return [
-      {
-        candidateName,
-        balance,
-        consumedUnits,
-      },
-    ];
-  });
-
-  const matchingMeter =
-    normalizedMeters.find((meter) => meter.candidateName === meterName) ??
-    (normalizedMeters.length === 1 ? normalizedMeters[0] : undefined);
-
-  if (matchingMeter) {
-    const { availableCredits, overageCredits } =
-      deriveMeterCreditSummary(matchingMeter);
-
-    billingDebugLog("billing_extract_meter_balance_match", {
-      meterName,
-      candidateName: matchingMeter.candidateName,
-      balance: matchingMeter.balance,
-      consumedUnits: matchingMeter.consumedUnits,
-      availableCredits,
-      overageCredits,
-      usedSingleMeterFallback:
-        matchingMeter.candidateName === undefined && normalizedMeters.length === 1,
-    });
-
-    return { availableCredits, overageCredits };
-  }
-
-  billingDebugWarn("billing_extract_meter_balance_missing_meter", {
-    meterName,
-    activeMeters: normalizedMeters,
-  });
-
-  return { availableCredits: undefined, overageCredits: undefined };
-}
-
-function deriveMeterCreditSummary(meter: {
-  balance?: number;
-  consumedUnits?: number;
-}) {
-  if (typeof meter.consumedUnits === "number" && meter.consumedUnits > 0) {
-    return {
-      availableCredits: 0,
-      overageCredits:
-        typeof meter.balance === "number" && meter.balance > 0
-          ? Math.max(meter.balance, meter.consumedUnits)
-          : meter.consumedUnits,
-    };
-  }
-
-  if (typeof meter.consumedUnits === "number" && meter.consumedUnits <= 0) {
-    return {
-      availableCredits: Math.abs(meter.consumedUnits),
-      overageCredits: 0,
-    };
-  }
-
-  if (typeof meter.balance === "number" && meter.balance >= 0) {
-    return {
-      availableCredits: meter.balance,
-      overageCredits: 0,
-    };
-  }
-
-  if (typeof meter.balance === "number") {
-    return {
-      availableCredits: Math.max(0, -meter.balance),
-      overageCredits: meter.balance > 0 ? meter.balance : 0,
-    };
-  }
-
-  return { availableCredits: undefined, overageCredits: undefined };
-}
-
 function toTimestamp(value: unknown) {
   if (typeof value === "number") {
     return value;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
   }
 
   if (typeof value === "string") {

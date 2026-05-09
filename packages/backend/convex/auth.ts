@@ -4,6 +4,7 @@ import type { BetterAuthOptions } from "better-auth/minimal";
 import { createClient } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
+import { admin } from "better-auth/plugins";
 
 import type { DataModel } from "@redux/backend/convex/_generated/dataModel";
 import { components, internal } from "@redux/backend/convex/_generated/api";
@@ -11,6 +12,7 @@ import { components, internal } from "@redux/backend/convex/_generated/api";
 // eslint-disable-next-line no-restricted-imports
 import { internalAction } from "./_generated/server";
 import authConfig from "./auth.config";
+import { auditLog } from "./betterAuth/audit_log";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
 
@@ -39,6 +41,36 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
       // oAuthProxy({
       //   productionURL: env.BASE_URL,
       // }),
+      admin(),
+      auditLog({
+        nonBlocking: false,
+        // eslint-disable-next-line @typescript-eslint/require-await
+        beforeLog: async (entry) => {
+          console.log("entry", entry);
+          const { action } = entry;
+          const ignoredPatterns = [
+            /^convex:.*$/,
+            /^get-session$/,
+            /^list-accounts$/,
+            /^admin:get-user$/,
+            /^admin:list-.*$/,
+            /^audit-log:list$/,
+          ];
+          const isIgnored = ignoredPatterns.some((pattern) =>
+            pattern.test(action),
+          );
+          if (isIgnored) {
+            // we don't want to log internal stuff/useless
+
+            return null;
+          }
+          return entry;
+        },
+        retention: {
+          enabled: false,
+          days: 0,
+        },
+      }),
       convex({ authConfig }),
     ],
     socialProviders: {
@@ -72,7 +104,7 @@ export const getLatestJwks = internalAction({
   handler: async (ctx) => {
     const auth = initAuth(ctx);
     // idk
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return await auth.api.getLatestJwks();
   },
 });

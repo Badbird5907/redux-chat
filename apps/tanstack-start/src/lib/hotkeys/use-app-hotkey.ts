@@ -3,14 +3,14 @@ import type { HotkeyCallback, UseHotkeyOptions } from "@tanstack/react-hotkeys";
 import { useHotkey } from "@tanstack/react-hotkeys";
 
 import { useResolvedHotkey } from "@/lib/hotkeys/provider";
-import { appHotkeyRegistry } from "@/lib/hotkeys/registry";
+import { getAppHotkeyDefinition } from "@/lib/hotkeys/registry";
 
 export function useAppHotkey(
   id: AppHotkeyId,
   callback: HotkeyCallback,
   optionOverrides: UseHotkeyOptions = {},
 ) {
-  const definition = appHotkeyRegistry[id];
+  const definition = getAppHotkeyDefinition(id);
   const hotkey = useResolvedHotkey(id);
 
   const options: UseHotkeyOptions = {

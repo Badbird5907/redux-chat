@@ -21,8 +21,8 @@ import {
 import { Field, FieldError, FieldLabel } from "@redux/ui/components/field";
 import { Input } from "@redux/ui/components/input";
 
-import { SocialOAuthSection } from "@/components/auth/social-oauth-section";
 import { ReduxChatBrand } from "@/components/auth/redux-chat-brand";
+import { SocialOAuthSection } from "@/components/auth/social-oauth-section";
 import { authClient } from "@/lib/auth/client";
 
 const signUpSchema = z.object({
@@ -74,100 +74,100 @@ function SignUpPage() {
     <>
       <ReduxChatBrand />
       <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Sign Up</CardTitle>
-        <CardDescription>Create an account to get started.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <SocialOAuthSection
-          googleButtonLabel="Sign up with Google"
-          githubButtonLabel="Sign up with GitHub"
-        />
+        <CardHeader>
+          <CardTitle>Sign Up</CardTitle>
+          <CardDescription>Create an account to get started.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <SocialOAuthSection
+            googleButtonLabel="Sign up with Google"
+            githubButtonLabel="Sign up with GitHub"
+          />
 
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await form.handleSubmit();
-          }}
-          className="space-y-4"
-        >
-          <form.Field
-            name="name"
-            children={(field) => (
-              <Field>
-                <FieldLabel>Name</FieldLabel>
-                <Input
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="John Doe"
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
-            )}
-          />
-          <form.Field
-            name="email"
-            children={(field) => (
-              <Field>
-                <FieldLabel>Email</FieldLabel>
-                <Input
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="hello@example.com"
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
-            )}
-          />
-          <form.Field
-            name="password"
-            children={(field) => (
-              <Field>
-                <FieldLabel>Password</FieldLabel>
-                <Input
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  type="password"
-                  placeholder="••••••••"
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
-            )}
-          />
-          <Button
-            className="w-full"
-            type="submit"
-            disabled={form.state.isSubmitting}
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              await form.handleSubmit();
+            }}
+            className="space-y-4"
           >
-            {form.state.isSubmitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : null}
-            Sign Up
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter className="justify-center">
-        <div className="text-muted-foreground text-sm">
-          Already have an account?{" "}
-          <Link to="/auth/sign-in" className="text-primary hover:underline">
-            Sign in
-          </Link>
-        </div>
-      </CardFooter>
-    </Card>
+            <form.Field
+              name="name"
+              children={(field) => (
+                <Field>
+                  <FieldLabel>Name</FieldLabel>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="John Doe"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <FieldError errors={field.state.meta.errors} />
+                  )}
+                </Field>
+              )}
+            />
+            <form.Field
+              name="email"
+              children={(field) => (
+                <Field>
+                  <FieldLabel>Email</FieldLabel>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="hello@example.com"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <FieldError errors={field.state.meta.errors} />
+                  )}
+                </Field>
+              )}
+            />
+            <form.Field
+              name="password"
+              children={(field) => (
+                <Field>
+                  <FieldLabel>Password</FieldLabel>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    type="password"
+                    placeholder="••••••••"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <FieldError errors={field.state.meta.errors} />
+                  )}
+                </Field>
+              )}
+            />
+            <Button
+              className="w-full"
+              type="submit"
+              disabled={form.state.isSubmitting}
+            >
+              {form.state.isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Sign Up
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="justify-center">
+          <div className="text-muted-foreground text-sm">
+            Already have an account?{" "}
+            <Link to="/auth/sign-in" className="text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+        </CardFooter>
+      </Card>
     </>
   );
 }

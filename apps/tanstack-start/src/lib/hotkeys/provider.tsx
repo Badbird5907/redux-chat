@@ -10,7 +10,7 @@ import { validateHotkey } from "@tanstack/react-hotkeys";
 
 import {
   appHotkeyIds,
-  appHotkeyRegistry,
+  getAppHotkeyDefinition,
   getDefaultHotkeyBindings,
 } from "@/lib/hotkeys/registry";
 
@@ -56,7 +56,7 @@ function sanitizeHotkeyOverrides(value: unknown): AppHotkeyOverrides {
     }
 
     const id = rawId as AppHotkeyId;
-    if (rawBinding === appHotkeyRegistry[id].defaultHotkey) {
+    if (rawBinding === getAppHotkeyDefinition(id).defaultHotkey) {
       continue;
     }
 
@@ -167,7 +167,7 @@ export function HotkeySettingsProvider({
 
       const next = { ...readStoredHotkeyOverrides() };
 
-      if (binding === appHotkeyRegistry[id].defaultHotkey) {
+      if (binding === getAppHotkeyDefinition(id).defaultHotkey) {
         delete next[id];
       } else {
         next[id] = binding;

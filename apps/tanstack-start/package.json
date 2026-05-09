@@ -1,7 +1,10 @@
 {
   "name": "@redux/tanstack-start",
   "private": true,
-  "sideEffects": ["instrument.server.mjs", "**/*.css"],
+  "sideEffects": [
+    "instrument.server.mjs",
+    "**/*.css"
+  ],
   "type": "module",
   "scripts": {
     "dev": "pnpm with-env vite dev --port 3712",
@@ -20,10 +23,13 @@
     "@ai-sdk/react": "^3.0.170",
     "@base-ui/react": "^1.4.1",
     "@convex-dev/better-auth": "^0.12.1",
+    "@convex-dev/polar": "^0.9.0",
     "@convex-dev/react-query": "^0.1.0",
     "@e2b/code-interpreter": "^2.4.0",
     "@exalabs/ai-sdk": "^2.0.1",
+    "@hookform/resolvers": "^5.2.2",
     "@openrouter/ai-sdk-provider": "2.8.1",
+    "@polar-sh/checkout": "^0.2.0",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@redux/backend": "workspace:*",
     "@redux/redis": "workspace:*",
@@ -68,6 +74,7 @@
     "pdf-lib": "^1.17.1",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
+    "react-hook-form": "^7.73.1",
     "react-resizable-panels": "^4.10.0",
     "redis": "^5.12.1",
     "resumable-stream": "^2.2.12",

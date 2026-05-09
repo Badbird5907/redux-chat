@@ -2,9 +2,17 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, memo, useContext, useMemo } from "react";
+import {
+  createContext,
+  memo,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { ChevronDownIcon, DotIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { Badge } from "@redux/ui/components/badge";
 import {
@@ -71,6 +79,19 @@ export const ChainOfThought = memo(
       onChange: onOpenChange,
       prop: open,
     });
+    const previousDefaultOpenRef = useRef(defaultOpen);
+
+    useEffect(() => {
+      if (
+        open === undefined &&
+        defaultOpen &&
+        !previousDefaultOpenRef.current
+      ) {
+        setIsOpen(true);
+      }
+
+      previousDefaultOpenRef.current = defaultOpen;
+    }, [defaultOpen, open, setIsOpen]);
 
     const chainOfThoughtContext = useMemo(
       () => ({ isOpen, setIsOpen }),
@@ -141,7 +162,11 @@ export const ChainOfThoughtHeader = memo(
   },
 );
 
-export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
+export type ChainOfThoughtStepProps = Omit<
+  ComponentProps<typeof motion.div>,
+  "children"
+> & {
+  children?: ReactNode;
   icon?: LucideIcon;
   label: ReactNode;
   description?: ReactNode;
@@ -174,13 +199,25 @@ export const ChainOfThoughtStep = memo(
     children,
     ...props
   }: ChainOfThoughtStepProps) => (
-    <div
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
       className={cn(
         "flex gap-2 text-sm",
         stepStatusStyles[status],
-        "fade-in-0 slide-in-from-top-2 animate-in",
+        "will-change-transform",
         className,
       )}
+      exit={{ opacity: 0, y: -6 }}
+      initial={{ opacity: 0, y: -6 }}
+      layout="position"
+      transition={{
+        duration: 0.24,
+        ease: [0.22, 1, 0.36, 1],
+        layout: {
+          duration: 0.22,
+          ease: [0.22, 1, 0.36, 1],
+        },
+      }}
       {...props}
     >
       <div className="relative mt-0.5">
@@ -194,7 +231,7 @@ export const ChainOfThoughtStep = memo(
         )}
         {children}
       </div>
-    </div>
+    </motion.div>
   ),
 );
 
@@ -250,7 +287,7 @@ export const ChainOfThoughtContent = memo(
           )}
           {...props}
         >
-          {children}
+          <AnimatePresence initial={false}>{children}</AnimatePresence>
         </CollapsibleContent>
       </Collapsible>
     );

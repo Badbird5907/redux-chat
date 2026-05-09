@@ -1,7 +1,9 @@
-import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
-import { Button } from "@redux/ui/components/button";
-import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
+
+import { Button } from "@redux/ui/components/button";
+
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 
 export const Route = createFileRoute("/test/")({
   component: RouteComponent,

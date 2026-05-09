@@ -117,19 +117,19 @@ function AppLayout() {
     pathname === "/" || desiredChatThreadId !== undefined;
   const chatMatchThreadId = chatMatch?.params.id;
   const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
+  const homeLoaderData = homeMatch?.loaderData as
+    | {
+        settingsJson?: ChatPreload["settingsJson"];
+      }
+    | undefined;
+  const shouldRenderChatSurface =
+    chatThreadId !== undefined || homeLoaderData !== undefined;
   const chatPreload: ChatPreload | undefined =
     chatMatchThreadId === chatThreadId
       ? chatMatch?.loaderData
       : chatThreadId === undefined
         ? {
-            settingsJson:
-              (
-                homeMatch?.loaderData as
-                  | {
-                      settingsJson?: ChatPreload["settingsJson"];
-                    }
-                  | undefined
-              )?.settingsJson ?? null,
+            settingsJson: homeLoaderData?.settingsJson ?? null,
           }
         : undefined;
 
@@ -140,15 +140,17 @@ function AppLayout() {
         <ModelSwitcherHotkeyRegistration />
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
-        <main className="flex h-screen w-screen flex-col p-2">
-          <div className="bg-card/80 relative w-full flex-1 overflow-hidden rounded-4xl p-4">
+        <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">
+          <div className="bg-card/80 border-border/60 relative w-full flex-1 overflow-hidden rounded-4xl border p-4">
             <TopLeftActions />
             <div className="h-full overflow-hidden">
               {isChatSurfaceRoute ? (
-                <AppChatRoute
-                  initialThreadId={chatThreadId}
-                  preload={chatPreload}
-                />
+                shouldRenderChatSurface ? (
+                  <AppChatRoute
+                    initialThreadId={chatThreadId}
+                    preload={chatPreload}
+                  />
+                ) : null
               ) : (
                 <Outlet />
               )}

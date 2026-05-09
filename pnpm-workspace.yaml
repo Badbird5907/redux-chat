@@ -1,9 +1,10 @@
 packages:
-  - apps/*
+  - apps/tanstack-start
   - packages/*
   - tooling/*
 
 catalog:
+  '@edge-runtime/vm': ^5.0.0
   '@better-auth/cli': 1.4.21
   '@eslint/js': ^9.39.4
   '@silo-storage/sdk-core': ^0.2.8
@@ -19,6 +20,7 @@ catalog:
   '@trpc/server': ^11.7.1
   '@trpc/tanstack-react-query': ^11.7.1
   '@types/node': ^25.6.0
+  '@vitest/coverage-v8': ^4.1.5
   '@vitejs/plugin-react': ^6.0.1
   better-auth: 1.6.9
   eslint: ^9.39.4
@@ -29,6 +31,7 @@ catalog:
   tsx: ^4.21.0
   typescript: ^5.9.3
   vite: ^8.0.10
+  vitest: ^4.1.5
   zod: 4.3.6
 
 catalogs:

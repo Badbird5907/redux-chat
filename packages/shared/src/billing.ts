@@ -1,8 +1,8 @@
 import type { ModelCostComputationInput } from "@redux/models";
 
 import {
-  DEFAULT_CHAT_MODEL_ID,
   calculateModelCost,
+  DEFAULT_CHAT_MODEL_ID,
   getModelRoute,
   resolveModelRoute,
 } from "./models";
@@ -10,6 +10,86 @@ import {
 export const PLAN_TIERS = ["free", "plus", "pro"] as const;
 
 export type PlanTier = (typeof PLAN_TIERS)[number];
+
+/**
+ * Credit buckets are spendable lots categorized by source/policy. Allocation
+ * order is determined by the numeric `priority` field — lower values are
+ * consumed first, so for example `gifted` (10) drains before `paid` (40).
+ *
+ * Ordering rationale:
+ * - `gifted`: promo / admin grants, often time-limited; consume first so they
+ *   don't go to waste.
+ * - `monthly`: recurring plan allowance for the current tier (free/plus/pro);
+ *   expires at period end so it should be used before non-expiring lots.
+ * - `paid`: prepaid one-time purchases; long-lived, so spent last.
+ */
+export const CREDIT_BUCKETS = {
+  gifted: {
+    priority: 10,
+    label: "Gifted",
+    description: "Promotional credits",
+  },
+  monthly: {
+    priority: 20,
+    label: "Monthly",
+    description: "Recurring plan credits",
+  },
+  paid: {
+    priority: 30,
+    label: "Purchased",
+    description: "One-time purchased credits",
+  },
+} as const;
+
+export type CreditBucket = keyof typeof CREDIT_BUCKETS;
+
+export type CreditGrantSource =
+  | "polar_subscription_renewal"
+  | "polar_one_time_purchase"
+  | "free_monthly_reset"
+  | "admin_grant"
+  | "migration_backfill";
+
+export interface CreditBalance {
+  spendableCredits: number;
+  bucketBalances: Record<CreditBucket, number>;
+  expiringSoon: {
+    bucket: CreditBucket;
+    grantId: string;
+    remaining: number;
+    expiresAt: number;
+  }[];
+}
+
+export interface UserBillingState extends Pick<
+  CreditBalance,
+  "spendableCredits" | "bucketBalances" | "expiringSoon"
+> {
+  tier: PlanTier;
+  markupMultiplier: number;
+  includedMonthlyCredits: number;
+  overageAllowed: boolean;
+  currentPeriodStart: number | undefined;
+  currentPeriodEnd: number | undefined;
+  url: string | undefined;
+}
+
+export const CREDIT_BUCKET_NAMES = Object.keys(
+  CREDIT_BUCKETS,
+) as CreditBucket[];
+
+/**
+ * Stable bucket allocation order. Lower priority numbers go first, ties
+ * broken alphabetically. Use `getCreditBucketAllocationOrder()` rather
+ * than relying on object key insertion order.
+ */
+export function getCreditBucketAllocationOrder(): CreditBucket[] {
+  return [...CREDIT_BUCKET_NAMES].sort((a, b) => {
+    const diff = CREDIT_BUCKETS[a].priority - CREDIT_BUCKETS[b].priority;
+    if (diff !== 0) return diff;
+    return a.localeCompare(b);
+  });
+}
 
 export type ToolBillingKey = string;
 
@@ -52,7 +132,6 @@ export interface UsageChargeComputationResult {
 export interface BillingConfig {
   creditUsdValue: number;
   baselineRouteId: string;
-  meterName: string;
   plans: Record<PlanTier, PlanConfig>;
   tools: Record<string, ToolBillingConfig>;
 }
@@ -63,7 +142,6 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
   // from low and mid-priced models.
   creditUsdValue: 0.000005,
   baselineRouteId: DEFAULT_CHAT_MODEL_ID,
-  meterName: "Credit Usage",
   plans: {
     free: {
       tier: "free",
@@ -193,7 +271,8 @@ export function calculateDisplayMultiplier(
   }
 
   const baselineRoute =
-    getModelRoute(config.baselineRouteId) ?? resolveModelRoute(config.baselineRouteId);
+    getModelRoute(config.baselineRouteId) ??
+    resolveModelRoute(config.baselineRouteId);
   const baselineRepresentativePricePerMillion = baselineRoute
     ? getRepresentativePricePerMillion(baselineRoute)
     : undefined;
@@ -208,7 +287,8 @@ export function calculateDisplayMultiplier(
   // Display multipliers should be relative to a baseline model class, not to
   // the credit/USD exchange rate. This keeps cheap models near 1x and makes
   // the badge a simple comparative UX hint rather than a billing formula.
-  const ratio = representativePricePerMillion / baselineRepresentativePricePerMillion;
+  const ratio =
+    representativePricePerMillion / baselineRepresentativePricePerMillion;
   if (!Number.isFinite(ratio) || ratio <= 1) {
     return 1;
   }
@@ -225,7 +305,8 @@ export function calculateUsageCharge(
   config: BillingConfig = DEFAULT_BILLING_CONFIG,
 ): UsageChargeComputationResult {
   const plan = getPlanConfig(input.tier, config);
-  const route = getModelRoute(input.routeId) ?? resolveModelRoute(input.routeId);
+  const route =
+    getModelRoute(input.routeId) ?? resolveModelRoute(input.routeId);
   const toolUsdCost = calculateToolUsdCost(input.toolCalls, config);
 
   if (!route) {
