@@ -1,4 +1,5 @@
 import type { GenericEndpointContext } from "@better-auth/core";
+
 import type {
   AuditLogEntry,
   AuditLogStatus,
@@ -6,9 +7,9 @@ import type {
   ResolvedOptions,
 } from "./types";
 import {
-  normalizePath,
-  inferSeverity,
   extractRequestMeta,
+  inferSeverity,
+  normalizePath,
   redactPII,
   validateEntry,
   withRetry,
@@ -30,8 +31,7 @@ export async function buildLogEntry(
   params: BuildParams,
 ): Promise<Omit<AuditLogEntry, "id">> {
   const action = normalizePath(path);
-  const severity =
-    params.pathConfig?.severity ?? inferSeverity(action, status);
+  const severity = params.pathConfig?.severity ?? inferSeverity(action, status);
 
   const captureOpts = {
     ...params.options.capture,
@@ -111,29 +111,38 @@ export async function writeEntry(
 
     let written: AuditLogEntry;
     try {
-      written = await withRetry(async () => {
-        if (opts.storage) {
-          const result: AuditLogEntry = { id: crypto.randomUUID(), ...finalEntry };
-          await opts.storage.write(result);
-          return result;
-        }
+      written = await withRetry(
+        async () => {
+          if (opts.storage) {
+            const result: AuditLogEntry = {
+              id: crypto.randomUUID(),
+              ...finalEntry,
+            };
+            await opts.storage.write(result);
+            return result;
+          }
 
-        const record = await ctx.context.adapter.create<
-          Record<string, unknown>
-        >({
-          model: modelName,
-          data: {
-            ...finalEntry,
-            metadata: JSON.stringify(finalEntry.metadata),
-          },
-        });
-        return {
-          ...(record as Omit<AuditLogEntry, "metadata">),
-          metadata: finalEntry.metadata,
-        };
-      }, { maxRetries: 2, baseDelayMs: 100 });
+          const record = await ctx.context.adapter.create<
+            Record<string, unknown>
+          >({
+            model: modelName,
+            data: {
+              ...finalEntry,
+              metadata: JSON.stringify(finalEntry.metadata),
+            },
+          });
+          return {
+            ...(record as Omit<AuditLogEntry, "metadata">),
+            metadata: finalEntry.metadata,
+          };
+        },
+        { maxRetries: 2, baseDelayMs: 100 },
+      );
     } catch (err) {
-      ctx.context.logger.error("[audit-log] storage write failed after retries", err);
+      ctx.context.logger.error(
+        "[audit-log] storage write failed after retries",
+        err,
+      );
       opts.onWriteError?.(err, finalEntry);
       throw err;
     }

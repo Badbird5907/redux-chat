@@ -234,5 +234,5 @@ export function useHotkeySettings() {
 }
 
 export function useResolvedHotkey(id: AppHotkeyId) {
-  return useHotkeySettings().bindings[id] as AppHotkeyBinding;
+  return useHotkeySettings().bindings[id];
 }

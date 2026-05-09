@@ -99,7 +99,10 @@ export function useFileUpload({
       }
 
       const remainingSlots = attachmentLimits
-        ? Math.max(0, attachmentLimits.maxPerMessage - (currentAttachmentCount ?? 0))
+        ? Math.max(
+            0,
+            attachmentLimits.maxPerMessage - (currentAttachmentCount ?? 0),
+          )
         : Infinity;
       let addedInBatch = 0;
 

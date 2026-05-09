@@ -40,9 +40,7 @@ export async function redactPII(
     } else if (strategy === "hash") {
       const value = result[field];
       const asString =
-        typeof value === "string"
-          ? value
-          : JSON.stringify(value);
+        typeof value === "string" ? value : JSON.stringify(value);
       result[field] = await sha256(asString);
     } else {
       result[field] = "[REDACTED]";

@@ -1,4 +1,9 @@
-import { createAuthEndpoint, sessionMiddleware, APIError } from "better-auth/api";
+import {
+  APIError,
+  createAuthEndpoint,
+  sessionMiddleware,
+} from "better-auth/api";
+
 import type { AuditLogEntry, ResolvedOptions } from "../types";
 import { parseMetadata, redactPII } from "../utils";
 
@@ -32,7 +37,9 @@ export function createGetLogEndpoint(opts: ResolvedOptions, modelName: string) {
           return ctx.json(entry);
         }
 
-        const record = await ctx.context.adapter.findOne<Record<string, unknown>>({
+        const record = await ctx.context.adapter.findOne<
+          Record<string, unknown>
+        >({
           model: modelName,
           where: [
             { field: "id", value: id },

@@ -1,4 +1,5 @@
 import type { BetterAuthClientPlugin } from "better-auth/client";
+
 import type { auditLog } from "./plugin";
 
 export const auditLogClient = () =>

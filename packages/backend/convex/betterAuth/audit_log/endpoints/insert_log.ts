@@ -1,10 +1,18 @@
-import { createAuthEndpoint, sessionMiddleware, APIError } from "better-auth/api";
+import {
+  APIError,
+  createAuthEndpoint,
+  sessionMiddleware,
+} from "better-auth/api";
 import { z } from "zod";
+
 import type { ResolvedOptions } from "../types";
 import { buildLogEntryFromAction, writeEntry } from "../internal";
 import { validateMetadataSize } from "../utils/validate_metadata";
 
-export function createInsertLogEndpoint(opts: ResolvedOptions, modelName: string) {
+export function createInsertLogEndpoint(
+  opts: ResolvedOptions,
+  modelName: string,
+) {
   return createAuthEndpoint(
     "/audit-log/insert",
     {

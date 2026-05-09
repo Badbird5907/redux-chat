@@ -49,9 +49,12 @@ export function createSandboxRuntime(options: {
         };
       });
 
-      const result = await sandbox.runCode(buildSandboxDownloadCode(downloads), {
-        timeoutMs: Math.max(60_000, downloads.length * 60_000),
-      });
+      const result = await sandbox.runCode(
+        buildSandboxDownloadCode(downloads),
+        {
+          timeoutMs: Math.max(60_000, downloads.length * 60_000),
+        },
+      );
 
       const stdout = result.logs.stdout.join("\n").trim();
       const stderr = result.logs.stderr.join("\n").trim();
@@ -146,9 +149,11 @@ function buildSandboxFilePath(
   return `${SANDBOX_UPLOADS_DIR}/${uniqueName}`;
 }
 
-function buildSandboxDownloadCode(downloads: (SyncedAttachment & {
-  url: string;
-})[]) {
+function buildSandboxDownloadCode(
+  downloads: (SyncedAttachment & {
+    url: string;
+  })[],
+) {
   const manifest = Buffer.from(JSON.stringify(downloads), "utf8").toString(
     "base64",
   );

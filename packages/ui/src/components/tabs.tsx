@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import type { VariantProps } from "class-variance-authority";
+import * as React from "react";
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 import { cva } from "class-variance-authority";
 import { ExternalLinkIcon } from "lucide-react";
@@ -52,10 +52,7 @@ function readTabFromSearch(key: string): string | null {
   return raw !== null && raw !== "" ? raw : null;
 }
 
-function writeTabToSearch(
-  key: string,
-  value: TabValue | undefined,
-) {
+function writeTabToSearch(key: string, value: TabValue | undefined) {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   if (value === undefined || value === null || value === "") {
@@ -87,7 +84,9 @@ function Tabs({
     const initialValue = defaultValue !== undefined ? defaultValue : 0;
     if (!queryParam || isControlled) return initialValue;
     const fromUrl = readTabFromSearch(queryParamKey);
-    return fromUrl === null ? initialValue : coerceTabValue(fromUrl, initialValue);
+    return fromUrl === null
+      ? initialValue
+      : coerceTabValue(fromUrl, initialValue);
   });
 
   React.useEffect(() => {
@@ -128,21 +127,20 @@ function Tabs({
     [isControlled, onValueChange, queryParam, queryParamKey],
   ) satisfies NonNullable<TabsPrimitive.Root.Props["onValueChange"]>;
 
-  const rootControlledProps =
-    queryParam ?
-      ({
+  const rootControlledProps = queryParam
+    ? ({
         value: isControlled ? valueProp : internalValue,
         onValueChange: handleValueChange,
       } as const)
-    : isControlled ?
-      ({
-        value: valueProp,
-        onValueChange,
-      } as const)
-    : ({
-        ...(defaultValue !== undefined ? { defaultValue } : {}),
-        onValueChange,
-      } as const);
+    : isControlled
+      ? ({
+          value: valueProp,
+          onValueChange,
+        } as const)
+      : ({
+          ...(defaultValue !== undefined ? { defaultValue } : {}),
+          onValueChange,
+        } as const);
 
   return (
     <TabsPrimitive.Root
@@ -171,7 +169,11 @@ function coerceTabValue(
 }
 
 function normalizeTabValue(value: unknown): TabValue {
-  if (typeof value === "string" || typeof value === "number" || value === null) {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    value === null
+  ) {
     return value;
   }
   if (

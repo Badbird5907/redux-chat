@@ -314,7 +314,7 @@ function SecurityRouteComponent() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="rounded-lg bg-card shadow-none ring-1 ring-border">
+        <Card className="bg-card ring-border rounded-lg shadow-none ring-1">
           <CardHeader className="border-border border-b pb-4">
             <CardTitle>Email address</CardTitle>
             <CardDescription>Update your email address.</CardDescription>
@@ -370,7 +370,7 @@ function SecurityRouteComponent() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg bg-card shadow-none ring-1 ring-border">
+        <Card className="bg-card ring-border rounded-lg shadow-none ring-1">
           <CardHeader className="border-border border-b pb-4">
             <CardTitle>Password</CardTitle>
             <CardDescription>
@@ -480,7 +480,7 @@ function SecurityRouteComponent() {
         </Card>
       </div>
 
-      <Card className="rounded-lg bg-card shadow-none ring-1 ring-border">
+      <Card className="bg-card ring-border rounded-lg shadow-none ring-1">
         <CardHeader className="border-border border-b pb-4">
           <CardTitle>OAuth connections</CardTitle>
           <CardDescription>
@@ -625,7 +625,7 @@ function SecuritySkeleton() {
         <Skeleton className="h-4 w-full max-w-xl" />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="rounded-lg shadow-none ring-1 ring-border">
+        <Card className="ring-border rounded-lg shadow-none ring-1">
           <CardHeader className="border-border border-b pb-4">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-4 w-56" />
@@ -636,7 +636,7 @@ function SecuritySkeleton() {
             <Skeleton className="h-9 w-28" />
           </CardContent>
         </Card>
-        <Card className="rounded-lg shadow-none ring-1 ring-border">
+        <Card className="ring-border rounded-lg shadow-none ring-1">
           <CardHeader className="border-border border-b pb-4">
             <Skeleton className="h-5 w-24" />
             <Skeleton className="h-4 w-64" />
@@ -649,7 +649,7 @@ function SecuritySkeleton() {
           </CardContent>
         </Card>
       </div>
-      <Card className="rounded-lg shadow-none ring-1 ring-border">
+      <Card className="ring-border rounded-lg shadow-none ring-1">
         <CardHeader className="border-border border-b pb-4">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 max-w-md" />

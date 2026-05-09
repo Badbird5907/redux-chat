@@ -115,7 +115,10 @@ function getPolarRecurringPrice(product: PolarPlanProduct | undefined):
   };
 }
 
-function formatCurrencyFromMinorUnits(amount: number, currency: string): string {
+function formatCurrencyFromMinorUnits(
+  amount: number,
+  currency: string,
+): string {
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -190,7 +193,10 @@ function getProratedUpgradeBreakdown({
       targetCurrency,
     ),
     targetCharge: formatCurrencyFromMinorUnits(targetCharge, targetCurrency),
-    targetMonthlyPrice: formatCurrencyFromMinorUnits(targetAmount, targetCurrency),
+    targetMonthlyPrice: formatCurrencyFromMinorUnits(
+      targetAmount,
+      targetCurrency,
+    ),
     dueToday: formatCurrencyFromMinorUnits(dueToday, targetCurrency),
     effectiveDate: new Intl.DateTimeFormat("en-US", {
       dateStyle: "medium",
@@ -320,7 +326,11 @@ function RouteComponent() {
   const plusProduct = polarProducts?.plus ?? null;
   const proProduct = polarProducts?.pro ?? null;
   const currentPaidProduct =
-    currentTier === "plus" ? plusProduct : currentTier === "pro" ? proProduct : null;
+    currentTier === "plus"
+      ? plusProduct
+      : currentTier === "pro"
+        ? proProduct
+        : null;
   const planSwitchTargetProduct =
     planSwitchConfirm?.productId === plusProduct?.id
       ? plusProduct
@@ -913,4 +923,3 @@ function TierColumn({
     </Card>
   );
 }
-

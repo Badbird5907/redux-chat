@@ -1,8 +1,8 @@
 "use no memo";
 
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Laptop, Loader2, ShieldAlert, TriangleAlert } from "lucide-react";
-import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@redux/ui/components/badge";
@@ -18,7 +18,6 @@ import {
 import { Skeleton } from "@redux/ui/components/skeleton";
 
 import { authClient } from "@/lib/auth/client";
-
 import { formatDate } from "./utils";
 
 /** Shape returned by the admin plug-in (`parseSessionOutput`) — tolerant for JSON deserialization. */

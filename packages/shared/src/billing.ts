@@ -61,11 +61,10 @@ export interface CreditBalance {
   }[];
 }
 
-export interface UserBillingState
-  extends Pick<
-    CreditBalance,
-    "spendableCredits" | "bucketBalances" | "expiringSoon"
-  > {
+export interface UserBillingState extends Pick<
+  CreditBalance,
+  "spendableCredits" | "bucketBalances" | "expiringSoon"
+> {
   tier: PlanTier;
   markupMultiplier: number;
   includedMonthlyCredits: number;

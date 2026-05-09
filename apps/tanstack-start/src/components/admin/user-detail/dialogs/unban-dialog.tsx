@@ -12,9 +12,8 @@ import {
   DialogTitle,
 } from "@redux/ui/components/dialog";
 
-import { authClient } from "@/lib/auth/client";
-
 import type { DialogBaseProps } from "../types";
+import { authClient } from "@/lib/auth/client";
 
 export function UnbanDialog({
   open,

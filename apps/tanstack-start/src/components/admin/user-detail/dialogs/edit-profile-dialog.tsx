@@ -1,6 +1,6 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@redux/ui/components/button";
@@ -15,9 +15,8 @@ import {
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
 
-import { authClient } from "@/lib/auth/client";
-
 import type { AdminUserDetail, DialogBaseProps } from "../types";
+import { authClient } from "@/lib/auth/client";
 
 function normalizeCommaRoles(value: string): string {
   return value
@@ -94,9 +93,7 @@ function EditProfileForm({
       onClose();
     },
     onError: (err) => {
-      setError(
-        err instanceof Error ? err.message : "Failed to update profile",
-      );
+      setError(err instanceof Error ? err.message : "Failed to update profile");
     },
   });
 
@@ -118,8 +115,7 @@ function EditProfileForm({
     }
 
     const trimmedImage = imageUrl.trim();
-    const imageBefore =
-      typeof user.image === "string" ? user.image.trim() : "";
+    const imageBefore = typeof user.image === "string" ? user.image.trim() : "";
 
     const roleBefore = normalizeCommaRoles((user.role ?? "").trim());
     const roleAfter = normalizeCommaRoles(role.trim());

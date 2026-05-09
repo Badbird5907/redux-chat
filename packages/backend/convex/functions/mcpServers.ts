@@ -187,8 +187,7 @@ async function addServerIdToDefaultSettings(
     .query("defaultMessageSettings")
     .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
     .first();
-  const currentServerIds =
-    existing?.settings.tools.mcpServers?.serverIds ?? [];
+  const currentServerIds = existing?.settings.tools.mcpServers?.serverIds ?? [];
   const settings = mergeMessageSettings(existing?.settings, {
     tools: {
       mcpServers: {

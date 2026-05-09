@@ -1,4 +1,5 @@
 import { mergeSchema } from "better-auth/db";
+
 import type { AuditLogOptions } from "./types";
 
 export const baseSchema = {
@@ -63,17 +64,20 @@ export function getModelName(options?: AuditLogOptions): string {
   return options?.schema?.auditLog?.modelName ?? "auditLog";
 }
 
-const CRITICAL_FIELDS = ["userId", "action", "status", "severity", "metadata", "createdAt"] as const;
+const CRITICAL_FIELDS = [
+  "userId",
+  "action",
+  "status",
+  "severity",
+  "metadata",
+  "createdAt",
+] as const;
 
-export function validateSchema(
-  schema: ReturnType<typeof buildSchema>,
-): void {
+export function validateSchema(schema: ReturnType<typeof buildSchema>): void {
   const fields = schema.auditLog.fields;
   for (const field of CRITICAL_FIELDS) {
     if (!(field in fields)) {
-      throw new Error(
-        `[audit-log] Schema missing critical field: ${field}`,
-      );
+      throw new Error(`[audit-log] Schema missing critical field: ${field}`);
     }
   }
 }

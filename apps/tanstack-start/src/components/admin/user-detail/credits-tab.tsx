@@ -15,8 +15,8 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import type { CreditBucket, UserBillingState } from "@redux/shared";
-import { CREDIT_BUCKETS } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
+import { CREDIT_BUCKETS } from "@redux/shared";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import {
@@ -68,8 +68,7 @@ const STATUS_STYLES: Record<string, string> = {
   exhausted:
     "border-orange-500/20 bg-orange-500/10 text-orange-700 dark:text-orange-400",
   expired: "border-zinc-500/20 bg-zinc-500/10 text-zinc-500",
-  revoked:
-    "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
+  revoked: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
 };
 
 function isCreditBucket(value: unknown): value is CreditBucket {
@@ -85,13 +84,7 @@ function utcEndOfCalendarDayMs(yyyyMmDd: string): number | null {
   if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) {
     return null;
   }
-  if (
-    mo < 1 ||
-    mo > 12 ||
-    d < 1 ||
-    d > 31 ||
-    String(y).length !== 4
-  ) {
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || String(y).length !== 4) {
     return null;
   }
   const ms = Date.UTC(y, mo - 1, d, 23, 59, 59, 999);
@@ -266,7 +259,8 @@ function GrantCreditsForm({
                         {(value: string) =>
                           isCreditBucket(value)
                             ? CREDIT_BUCKETS[value].label
-                            : value}
+                            : value
+                        }
                       </SelectValue>
                     </SelectTrigger>
                   </FormControl>
@@ -375,11 +369,7 @@ function AdminUserGrantHistorySection({
 }) {
   const [open, setOpen] = useState(false);
 
-  const {
-    results,
-    status,
-    loadMore,
-  } = usePaginatedQuery(
+  const { results, status, loadMore } = usePaginatedQuery(
     api.functions.adminUserDetail.listGrantsForUser,
     { targetUserId: userId },
     { initialNumItems: PAGE_SIZE },
@@ -438,11 +428,7 @@ function AdminUserGrantHistorySection({
           <>
             <ul className="divide-border/60 divide-y">
               {grants.map((grant) => (
-                <GrantRow
-                  key={grant._id}
-                  grant={grant}
-                  targetUserId={userId}
-                />
+                <GrantRow key={grant._id} grant={grant} targetUserId={userId} />
               ))}
             </ul>
             {status === "CanLoadMore" ? (
@@ -583,7 +569,8 @@ function GrantRow({
               <span className="text-foreground font-medium tabular-nums">
                 {grant.remaining.toLocaleString()}
               </span>{" "}
-              credits from this grant. The grant will show as revoked in history.
+              credits from this grant. The grant will show as revoked in
+              history.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

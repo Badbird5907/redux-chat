@@ -26,11 +26,14 @@ describe("functions/projects", () => {
   it("creates projects with normalized optional text", async () => {
     const t = authedTest();
 
-    const { projectId } = await t.mutation(api.functions.projects.createProject, {
-      name: "  Research Workspace  ",
-      description: "   ",
-      instructions: "  Prefer short answers.  ",
-    });
+    const { projectId } = await t.mutation(
+      api.functions.projects.createProject,
+      {
+        name: "  Research Workspace  ",
+        description: "   ",
+        instructions: "  Prefer short answers.  ",
+      },
+    );
 
     await expect(
       t.query(api.functions.projects.getProject, { projectId }),
@@ -53,9 +56,12 @@ describe("functions/projects", () => {
       }),
     ).rejects.toThrow("Project name cannot be empty");
 
-    const { projectId } = await t.mutation(api.functions.projects.createProject, {
-      name: "Project",
-    });
+    const { projectId } = await t.mutation(
+      api.functions.projects.createProject,
+      {
+        name: "Project",
+      },
+    );
 
     await expect(
       t.mutation(api.functions.projects.updateProject, {

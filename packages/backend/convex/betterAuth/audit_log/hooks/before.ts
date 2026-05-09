@@ -1,5 +1,6 @@
-import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import type { HookEndpointContext } from "@better-auth/core";
+import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+
 import type { ResolvedOptions } from "../types";
 import { buildLogEntry, writeEntry } from "../internal";
 

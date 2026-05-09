@@ -1,16 +1,13 @@
 import type { BetterAuthPlugin } from "better-auth";
-import { buildSchema, getModelName, validateSchema } from "./schema";
-import { createBeforeHooks, createAfterHooks } from "./hooks";
+
+import type { AuditLogOptions, PathConfig, ResolvedOptions } from "./types";
 import {
-  createListLogsEndpoint,
   createGetLogEndpoint,
   createInsertLogEndpoint,
+  createListLogsEndpoint,
 } from "./endpoints";
-import type {
-  AuditLogOptions,
-  PathConfig,
-  ResolvedOptions,
-} from "./types";
+import { createAfterHooks, createBeforeHooks } from "./hooks";
+import { buildSchema, getModelName, validateSchema } from "./schema";
 import { DEFAULT_METADATA_LIMITS } from "./utils/validate_metadata";
 
 const DEFAULT_BEFORE_PATHS = [
@@ -31,18 +28,22 @@ function validateStorageAdapter(storage: AuditLogOptions["storage"]): void {
   }
 
   if (storage.read !== undefined && typeof storage.read !== "function") {
-    throw new Error(
-      "[audit-log] storage.read must be a function if provided",
-    );
+    throw new Error("[audit-log] storage.read must be a function if provided");
   }
 
-  if (storage.readById !== undefined && typeof storage.readById !== "function") {
+  if (
+    storage.readById !== undefined &&
+    typeof storage.readById !== "function"
+  ) {
     throw new Error(
       "[audit-log] storage.readById must be a function if provided",
     );
   }
 
-  if (storage.deleteOlderThan !== undefined && typeof storage.deleteOlderThan !== "function") {
+  if (
+    storage.deleteOlderThan !== undefined &&
+    typeof storage.deleteOlderThan !== "function"
+  ) {
     throw new Error(
       "[audit-log] storage.deleteOlderThan must be a function if provided",
     );
@@ -66,8 +67,12 @@ function resolveOptions(options?: AuditLogOptions): ResolvedOptions {
     options?.metadataLimits === false
       ? false
       : {
-          maxBytes: options?.metadataLimits?.maxBytes ?? DEFAULT_METADATA_LIMITS.maxBytes,
-          maxDepth: options?.metadataLimits?.maxDepth ?? DEFAULT_METADATA_LIMITS.maxDepth,
+          maxBytes:
+            options?.metadataLimits?.maxBytes ??
+            DEFAULT_METADATA_LIMITS.maxBytes,
+          maxDepth:
+            options?.metadataLimits?.maxDepth ??
+            DEFAULT_METADATA_LIMITS.maxDepth,
         };
 
   return {
@@ -104,8 +109,12 @@ export function auditLog(options?: AuditLogOptions) {
   const modelName = getModelName(options);
   const resolved = resolveOptions(options);
 
-  const beforeHooks = resolved.enabled ? createBeforeHooks(resolved, modelName) : [];
-  const afterHooks = resolved.enabled ? createAfterHooks(resolved, modelName) : [];
+  const beforeHooks = resolved.enabled
+    ? createBeforeHooks(resolved, modelName)
+    : [];
+  const afterHooks = resolved.enabled
+    ? createAfterHooks(resolved, modelName)
+    : [];
 
   return {
     id: "audit-log",

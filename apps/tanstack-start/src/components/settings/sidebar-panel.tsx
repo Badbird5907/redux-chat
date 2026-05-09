@@ -1,9 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  Palette,
   BookText,
   Keyboard,
+  Palette,
   PlugZap,
   Shield,
   SlidersHorizontal,

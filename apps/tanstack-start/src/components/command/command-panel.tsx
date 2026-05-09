@@ -261,9 +261,7 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
           {showProjectsGroup && (
             <CommandGroup
               heading={
-                normalizedSearch.length > 0
-                  ? "Matching Projects"
-                  : "Projects"
+                normalizedSearch.length > 0 ? "Matching Projects" : "Projects"
               }
             >
               {visibleProjects.map((project) => (

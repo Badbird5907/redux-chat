@@ -93,7 +93,9 @@ function CreditBucketRow({
       )}
     >
       <span className="flex items-center gap-1.5">
-        <span className={cn(emphasized ? "text-foreground" : "text-foreground")}>
+        <span
+          className={cn(emphasized ? "text-foreground" : "text-foreground")}
+        >
           {label}
         </span>
         {tooltip ? (

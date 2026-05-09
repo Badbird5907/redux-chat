@@ -1,6 +1,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import schema from "./schema";
+import { modules } from "./test.setup";
 import {
   getDenormalizedUsageStats,
   incrementDailyAssistantApiCalls,
@@ -8,8 +10,6 @@ import {
   usageStatsDayKey,
   usageStatsStartDayKey,
 } from "./usageStats";
-import schema from "./schema";
-import { modules } from "./test.setup";
 
 const USER_ID = "user-1";
 const NOW = Date.UTC(2026, 4, 8, 12);

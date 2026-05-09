@@ -1,14 +1,14 @@
 "use no memo";
 
-import { Link2Off, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { Link2Off, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import { Skeleton } from "@redux/ui/components/skeleton";
-import { useMutation, useQuery } from "convex/react";
 
 import { formatDate } from "./utils";
 
@@ -136,7 +136,7 @@ function AccountRows({
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="text-destructive hover:bg-destructive/10 gap-1.5 border-destructive/40"
+                  className="text-destructive hover:bg-destructive/10 border-destructive/40 gap-1.5"
                   disabled={onlyAccount || busyKey !== null}
                   title={
                     onlyAccount

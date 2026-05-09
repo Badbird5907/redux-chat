@@ -1,10 +1,22 @@
-import { createAuthEndpoint, sessionMiddleware, APIError } from "better-auth/api";
 import type { Where } from "better-auth";
+import {
+  APIError,
+  createAuthEndpoint,
+  sessionMiddleware,
+} from "better-auth/api";
 import { z } from "zod";
-import type { AuditLogEntry, ResolvedOptions, StorageReadOptions } from "../types";
+
+import type {
+  AuditLogEntry,
+  ResolvedOptions,
+  StorageReadOptions,
+} from "../types";
 import { parseMetadata, redactPII } from "../utils";
 
-export function createListLogsEndpoint(opts: ResolvedOptions, modelName: string) {
+export function createListLogsEndpoint(
+  opts: ResolvedOptions,
+  modelName: string,
+) {
   return createAuthEndpoint(
     "/audit-log/list",
     {
@@ -23,7 +35,8 @@ export function createListLogsEndpoint(opts: ResolvedOptions, modelName: string)
     async (ctx) => {
       const session = ctx.context.session;
       const targetUserId = ctx.query.userId ?? session.user.id;
-      const isAdmin = (session.user as Record<string, unknown>).role === "admin";
+      const isAdmin =
+        (session.user as Record<string, unknown>).role === "admin";
 
       if (targetUserId !== session.user.id && !isAdmin) {
         throw new APIError("FORBIDDEN", {

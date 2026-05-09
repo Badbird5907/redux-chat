@@ -1,5 +1,5 @@
-import { getIp } from "better-auth/api";
 import type { BetterAuthOptions } from "better-auth";
+import { getIp } from "better-auth/api";
 
 export function extractRequestMeta(
   request: Request | undefined,

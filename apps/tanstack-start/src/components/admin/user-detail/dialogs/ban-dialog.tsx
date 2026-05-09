@@ -1,6 +1,6 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@redux/ui/components/button";
@@ -22,9 +22,8 @@ import {
   SelectValue,
 } from "@redux/ui/components/select";
 
-import { authClient } from "@/lib/auth/client";
-
 import type { DialogBaseProps } from "../types";
+import { authClient } from "@/lib/auth/client";
 
 const BAN_DURATIONS = [
   { value: "permanent", label: "Permanent", seconds: null },
@@ -155,7 +154,11 @@ function BanForm({
         >
           Cancel
         </Button>
-        <Button type="submit" variant="destructive" disabled={mutation.isPending}>
+        <Button
+          type="submit"
+          variant="destructive"
+          disabled={mutation.isPending}
+        >
           {mutation.isPending ? (
             <Loader2 className="size-4 animate-spin" />
           ) : null}

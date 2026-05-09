@@ -13,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 
+import type { UserBillingState } from "@redux/shared";
 import {
   Avatar,
   AvatarFallback,
@@ -27,11 +28,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
-
-import type { UserBillingState } from "@redux/shared";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@redux/ui/components/tooltip";
 
 import type { ActiveDialog, AdminUserDetail } from "./types";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@redux/ui/components/tooltip";
 import { formatDate } from "@/components/admin/user-detail/utils";
 
 export function AdminUserDetailHeader({
@@ -73,8 +76,19 @@ export function AdminUserDetailHeader({
             {displayName}
           </h1>
           {billingState?.tier && (
-            <Badge variant="outline" className="font-normal" color={billingState.tier === "free" ? undefined : billingState.tier === "plus" ? "orange" : "critical"}>
-              {billingState.tier.charAt(0).toUpperCase() + billingState.tier.slice(1)}
+            <Badge
+              variant="outline"
+              className="font-normal"
+              color={
+                billingState.tier === "free"
+                  ? undefined
+                  : billingState.tier === "plus"
+                    ? "orange"
+                    : "critical"
+              }
+            >
+              {billingState.tier.charAt(0).toUpperCase() +
+                billingState.tier.slice(1)}
             </Badge>
           )}
           {user.banned && (
@@ -83,7 +97,10 @@ export function AdminUserDetailHeader({
                 <Badge variant="destructive">Banned</Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>User is banned for {user.banReason} {user.banExpires && `until ${formatDate(user.banExpires)}`}</p>
+                <p>
+                  User is banned for {user.banReason}{" "}
+                  {user.banExpires && `until ${formatDate(user.banExpires)}`}
+                </p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -98,16 +115,15 @@ export function AdminUserDetailHeader({
             {user.email}
           </p>
           {user.emailVerified ? (
-              <Badge
-                variant="secondary"
-                color="green"
-                // className="inline-flex items-center gap-1 border-emerald-500/20 bg-emerald-500/10 text-xs font-normal text-emerald-700 dark:text-emerald-400"
-              >
-                <CheckCircle2 className="size-3.5 text-emerald-500" />
-                Verified
-              </Badge>
-         
-            ) : null}
+            <Badge
+              variant="secondary"
+              color="green"
+              // className="inline-flex items-center gap-1 border-emerald-500/20 bg-emerald-500/10 text-xs font-normal text-emerald-700 dark:text-emerald-400"
+            >
+              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              Verified
+            </Badge>
+          ) : null}
         </div>
         <div className="mt-2 flex items-center gap-2">
           <button

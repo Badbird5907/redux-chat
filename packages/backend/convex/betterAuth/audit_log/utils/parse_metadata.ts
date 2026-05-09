@@ -15,7 +15,11 @@ export function parseMetadata(raw: unknown): Record<string, unknown> {
   if (typeof raw === "string") {
     try {
       const parsed: unknown = JSON.parse(raw) as unknown;
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
         return parsed as Record<string, unknown>;
       }
       return {};

@@ -14,7 +14,10 @@ import {
   createUploadedAttachmentRecord,
 } from "@/lib/silo/core.server";
 import { embedAndIndexProjectFile } from "@/server/rag/index-attachment";
-import { FREE_PLAN_MAX_ATTACHMENTS, FREE_PLAN_MAX_FILE_SIZE_MB } from "@/upload";
+import {
+  FREE_PLAN_MAX_ATTACHMENTS,
+  FREE_PLAN_MAX_FILE_SIZE_MB,
+} from "@/upload";
 
 export interface UploadContext {
   userId?: string;

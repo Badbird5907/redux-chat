@@ -12,9 +12,9 @@ import { components, internal } from "@redux/backend/convex/_generated/api";
 // eslint-disable-next-line no-restricted-imports
 import { internalAction } from "./_generated/server";
 import authConfig from "./auth.config";
+import { auditLog } from "./betterAuth/audit_log";
 import authSchema from "./betterAuth/schema";
 import { backendEnv } from "./env";
-import { auditLog } from "./betterAuth/audit_log";
 
 const authFunctions: AuthFunctions = internal.auth;
 export const authComponent = createClient<DataModel, typeof authSchema>(
@@ -54,10 +54,13 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
             /^list-accounts$/,
             /^admin:get-user$/,
             /^admin:list-.*$/,
-            /^audit-log:list$/
+            /^audit-log:list$/,
           ];
-          const isIgnored = ignoredPatterns.some((pattern) => pattern.test(action));
-          if (isIgnored) { // we don't want to log internal stuff/useless
+          const isIgnored = ignoredPatterns.some((pattern) =>
+            pattern.test(action),
+          );
+          if (isIgnored) {
+            // we don't want to log internal stuff/useless
 
             return null;
           }
@@ -66,7 +69,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
         retention: {
           enabled: false,
           days: 0,
-        }
+        },
       }),
       convex({ authConfig }),
     ],

@@ -1,7 +1,6 @@
-import { useCallback, useState } from "react";
-
 import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import type { LucideIcon } from "lucide-react";
+import { useCallback, useState } from "react";
 import {
   FileSpreadsheet,
   FileText,

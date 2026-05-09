@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useQuery as useConvexQuery } from "@/lib/hooks/convex";
 
+import { api } from "@redux/backend/convex/_generated/api";
 import {
   Card,
   CardDescription,
@@ -18,20 +18,20 @@ import {
 
 import type { ActiveDialog, AdminUserDetail } from "./types";
 import { authClient } from "@/lib/auth/client";
+import { useQuery as useConvexQuery } from "@/lib/hooks/convex";
 import { AdminUserAccountsTab } from "./accounts-tab";
+import { AdminUserActivityTab } from "./activity-tab";
 import { AdminUserDetailBreadcrumb } from "./breadcrumb";
+import { AdminUserCreditsTab } from "./credits-tab";
 import { BanDialog } from "./dialogs/ban-dialog";
 import { ChangePasswordDialog } from "./dialogs/change-password-dialog";
 import { DeleteDialog } from "./dialogs/delete-dialog";
 import { EditProfileDialog } from "./dialogs/edit-profile-dialog";
 import { ImpersonateDialog } from "./dialogs/impersonate-dialog";
 import { UnbanDialog } from "./dialogs/unban-dialog";
-import { AdminUserActivityTab } from "./activity-tab";
-import { AdminUserCreditsTab } from "./credits-tab";
 import { AdminUserOverviewTab } from "./overview-tab";
 import { AdminUserSessionsTab } from "./sessions-tab";
 import { AdminUserDetailHeader } from "./user-detail-header";
-import { api } from "@redux/backend/convex/_generated/api";
 
 export function AdminUserDetailPage({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);

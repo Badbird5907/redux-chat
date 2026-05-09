@@ -1,6 +1,6 @@
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@redux/ui/components/button";
@@ -15,9 +15,8 @@ import {
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
 
-import { authClient } from "@/lib/auth/client";
-
 import type { DialogBaseProps } from "../types";
+import { authClient } from "@/lib/auth/client";
 
 export function ChangePasswordDialog({
   open,

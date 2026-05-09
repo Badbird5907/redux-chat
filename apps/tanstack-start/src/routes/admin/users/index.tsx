@@ -3,8 +3,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 
-import { Button } from "@redux/ui/components/button";
 import type { ColumnDef } from "@redux/ui/components/data-table";
+import { Button } from "@redux/ui/components/button";
 import { DataTable } from "@redux/ui/components/data-table";
 import { Input } from "@redux/ui/components/input";
 import { cn } from "@redux/ui/lib/utils";
