@@ -136,6 +136,9 @@ export interface BillingConfig {
   tools: Record<string, ToolBillingConfig>;
 }
 
+export const MIN_CREDIT_TOP_UP_USD_CENTS = 500;
+export const MAX_CREDIT_TOP_UP_USD_CENTS = 50_000;
+
 export const DEFAULT_BILLING_CONFIG: BillingConfig = {
   // One credit corresponds to $0.000005 of effective usage value.
   // This is intentionally generous so users can get meaningful volume
@@ -153,13 +156,13 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
       tier: "plus",
       includedMonthlyCredits: 250_000,
       markupMultiplier: 1.5,
-      overageAllowed: true,
+      overageAllowed: false,
     },
     pro: {
       tier: "pro",
       includedMonthlyCredits: 1_000_000,
       markupMultiplier: 1.25,
-      overageAllowed: true,
+      overageAllowed: false,
     },
   },
   tools: {
@@ -234,6 +237,19 @@ export function calculateCreditsFromUsd(
   }
 
   return Math.ceil((rawUsdCost * markupMultiplier) / config.creditUsdValue);
+}
+
+export function calculatePurchasedCreditsFromCents(
+  amountCents: number,
+  config: BillingConfig = DEFAULT_BILLING_CONFIG,
+) {
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+    throw new Error(
+      "Top-up amount must be a positive integer number of cents.",
+    );
+  }
+
+  return Math.floor(amountCents / 100 / config.creditUsdValue + 1e-9);
 }
 
 export function calculateFallbackFourXCharge(

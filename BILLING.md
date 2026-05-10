@@ -33,11 +33,11 @@ webhooks, and cost-event analytics. Credit balances are authoritative in Convex.
 
 Credits are stored in Convex buckets:
 
-| Bucket | Source | Expiration |
-| --- | --- | --- |
-| `monthly` | Free monthly resets and subscription renewals | Period end |
-| `paid` | One-time Polar purchases | Long-lived |
-| `gifted` | Admin or promotional grants | Grant-specific |
+| Bucket    | Source                                        | Expiration     |
+| --------- | --------------------------------------------- | -------------- |
+| `monthly` | Free monthly resets and subscription renewals | Period end     |
+| `paid`    | One-time Polar purchases                      | Long-lived     |
+| `gifted`  | Admin or promotional grants                   | Grant-specific |
 
 Allocation consumes lower-priority buckets first so expiring or promotional
 credits are spent before purchased credits.
@@ -51,6 +51,8 @@ credits are spent before purchased credits.
 - Webhook secret matches `POLAR_WEBHOOK_SECRET`.
 - One-time credit products include a `credits` metadata value when they should
   grant purchased credits.
+- Dynamic credit top-ups use `POLAR_CREDIT_TOP_UP_PRODUCT_ID`, a one-time
+  product whose checkout price is supplied per session by Redux Chat.
 - Do not configure Polar credit grants for the Free product; Free credits are
   granted by the Convex ledger.
 
@@ -62,14 +64,15 @@ POLAR_WEBHOOK_SECRET=
 POLAR_SERVER="sandbox" # or "production"
 POLAR_PLUS_PRODUCT_ID=
 POLAR_PRO_PRODUCT_ID=
+POLAR_CREDIT_TOP_UP_PRODUCT_ID=
 ```
 
 ## Key Files
 
-| File | Responsibility |
-| --- | --- |
-| `packages/backend/convex/functions/billing.ts` | Billing actions and queries |
-| `packages/backend/convex/billing.ts` | Polar SDK client, subscription helpers, event builders |
-| `packages/backend/convex/credits.ts` | Credit ledger allocation and balance logic |
-| `packages/backend/convex/http.ts` | Polar webhook handling |
-| `packages/shared/src/billing.ts` | Plan and usage charge configuration |
+| File                                           | Responsibility                                         |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| `packages/backend/convex/functions/billing.ts` | Billing actions and queries                            |
+| `packages/backend/convex/billing.ts`           | Polar SDK client, subscription helpers, event builders |
+| `packages/backend/convex/credits.ts`           | Credit ledger allocation and balance logic             |
+| `packages/backend/convex/http.ts`              | Polar webhook handling                                 |
+| `packages/shared/src/billing.ts`               | Plan and usage charge configuration                    |

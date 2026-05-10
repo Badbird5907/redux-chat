@@ -27,6 +27,29 @@ function pickString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function pickBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function pickInteger(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+type CreditTopUpIntentSnapshot = {
+  userId: string;
+  amountCents: number;
+  currency: string;
+  credits: number;
+  status: "created" | "checkout_created" | "paid" | "expired" | "failed";
+};
+
 polar.registerRoutes(http, {
   path: "/polar/events",
   events: {
@@ -270,14 +293,19 @@ async function handleSubscriptionPeriodGrant(
 }
 
 async function handleOneTimeOrderGrant(
-  ctx: { runMutation: typeof internal extends never ? never : any }, // eslint-disable-line @typescript-eslint/no-explicit-any
+  ctx: {
+    runMutation: typeof internal extends never ? never : any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    runQuery: typeof internal extends never ? never : any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  },
   event: unknown,
 ): Promise<void> {
   const data = (event as { data?: Record<string, unknown> }).data ?? {};
   const orderId = pickString(data.id);
   const customerExternalId = pickString(
     (data.customer as Record<string, unknown> | undefined)?.externalId ??
-      (data.customer as Record<string, unknown> | undefined)?.external_id,
+      (data.customer as Record<string, unknown> | undefined)?.external_id ??
+      data.externalCustomerId ??
+      data.external_customer_id,
   );
 
   try {
@@ -295,6 +323,14 @@ async function handleOneTimeOrderGrant(
     }
     if (!customerExternalId) {
       console.warn("order_event_missing_external_id", { orderId });
+      return;
+    }
+
+    const topUpHandled = await handleCreditTopUpOrderGrant(ctx, data, {
+      orderId,
+      customerExternalId,
+    });
+    if (topUpHandled) {
       return;
     }
 
@@ -353,6 +389,145 @@ async function handleOneTimeOrderGrant(
       },
     });
   }
+}
+
+async function handleCreditTopUpOrderGrant(
+  ctx: {
+    runMutation: typeof internal extends never ? never : any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    runQuery: typeof internal extends never ? never : any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  },
+  data: Record<string, unknown>,
+  ids: {
+    orderId: string;
+    customerExternalId: string;
+  },
+): Promise<boolean> {
+  const metadata = (data.metadata as Record<string, unknown> | undefined) ?? {};
+  if (metadata.kind !== "credit_top_up") {
+    return false;
+  }
+
+  const product = data.product as Record<string, unknown> | undefined;
+  const productId = pickString(
+    data.productId ?? data.product_id ?? product?.id,
+  );
+  const checkoutId = pickString(data.checkoutId ?? data.checkout_id);
+  const intentId = pickString(metadata.intentId ?? metadata.intent_id);
+  const amountCents = pickInteger(
+    metadata.amountCents ?? metadata.amount_cents,
+  );
+  const credits = pickInteger(metadata.credits);
+  const env = backendEnv();
+
+  try {
+    if (!env.POLAR_CREDIT_TOP_UP_PRODUCT_ID) {
+      throw new Error("POLAR_CREDIT_TOP_UP_PRODUCT_ID is not set.");
+    }
+    if (productId !== env.POLAR_CREDIT_TOP_UP_PRODUCT_ID) {
+      throw new Error("credit_top_up_product_mismatch");
+    }
+    if (!intentId || amountCents === undefined || credits === undefined) {
+      throw new Error("credit_top_up_metadata_invalid");
+    }
+    if (pickBoolean(data.paid) === false) {
+      throw new Error("credit_top_up_order_not_paid");
+    }
+
+    const subtotalAmount = pickInteger(
+      data.subtotalAmount ?? data.subtotal_amount,
+    );
+    const netAmount = pickInteger(data.netAmount ?? data.net_amount);
+    const currency = pickString(data.currency)?.toLowerCase();
+
+    if (subtotalAmount !== amountCents || netAmount !== amountCents) {
+      throw new Error("credit_top_up_amount_mismatch");
+    }
+    if (currency !== "usd") {
+      throw new Error("credit_top_up_currency_mismatch");
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const intent = (await ctx.runQuery(
+      internal.functions.billing.internal_getCreditTopUpIntentByIntentId,
+      { intentId },
+    )) as CreditTopUpIntentSnapshot | null;
+    if (!intent) {
+      throw new Error("credit_top_up_intent_not_found");
+    }
+    if (intent.userId !== ids.customerExternalId) {
+      throw new Error("credit_top_up_customer_mismatch");
+    }
+    if (intent.amountCents !== amountCents || intent.credits !== credits) {
+      throw new Error("credit_top_up_intent_amount_mismatch");
+    }
+    if (intent.currency !== "usd") {
+      throw new Error("credit_top_up_intent_currency_mismatch");
+    }
+
+    if (intent.status !== "paid") {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      await ctx.runMutation(internal.functions.credits.internal_grantCredits, {
+        userId: ids.customerExternalId,
+        bucket: "paid",
+        amount: credits,
+        source: "polar_one_time_purchase",
+        sourceId: ids.orderId,
+        metadata: {
+          orderId: ids.orderId,
+          checkoutId,
+          intentId,
+          amountCents,
+          credits,
+          productId,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      await ctx.runMutation(
+        internal.functions.billing.internal_markCreditTopUpIntentPaid,
+        {
+          intentId,
+          userId: ids.customerExternalId,
+          polarOrderId: ids.orderId,
+          polarCheckoutId: checkoutId,
+        },
+      );
+    }
+
+    await recordPolarAuditEvent(ctx, {
+      userId: ids.customerExternalId,
+      action: "polar:order.paid:credit_top_up",
+      status: "success",
+      severity: "medium",
+      metadata: {
+        orderId: ids.orderId,
+        checkoutId,
+        intentId,
+        amountCents,
+        credits,
+        productId,
+      },
+    });
+  } catch (error) {
+    console.error("credit_top_up_order_grant_failed", error);
+    await recordPolarAuditEvent(ctx, {
+      userId: ids.customerExternalId,
+      action: "polar:order.paid:credit_top_up",
+      status: "failed",
+      severity: "high",
+      metadata: {
+        orderId: ids.orderId,
+        checkoutId,
+        intentId,
+        amountCents,
+        credits,
+        productId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+
+  return true;
 }
 
 async function recordPolarAuditEvent(

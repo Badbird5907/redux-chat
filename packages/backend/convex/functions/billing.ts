@@ -2,7 +2,13 @@ import type { GenericActionCtx, GenericQueryCtx } from "convex/server";
 import { v } from "convex/values";
 
 import type { PlanTier } from "@redux/shared";
-import { calculateUsageCharge, getPlanConfig } from "@redux/shared";
+import {
+  calculatePurchasedCreditsFromCents,
+  calculateUsageCharge,
+  getPlanConfig,
+  MAX_CREDIT_TOP_UP_USD_CENTS,
+  MIN_CREDIT_TOP_UP_USD_CENTS,
+} from "@redux/shared";
 
 import type { DataModel } from "../_generated/dataModel";
 import type { BillingSubscriptionSchedule } from "../billing";
@@ -23,6 +29,7 @@ import { getCreditBalanceForUser } from "../credits";
 import { backendEnv } from "../env";
 import { polar } from "../polar";
 import { action, query } from "./index";
+import { internalMutation, internalQuery } from "./internal";
 
 function planTierRank(tier: PlanTier): number {
   if (tier === "free") {
@@ -74,6 +81,19 @@ type BillingRefreshResult = {
   grantApplied: boolean;
   periodKey: string;
   subscriptionSchedule: BillingSubscriptionSchedule;
+};
+
+type CreditTopUpIntent = {
+  intentId: string;
+  userId: string;
+  amountCents: number;
+  currency: "usd";
+  credits: number;
+  status: "created" | "checkout_created" | "paid" | "expired" | "failed";
+  polarCheckoutId: string | undefined;
+  polarOrderId: string | undefined;
+  createdAt: number;
+  updatedAt: number;
 };
 
 const usageValidator = v.object({
@@ -147,6 +167,117 @@ export const getCurrentBillingState = query({
         freePeriodBounds?.end,
       syncedAt: undefined,
     };
+  },
+});
+
+export const createCurrentUserCreditTopUpCheckout = action({
+  args: { amountCents: v.number() },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    url: string;
+    intentId: string;
+    amountCents: number;
+    credits: number;
+  }> => {
+    const amountCents = args.amountCents;
+    if (!Number.isInteger(amountCents)) {
+      throw new Error("Enter an amount in whole cents.");
+    }
+    if (amountCents < MIN_CREDIT_TOP_UP_USD_CENTS) {
+      throw new Error("Credit top-ups have a $5.00 minimum.");
+    }
+    if (amountCents > MAX_CREDIT_TOP_UP_USD_CENTS) {
+      throw new Error("Credit top-ups are limited to $500.00 per checkout.");
+    }
+
+    const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
+      ctx,
+      ctx.userId,
+    );
+    if (subscriptionState.tier === "free") {
+      throw new Error("Credit top-ups are available on paid plans.");
+    }
+
+    const env = backendEnv();
+    const productId = env.POLAR_CREDIT_TOP_UP_PRODUCT_ID;
+    if (!productId) {
+      throw new Error("POLAR_CREDIT_TOP_UP_PRODUCT_ID is not set.");
+    }
+    const credits = calculatePurchasedCreditsFromCents(
+      amountCents,
+      getBillingConfig(),
+    );
+    const customerId = await ensurePolarCustomerForCurrentUser(ctx);
+    const intent = await ctx.runMutation(
+      internal.functions.billing.internal_createCreditTopUpIntent,
+      {
+        userId: ctx.userId,
+        amountCents,
+        credits,
+      },
+    );
+
+    const siteUrl = env.SITE_URL.replace(/\/+$/, "");
+    const polarSdk = getPolarSdkClient();
+
+    try {
+      const checkout = await withTimeout(
+        polarSdk.checkouts.create({
+          products: [productId],
+          prices: {
+            [productId]: [
+              {
+                amountType: "fixed",
+                priceAmount: amountCents,
+                priceCurrency: "usd",
+              },
+            ],
+          },
+          customerId,
+          externalCustomerId: ctx.userId,
+          allowDiscountCodes: false,
+          successUrl: `${siteUrl}/settings?creditTopUp=success&checkout_id={CHECKOUT_ID}`,
+          returnUrl: `${siteUrl}/settings`,
+          metadata: {
+            kind: "credit_top_up",
+            intentId: intent.intentId,
+            amountCents,
+            credits,
+          },
+        }),
+        POLAR_NETWORK_TIMEOUT_MS,
+        "polar.checkouts.create",
+      );
+
+      await ctx.runMutation(
+        internal.functions.billing.internal_markCreditTopUpCheckoutCreated,
+        {
+          intentId: intent.intentId,
+          userId: ctx.userId,
+          polarCheckoutId: checkout.id,
+        },
+      );
+
+      return {
+        url: checkout.url,
+        intentId: intent.intentId,
+        amountCents,
+        credits,
+      };
+    } catch (error) {
+      await ctx.runMutation(
+        internal.functions.billing.internal_markCreditTopUpIntentFailed,
+        {
+          intentId: intent.intentId,
+          userId: ctx.userId,
+        },
+      );
+      throw new Error(
+        `Could not create credit checkout (${getErrorText(error)}). Try again.`,
+      );
+    }
   },
 });
 
@@ -489,6 +620,138 @@ export const recordUsageEvent = action({
       debitId,
       overdraftAmount,
     };
+  },
+});
+
+export const internal_createCreditTopUpIntent = internalMutation({
+  args: {
+    userId: v.string(),
+    amountCents: v.number(),
+    credits: v.number(),
+  },
+  handler: async (ctx, args): Promise<CreditTopUpIntent> => {
+    const now = Date.now();
+    const intent = {
+      intentId: crypto.randomUUID(),
+      userId: args.userId,
+      amountCents: args.amountCents,
+      currency: "usd" as const,
+      credits: args.credits,
+      status: "created" as const,
+      polarCheckoutId: undefined,
+      polarOrderId: undefined,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await ctx.db.insert("creditTopUpIntents", intent);
+    return intent;
+  },
+});
+
+export const internal_markCreditTopUpCheckoutCreated = internalMutation({
+  args: {
+    intentId: v.string(),
+    userId: v.string(),
+    polarCheckoutId: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ ok: true }> => {
+    const intent = await ctx.db
+      .query("creditTopUpIntents")
+      .withIndex("by_intentId", (q) => q.eq("intentId", args.intentId))
+      .unique();
+    if (intent?.userId !== args.userId) {
+      throw new Error("Credit top-up intent not found.");
+    }
+
+    await ctx.db.patch(intent._id, {
+      status: "checkout_created",
+      polarCheckoutId: args.polarCheckoutId,
+      updatedAt: Date.now(),
+    });
+
+    return { ok: true };
+  },
+});
+
+export const internal_markCreditTopUpIntentFailed = internalMutation({
+  args: {
+    intentId: v.string(),
+    userId: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ ok: true }> => {
+    const intent = await ctx.db
+      .query("creditTopUpIntents")
+      .withIndex("by_intentId", (q) => q.eq("intentId", args.intentId))
+      .unique();
+    if (intent?.userId !== args.userId || intent.status === "paid") {
+      return { ok: true };
+    }
+
+    await ctx.db.patch(intent._id, {
+      status: "failed",
+      updatedAt: Date.now(),
+    });
+
+    return { ok: true };
+  },
+});
+
+export const internal_getCreditTopUpIntentByIntentId = internalQuery({
+  args: { intentId: v.string() },
+  handler: async (ctx, args): Promise<CreditTopUpIntent | null> => {
+    const intent = await ctx.db
+      .query("creditTopUpIntents")
+      .withIndex("by_intentId", (q) => q.eq("intentId", args.intentId))
+      .unique();
+
+    if (!intent) {
+      return null;
+    }
+
+    return {
+      intentId: intent.intentId,
+      userId: intent.userId,
+      amountCents: intent.amountCents,
+      currency: intent.currency,
+      credits: intent.credits,
+      status: intent.status,
+      polarCheckoutId: intent.polarCheckoutId,
+      polarOrderId: intent.polarOrderId,
+      createdAt: intent.createdAt,
+      updatedAt: intent.updatedAt,
+    };
+  },
+});
+
+export const internal_markCreditTopUpIntentPaid = internalMutation({
+  args: {
+    intentId: v.string(),
+    userId: v.string(),
+    polarOrderId: v.string(),
+    polarCheckoutId: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ ok: true; alreadyPaid: boolean }> => {
+    const intent = await ctx.db
+      .query("creditTopUpIntents")
+      .withIndex("by_intentId", (q) => q.eq("intentId", args.intentId))
+      .unique();
+    if (intent?.userId !== args.userId) {
+      throw new Error("Credit top-up intent not found.");
+    }
+
+    if (intent.status === "paid") {
+      return { ok: true, alreadyPaid: true };
+    }
+
+    await ctx.db.patch(intent._id, {
+      status: "paid",
+      polarOrderId: args.polarOrderId,
+      polarCheckoutId: args.polarCheckoutId ?? intent.polarCheckoutId,
+      updatedAt: Date.now(),
+    });
+
+    return { ok: true, alreadyPaid: false };
   },
 });
 

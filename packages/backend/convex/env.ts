@@ -28,6 +28,7 @@ export function backendEnv() {
       POLAR_SERVER: z.enum(["sandbox", "production"]),
       POLAR_PLUS_PRODUCT_ID: z.string().min(1),
       POLAR_PRO_PRODUCT_ID: z.string().min(1),
+      POLAR_CREDIT_TOP_UP_PRODUCT_ID: z.string().min(1).optional(),
       SILO_CDN: z.string().min(1),
       SILO_TOKEN: z.string().min(1),
       SILO_URL: z.string().min(1),
@@ -54,6 +55,8 @@ export function backendEnv() {
         | undefined,
       POLAR_PLUS_PRODUCT_ID: process.env.POLAR_PLUS_PRODUCT_ID,
       POLAR_PRO_PRODUCT_ID: process.env.POLAR_PRO_PRODUCT_ID,
+      POLAR_CREDIT_TOP_UP_PRODUCT_ID:
+        process.env.POLAR_CREDIT_TOP_UP_PRODUCT_ID,
       SILO_CDN: process.env.SILO_CDN ?? process.env.VITE_SILO_CDN,
       SILO_TOKEN: process.env.SILO_TOKEN,
       SILO_URL: process.env.SILO_URL,

@@ -53,6 +53,14 @@ const creditGrantStatus = v.union(
   v.literal("revoked"),
 );
 
+const creditTopUpIntentStatus = v.union(
+  v.literal("created"),
+  v.literal("checkout_created"),
+  v.literal("paid"),
+  v.literal("expired"),
+  v.literal("failed"),
+);
+
 const messageTools = v.object({
   search: v.optional(v.object({})),
   analysisWorkspace: v.optional(
@@ -340,6 +348,22 @@ export default defineSchema({
     .index("by_debitId", ["debitId"])
     .index("by_user_requestKey", ["userId", "requestKey"])
     .index("by_user_createdAt", ["userId", "createdAt"]),
+
+  creditTopUpIntents: defineTable({
+    intentId: v.string(),
+    userId: v.string(),
+    amountCents: v.number(),
+    currency: v.literal("usd"),
+    credits: v.number(),
+    status: creditTopUpIntentStatus,
+    polarCheckoutId: v.optional(v.string()),
+    polarOrderId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_intentId", ["intentId"])
+    .index("by_checkoutId", ["polarCheckoutId"])
+    .index("by_user_status", ["userId", "status"]),
 
   // Per-debit per-grant allocation rows. Preserved for audit so the
   // exact slice of each lot consumed by each request is recoverable.

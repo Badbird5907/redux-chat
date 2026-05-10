@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAction } from "convex/react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, CreditCard } from "lucide-react";
 
 import type { PlanTier } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
@@ -20,6 +20,7 @@ import {
 } from "@redux/ui/components/dialog";
 import { cn } from "@redux/ui/lib/utils";
 
+import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
 import {
   CreditBalancePanel,
   formatNumber,
@@ -282,6 +283,7 @@ function RouteComponent() {
   const [billingScheduleMutation, setBillingScheduleMutation] = useState<
     "rescind" | "discard" | null
   >(null);
+  const [addCreditsOpen, setAddCreditsOpen] = useState(false);
 
   const hydratedScheduleForSubIdRef = useRef<string | null>(null);
   const billingQuerySettled = baseBillingState !== undefined;
@@ -665,6 +667,13 @@ function RouteComponent() {
         </DialogContent>
       </Dialog>
 
+      <AddCreditsDialog
+        open={addCreditsOpen}
+        onOpenChange={setAddCreditsOpen}
+        billingState={billingState}
+        triggerContext="settings"
+      />
+
       <CreditBalancePanel
         bucketBalances={billingState?.bucketBalances}
         expiringSoon={billingState?.expiringSoon}
@@ -672,6 +681,34 @@ function RouteComponent() {
         currentPeriodStart={billingState?.currentPeriodStart}
         currentPeriodEnd={billingState?.currentPeriodEnd}
       />
+
+      {isOnPaidPlan ? (
+        <section className="space-y-3">
+          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            Credit top-up
+          </p>
+          <Card className="bg-muted/35 ring-border gap-0 px-5 py-4 shadow-none">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Add more credits</p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Purchased credits are spent after monthly credits and do not
+                  expire.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 shrink-0 gap-2 text-xs"
+                onClick={() => setAddCreditsOpen(true)}
+              >
+                <CreditCard className="size-3.5" aria-hidden />
+                Add credits
+              </Button>
+            </div>
+          </Card>
+        </section>
+      ) : null}
 
       <section id="plans" className="scroll-mt-6 space-y-3">
         <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">

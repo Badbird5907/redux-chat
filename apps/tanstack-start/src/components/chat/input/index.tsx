@@ -22,6 +22,7 @@ import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { ChatInputProps, PreviewableFile } from "./types";
+import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
@@ -85,6 +86,7 @@ export function ChatInput({
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [addCreditsOpen, setAddCreditsOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -100,6 +102,8 @@ export function ChatInput({
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
+  const isPaidPlan =
+    billingState?.tier === "plus" || billingState?.tier === "pro";
   const attachmentLimits =
     billingState?.tier === "free"
       ? {
@@ -854,10 +858,29 @@ export function ChatInput({
               className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
               role="alert"
             >
-              <p className="font-medium">You are out of credits.</p>
-              <p className="mt-1 text-xs opacity-90">
-                Add credits or enable overages to keep chatting.
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">You are out of credits.</p>
+                  <p className="mt-1 text-xs opacity-90">
+                    {isPaidPlan
+                      ? "Add credits to keep chatting."
+                      : "Upgrade to keep chatting."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="bg-background text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors"
+                  onClick={() => {
+                    if (isPaidPlan) {
+                      setAddCreditsOpen(true);
+                      return;
+                    }
+                    void navigate({ to: "/settings" });
+                  }}
+                >
+                  {isPaidPlan ? "Add credits" : "View plans"}
+                </button>
+              </div>
             </div>
           ) : null}
           <div
@@ -972,6 +995,12 @@ export function ChatInput({
       <FilePreviewDialog
         file={previewFile}
         onClose={() => setPreviewFile(null)}
+      />
+      <AddCreditsDialog
+        open={addCreditsOpen}
+        onOpenChange={setAddCreditsOpen}
+        billingState={billingState}
+        triggerContext="out_of_credits"
       />
     </>
   );

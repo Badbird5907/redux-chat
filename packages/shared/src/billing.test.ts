@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateCreditsFromUsd,
+  calculatePurchasedCreditsFromCents,
   calculateToolUsdCost,
+  DEFAULT_BILLING_CONFIG,
   getToolBillingConfig,
 } from "./billing";
 
@@ -31,5 +33,21 @@ describe("billing helpers", () => {
     const credits = calculateCreditsFromUsd(0.0000051, 2);
 
     expect(credits).toBe(3);
+  });
+
+  it("converts top-up dollars to purchased credits using the configured exchange rate", () => {
+    expect(calculatePurchasedCreditsFromCents(500)).toBe(1_000_000);
+    expect(calculatePurchasedCreditsFromCents(1_000)).toBe(2_000_000);
+  });
+
+  it("rejects non-integer top-up cent amounts", () => {
+    expect(() => calculatePurchasedCreditsFromCents(500.5)).toThrow(
+      /integer number of cents/,
+    );
+  });
+
+  it("blocks paid plans at zero credits instead of allowing overages", () => {
+    expect(DEFAULT_BILLING_CONFIG.plans.plus.overageAllowed).toBe(false);
+    expect(DEFAULT_BILLING_CONFIG.plans.pro.overageAllowed).toBe(false);
   });
 });
