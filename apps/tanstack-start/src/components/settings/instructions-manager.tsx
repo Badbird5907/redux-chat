@@ -213,9 +213,7 @@ export function InstructionsManager() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Instructions</h1>
         <p className="text-muted-foreground max-w-3xl text-sm">
-          Create reusable behavior presets for chats. Built-in instructions can
-          be edited, reset, and removed. Custom instructions can be created and
-          deleted.
+          Tailor the model's behavior with custom instructions.
         </p>
       </div>
 
@@ -292,7 +290,7 @@ export function InstructionsManager() {
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  {instruction.isBuiltin && instruction.isDefault ? (
+                  {instruction.isBuiltin ? (
                     <Button
                       variant="ghost"
                       size="sm"
