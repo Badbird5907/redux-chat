@@ -148,19 +148,22 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
   plans: {
     free: {
       tier: "free",
-      includedMonthlyCredits: 25_000,
+      // 100,000 credits * $0.000005 = $0.50 effective usage value.
+      includedMonthlyCredits: 100_000,
       markupMultiplier: 2,
       overageAllowed: false,
     },
     plus: {
       tier: "plus",
-      includedMonthlyCredits: 250_000,
+      // 1,000,000 credits * $0.000005 = $5.00 effective usage value.
+      includedMonthlyCredits: 1_000_000,
       markupMultiplier: 1.5,
       overageAllowed: false,
     },
     pro: {
       tier: "pro",
-      includedMonthlyCredits: 1_000_000,
+      // 3,500,000 credits * $0.000005 = $17.50 effective usage value.
+      includedMonthlyCredits: 3_500_000,
       markupMultiplier: 1.25,
       overageAllowed: false,
     },

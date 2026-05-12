@@ -265,7 +265,7 @@ describe("credit ledger helpers", () => {
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "monthly",
-        amount: 25_000,
+        amount: 100_000,
         source: "free_monthly_reset",
         sourceId: `${USER_ID}:2024-01`,
       });
@@ -292,10 +292,10 @@ describe("credit ledger helpers", () => {
     );
     expect(balance.bucketBalances).toEqual({
       gifted: 500,
-      monthly: 25_000,
+      monthly: 100_000,
       paid: 0,
     });
-    expect(balance.spendableCredits).toBe(25_500);
+    expect(balance.spendableCredits).toBe(100_500);
   });
 
   it("paid upgrade revokes free-monthly grants only", async () => {
@@ -305,14 +305,14 @@ describe("credit ledger helpers", () => {
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "monthly",
-        amount: 25_000,
+        amount: 100_000,
         source: "free_monthly_reset",
         sourceId: `${USER_ID}:2024-01`,
       });
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "monthly",
-        amount: 250_000,
+        amount: 1_000_000,
         source: "polar_subscription_renewal",
         sourceId: "sub_plus_1:1700000000000",
       });
@@ -338,10 +338,10 @@ describe("credit ledger helpers", () => {
     );
     expect(balance.bucketBalances).toEqual({
       gifted: 0,
-      monthly: 250_000,
+      monthly: 1_000_000,
       paid: 1_000,
     });
-    expect(balance.spendableCredits).toBe(251_000);
+    expect(balance.spendableCredits).toBe(1_001_000);
   });
 
   it("admin single-grant revoke removes remaining balance", async () => {

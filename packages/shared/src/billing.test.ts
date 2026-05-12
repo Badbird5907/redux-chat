@@ -40,6 +40,21 @@ describe("billing helpers", () => {
     expect(calculatePurchasedCreditsFromCents(1_000)).toBe(2_000_000);
   });
 
+  it("derives monthly effective usage value from included credits", () => {
+    expect(
+      DEFAULT_BILLING_CONFIG.plans.free.includedMonthlyCredits *
+        DEFAULT_BILLING_CONFIG.creditUsdValue,
+    ).toBeCloseTo(0.5);
+    expect(
+      DEFAULT_BILLING_CONFIG.plans.plus.includedMonthlyCredits *
+        DEFAULT_BILLING_CONFIG.creditUsdValue,
+    ).toBeCloseTo(5);
+    expect(
+      DEFAULT_BILLING_CONFIG.plans.pro.includedMonthlyCredits *
+        DEFAULT_BILLING_CONFIG.creditUsdValue,
+    ).toBeCloseTo(17.5);
+  });
+
   it("rejects non-integer top-up cent amounts", () => {
     expect(() => calculatePurchasedCreditsFromCents(500.5)).toThrow(
       /integer number of cents/,
