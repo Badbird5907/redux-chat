@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import type { CreditBalance, CreditBucket, PlanTier } from "@redux/shared";
@@ -41,6 +42,35 @@ export const getCreditBalance = query({
   args: {},
   handler: async (ctx): Promise<CreditBalance> => {
     return await getCreditBalanceForUser(ctx, ctx.userId);
+  },
+});
+
+/** Paginated credit grant history for the current user. */
+export const listCreditGrants = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const results = await ctx.db
+      .query("creditGrants")
+      .withIndex("by_user_granted_at", (q) => q.eq("userId", ctx.userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    return {
+      page: results.page.map((grant) => ({
+        _id: grant._id,
+        grantId: grant.grantId,
+        bucket: grant.bucket,
+        amount: grant.amount,
+        remaining: grant.remaining,
+        status: grant.status,
+        source: grant.source,
+        periodKey: grant.periodKey,
+        expiresAt: grant.expiresAt,
+        grantedAt: grant.grantedAt,
+      })),
+      isDone: results.isDone,
+      continueCursor: results.continueCursor,
+    };
   },
 });
 

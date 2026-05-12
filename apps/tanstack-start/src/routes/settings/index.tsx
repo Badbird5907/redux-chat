@@ -25,6 +25,7 @@ import {
   CreditBalancePanel,
   formatNumber,
 } from "@/components/billing/credit-balance-panel";
+import { CreditGrantHistoryDialog } from "@/components/billing/credit-grant-history";
 import { useQuery } from "@/lib/hooks/convex";
 
 export const Route = createFileRoute("/settings/")({
@@ -674,13 +675,18 @@ function RouteComponent() {
         triggerContext="settings"
       />
 
-      <CreditBalancePanel
-        bucketBalances={billingState?.bucketBalances}
-        expiringSoon={billingState?.expiringSoon}
-        includedMonthlyCredits={includedMonthlyCredits}
-        currentPeriodStart={billingState?.currentPeriodStart}
-        currentPeriodEnd={billingState?.currentPeriodEnd}
-      />
+      <div className="space-y-2">
+        <CreditBalancePanel
+          bucketBalances={billingState?.bucketBalances}
+          expiringSoon={billingState?.expiringSoon}
+          includedMonthlyCredits={includedMonthlyCredits}
+          currentPeriodStart={billingState?.currentPeriodStart}
+          currentPeriodEnd={billingState?.currentPeriodEnd}
+        />
+        <div className="flex justify-end">
+          <CreditGrantHistoryDialog />
+        </div>
+      </div>
 
       {isOnPaidPlan ? (
         <section className="space-y-3">
