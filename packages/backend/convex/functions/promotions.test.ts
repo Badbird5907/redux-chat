@@ -163,6 +163,77 @@ describe("functions/promotions", () => {
     ).resolves.toMatchObject({ productId: "plus-product" });
   });
 
+  it("prepares 100% once subscription promos for a one month trial checkout", async () => {
+    const t = testWithUser();
+    await createSubscriptionPromo(t, {
+      percentBasisPoints: 10_000,
+      duration: "once",
+    });
+
+    await expect(
+      t.mutation(
+        internal.functions.promotions
+          .internal_prepareSubscriptionCheckoutRedemption,
+        { code: "SAVE20", tier: "plus", userId: USER_ID },
+      ),
+    ).resolves.toMatchObject({
+      discountType: "percentage",
+      percentBasisPoints: 10_000,
+      duration: "once",
+      subscriptionTrial: {
+        trialInterval: "month",
+        trialIntervalCount: 1,
+      },
+    });
+  });
+
+  it("prepares 100% repeating subscription promos for a matching month trial checkout", async () => {
+    const t = testWithUser();
+    await createSubscriptionPromo(t, {
+      percentBasisPoints: 10_000,
+      duration: "repeating",
+      durationInMonths: 3,
+    });
+
+    await expect(
+      t.mutation(
+        internal.functions.promotions
+          .internal_prepareSubscriptionCheckoutRedemption,
+        { code: "SAVE20", tier: "plus", userId: USER_ID },
+      ),
+    ).resolves.toMatchObject({
+      discountType: "percentage",
+      percentBasisPoints: 10_000,
+      duration: "repeating",
+      durationInMonths: 3,
+      subscriptionTrial: {
+        trialInterval: "month",
+        trialIntervalCount: 3,
+      },
+    });
+  });
+
+  it("keeps 100% forever subscription promos on the discount path", async () => {
+    const t = testWithUser();
+    await createSubscriptionPromo(t, {
+      percentBasisPoints: 10_000,
+      duration: "forever",
+    });
+
+    await expect(
+      t.mutation(
+        internal.functions.promotions
+          .internal_prepareSubscriptionCheckoutRedemption,
+        { code: "SAVE20", tier: "plus", userId: USER_ID },
+      ),
+    ).resolves.toMatchObject({
+      polarDiscountId: "discount-1",
+      discountType: "percentage",
+      percentBasisPoints: 10_000,
+      duration: "forever",
+    });
+  });
+
   it("blocks subscription redemption after confirmed payment and increments once", async () => {
     const t = testWithUser();
     const promo = await createSubscriptionPromo(t, { maxRedemptions: 1 });

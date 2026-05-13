@@ -72,6 +72,10 @@ type PromotionRedemptionDoc = Doc<"promotionRedemptions">;
 type PromotionType = PromotionDoc["type"];
 type PromotionStatus = PromotionDoc["status"];
 type SubscriptionPromotionTier = "plus" | "pro";
+type PromotionSubscriptionTrial = {
+  trialInterval: "month";
+  trialIntervalCount: number;
+};
 
 const CODE_PATTERN = /^[A-Z0-9_-]+$/;
 const POLAR_NETWORK_TIMEOUT_MS = 10_000;
@@ -472,7 +476,13 @@ export const createPromotionSubscriptionCheckout = action({
       productId: string;
       targetTier: SubscriptionPromotionTier;
       newPaidSubscriptionsOnly: boolean;
+      discountType: "fixed" | "percentage" | undefined;
+      percentBasisPoints: number | undefined;
+      duration: "once" | "forever" | "repeating" | undefined;
+      durationInMonths: number | undefined;
+      subscriptionTrial: PromotionSubscriptionTrial | undefined;
     };
+    const trial = prepared.subscriptionTrial;
 
     const customerId = await ensurePolarCustomerForCurrentUser(ctx);
     const env = backendEnv();
@@ -485,8 +495,11 @@ export const createPromotionSubscriptionCheckout = action({
           products: [prepared.productId],
           customerId,
           externalCustomerId: ctx.userId,
-          discountId: prepared.polarDiscountId,
+          discountId: trial ? undefined : prepared.polarDiscountId,
           allowDiscountCodes: false,
+          allowTrial: trial ? true : undefined,
+          trialInterval: trial?.trialInterval,
+          trialIntervalCount: trial?.trialIntervalCount,
           successUrl: `${siteUrl}/settings?promo=${encodeURIComponent(prepared.code)}&checkout_id={CHECKOUT_ID}`,
           returnUrl: `${siteUrl}/promo/${encodeURIComponent(prepared.code)}`,
           metadata: {
@@ -935,6 +948,7 @@ export const internal_prepareSubscriptionCheckoutRedemption = internalMutation({
     }
 
     const productId = productIdForTier(args.tier);
+    const subscriptionTrial = getPromotionSubscriptionTrial(promotion);
     const now = Date.now();
     const redemptionId = crypto.randomUUID();
     await ctx.db.insert("promotionRedemptions", {
@@ -958,6 +972,11 @@ export const internal_prepareSubscriptionCheckoutRedemption = internalMutation({
       productId,
       targetTier: args.tier,
       newPaidSubscriptionsOnly: promotion.newPaidSubscriptionsOnly ?? true,
+      discountType: promotion.discountType,
+      percentBasisPoints: promotion.percentBasisPoints,
+      duration: promotion.duration,
+      durationInMonths: promotion.durationInMonths,
+      subscriptionTrial,
     };
   },
 });
@@ -1072,6 +1091,31 @@ function productIdForTier(tier: SubscriptionPromotionTier) {
     throw new ConvexError(`POLAR_${tier.toUpperCase()}_PRODUCT_ID is not set.`);
   }
   return productId;
+}
+
+function getPromotionSubscriptionTrial(promotion: {
+  discountType?: "fixed" | "percentage";
+  percentBasisPoints?: number;
+  duration?: "once" | "forever" | "repeating";
+  durationInMonths?: number;
+}): PromotionSubscriptionTrial | undefined {
+  if (
+    promotion.discountType !== "percentage" ||
+    promotion.percentBasisPoints !== 10_000
+  ) {
+    return undefined;
+  }
+
+  const duration = promotion.duration ?? "once";
+  if (duration === "forever") {
+    return undefined;
+  }
+
+  return {
+    trialInterval: "month",
+    trialIntervalCount:
+      duration === "repeating" ? (promotion.durationInMonths ?? 1) : 1,
+  };
 }
 
 function polarCompatibleDiscountCode(codeNormalized: string) {
