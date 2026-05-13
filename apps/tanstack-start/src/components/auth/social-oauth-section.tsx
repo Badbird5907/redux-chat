@@ -14,6 +14,7 @@ type SocialOAuthSectionProps = {
   githubButtonLabel: string;
   googleButtonLabel: string;
   showDivider?: boolean;
+  callbackURL?: string;
 };
 
 type ProviderId = "github" | "google";
@@ -22,6 +23,7 @@ export function SocialOAuthSection({
   githubButtonLabel,
   googleButtonLabel,
   showDivider = true,
+  callbackURL = "/",
 }: SocialOAuthSectionProps) {
   const [lastUsed] = React.useState<string | null>(() =>
     typeof window === "undefined"
@@ -35,7 +37,7 @@ export function SocialOAuthSection({
     setLoadingProvider(provider);
     await authClient.signIn.social({
       provider,
-      callbackURL: "/",
+      callbackURL,
       fetchOptions: {
         onSuccess: () => {
           localStorage.setItem("last-used-provider", provider);

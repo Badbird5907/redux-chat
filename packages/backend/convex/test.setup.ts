@@ -9,6 +9,7 @@ export const modules: Record<string, () => Promise<unknown>> = {
   "./functions/projects.ts": () => import("./functions/projects"),
   "./functions/billing.ts": () => import("./functions/billing"),
   "./functions/credits.ts": () => import("./functions/credits"),
+  "./functions/promotions.ts": () => import("./functions/promotions"),
   "./functions/internal.ts": () => import("./functions/internal"),
   "./functions/threads.ts": () => import("./functions/threads"),
   "./credits.ts": () => import("./credits"),

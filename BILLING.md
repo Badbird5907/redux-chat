@@ -53,6 +53,9 @@ credits are spent before purchased credits.
   grant purchased credits.
 - Dynamic credit top-ups use `POLAR_CREDIT_TOP_UP_PRODUCT_ID`, a one-time
   product whose checkout price is supplied per session by Redux Chat.
+- Admin subscription promotions create Polar discounts at promotion creation
+  time. Redux Chat stores the eligible Plus/Pro plan scope and applies the
+  Polar `discountId` only from `/promo/<code>` checkouts.
 - Do not configure Polar credit grants for the Free product; Free credits are
   granted by the Convex ledger.
 
@@ -66,6 +69,19 @@ POLAR_PLUS_PRODUCT_ID=
 POLAR_PRO_PRODUCT_ID=
 POLAR_CREDIT_TOP_UP_PRODUCT_ID=
 ```
+
+## Promotions
+
+- Gifted-credit promotions are authoritative in Convex. Redeeming `/promo/<code>`
+  writes a `promotion` credit grant in the `gifted` bucket and each user can
+  redeem a code once.
+- Subscription promotions use Polar discounts for the money-off or percent-off
+  amount. Polar enforces payment-time discount redemption, while Convex tracks
+  campaign windows, plan eligibility, per-user confirmed redemption, and global
+  redemption counts.
+- Subscription promo checkout metadata includes `kind:
+"subscription_promotion"`, `promotionId`, and `redemptionId`; Polar webhooks
+  confirm the redemption idempotently after payment.
 
 ## Key Files
 

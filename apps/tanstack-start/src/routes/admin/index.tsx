@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users } from "lucide-react";
+import { TicketPercent, Users } from "lucide-react";
 
 import { Button } from "@redux/ui/components/button";
 import {
@@ -24,7 +24,7 @@ function AdminOverviewPage() {
           Admin
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Internal tools for user management.
+          Internal tools for user management and campaigns.
         </p>
       </div>
       <Card className="border-border/80">
@@ -39,6 +39,20 @@ function AdminOverviewPage() {
             </CardDescription>
           </div>
           <Button render={<Link to="/admin/users" />}>Open</Button>
+        </CardHeader>
+      </Card>
+      <Card className="border-border/80">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <TicketPercent className="size-5" />
+              Promotions
+            </CardTitle>
+            <CardDescription>
+              Create promo codes for credits and subscriptions
+            </CardDescription>
+          </div>
+          <Button render={<Link to="/admin/promotions" />}>Open</Button>
         </CardHeader>
       </Card>
     </div>

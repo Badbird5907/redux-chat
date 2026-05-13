@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, LayoutDashboard, Users } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, TicketPercent, Users } from "lucide-react";
 
 import {
   SidebarMenu,
@@ -16,6 +16,7 @@ export function AdminSidebarPanel() {
 
   const isOverviewActive = pathname === "/admin" || pathname === "/admin/";
   const isUsersActive = pathname.startsWith("/admin/users");
+  const isPromotionsActive = pathname.startsWith("/admin/promotions");
 
   return (
     <AppSidebar
@@ -48,6 +49,16 @@ export function AdminSidebarPanel() {
             >
               <Users />
               <span>Users</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isPromotionsActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/admin/promotions" />}
+            >
+              <TicketPercent />
+              <span>Promotions</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

@@ -61,6 +61,33 @@ const creditTopUpIntentStatus = v.union(
   v.literal("failed"),
 );
 
+const promotionType = v.union(
+  v.literal("gifted_credits"),
+  v.literal("subscription_discount"),
+);
+
+const promotionStatus = v.union(
+  v.literal("active"),
+  v.literal("paused"),
+  v.literal("archived"),
+);
+
+const promotionRedemptionStatus = v.union(
+  v.literal("applied"),
+  v.literal("checkout_created"),
+  v.literal("confirmed"),
+  v.literal("expired"),
+  v.literal("failed"),
+);
+
+const subscriptionPromotionTier = v.union(v.literal("plus"), v.literal("pro"));
+
+const creditExpiryPolicy = v.union(
+  v.object({ type: v.literal("none") }),
+  v.object({ type: v.literal("absolute"), expiresAt: v.number() }),
+  v.object({ type: v.literal("relative"), days: v.number() }),
+);
+
 const messageTools = v.object({
   search: v.optional(v.object({})),
   analysisWorkspace: v.optional(
@@ -364,6 +391,73 @@ export default defineSchema({
     .index("by_intentId", ["intentId"])
     .index("by_checkoutId", ["polarCheckoutId"])
     .index("by_user_status", ["userId", "status"]),
+
+  promotions: defineTable({
+    promotionId: v.string(),
+    code: v.string(),
+    codeNormalized: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    type: promotionType,
+    status: promotionStatus,
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    maxRedemptions: v.optional(v.number()),
+    singleUsePerUser: v.optional(v.boolean()),
+    newPaidSubscriptionsOnly: v.optional(v.boolean()),
+    redemptionCount: v.number(),
+    createdByUserId: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    archivedAt: v.optional(v.number()),
+    creditAmount: v.optional(v.number()),
+    creditExpiryPolicy: v.optional(creditExpiryPolicy),
+    eligibleTiers: v.optional(v.array(subscriptionPromotionTier)),
+    discountType: v.optional(
+      v.union(v.literal("fixed"), v.literal("percentage")),
+    ),
+    amountCents: v.optional(v.number()),
+    percentBasisPoints: v.optional(v.number()),
+    currency: v.optional(v.literal("usd")),
+    duration: v.optional(
+      v.union(v.literal("once"), v.literal("forever"), v.literal("repeating")),
+    ),
+    durationInMonths: v.optional(v.number()),
+    polarDiscountId: v.optional(v.string()),
+    polarDiscountCode: v.optional(v.string()),
+    polarSyncedAt: v.optional(v.number()),
+    polarSyncError: v.optional(v.string()),
+  })
+    .index("by_promotionId", ["promotionId"])
+    .index("by_codeNormalized", ["codeNormalized"])
+    .index("by_status_createdAt", ["status", "createdAt"])
+    .index("by_type_status_createdAt", ["type", "status", "createdAt"]),
+
+  promotionRedemptions: defineTable({
+    redemptionId: v.string(),
+    promotionId: v.string(),
+    codeNormalized: v.string(),
+    userId: v.string(),
+    type: promotionType,
+    status: promotionRedemptionStatus,
+    creditGrantId: v.optional(v.string()),
+    targetTier: v.optional(subscriptionPromotionTier),
+    targetProductId: v.optional(v.string()),
+    polarCheckoutId: v.optional(v.string()),
+    polarOrderId: v.optional(v.string()),
+    polarSubscriptionId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    confirmedAt: v.optional(v.number()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_redemptionId", ["redemptionId"])
+    .index("by_promotion_user", ["promotionId", "userId"])
+    .index("by_promotion_status", ["promotionId", "status"])
+    .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_checkoutId", ["polarCheckoutId"])
+    .index("by_orderId", ["polarOrderId"])
+    .index("by_subscriptionId", ["polarSubscriptionId"]),
 
   // Per-debit per-grant allocation rows. Preserved for audit so the
   // exact slice of each lot consumed by each request is recoverable.

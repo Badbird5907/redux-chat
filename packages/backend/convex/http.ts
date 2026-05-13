@@ -50,6 +50,13 @@ type CreditTopUpIntentSnapshot = {
   status: "created" | "checkout_created" | "paid" | "expired" | "failed";
 };
 
+const internalPromotionsApi = internal as unknown as {
+  functions: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    promotions: Record<string, any>;
+  };
+};
+
 polar.registerRoutes(http, {
   path: "/polar/events",
   events: {
@@ -211,6 +218,11 @@ async function handleSubscriptionPeriodGrant(
       return;
     }
 
+    await handleSubscriptionPromotionConfirmation(ctx, data, {
+      userId: customerExternalId,
+      polarSubscriptionId: subscriptionId,
+    });
+
     const snapshot = toSubscriptionSnapshot(data);
     const tier = resolveTierFromSubscription(snapshot);
     if (tier === "free") {
@@ -309,20 +321,24 @@ async function handleOneTimeOrderGrant(
   );
 
   try {
-    // Skip subscription invoice orders; those are handled by subscription.* events.
-    const subscriptionId = pickString(
-      data.subscriptionId ?? data.subscription_id,
-    );
-    if (subscriptionId) {
-      return;
-    }
-
     if (!orderId) {
       console.warn("order_event_missing_id", event);
       return;
     }
     if (!customerExternalId) {
       console.warn("order_event_missing_external_id", { orderId });
+      return;
+    }
+
+    const subscriptionId = pickString(
+      data.subscriptionId ?? data.subscription_id,
+    );
+    if (subscriptionId) {
+      await handleSubscriptionPromotionConfirmation(ctx, data, {
+        userId: customerExternalId,
+        polarOrderId: orderId,
+        polarSubscriptionId: subscriptionId,
+      });
       return;
     }
 
@@ -528,6 +544,95 @@ async function handleCreditTopUpOrderGrant(
   }
 
   return true;
+}
+
+async function handleSubscriptionPromotionConfirmation(
+  ctx: {
+    runMutation: typeof internal extends never ? never : any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  },
+  data: Record<string, unknown>,
+  ids: {
+    userId: string;
+    polarOrderId?: string;
+    polarSubscriptionId?: string;
+  },
+): Promise<boolean> {
+  const metadata = extractPromotionMetadata(data);
+  if (metadata.kind !== "subscription_promotion") {
+    return false;
+  }
+
+  const promotionId = pickString(metadata.promotionId ?? metadata.promotion_id);
+  const redemptionId = pickString(
+    metadata.redemptionId ?? metadata.redemption_id,
+  );
+  const checkoutId = pickString(data.checkoutId ?? data.checkout_id);
+
+  try {
+    if (!promotionId || !redemptionId) {
+      throw new Error("subscription_promotion_metadata_invalid");
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await ctx.runMutation(
+      internalPromotionsApi.functions.promotions
+        .internal_confirmSubscriptionPromotionRedemption,
+      {
+        promotionId,
+        redemptionId,
+        userId: ids.userId,
+        polarCheckoutId: checkoutId,
+        polarOrderId: ids.polarOrderId,
+        polarSubscriptionId: ids.polarSubscriptionId,
+      },
+    );
+
+    await recordPolarAuditEvent(ctx, {
+      userId: ids.userId,
+      action: "polar:subscription_promotion.confirmed",
+      status: "success",
+      severity: "medium",
+      metadata: {
+        promotionId,
+        redemptionId,
+        checkoutId,
+        polarOrderId: ids.polarOrderId,
+        polarSubscriptionId: ids.polarSubscriptionId,
+      },
+    });
+  } catch (error) {
+    console.error("subscription_promotion_confirm_failed", error);
+    await recordPolarAuditEvent(ctx, {
+      userId: ids.userId,
+      action: "polar:subscription_promotion.confirmed",
+      status: "failed",
+      severity: "high",
+      metadata: {
+        promotionId,
+        redemptionId,
+        checkoutId,
+        polarOrderId: ids.polarOrderId,
+        polarSubscriptionId: ids.polarSubscriptionId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+
+  return true;
+}
+
+function extractPromotionMetadata(data: Record<string, unknown>) {
+  const direct = (data.metadata as Record<string, unknown> | undefined) ?? {};
+  if (direct.kind === "subscription_promotion") {
+    return direct;
+  }
+  const checkout = data.checkout as Record<string, unknown> | undefined;
+  const checkoutMetadata =
+    (checkout?.metadata as Record<string, unknown> | undefined) ?? {};
+  if (checkoutMetadata.kind === "subscription_promotion") {
+    return checkoutMetadata;
+  }
+  return direct;
 }
 
 async function recordPolarAuditEvent(

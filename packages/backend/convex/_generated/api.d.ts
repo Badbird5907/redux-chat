@@ -26,6 +26,7 @@ import type * as functions_mcpServers from "../functions/mcpServers.js";
 import type * as functions_migrations from "../functions/migrations.js";
 import type * as functions_modelFavorites from "../functions/modelFavorites.js";
 import type * as functions_projects from "../functions/projects.js";
+import type * as functions_promotions from "../functions/promotions.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   "functions/migrations": typeof functions_migrations;
   "functions/modelFavorites": typeof functions_modelFavorites;
   "functions/projects": typeof functions_projects;
+  "functions/promotions": typeof functions_promotions;
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;
   http: typeof http;

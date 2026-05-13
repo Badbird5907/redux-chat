@@ -26,6 +26,12 @@ import {
   formatNumber,
 } from "@/components/billing/credit-balance-panel";
 import { CreditGrantHistoryDialog } from "@/components/billing/credit-grant-history";
+import {
+  formatCurrencyFromMinorUnits,
+  formatPolarRecurringPrice,
+  getPolarRecurringPrice,
+  type PolarPlanProduct,
+} from "@/components/billing/polar-product-price";
 import { useQuery } from "@/lib/hooks/convex";
 
 export const Route = createFileRoute("/settings/")({
@@ -33,13 +39,6 @@ export const Route = createFileRoute("/settings/")({
 });
 
 const billingConfig = DEFAULT_BILLING_CONFIG;
-
-type PolarPlanProduct = {
-  prices?: readonly {
-    priceAmount?: number | null;
-    priceCurrency?: string | null;
-  }[];
-} | null;
 
 function tierRank(tier: PlanTier): number {
   if (tier === "free") {
@@ -85,50 +84,6 @@ function tierForConfiguredProductId(
     return "pro";
   }
   return null;
-}
-
-function formatPolarRecurringPrice(
-  product: PolarPlanProduct | undefined,
-): string | undefined {
-  const price = getPolarRecurringPrice(product);
-  if (!price) {
-    return undefined;
-  }
-
-  return formatCurrencyFromMinorUnits(price.amount, price.currency);
-}
-
-function getPolarRecurringPrice(product: PolarPlanProduct | undefined):
-  | {
-      amount: number;
-      currency: string;
-    }
-  | undefined {
-  const price = product?.prices?.[0];
-  if (!price || typeof price.priceAmount !== "number") {
-    return undefined;
-  }
-  if (price.priceAmount < 0) {
-    return undefined;
-  }
-  return {
-    amount: price.priceAmount,
-    currency: (price.priceCurrency ?? "USD").toUpperCase(),
-  };
-}
-
-function formatCurrencyFromMinorUnits(
-  amount: number,
-  currency: string,
-): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount / 100);
-  } catch {
-    return `$${String(amount / 100)}`;
-  }
 }
 
 function getProratedUpgradeBreakdown({

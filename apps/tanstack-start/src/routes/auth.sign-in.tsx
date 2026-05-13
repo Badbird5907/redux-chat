@@ -1,10 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import {
-  createFileRoute,
-  Link,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -41,7 +36,12 @@ export const Route = createFileRoute("/auth/sign-in")({
 });
 
 function SignInPage() {
-  const navigate = useNavigate();
+  const redirectTo = safeInternalRedirect(
+    typeof window === "undefined"
+      ? undefined
+      : (new URLSearchParams(window.location.search).get("redirect") ??
+          undefined),
+  );
 
   const form = useForm({
     defaultValues: {
@@ -58,7 +58,7 @@ function SignInPage() {
         fetchOptions: {
           onSuccess: () => {
             localStorage.setItem("last-used-provider", "email");
-            void navigate({ to: "/" });
+            window.location.assign(redirectTo);
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);
@@ -82,6 +82,7 @@ function SignInPage() {
           <SocialOAuthSection
             googleButtonLabel="Sign in with Google"
             githubButtonLabel="Sign in with GitHub"
+            callbackURL={redirectTo}
           />
 
           <form
@@ -160,4 +161,11 @@ function SignInPage() {
       </Card>
     </>
   );
+}
+
+function safeInternalRedirect(value: string | undefined) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/";
+  }
+  return value;
 }

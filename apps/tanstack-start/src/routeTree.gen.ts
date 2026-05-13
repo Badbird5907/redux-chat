@@ -24,12 +24,14 @@ import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as PromoCodeRouteImport } from './routes/promo.$code'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
@@ -37,6 +39,7 @@ import { Route as ApiWebhookPolarRouteImport } from './routes/api/webhook/polar'
 import { Route as ApiPolarCheckoutRouteImport } from './routes/api/polar/checkout'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
+import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/promotions.$promotionId'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
 import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
@@ -115,6 +118,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
 } as any)
+const PromoCodeRoute = PromoCodeRouteImport.update({
+  id: '/promo/$code',
+  path: '/promo/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
@@ -143,6 +151,11 @@ const ApiUploadRoute = ApiUploadRouteImport.update({
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPromotionsRoute = AdminPromotionsRouteImport.update({
+  id: '/promotions',
+  path: '/promotions',
   getParentRoute: () => AdminRoute,
 } as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
@@ -180,6 +193,12 @@ const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
   path: '/$userId',
   getParentRoute: () => AdminUsersRoute,
 } as any)
+const AdminPromotionsPromotionIdRoute =
+  AdminPromotionsPromotionIdRouteImport.update({
+    id: '/$promotionId',
+    path: '/$promotionId',
+    getParentRoute: () => AdminPromotionsRoute,
+  } as any)
 const AppProjectsIdRoute = AppProjectsIdRouteImport.update({
   id: '/projects/$id',
   path: '/projects/$id',
@@ -202,12 +221,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/promo/$code': typeof PromoCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
@@ -219,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/test/': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/checkout': typeof ApiPolarCheckoutRoute
@@ -231,11 +253,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/promo/$code': typeof PromoCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
@@ -248,6 +272,7 @@ export interface FileRoutesByTo {
   '/test': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/checkout': typeof ApiPolarCheckoutRoute
@@ -264,12 +289,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/promo/$code': typeof PromoCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
@@ -282,6 +309,7 @@ export interface FileRoutesById {
   '/test/': typeof TestIndexRoute
   '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/checkout': typeof ApiPolarCheckoutRoute
@@ -299,12 +327,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/components'
     | '/settings'
+    | '/admin/promotions'
     | '/admin/users'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/promo/$code'
     | '/settings/appearance'
     | '/settings/hotkeys'
     | '/settings/instructions'
@@ -316,6 +346,7 @@ export interface FileRouteTypes {
     | '/test/'
     | '/chat/$id'
     | '/projects/$id'
+    | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
     | '/api/polar/checkout'
@@ -328,11 +359,13 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/components'
+    | '/admin/promotions'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/promo/$code'
     | '/settings/appearance'
     | '/settings/hotkeys'
     | '/settings/instructions'
@@ -345,6 +378,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/chat/$id'
     | '/projects/$id'
+    | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
     | '/api/polar/checkout'
@@ -360,12 +394,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/components'
     | '/settings'
+    | '/admin/promotions'
     | '/admin/users'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/promo/$code'
     | '/settings/appearance'
     | '/settings/hotkeys'
     | '/settings/instructions'
@@ -378,6 +414,7 @@ export interface FileRouteTypes {
     | '/test/'
     | '/_app/chat/$id'
     | '/_app/projects/$id'
+    | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
     | '/api/polar/checkout'
@@ -395,6 +432,7 @@ export interface RootRouteChildren {
   ComponentsRoute: typeof ComponentsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiUploadRoute: typeof ApiUploadRoute
+  PromoCodeRoute: typeof PromoCodeRoute
   LogosIndexRoute: typeof LogosIndexRoute
   TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -511,6 +549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/promo/$code': {
+      id: '/promo/$code'
+      path: '/promo/$code'
+      fullPath: '/promo/$code'
+      preLoaderRoute: typeof PromoCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/sign-up': {
       id: '/auth/sign-up'
       path: '/sign-up'
@@ -551,6 +596,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/promotions': {
+      id: '/admin/promotions'
+      path: '/promotions'
+      fullPath: '/admin/promotions'
+      preLoaderRoute: typeof AdminPromotionsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/api/chat/': {
@@ -602,6 +654,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersUserIdRouteImport
       parentRoute: typeof AdminUsersRoute
     }
+    '/admin/promotions/$promotionId': {
+      id: '/admin/promotions/$promotionId'
+      path: '/$promotionId'
+      fullPath: '/admin/promotions/$promotionId'
+      preLoaderRoute: typeof AdminPromotionsPromotionIdRouteImport
+      parentRoute: typeof AdminPromotionsRoute
+    }
     '/_app/projects/$id': {
       id: '/_app/projects/$id'
       path: '/projects/$id'
@@ -642,6 +701,18 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AdminPromotionsRouteChildren {
+  AdminPromotionsPromotionIdRoute: typeof AdminPromotionsPromotionIdRoute
+}
+
+const AdminPromotionsRouteChildren: AdminPromotionsRouteChildren = {
+  AdminPromotionsPromotionIdRoute: AdminPromotionsPromotionIdRoute,
+}
+
+const AdminPromotionsRouteWithChildren = AdminPromotionsRoute._addFileChildren(
+  AdminPromotionsRouteChildren,
+)
+
 interface AdminUsersRouteChildren {
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
@@ -657,11 +728,13 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminPromotionsRoute: typeof AdminPromotionsRouteWithChildren
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminPromotionsRoute: AdminPromotionsRouteWithChildren,
   AdminUsersRoute: AdminUsersRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -713,6 +786,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComponentsRoute: ComponentsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ApiUploadRoute: ApiUploadRoute,
+  PromoCodeRoute: PromoCodeRoute,
   LogosIndexRoute: LogosIndexRoute,
   TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

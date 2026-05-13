@@ -34,6 +34,7 @@ const grantSourceValidator = v.union(
   v.literal("polar_one_time_purchase"),
   v.literal("free_monthly_reset"),
   v.literal("admin_grant"),
+  v.literal("promotion"),
   v.literal("migration_backfill"),
 );
 

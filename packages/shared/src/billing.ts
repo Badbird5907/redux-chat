@@ -48,6 +48,7 @@ export type CreditGrantSource =
   | "polar_one_time_purchase"
   | "free_monthly_reset"
   | "admin_grant"
+  | "promotion"
   | "migration_backfill";
 
 export interface CreditBalance {
