@@ -16,6 +16,7 @@ import {
   getMonthlyExpiresAt,
   getMonthlyPeriodKey,
   grantCreditsTx,
+  ensureFreeMonthlyCreditsAfterPaidCancellationTx,
   revokeFreeMonthlyCreditsTx,
   revokeSubscriptionMonthlyCreditsTx,
   sweepExpiredGrantsTx,
@@ -30,8 +31,8 @@ const bucketValidator = v.union(
 );
 
 const grantSourceValidator = v.union(
-  v.literal("polar_subscription_renewal"),
-  v.literal("polar_one_time_purchase"),
+  v.literal("stripe_subscription_renewal"),
+  v.literal("stripe_one_time_purchase"),
   v.literal("free_monthly_reset"),
   v.literal("admin_grant"),
   v.literal("migration_backfill"),
@@ -270,7 +271,7 @@ export const internal_sweepExpiredGrants = internalMutation({
 
 /**
  * Revoke active paid subscription monthly grants, used when a subscription is
- * force-canceled immediately in Polar and should no longer keep current-period
+ * force-canceled immediately in Stripe and should no longer keep current-period
  * paid credits.
  */
 export const internal_revokeSubscriptionMonthlyCredits = internalMutation({
@@ -287,6 +288,20 @@ export const internal_revokeSubscriptionMonthlyCredits = internalMutation({
     });
   },
 });
+
+export const internal_ensureFreeMonthlyCreditsAfterPaidCancellation =
+  internalMutation({
+    args: {
+      userId: v.string(),
+      reason: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      return await ensureFreeMonthlyCreditsAfterPaidCancellationTx(ctx, {
+        userId: args.userId,
+        reason: args.reason,
+      });
+    },
+  });
 
 /**
  * Revoke active free-tier monthly grants once a user is on a paid plan.

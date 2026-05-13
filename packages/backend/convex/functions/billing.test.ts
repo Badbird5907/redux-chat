@@ -49,7 +49,7 @@ describe("functions/billing credit top-ups", () => {
       {
         intentId: intent.intentId,
         userId: USER_ID,
-        polarCheckoutId: "checkout-1",
+        stripeCheckoutSessionId: "checkout-1",
       },
     );
 
@@ -60,7 +60,7 @@ describe("functions/billing credit top-ups", () => {
       ),
     ).resolves.toMatchObject({
       status: "checkout_created",
-      polarCheckoutId: "checkout-1",
+      stripeCheckoutSessionId: "checkout-1",
     });
 
     await expect(
@@ -69,8 +69,8 @@ describe("functions/billing credit top-ups", () => {
         {
           intentId: intent.intentId,
           userId: USER_ID,
-          polarOrderId: "order-1",
-          polarCheckoutId: "checkout-1",
+          stripePaymentIntentId: "order-1",
+          stripeCheckoutSessionId: "checkout-1",
         },
       ),
     ).resolves.toEqual({ ok: true, alreadyPaid: false });
@@ -81,8 +81,8 @@ describe("functions/billing credit top-ups", () => {
         {
           intentId: intent.intentId,
           userId: USER_ID,
-          polarOrderId: "order-1",
-          polarCheckoutId: "checkout-1",
+          stripePaymentIntentId: "order-1",
+          stripeCheckoutSessionId: "checkout-1",
         },
       ),
     ).resolves.toEqual({ ok: true, alreadyPaid: true });
@@ -95,7 +95,7 @@ describe("functions/billing credit top-ups", () => {
       userId: USER_ID,
       bucket: "paid",
       amount: 1_000_000,
-      source: "polar_one_time_purchase",
+      source: "stripe_one_time_purchase",
       sourceId: "order-1",
       metadata: {
         intentId: "intent-1",
@@ -107,7 +107,7 @@ describe("functions/billing credit top-ups", () => {
       userId: USER_ID,
       bucket: "paid",
       amount: 1_000_000,
-      source: "polar_one_time_purchase",
+      source: "stripe_one_time_purchase",
       sourceId: "order-1",
       metadata: {
         intentId: "intent-1",

@@ -138,9 +138,9 @@ type GrantCreditsFormValues = z.infer<typeof grantCreditsFormSchema>;
 
 function formatSource(source: string): string {
   switch (source) {
-    case "polar_subscription_renewal":
+    case "stripe_subscription_renewal":
       return "Subscription renewal";
-    case "polar_one_time_purchase":
+    case "stripe_one_time_purchase":
       return "One-time purchase";
     case "free_monthly_reset":
       return "Free monthly allowance";

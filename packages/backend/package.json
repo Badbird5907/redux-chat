@@ -53,9 +53,8 @@
     "@ai-sdk/google-vertex": "^4.0.115",
     "@better-auth/core": "^1.6.9",
     "@convex-dev/better-auth": "^0.12.1",
-    "@convex-dev/polar": "^0.9.0",
+    "@convex-dev/stripe": "^0.1.4",
     "@openrouter/ai-sdk-provider": "2.8.1",
-    "@polar-sh/sdk": "^0.47.1",
     "@redux/shared": "workspace:*",
     "@redux/types": "workspace:*",
     "@silo-storage/sdk-core": "catalog:",
@@ -66,6 +65,7 @@
     "convex": "^1.36.1",
     "convex-helpers": "^0.1.115",
     "nanoid": "^5.1.9",
+    "stripe": "^22.1.1",
     "zod": "catalog:"
   },
   "devDependencies": {

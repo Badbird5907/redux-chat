@@ -1,32 +1,15 @@
-import { Polar as PolarSdkClient } from "@polar-sh/sdk";
-
-import type {
-  BillableToolCall,
-  PlanTier,
-  UsageChargeComputationResult,
-} from "@redux/shared";
+import type { PlanTier } from "@redux/shared";
 import {
   aggregateBillableToolCalls,
   DEFAULT_BILLING_CONFIG,
   getPlanConfig,
-  resolveModelRoute,
 } from "@redux/shared";
+import type { BillableToolCall } from "@redux/shared";
 
 import { backendEnv } from "./env";
 
-type BillingUsage = {
-  inputTokens?: number;
-  outputTokens?: number;
-  reasoningTokens?: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  inputAudioTokens?: number;
-  outputAudioTokens?: number;
-};
-
 type BillingSubscriptionSnapshot = {
-  productId?: string;
-  productKey?: string;
+  priceId?: string;
   status?: string;
   currentPeriodStart?: number;
   currentPeriodEnd?: number;
@@ -35,62 +18,26 @@ type BillingSubscriptionSnapshot = {
   cancelAtPeriodEnd?: boolean;
 };
 
-/** Fields only Polar’s live subscription API exposes (Convex Polar DB omits pending updates). */
 export type BillingSubscriptionSchedule = {
   cancelAtPeriodEnd: boolean;
-  pendingProductId: string | undefined;
+  pendingPriceId: string | undefined;
   pendingAppliesAtMs: number | undefined;
 };
 
 export const BILLING_DEBUG_LOGGING = false;
 
-/** Diagnostic warnings (e.g. missing pricing); gated like `BILLING_DEBUG_LOGGING`. */
 export function billingDebugWarn(
   ...args: Parameters<typeof console.warn>
 ): void {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- BILLING_DEBUG_LOGGING gate
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- debug gate
   if (BILLING_DEBUG_LOGGING) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- delegated to console
     console.warn(...args);
   }
 }
 
-export const POLAR_CREDITS_EVENT_NAME = "credits";
-
-/**
- * Polar's API rejects decimal inputs with more than 17 total digits (Pydantic
- * `decimal_max_digits`). Floating-point arithmetic on USD costs routinely
- * produces trailing-precision noise like `0.0011797500000000002` (19 digits)
- * which trips the validator. Rounding to 12 decimal places gives sub-pico-USD
- * precision — far more than billing needs — while staying safely under the
- * 17-digit ceiling for any plausible per-event amount.
- */
-const POLAR_DECIMAL_MAX_DIGITS = 12;
-
-export function toPolarSafeAmount(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  // `Number(x.toFixed(n))` collapses representational noise by re-parsing the
-  // rounded string, so the resulting JSON serialization stays within the
-  // digit budget Polar enforces.
-  return Number(value.toFixed(POLAR_DECIMAL_MAX_DIGITS));
-}
-
 export function getBillingConfig() {
   return DEFAULT_BILLING_CONFIG;
-}
-
-export function getPolarSdkClient() {
-  const env = backendEnv();
-  if (!env.POLAR_ACCESS_TOKEN) {
-    throw new Error("POLAR_ACCESS_TOKEN is not set");
-  }
-
-  return new PolarSdkClient({
-    accessToken: env.POLAR_ACCESS_TOKEN,
-    server: env.POLAR_SERVER,
-  });
 }
 
 export function getBillingPeriodKey(timestamp = Date.now()) {
@@ -121,48 +68,31 @@ export function getUtcMonthBounds(timestamp = Date.now()) {
     999,
   );
 
-  return {
-    start,
-    end,
-  };
+  return { start, end };
 }
 
 export function resolveTierFromSubscription(
   subscription: BillingSubscriptionSnapshot | null | undefined,
 ) {
-  if (!subscription) {
+  if (!subscription || !isPaidSubscriptionStatus(subscription.status)) {
     return "free" satisfies PlanTier;
   }
 
   const env = backendEnv();
 
-  if (subscription.productKey === "pro") {
+  if (subscription.priceId === env.STRIPE_PRO_PRICE_ID) {
     return "pro" satisfies PlanTier;
   }
 
-  if (subscription.productKey === "plus") {
-    return "plus" satisfies PlanTier;
-  }
-
-  if (subscription.productKey === "free") {
-    return "free" satisfies PlanTier;
-  }
-
-  if (
-    subscription.productId &&
-    subscription.productId === env.POLAR_PRO_PRODUCT_ID
-  ) {
-    return "pro" satisfies PlanTier;
-  }
-
-  if (
-    subscription.productId &&
-    subscription.productId === env.POLAR_PLUS_PRODUCT_ID
-  ) {
+  if (subscription.priceId === env.STRIPE_PLUS_PRICE_ID) {
     return "plus" satisfies PlanTier;
   }
 
   return "free" satisfies PlanTier;
+}
+
+export function isPaidSubscriptionStatus(status: string | undefined) {
+  return status === "active" || status === "trialing";
 }
 
 export function toSubscriptionSnapshot(
@@ -173,6 +103,8 @@ export function toSubscriptionSnapshot(
   }
 
   const value = subscription as Record<string, unknown>;
+  const firstItem = getFirstSubscriptionItem(value);
+  const price = firstItem?.price as Record<string, unknown> | undefined;
 
   const cancelAtPeriodEnd =
     typeof value.cancelAtPeriodEnd === "boolean"
@@ -182,73 +114,65 @@ export function toSubscriptionSnapshot(
         : undefined;
 
   return {
-    productId:
-      typeof value.productId === "string"
-        ? value.productId
-        : typeof value.product_id === "string"
-          ? value.product_id
-          : undefined,
-    productKey:
-      typeof value.productKey === "string" ? value.productKey : undefined,
-    status: typeof value.status === "string" ? value.status : undefined,
-    currentPeriodStart: toTimestamp(value.currentPeriodStart),
-    currentPeriodEnd: toTimestamp(value.currentPeriodEnd),
+    priceId: pickString(value.priceId) ?? pickString(price?.id),
+    status: pickString(value.status),
+    currentPeriodStart:
+      toTimestamp(value.currentPeriodStart) ??
+      toTimestamp(firstItem?.current_period_start) ??
+      toTimestamp(value.current_period_start),
+    currentPeriodEnd:
+      toTimestamp(value.currentPeriodEnd) ??
+      toTimestamp(firstItem?.current_period_end) ??
+      toTimestamp(value.current_period_end),
     customerId:
-      typeof value.customerId === "string" ? value.customerId : undefined,
+      pickString(value.stripeCustomerId) ??
+      pickString(value.customerId) ??
+      pickString(value.customer),
     subscriptionId:
-      typeof value.id === "string"
-        ? value.id
-        : typeof value.subscriptionId === "string"
-          ? value.subscriptionId
-          : undefined,
+      pickString(value.stripeSubscriptionId) ??
+      pickString(value.subscriptionId) ??
+      pickString(value.id),
     cancelAtPeriodEnd,
   };
 }
 
-export function subscriptionScheduleFromPolarSdkSubscription(
+export function subscriptionScheduleFromStripeSubscription(
   subscription: unknown,
 ): BillingSubscriptionSchedule {
-  if (!subscription || typeof subscription !== "object") {
-    return {
-      cancelAtPeriodEnd: false,
-      pendingProductId: undefined,
-      pendingAppliesAtMs: undefined,
-    };
-  }
-
-  const value = subscription as Record<string, unknown>;
-  const cancelAtPeriodEnd =
-    typeof value.cancelAtPeriodEnd === "boolean"
-      ? value.cancelAtPeriodEnd
-      : typeof value.cancel_at_period_end === "boolean"
-        ? value.cancel_at_period_end
-        : false;
-
-  const pendingRaw = value.pendingUpdate ?? value.pending_update;
-  let pendingProductId: string | undefined;
+  const snapshot = toSubscriptionSnapshot(subscription);
+  let pendingPriceId: string | undefined;
   let pendingAppliesAtMs: number | undefined;
 
-  if (pendingRaw && typeof pendingRaw === "object") {
-    const pending = pendingRaw as Record<string, unknown>;
-    const pid = pending.productId ?? pending.product_id;
-    if (typeof pid === "string") {
-      pendingProductId = pid;
-    }
-    pendingAppliesAtMs = toTimestamp(pending.appliesAt ?? pending.applies_at);
+  if (subscription && typeof subscription === "object") {
+    const value = subscription as Record<string, unknown>;
+    const scheduleMetadata =
+      value.metadata && typeof value.metadata === "object"
+        ? (value.metadata as Record<string, unknown>)
+        : {};
+    pendingPriceId = pickString(
+      value.pendingPriceId ??
+        value.pending_price_id ??
+        scheduleMetadata.pendingPriceId ??
+        scheduleMetadata.pending_price_id,
+    );
+    pendingAppliesAtMs =
+      toTimestamp(value.pendingAppliesAtMs) ??
+      toTimestamp(value.pending_applies_at_ms) ??
+      toTimestamp(scheduleMetadata.pendingAppliesAtMs) ??
+      toTimestamp(scheduleMetadata.pending_applies_at_ms);
   }
 
-  return { cancelAtPeriodEnd, pendingProductId, pendingAppliesAtMs };
+  return {
+    cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
+    pendingPriceId,
+    pendingAppliesAtMs,
+  };
 }
 
-export function polarLiveSubscriptionProductId(
+export function stripeLiveSubscriptionPriceId(
   subscription: unknown,
 ): string | undefined {
-  if (!subscription || typeof subscription !== "object") {
-    return undefined;
-  }
-  const value = subscription as Record<string, unknown>;
-  const id = value.productId ?? value.product_id;
-  return typeof id === "string" ? id : undefined;
+  return toSubscriptionSnapshot(subscription)?.priceId;
 }
 
 export function buildBillingAccountRecord(
@@ -258,8 +182,8 @@ export function buildBillingAccountRecord(
   userId: string;
   tier: PlanTier;
   status: string;
-  polarCustomerId: string | undefined;
-  polarSubscriptionId: string | undefined;
+  stripeCustomerId: string | undefined;
+  stripeSubscriptionId: string | undefined;
   currentPeriodStart: number | undefined;
   currentPeriodEnd: number | undefined;
   markupMultiplier: number;
@@ -274,8 +198,8 @@ export function buildBillingAccountRecord(
     userId,
     tier,
     status: subscription?.status ?? "inactive",
-    polarCustomerId: subscription?.customerId,
-    polarSubscriptionId: subscription?.subscriptionId,
+    stripeCustomerId: subscription?.customerId,
+    stripeSubscriptionId: subscription?.subscriptionId,
     currentPeriodStart: subscription?.currentPeriodStart,
     currentPeriodEnd: subscription?.currentPeriodEnd,
     markupMultiplier: plan.markupMultiplier,
@@ -291,159 +215,39 @@ export function buildToolSummaryRecord(
   return Object.fromEntries(aggregateBillableToolCalls(toolCalls).entries());
 }
 
-export function buildPolarCreditUsageEvent(args: {
-  userId: string;
-  requestId: string;
-  messageId: string;
-  threadId: string;
-  routeId: string;
-  tier: PlanTier;
-  charge: UsageChargeComputationResult;
-  usage: BillingUsage;
-  toolCalls?: BillableToolCall[];
-}) {
-  const toolSummary = buildToolSummaryRecord(args.toolCalls);
-  const llmMetadata = buildPolarLlmMetadata({
-    routeId: args.routeId,
-    usage: args.usage,
-  });
-
-  return {
-    name: POLAR_CREDITS_EVENT_NAME,
-    externalCustomerId: args.userId,
-    metadata: {
-      units: args.charge.credits,
-      requestId: args.requestId,
-      messageId: args.messageId,
-      threadId: args.threadId,
-      routeId: args.routeId,
-      tier: args.tier,
-      modelUsdCost: args.charge.modelUsdCost,
-      toolUsdCost: args.charge.toolUsdCost,
-      rawUsdCost: args.charge.rawUsdCost,
-      markupMultiplier: args.charge.markupMultiplier,
-      effectiveUsdCost: args.charge.effectiveUsdCost,
-      displayMultiplier: args.charge.displayMultiplier,
-      usedPricingFallback: args.charge.usedPricingFallback,
-      toolSummaryJson: JSON.stringify(toolSummary),
-      _cost: {
-        // Polar's cost-events API expects the amount in **cents** (integer minor units),
-        // not dollars. https://polar.sh/docs/features/cost-insights/cost-events
-        // We pass cents as a float to retain sub-cent precision per event since LLM
-        // calls routinely cost fractions of a cent. `toPolarSafeAmount` then clamps
-        // decimal-precision noise so Polar's 17-digit decimal validator accepts it.
-        amount: toPolarSafeAmount(args.charge.rawUsdCost * 100),
-        currency: "usd",
-      },
-      _llm: llmMetadata,
-    },
-  };
-}
-
-/**
- * Build the special `_llm` metadata block consumed by the Polar UI to surface
- * top-models and per-event LLM stats. See:
- * https://docs.polar.sh/features/usage-based-billing/ingestion-strategies/llm-strategy
- */
-export function buildPolarLlmMetadata(args: {
-  routeId: string;
-  usage: BillingUsage;
-}) {
-  const route = resolveModelRoute(args.routeId);
-  const inputTokens = args.usage.inputTokens ?? 0;
-  const outputTokens = args.usage.outputTokens ?? 0;
-  const reasoningTokens = args.usage.reasoningTokens ?? 0;
-  const cachedInputTokens = args.usage.cacheReadTokens ?? 0;
-  // Polar requires `outputTokens` and `totalTokens`; treat reasoning as
-  // output for billing purposes so totals match what providers report.
-  const totalOutputTokens = outputTokens + reasoningTokens;
-  const totalTokens =
-    inputTokens +
-    totalOutputTokens +
-    cachedInputTokens +
-    (args.usage.cacheWriteTokens ?? 0) +
-    (args.usage.inputAudioTokens ?? 0) +
-    (args.usage.outputAudioTokens ?? 0);
-
-  // Fall back to parsing `provider:model` from the routeId when the route is
-  // not registered (e.g. fallback pricing path). routeId is `${provider}:${model}`.
-  const [fallbackProvider, ...fallbackModelParts] = args.routeId.split(":");
-  const fallbackModel = fallbackModelParts.join(":");
-
-  const vendor = getPolarLlmVendor({
-    canonicalModelId: route?.canonicalModelId,
-    provider: route?.provider ?? fallbackProvider,
-    vendorId: route?.vendorId ?? fallbackModel,
-  });
-  const model =
-    route?.canonicalModelId ??
-    (fallbackModel.length > 0
-      ? fallbackModel
-      : (route?.displayName ?? args.routeId));
-
-  // The SDK expects camelCase here; it serializes to snake_case on the wire.
-  return {
-    vendor,
-    model,
-    inputTokens,
-    outputTokens: totalOutputTokens,
-    totalTokens,
-    cachedInputTokens,
-  };
-}
-
-function getPolarLlmVendor(args: {
-  canonicalModelId?: string;
-  provider?: string;
-  vendorId?: string;
-}): string {
-  const canonicalVendor = getModelOwnerPrefix(args.canonicalModelId);
-  if (canonicalVendor) {
-    return canonicalVendor;
-  }
-
-  const providerModelVendor = getModelOwnerPrefix(args.vendorId);
-  if (providerModelVendor) {
-    return normalizeProviderVendor(providerModelVendor) ?? providerModelVendor;
-  }
-
-  return normalizeProviderVendor(args.provider) ?? "unknown";
-}
-
-function getModelOwnerPrefix(modelId: string | undefined) {
-  if (!modelId) {
+function getFirstSubscriptionItem(value: Record<string, unknown>) {
+  const items = value.items;
+  if (!items || typeof items !== "object") {
     return undefined;
   }
-
-  const [owner] = modelId.split("/");
-  return owner && owner !== modelId ? owner : undefined;
-}
-
-function normalizeProviderVendor(provider: string | undefined) {
-  if (!provider) {
+  const data = (items as Record<string, unknown>).data;
+  if (!Array.isArray(data)) {
     return undefined;
   }
-
-  if (provider === "vertex") {
-    return "google";
-  }
-
-  return provider;
+  const first: unknown = data[0];
+  return first && typeof first === "object"
+    ? (first as Record<string, unknown>)
+    : undefined;
 }
 
-function toTimestamp(value: unknown) {
-  if (typeof value === "number") {
-    return value;
-  }
+function pickString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
 
+function toTimestamp(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 10_000_000_000 ? value * 1000 : value;
+  }
   if (value instanceof Date) {
     return value.getTime();
   }
-
-  if (typeof value === "string") {
-    const timestamp = Date.parse(value);
-    return Number.isNaN(timestamp) ? undefined : timestamp;
+  if (typeof value === "string" && value.trim() !== "") {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric < 10_000_000_000 ? numeric * 1000 : numeric;
+    }
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
   }
-
   return undefined;
 }

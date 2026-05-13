@@ -29,7 +29,7 @@ import type * as functions_projects from "../functions/projects.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
-import type * as polar from "../polar.js";
+import type * as stripe from "../stripe.js";
 import type * as usageStats from "../usageStats.js";
 import type * as zod from "../zod.js";
 
@@ -61,7 +61,7 @@ declare const fullApi: ApiFromModules<{
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;
   http: typeof http;
-  polar: typeof polar;
+  stripe: typeof stripe;
   usageStats: typeof usageStats;
   zod: typeof zod;
 }>;
@@ -94,5 +94,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("../betterAuth/_generated/component.js").ComponentApi<"betterAuth">;
-  polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
+  stripe: import("@convex-dev/stripe/_generated/component.js").ComponentApi<"stripe">;
 };

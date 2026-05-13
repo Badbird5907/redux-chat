@@ -33,8 +33,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
-import { Route as ApiWebhookPolarRouteImport } from './routes/api/webhook/polar'
-import { Route as ApiPolarCheckoutRouteImport } from './routes/api/polar/checkout'
+import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook/stripe'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
@@ -160,14 +159,9 @@ const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AppRoute,
 } as any)
-const ApiWebhookPolarRoute = ApiWebhookPolarRouteImport.update({
-  id: '/api/webhook/polar',
-  path: '/api/webhook/polar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPolarCheckoutRoute = ApiPolarCheckoutRouteImport.update({
-  id: '/api/polar/checkout',
-  path: '/api/polar/checkout',
+const ApiWebhookStripeRoute = ApiWebhookStripeRouteImport.update({
+  id: '/api/webhook/stripe',
+  path: '/api/webhook/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -221,8 +215,7 @@ export interface FileRoutesByFullPath {
   '/projects/$id': typeof AppProjectsIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
-  '/api/webhook/polar': typeof ApiWebhookPolarRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects/': typeof AppProjectsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
@@ -250,8 +243,7 @@ export interface FileRoutesByTo {
   '/projects/$id': typeof AppProjectsIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
-  '/api/webhook/polar': typeof ApiWebhookPolarRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects': typeof AppProjectsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
@@ -284,8 +276,7 @@ export interface FileRoutesById {
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
-  '/api/webhook/polar': typeof ApiWebhookPolarRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/_app/projects/': typeof AppProjectsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
@@ -318,8 +309,7 @@ export interface FileRouteTypes {
     | '/projects/$id'
     | '/admin/users/$userId'
     | '/api/auth/$'
-    | '/api/polar/checkout'
-    | '/api/webhook/polar'
+    | '/api/webhook/stripe'
     | '/projects/'
     | '/admin/users/'
     | '/api/chat/'
@@ -347,8 +337,7 @@ export interface FileRouteTypes {
     | '/projects/$id'
     | '/admin/users/$userId'
     | '/api/auth/$'
-    | '/api/polar/checkout'
-    | '/api/webhook/polar'
+    | '/api/webhook/stripe'
     | '/projects'
     | '/admin/users'
     | '/api/chat'
@@ -380,8 +369,7 @@ export interface FileRouteTypes {
     | '/_app/projects/$id'
     | '/admin/users/$userId'
     | '/api/auth/$'
-    | '/api/polar/checkout'
-    | '/api/webhook/polar'
+    | '/api/webhook/stripe'
     | '/_app/projects/'
     | '/admin/users/'
     | '/api/chat/'
@@ -398,8 +386,7 @@ export interface RootRouteChildren {
   LogosIndexRoute: typeof LogosIndexRoute
   TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiPolarCheckoutRoute: typeof ApiPolarCheckoutRoute
-  ApiWebhookPolarRoute: typeof ApiWebhookPolarRoute
+  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
@@ -574,18 +561,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/api/webhook/polar': {
-      id: '/api/webhook/polar'
-      path: '/api/webhook/polar'
-      fullPath: '/api/webhook/polar'
-      preLoaderRoute: typeof ApiWebhookPolarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/polar/checkout': {
-      id: '/api/polar/checkout'
-      path: '/api/polar/checkout'
-      fullPath: '/api/polar/checkout'
-      preLoaderRoute: typeof ApiPolarCheckoutRouteImport
+    '/api/webhook/stripe': {
+      id: '/api/webhook/stripe'
+      path: '/api/webhook/stripe'
+      fullPath: '/api/webhook/stripe'
+      preLoaderRoute: typeof ApiWebhookStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -716,8 +696,7 @@ const rootRouteChildren: RootRouteChildren = {
   LogosIndexRoute: LogosIndexRoute,
   TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiPolarCheckoutRoute: ApiPolarCheckoutRoute,
-  ApiWebhookPolarRoute: ApiWebhookPolarRoute,
+  ApiWebhookStripeRoute: ApiWebhookStripeRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }

@@ -44,8 +44,8 @@ export const CREDIT_BUCKETS = {
 export type CreditBucket = keyof typeof CREDIT_BUCKETS;
 
 export type CreditGrantSource =
-  | "polar_subscription_renewal"
-  | "polar_one_time_purchase"
+  | "stripe_subscription_renewal"
+  | "stripe_one_time_purchase"
   | "free_monthly_reset"
   | "admin_grant"
   | "migration_backfill";

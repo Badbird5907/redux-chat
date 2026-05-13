@@ -297,7 +297,7 @@ export default defineSchema({
   // bucket with `remaining`. Allocation reads only `active` grants for a
   // given user and consumes from them in priority + earliest-expiry order.
   // `source + sourceId` is required for idempotency on grant ingestion
-  // (e.g. duplicate Polar webhook deliveries).
+  // (e.g. duplicate Stripe webhook deliveries).
   creditGrants: defineTable({
     grantId: v.string(),
     userId: v.string(),
@@ -305,8 +305,8 @@ export default defineSchema({
     amount: v.number(),
     remaining: v.number(),
     status: creditGrantStatus,
-    source: v.string(), // "polar_subscription_renewal", "polar_one_time_purchase", "free_monthly_reset", "admin_grant", "migration_backfill"
-    sourceId: v.string(), // id key for idempotency (e.g. polar order id, subscription period id, "userId:YYYY-MM")
+    source: v.string(), // "stripe_subscription_renewal", "stripe_one_time_purchase", "free_monthly_reset", "admin_grant", "migration_backfill"
+    sourceId: v.string(), // id key for idempotency (e.g. Stripe payment intent id, subscription period id, "userId:YYYY-MM")
     periodKey: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
     grantedAt: v.number(),
@@ -356,14 +356,22 @@ export default defineSchema({
     currency: v.literal("usd"),
     credits: v.number(),
     status: creditTopUpIntentStatus,
-    polarCheckoutId: v.optional(v.string()),
-    polarOrderId: v.optional(v.string()),
+    stripeCheckoutSessionId: v.optional(v.string()),
+    stripePaymentIntentId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_intentId", ["intentId"])
-    .index("by_checkoutId", ["polarCheckoutId"])
+    .index("by_checkoutId", ["stripeCheckoutSessionId"])
     .index("by_user_status", ["userId", "status"]),
+
+  stripeCustomerOverrides: defineTable({
+    userId: v.string(),
+    stripeCustomerId: v.string(),
+    email: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
 
   // Per-debit per-grant allocation rows. Preserved for audit so the
   // exact slice of each lot consumed by each request is recoverable.

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckoutLink, CustomerPortalLink } from "@convex-dev/polar/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAction } from "convex/react";
 import { ChevronRight, CreditCard } from "lucide-react";
@@ -8,7 +7,7 @@ import { ChevronRight, CreditCard } from "lucide-react";
 import type { PlanTier } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
 import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
-import { Button, buttonVariants } from "@redux/ui/components/button";
+import { Button } from "@redux/ui/components/button";
 import { Card } from "@redux/ui/components/card";
 import {
   Dialog,
@@ -34,12 +33,16 @@ export const Route = createFileRoute("/settings/")({
 
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
-type PolarPlanProduct = {
-  prices?: readonly {
-    priceAmount?: number | null;
-    priceCurrency?: string | null;
-  }[];
+type StripePlanPrice = {
+  id: string;
+  amount?: number | null;
+  currency?: string | null;
 } | null;
+
+type StripePriceConfig = {
+  plus: NonNullable<StripePlanPrice>;
+  pro: NonNullable<StripePlanPrice>;
+};
 
 function tierRank(tier: PlanTier): number {
   if (tier === "free") {
@@ -61,36 +64,32 @@ function planTierLabel(tier: PlanTier): string {
   return "Pro";
 }
 
-function tierForConfiguredProductId(
-  productId: string | undefined,
+function tierForConfiguredPriceId(
+  priceId: string | undefined,
   products:
     | {
-        free?: { id: string } | null;
         plus?: { id: string } | null;
         pro?: { id: string } | null;
       }
     | null
     | undefined,
 ): PlanTier | null {
-  if (!productId || !products) {
+  if (!priceId || !products) {
     return null;
   }
-  if (products.free?.id === productId) {
-    return "free";
-  }
-  if (products.plus?.id === productId) {
+  if (products.plus?.id === priceId) {
     return "plus";
   }
-  if (products.pro?.id === productId) {
+  if (products.pro?.id === priceId) {
     return "pro";
   }
   return null;
 }
 
-function formatPolarRecurringPrice(
-  product: PolarPlanProduct | undefined,
+function formatStripeRecurringPrice(
+  product: StripePlanPrice | undefined,
 ): string | undefined {
-  const price = getPolarRecurringPrice(product);
+  const price = getStripeRecurringPrice(product);
   if (!price) {
     return undefined;
   }
@@ -98,22 +97,21 @@ function formatPolarRecurringPrice(
   return formatCurrencyFromMinorUnits(price.amount, price.currency);
 }
 
-function getPolarRecurringPrice(product: PolarPlanProduct | undefined):
+function getStripeRecurringPrice(product: StripePlanPrice | undefined):
   | {
       amount: number;
       currency: string;
     }
   | undefined {
-  const price = product?.prices?.[0];
-  if (!price || typeof price.priceAmount !== "number") {
+  if (!product || typeof product.amount !== "number") {
     return undefined;
   }
-  if (price.priceAmount < 0) {
+  if (product.amount < 0) {
     return undefined;
   }
   return {
-    amount: price.priceAmount,
-    currency: (price.priceCurrency ?? "USD").toUpperCase(),
+    amount: product.amount,
+    currency: (product.currency ?? "USD").toUpperCase(),
   };
 }
 
@@ -137,8 +135,8 @@ function getProratedUpgradeBreakdown({
   periodStart,
   periodEnd,
 }: {
-  currentProduct: PolarPlanProduct | undefined;
-  targetProduct: PolarPlanProduct | undefined;
+  currentProduct: StripePlanPrice | undefined;
+  targetProduct: StripePlanPrice | undefined;
   periodStart: number | undefined;
   periodEnd: number | undefined;
 }):
@@ -151,8 +149,8 @@ function getProratedUpgradeBreakdown({
       effectiveDate: string;
     }
   | undefined {
-  const currentPrice = getPolarRecurringPrice(currentProduct);
-  const targetPrice = getPolarRecurringPrice(targetProduct);
+  const currentPrice = getStripeRecurringPrice(currentProduct);
+  const targetPrice = getStripeRecurringPrice(targetProduct);
   const currentAmount = currentPrice?.amount;
   const targetAmount = targetPrice?.amount;
   const targetCurrency = targetPrice?.currency;
@@ -220,22 +218,22 @@ function renewalSummary(periodEnd: number | undefined): string | null {
 /** Convex action payloads are loosely typed from generated API; coerce for React state safely. */
 function coerceSubscriptionSchedule(input: unknown): {
   cancelAtPeriodEnd: boolean;
-  pendingProductId: string | undefined;
+  pendingPriceId: string | undefined;
   pendingAppliesAtMs: number | undefined;
 } {
   if (!input || typeof input !== "object") {
     return {
       cancelAtPeriodEnd: false,
-      pendingProductId: undefined,
+      pendingPriceId: undefined,
       pendingAppliesAtMs: undefined,
     };
   }
   const schedule = input as Record<string, unknown>;
   return {
     cancelAtPeriodEnd: schedule.cancelAtPeriodEnd === true,
-    pendingProductId:
-      typeof schedule.pendingProductId === "string"
-        ? schedule.pendingProductId
+    pendingPriceId:
+      typeof schedule.pendingPriceId === "string"
+        ? schedule.pendingPriceId
         : undefined,
     pendingAppliesAtMs:
       typeof schedule.pendingAppliesAtMs === "number"
@@ -244,15 +242,20 @@ function coerceSubscriptionSchedule(input: unknown): {
   };
 }
 
-type PolarCheckoutApi = {
-  generateCheckoutLink: typeof api.polar.generateCheckoutLink;
-};
-
 function RouteComponent() {
-  const polarProducts = useQuery(api.polar.getConfiguredProducts, {});
+  const stripePrices = useQuery(api.functions.billing.getConfiguredStripePrices, {});
+  const getStripePriceDetails = useAction(
+    api.functions.billing.getConfiguredStripePriceDetails,
+  );
   const baseBillingState = useQuery(
     api.functions.billing.getCurrentBillingState,
     {},
+  );
+  const createSubscriptionCheckout = useAction(
+    api.functions.billing.createCurrentUserSubscriptionCheckout,
+  );
+  const createCustomerPortal = useAction(
+    api.functions.billing.createCurrentUserCustomerPortal,
   );
   const refreshBillingStatus = useAction(
     api.functions.billing.refreshCurrentUserBillingState,
@@ -268,15 +271,21 @@ function RouteComponent() {
   );
   const [billingError, setBillingError] = useState<string | null>(null);
   const [planSwitchConfirm, setPlanSwitchConfirm] = useState<{
-    productId: string;
+    priceId: string;
     planName: string;
     isUpgrade: boolean;
   } | null>(null);
+  const [checkoutLoadingPriceId, setCheckoutLoadingPriceId] = useState<
+    string | null
+  >(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [stripePriceDetails, setStripePriceDetails] =
+    useState<StripePriceConfig | null>(null);
   const [planSwitchLoading, setPlanSwitchLoading] = useState(false);
   const [liveSubscriptionSchedule, setLiveSubscriptionSchedule] = useState<
     | {
         cancelAtPeriodEnd: boolean;
-        pendingProductId: string | undefined;
+        pendingPriceId: string | undefined;
         pendingAppliesAtMs: number | undefined;
       }
     | undefined
@@ -319,6 +328,7 @@ function RouteComponent() {
   }, [billingQuerySettled, subscriptionIdForHydration, refreshBillingStatus]);
 
   const billingState = baseBillingState;
+  const configuredStripePrices = stripePriceDetails ?? stripePrices;
 
   const includedMonthlyCredits =
     typeof billingState?.includedMonthlyCredits === "number"
@@ -326,19 +336,19 @@ function RouteComponent() {
       : undefined;
 
   const currentTier = billingState?.tier ?? "free";
-  const plusProduct = polarProducts?.plus ?? null;
-  const proProduct = polarProducts?.pro ?? null;
+  const plusPrice = configuredStripePrices?.plus ?? null;
+  const proPrice = configuredStripePrices?.pro ?? null;
   const currentPaidProduct =
     currentTier === "plus"
-      ? plusProduct
+      ? plusPrice
       : currentTier === "pro"
-        ? proProduct
+        ? proPrice
         : null;
   const planSwitchTargetProduct =
-    planSwitchConfirm?.productId === plusProduct?.id
-      ? plusProduct
-      : planSwitchConfirm?.productId === proProduct?.id
-        ? proProduct
+    planSwitchConfirm?.priceId === plusPrice?.id
+      ? plusPrice
+      : planSwitchConfirm?.priceId === proPrice?.id
+        ? proPrice
         : null;
   const proratedUpgradeBreakdown = getProratedUpgradeBreakdown({
     currentProduct: currentPaidProduct,
@@ -346,15 +356,6 @@ function RouteComponent() {
     periodStart: billingState?.currentPeriodStart,
     periodEnd: billingState?.currentPeriodEnd,
   });
-  const polarApi = useMemo<PolarCheckoutApi>(
-    () => ({ generateCheckoutLink: api.polar.generateCheckoutLink }),
-    [],
-  );
-  const portalApi = useMemo(
-    () => ({ generateCustomerPortalUrl: api.polar.generateCustomerPortalUrl }),
-    [],
-  );
-
   const subscriptionId = billingState?.subscription?.subscriptionId;
   const effectiveLiveSubscriptionSchedule =
     subscriptionId != null && subscriptionId !== ""
@@ -364,9 +365,6 @@ function RouteComponent() {
   const isOnPaidPlan = showPaidManage;
 
   const renewSummary = renewalSummary(billingState?.currentPeriodEnd);
-
-  const checkoutAnchorClass =
-    "inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md px-3 text-sm font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 pointer-events-auto";
 
   const rank = tierRank(currentTier);
 
@@ -380,9 +378,12 @@ function RouteComponent() {
       return null;
     }
 
-    if (polarProducts) {
-      const pendingId = effectiveLiveSubscriptionSchedule?.pendingProductId;
-      const pendingTier = tierForConfiguredProductId(pendingId, polarProducts);
+    if (configuredStripePrices) {
+      const pendingId = effectiveLiveSubscriptionSchedule?.pendingPriceId;
+      const pendingTier = tierForConfiguredPriceId(
+        pendingId,
+        configuredStripePrices,
+      );
       const whenRaw =
         pendingId != null && pendingId !== ""
           ? (effectiveLiveSubscriptionSchedule?.pendingAppliesAtMs ??
@@ -414,7 +415,7 @@ function RouteComponent() {
 
     return null;
   }, [
-    polarProducts,
+    configuredStripePrices,
     billingState,
     effectiveLiveSubscriptionSchedule,
     currentTier,
@@ -423,11 +424,11 @@ function RouteComponent() {
     renewSummary,
   ]);
 
-  const pendingProductIdLive =
-    effectiveLiveSubscriptionSchedule?.pendingProductId;
-  const pendingTierLive = tierForConfiguredProductId(
-    pendingProductIdLive,
-    polarProducts,
+  const pendingPriceIdLive =
+    effectiveLiveSubscriptionSchedule?.pendingPriceId;
+  const pendingTierLive = tierForConfiguredPriceId(
+    pendingPriceIdLive,
+    configuredStripePrices,
   );
 
   const showRescindCancellation =
@@ -436,9 +437,9 @@ function RouteComponent() {
   const hasPendingPlanChange =
     rank >= 1 &&
     Boolean(subscriptionId) &&
-    pendingProductIdLive != null &&
-    pendingProductIdLive !== "" &&
-    (polarProducts == null ||
+    pendingPriceIdLive != null &&
+    pendingPriceIdLive !== "" &&
+    (configuredStripePrices == null ||
       pendingTierLive === null ||
       pendingTierLive !== currentTier);
 
@@ -446,9 +447,27 @@ function RouteComponent() {
     scheduleNotice !== null || showRescindCancellation || hasPendingPlanChange;
 
   const stayOnPlanButtonLabel =
-    pendingTierLive === null || !polarProducts
+    pendingTierLive === null || !configuredStripePrices
       ? "Keep current plan at renewal"
       : `Stay on ${planTierLabel(currentTier)}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    void getStripePriceDetails({})
+      .then((prices) => {
+        if (!cancelled) {
+          setStripePriceDetails(prices);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          console.error("Failed to load Stripe price details", error);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getStripePriceDetails]);
 
   const applyBillingScheduleRefresh = async () => {
     const result = await refreshBillingStatus({});
@@ -495,7 +514,7 @@ function RouteComponent() {
     if (!planSwitchConfirm) {
       return;
     }
-    const { productId } = planSwitchConfirm;
+    const { priceId } = planSwitchConfirm;
     const periodEndAtConfirm = billingState?.currentPeriodEnd;
     const cancelAtPeriodEndAtConfirm =
       baseBillingState?.subscription?.cancelAtPeriodEnd === true;
@@ -503,16 +522,13 @@ function RouteComponent() {
     setPlanSwitchLoading(true);
     setBillingError(null);
     try {
-      const switchResult = await switchPaidPlan({ productId });
+      const switchResult = await switchPaidPlan({ priceId });
       setPlanSwitchConfirm(null);
 
-      // Downgrades use `next_period`; Polar can return the subscription GET
-      // one tick behind the update, so `pending_update` may be missing until
-      // a later poll. Apply a schedule we already know is correct.
       if (switchResult.prorationBehavior === "next_period") {
         setLiveSubscriptionSchedule({
           cancelAtPeriodEnd: cancelAtPeriodEndAtConfirm,
-          pendingProductId: productId,
+          pendingPriceId: priceId,
           pendingAppliesAtMs: periodEndAtConfirm,
         });
       }
@@ -523,14 +539,14 @@ function RouteComponent() {
       setLiveSubscriptionSchedule((prev) => {
         if (switchResult.prorationBehavior === "next_period") {
           if (
-            typeof refreshed.pendingProductId === "string" &&
-            refreshed.pendingProductId !== ""
+            typeof refreshed.pendingPriceId === "string" &&
+            refreshed.pendingPriceId !== ""
           ) {
             return refreshed;
           }
           return {
             cancelAtPeriodEnd: refreshed.cancelAtPeriodEnd,
-            pendingProductId: productId,
+            pendingPriceId: priceId,
             pendingAppliesAtMs:
               refreshed.pendingAppliesAtMs ??
               prev?.pendingAppliesAtMs ??
@@ -550,22 +566,53 @@ function RouteComponent() {
     }
   };
 
+  const subscribeToPrice = async (priceId: string) => {
+    setCheckoutLoadingPriceId(priceId);
+    setBillingError(null);
+    try {
+      const checkout = await createSubscriptionCheckout({ priceId });
+      window.location.href = checkout.url;
+    } catch (error) {
+      setBillingError(
+        error instanceof Error ? error.message : "Could not create checkout",
+      );
+      setCheckoutLoadingPriceId(null);
+    }
+  };
+
+  const openCustomerPortal = async () => {
+    setPortalLoading(true);
+    setBillingError(null);
+    try {
+      const portal = await createCustomerPortal({});
+      window.location.href = portal.url;
+    } catch (error) {
+      setBillingError(
+        error instanceof Error ? error.message : "Could not open billing portal",
+      );
+      setPortalLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 pb-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">Billing</h1>
         <div className="flex items-center gap-2">
           {showPaidManage ? (
-            <CustomerPortalLink
-              polarApi={portalApi}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
                 "h-8 gap-1 px-2.5 text-xs",
               )}
+              disabled={portalLoading}
+              onClick={() => void openCustomerPortal()}
             >
-              Manage billing
+              {portalLoading ? "Opening..." : "Manage billing"}
               <ChevronRight className="size-3.5 opacity-60" aria-hidden />
-            </CustomerPortalLink>
+            </Button>
           ) : null}
         </div>
       </div>
@@ -590,14 +637,13 @@ function RouteComponent() {
                 proratedUpgradeBreakdown ? (
                   <>
                     Your new plan starts right away. Your card will be charged
-                    for the prorated amount below, plus applicable tax.
+                    for the prorated amount below.
                   </>
                 ) : (
                   <>
                     Your new plan starts right away. You&apos;ll be charged a
-                    prorated amount for the rest of this billing period, plus
-                    any applicable tax. After that, you&apos;ll pay the usual
-                    renewal price.
+                    prorated amount for the rest of this billing period. After
+                    that, you&apos;ll pay the usual renewal price.
                   </>
                 )
               ) : (
@@ -635,7 +681,7 @@ function RouteComponent() {
               <div className="border-border flex items-center justify-between gap-4 border-t pt-4 text-base font-semibold">
                 <span>Due today</span>
                 <span className="font-mono tabular-nums">
-                  {proratedUpgradeBreakdown.dueToday} + tax
+                  {proratedUpgradeBreakdown.dueToday}
                 </span>
               </div>
             </div>
@@ -772,33 +818,33 @@ function RouteComponent() {
             name="Free"
             plan={getPlanConfig("free", billingConfig)}
             state={rank === 0 ? "current" : "inactive"}
-            polarApi={polarApi}
-            checkoutAnchorClass={checkoutAnchorClass}
-            subscriptionId={subscriptionId ?? undefined}
             buttonLabel="Free"
             renewalSummary={renewSummary}
           />
           <TierColumn
             name="Plus"
             plan={getPlanConfig("plus", billingConfig)}
-            priceLabel={formatPolarRecurringPrice(plusProduct ?? undefined)}
+            priceLabel={formatStripeRecurringPrice(plusPrice ?? undefined)}
             state={
               rank === 1 ? "current" : rank === 0 ? "available" : "available"
             }
-            polarApi={polarApi}
-            checkoutAnchorClass={checkoutAnchorClass}
-            productId={plusProduct?.id}
-            subscriptionId={subscriptionId ?? undefined}
+            priceId={plusPrice?.id}
             buttonLabel="Plus"
             emphasize={rank === 0}
             renewalSummary={renewSummary}
+            checkoutLoading={checkoutLoadingPriceId === plusPrice?.id}
+            onSubscribe={
+              plusPrice?.id
+                ? () => void subscribeToPrice(plusPrice.id)
+                : undefined
+            }
             paidSwitch={
-              isOnPaidPlan && rank === 2 && plusProduct?.id
+              isOnPaidPlan && rank === 2 && plusPrice?.id
                 ? {
                     isUpgrade: false,
                     onRequest: () =>
                       setPlanSwitchConfirm({
-                        productId: plusProduct.id,
+                        priceId: plusPrice.id,
                         planName: "Plus",
                         isUpgrade: false,
                       }),
@@ -809,22 +855,23 @@ function RouteComponent() {
           <TierColumn
             name="Pro"
             plan={getPlanConfig("pro", billingConfig)}
-            priceLabel={formatPolarRecurringPrice(proProduct ?? undefined)}
+            priceLabel={formatStripeRecurringPrice(proPrice ?? undefined)}
             state={rank === 2 ? "current" : rank < 2 ? "available" : "inactive"}
-            polarApi={polarApi}
-            checkoutAnchorClass={checkoutAnchorClass}
-            productId={proProduct?.id}
-            subscriptionId={subscriptionId ?? undefined}
+            priceId={proPrice?.id}
             buttonLabel="Pro"
             emphasize={rank === 1}
             renewalSummary={renewSummary}
+            checkoutLoading={checkoutLoadingPriceId === proPrice?.id}
+            onSubscribe={
+              proPrice?.id ? () => void subscribeToPrice(proPrice.id) : undefined
+            }
             paidSwitch={
-              isOnPaidPlan && rank === 1 && proProduct?.id
+              isOnPaidPlan && rank === 1 && proPrice?.id
                 ? {
                     isUpgrade: true,
                     onRequest: () =>
                       setPlanSwitchConfirm({
-                        productId: proProduct.id,
+                        priceId: proPrice.id,
                         planName: "Pro",
                         isUpgrade: true,
                       }),
@@ -849,26 +896,24 @@ function TierColumn({
   plan,
   priceLabel,
   state,
-  polarApi,
-  checkoutAnchorClass,
-  productId,
-  subscriptionId,
+  priceId,
   emphasize,
   buttonLabel,
   renewalSummary: renewalLine,
+  checkoutLoading,
+  onSubscribe,
   paidSwitch,
 }: {
   name: string;
   plan: ReturnType<typeof getPlanConfig>;
   priceLabel?: string;
   state: "current" | "available" | "inactive";
-  polarApi: PolarCheckoutApi;
-  checkoutAnchorClass: string;
-  productId?: string;
-  subscriptionId?: string;
+  priceId?: string;
   emphasize?: boolean;
   buttonLabel?: string;
   renewalSummary?: string | null;
+  checkoutLoading?: boolean;
+  onSubscribe?: () => void;
   paidSwitch?: { isUpgrade: boolean; onRequest: () => void };
 }) {
   const priced =
@@ -890,7 +935,7 @@ function TierColumn({
       </Button>
     ) : state === "inactive" ? (
       <div className="mt-auto pt-6" aria-hidden />
-    ) : productId !== undefined && paidSwitch ? (
+    ) : priceId !== undefined && paidSwitch ? (
       <Button
         type="button"
         variant={emphasize ? "default" : "outline"}
@@ -902,27 +947,20 @@ function TierColumn({
           ? `Upgrade to ${buttonLabel ?? name}`
           : `Downgrade to ${buttonLabel ?? name}`}
       </Button>
-    ) : productId !== undefined ? (
-      <CheckoutLink
-        polarApi={polarApi}
-        productIds={[productId]}
-        subscriptionId={subscriptionId}
-        lazy
-        embed={false}
+    ) : priceId !== undefined && onSubscribe ? (
+      <Button
+        type="button"
+        variant={emphasize ? "default" : "outline"}
+        size="sm"
         className={cn(
-          checkoutAnchorClass,
-          emphasize
-            ? buttonVariants({ variant: "default", size: "sm" })
-            : buttonVariants({
-                variant: "outline",
-                size: "sm",
-                className: "bg-transparent",
-              }),
-          "mt-auto",
+          "mt-auto w-full text-xs",
+          !emphasize && "bg-transparent",
         )}
+        disabled={checkoutLoading}
+        onClick={onSubscribe}
       >
-        Subscribe to {buttonLabel ?? name}
-      </CheckoutLink>
+        {checkoutLoading ? "Opening..." : `Subscribe to ${buttonLabel ?? name}`}
+      </Button>
     ) : (
       <Button
         disabled

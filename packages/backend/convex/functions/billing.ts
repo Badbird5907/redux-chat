@@ -1,5 +1,6 @@
 import type { GenericActionCtx, GenericQueryCtx } from "convex/server";
 import { v } from "convex/values";
+import type Stripe from "stripe";
 
 import type { PlanTier } from "@redux/shared";
 import {
@@ -15,41 +16,31 @@ import type { BillingSubscriptionSchedule } from "../billing";
 import { api, components, internal } from "../_generated/api";
 import {
   billingDebugWarn,
-  buildPolarCreditUsageEvent,
   getBillingConfig,
   getBillingPeriodKey,
-  getPolarSdkClient,
   getUtcMonthBounds,
-  polarLiveSubscriptionProductId,
+  isPaidSubscriptionStatus,
   resolveTierFromSubscription,
-  subscriptionScheduleFromPolarSdkSubscription,
+  stripeLiveSubscriptionPriceId,
+  subscriptionScheduleFromStripeSubscription,
   toSubscriptionSnapshot,
 } from "../billing";
 import { getCreditBalanceForUser } from "../credits";
 import { backendEnv } from "../env";
-import { polar } from "../polar";
+import {
+  getStripeSdkClient,
+  getStripePlanPrices,
+  isConfiguredStripePlanPrice,
+  stripeComponent,
+  tierFromStripePriceId,
+} from "../stripe";
 import { action, query } from "./index";
 import { internalMutation, internalQuery } from "./internal";
 
 function planTierRank(tier: PlanTier): number {
-  if (tier === "free") {
-    return 0;
-  }
-  if (tier === "plus") {
-    return 1;
-  }
+  if (tier === "free") return 0;
+  if (tier === "plus") return 1;
   return 2;
-}
-
-function tierFromPolarProductId(productId: string): PlanTier {
-  const env = backendEnv();
-  if (productId === env.POLAR_PLUS_PRODUCT_ID) {
-    return "plus";
-  }
-  if (productId === env.POLAR_PRO_PRODUCT_ID) {
-    return "pro";
-  }
-  throw new Error("That product is not a configured plan.");
 }
 
 type BillingActionCtx = GenericActionCtx<DataModel> & {
@@ -90,8 +81,8 @@ type CreditTopUpIntent = {
   currency: "usd";
   credits: number;
   status: "created" | "checkout_created" | "paid" | "expired" | "failed";
-  polarCheckoutId: string | undefined;
-  polarOrderId: string | undefined;
+  stripeCheckoutSessionId: string | undefined;
+  stripePaymentIntentId: string | undefined;
   createdAt: number;
   updatedAt: number;
 };
@@ -111,24 +102,46 @@ const toolCallValidator = v.object({
   invocationCount: v.number(),
 });
 
-const POLAR_NETWORK_TIMEOUT_MS = 10_000;
+const STRIPE_NETWORK_TIMEOUT_MS = 10_000;
 
-type PolarSdkSubscriptions = ReturnType<typeof getPolarSdkClient>;
+export const getConfiguredStripePrices = query({
+  args: {},
+  handler: () => {
+    const prices = getStripePlanPrices();
+    return {
+      plus: { id: prices.plus, amount: undefined, currency: "USD" },
+      pro: { id: prices.pro, amount: undefined, currency: "USD" },
+    };
+  },
+});
 
-async function invokePolarSubscriptionGet(
-  polarSdk: PolarSdkSubscriptions,
-  subscriptionId: string,
-): Promise<unknown> {
-  const sub = await polarSdk.subscriptions.get({ id: subscriptionId });
-  return sub;
-}
+export const getConfiguredStripePriceDetails = action({
+  args: {},
+  handler: async (): Promise<{
+    plus: { id: string; amount: number | null; currency: string | null };
+    pro: { id: string; amount: number | null; currency: string | null };
+  }> => {
+    const prices = getStripePlanPrices();
+    const stripe = getStripeSdkClient();
+    const [plus, pro] = await Promise.all([
+      stripe.prices.retrieve(prices.plus),
+      stripe.prices.retrieve(prices.pro),
+    ]);
 
-async function invokePolarSubscriptionUpdate(
-  polarSdk: PolarSdkSubscriptions,
-  payload: { id: string; subscriptionUpdate: Record<string, unknown> },
-): Promise<void> {
-  await polarSdk.subscriptions.update(payload as never);
-}
+    return {
+      plus: {
+        id: prices.plus,
+        amount: plus.unit_amount,
+        currency: plus.currency.toUpperCase(),
+      },
+      pro: {
+        id: prices.pro,
+        amount: pro.unit_amount,
+        currency: pro.currency.toUpperCase(),
+      },
+    };
+  },
+});
 
 export const getCurrentBillingState = query({
   args: {},
@@ -142,9 +155,6 @@ export const getCurrentBillingState = query({
       subscriptionState.tier === "free" ? getUtcMonthBounds() : undefined;
 
     const balance = await getCreditBalanceForUser(ctx, ctx.userId);
-    // Backwards-compatible aggregate fields: most existing UI gates on
-    // `availableCredits` / `overageCredits`. Map ledger spendable to
-    // `availableCredits` while the UI moves to `spendableCredits`.
     const availableCredits = balance.spendableCredits;
     const overageCredits = 0;
 
@@ -167,6 +177,54 @@ export const getCurrentBillingState = query({
         freePeriodBounds?.end,
       syncedAt: undefined,
     };
+  },
+});
+
+export const createCurrentUserSubscriptionCheckout = action({
+  args: { priceId: v.string() },
+  handler: async (ctx, args): Promise<{ url: string }> => {
+    if (!isConfiguredStripePlanPrice(args.priceId)) {
+      throw new Error("That price is not a configured plan.");
+    }
+
+    const targetTier = tierFromStripePriceId(args.priceId);
+    const env = backendEnv();
+    const siteUrl = env.SITE_URL.replace(/\/+$/, "");
+    const customerId = await ensureStripeCustomerForCurrentUser(ctx);
+    const session = await stripeComponent.createCheckoutSession(ctx, {
+      priceId: args.priceId,
+      customerId,
+      mode: "subscription",
+      successUrl: `${siteUrl}/settings?checkout=success`,
+      cancelUrl: `${siteUrl}/settings`,
+      metadata: {
+        userId: ctx.userId,
+        priceId: args.priceId,
+        tier: targetTier,
+      },
+      subscriptionMetadata: {
+        userId: ctx.userId,
+        priceId: args.priceId,
+        tier: targetTier,
+      },
+    });
+    if (!session.url) {
+      throw new Error("Stripe did not return a checkout URL.");
+    }
+    return { url: session.url };
+  },
+});
+
+export const createCurrentUserCustomerPortal = action({
+  args: {},
+  handler: async (ctx): Promise<{ url: string }> => {
+    const env = backendEnv();
+    const siteUrl = env.SITE_URL.replace(/\/+$/, "");
+    const customerId = await ensureStripeCustomerForCurrentUser(ctx);
+    return await stripeComponent.createCustomerPortalSession(ctx, {
+      customerId,
+      returnUrl: `${siteUrl}/settings`,
+    });
   },
 });
 
@@ -201,15 +259,14 @@ export const createCurrentUserCreditTopUpCheckout = action({
     }
 
     const env = backendEnv();
-    const productId = env.POLAR_CREDIT_TOP_UP_PRODUCT_ID;
-    if (!productId) {
-      throw new Error("POLAR_CREDIT_TOP_UP_PRODUCT_ID is not set.");
+    if (!env.STRIPE_CREDIT_TOP_UP_PRODUCT_ID) {
+      throw new Error("STRIPE_CREDIT_TOP_UP_PRODUCT_ID is not set.");
     }
     const credits = calculatePurchasedCreditsFromCents(
       amountCents,
       getBillingConfig(),
     );
-    const customerId = await ensurePolarCustomerForCurrentUser(ctx);
+    const customerId = await ensureStripeCustomerForCurrentUser(ctx);
     const intent = await ctx.runMutation(
       internal.functions.billing.internal_createCreditTopUpIntent,
       {
@@ -220,35 +277,38 @@ export const createCurrentUserCreditTopUpCheckout = action({
     );
 
     const siteUrl = env.SITE_URL.replace(/\/+$/, "");
-    const polarSdk = getPolarSdkClient();
+    const stripe = getStripeSdkClient();
+    const metadata = {
+      kind: "credit_top_up",
+      intentId: intent.intentId,
+      userId: ctx.userId,
+      amountCents: String(amountCents),
+      credits: String(credits),
+    };
 
     try {
       const checkout = await withTimeout(
-        polarSdk.checkouts.create({
-          products: [productId],
-          prices: {
-            [productId]: [
-              {
-                amountType: "fixed",
-                priceAmount: amountCents,
-                priceCurrency: "usd",
+        stripe.checkout.sessions.create({
+          mode: "payment",
+          customer: customerId,
+          client_reference_id: ctx.userId,
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product: env.STRIPE_CREDIT_TOP_UP_PRODUCT_ID,
+                unit_amount: amountCents,
               },
-            ],
-          },
-          customerId,
-          externalCustomerId: ctx.userId,
-          allowDiscountCodes: false,
-          successUrl: `${siteUrl}/settings?creditTopUp=success&checkout_id={CHECKOUT_ID}`,
-          returnUrl: `${siteUrl}/settings`,
-          metadata: {
-            kind: "credit_top_up",
-            intentId: intent.intentId,
-            amountCents,
-            credits,
-          },
+              quantity: 1,
+            },
+          ],
+          success_url: `${siteUrl}/settings?creditTopUp=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${siteUrl}/settings`,
+          metadata,
+          payment_intent_data: { metadata },
         }),
-        POLAR_NETWORK_TIMEOUT_MS,
-        "polar.checkouts.create",
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.checkout.sessions.create",
       );
 
       await ctx.runMutation(
@@ -256,9 +316,13 @@ export const createCurrentUserCreditTopUpCheckout = action({
         {
           intentId: intent.intentId,
           userId: ctx.userId,
-          polarCheckoutId: checkout.id,
+          stripeCheckoutSessionId: checkout.id,
         },
       );
+
+      if (!checkout.url) {
+        throw new Error("Stripe did not return a checkout URL.");
+      }
 
       return {
         url: checkout.url,
@@ -312,14 +376,8 @@ export const refreshCurrentUserBillingState = action({
   },
 });
 
-/**
- * Switch plans with per-call Polar proration: upgrades use `invoice` (charge
- * now); paid-plan downgrades use `next_period` (change at renewal). Free users
- * must use checkout to start a paid plan. Returning to Free is handled via
- * cancellation / billing portal, not direct product switch.
- */
 export const switchCurrentUserPaidPlan = action({
-  args: { productId: v.string() },
+  args: { priceId: v.string() },
   handler: async (
     ctx,
     args,
@@ -339,39 +397,67 @@ export const switchCurrentUserPaidPlan = action({
 
     let targetTier: PlanTier;
     try {
-      targetTier = tierFromPolarProductId(args.productId);
+      targetTier = tierFromStripePriceId(args.priceId);
     } catch {
-      throw new Error("That product is not a configured plan.");
+      throw new Error("That price is not a configured plan.");
     }
 
     const subscription = subscriptionState.subscription;
     if (!subscription?.subscriptionId) {
       throw new Error("No subscription found to update.");
     }
-    const subscriptionId = subscription.subscriptionId;
-    if (subscription.productId === args.productId) {
+    if (subscription.priceId === args.priceId) {
       throw new Error("You are already on this plan.");
     }
 
     const fromRank = planTierRank(subscriptionState.tier);
     const toRank = planTierRank(targetTier);
-    const prorationBehavior =
-      toRank > fromRank ? ("invoice" as const) : ("next_period" as const);
+    const stripe = getStripeSdkClient();
+    const liveSub = await withTimeout(
+      stripe.subscriptions.retrieve(subscription.subscriptionId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.subscriptions.retrieve",
+    );
+    const item = liveSub.items.data[0];
+    if (!item) {
+      throw new Error("Subscription has no billable item.");
+    }
 
-    const polarSdk = getPolarSdkClient();
-    await invokePolarSubscriptionUpdate(polarSdk, {
-      id: subscriptionId,
-      subscriptionUpdate: {
-        productId: args.productId,
-        prorationBehavior,
-      },
+    if (toRank > fromRank) {
+      await withTimeout(
+        stripe.subscriptions.update(liveSub.id, {
+          cancel_at_period_end: false,
+          items: [{ id: item.id, price: args.priceId }],
+          metadata: {
+            ...liveSub.metadata,
+            userId: ctx.userId,
+            priceId: args.priceId,
+            tier: targetTier,
+            pendingPriceId: "",
+            pendingAppliesAtMs: "",
+          },
+          proration_behavior: "always_invoice",
+        }),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.subscriptions.update",
+      );
+      return { prorationBehavior: "invoice", targetTier };
+    }
+
+    const currentPeriodEnd = item.current_period_end;
+    const currentPriceId = item.price.id;
+    await createOrReplaceDowngradeSchedule(stripe, liveSub, {
+      currentPriceId,
+      targetPriceId: args.priceId,
+      currentPeriodEnd,
+      userId: ctx.userId,
+      targetTier,
     });
 
-    return { prorationBehavior, targetTier };
+    return { prorationBehavior: "next_period", targetTier };
   },
 });
 
-/** Clear Polar’s cancel-at-period-end flag so the paid subscription keeps renewing. */
 export const rescindPaidSubscriptionCancellation = action({
   args: {},
   handler: async (ctx): Promise<{ ok: true }> => {
@@ -382,46 +468,18 @@ export const rescindPaidSubscriptionCancellation = action({
     if (subscriptionState.tier === "free") {
       throw new Error("Only subscribers on a paid plan can use this action.");
     }
-    const subscription = subscriptionState.subscription;
-    if (!subscription?.subscriptionId) {
+    const subscriptionId = subscriptionState.subscription?.subscriptionId;
+    if (!subscriptionId) {
       throw new Error("No subscription found.");
     }
-    const subscriptionId = subscription.subscriptionId;
-    const polarSdk = getPolarSdkClient();
 
-    let liveSchedule: BillingSubscriptionSchedule;
-    try {
-      const liveSub: unknown = await withTimeout(
-        invokePolarSubscriptionGet(polarSdk, subscriptionId),
-        POLAR_NETWORK_TIMEOUT_MS,
-        "polar.subscriptions.get",
-      );
-      liveSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
-    } catch (error) {
-      throw new Error(
-        `Could not read subscription from Polar (${getErrorText(error)}). Try again or use Manage billing.`,
-      );
-    }
-
-    if (!liveSchedule.cancelAtPeriodEnd) {
-      throw new Error(
-        "This subscription is not set to cancel at the end of the period.",
-      );
-    }
-
-    await invokePolarSubscriptionUpdate(polarSdk, {
-      id: subscriptionId,
-      subscriptionUpdate: { cancelAtPeriodEnd: false },
+    await stripeComponent.reactivateSubscription(ctx, {
+      stripeSubscriptionId: subscriptionId,
     });
     return { ok: true };
   },
 });
 
-/**
- * Removes a Polar pending product change (`pending_update`), keeping the subscription on
- * the current product past the renewal. Uses `invoice` with the active product Id so Polar
- * applies the current plan immediately and drops the queued downgrade.
- */
 export const discardScheduledPaidPlanChange = action({
   args: {},
   handler: async (ctx): Promise<{ ok: true }> => {
@@ -432,61 +490,49 @@ export const discardScheduledPaidPlanChange = action({
     if (subscriptionState.tier === "free") {
       throw new Error("Only subscribers on a paid plan can use this action.");
     }
-    const subscription = subscriptionState.subscription;
-    if (!subscription?.subscriptionId) {
+    const subscriptionId = subscriptionState.subscription?.subscriptionId;
+    if (!subscriptionId) {
       throw new Error("No subscription found.");
     }
-    const subscriptionId = subscription.subscriptionId;
-    const polarSdk = getPolarSdkClient();
 
-    let liveSub: unknown;
-    try {
-      liveSub = await withTimeout(
-        invokePolarSubscriptionGet(polarSdk, subscriptionId),
-        POLAR_NETWORK_TIMEOUT_MS,
-        "polar.subscriptions.get",
-      );
-    } catch (error) {
-      throw new Error(
-        `Could not read subscription from Polar (${getErrorText(error)}). Try again or use Manage billing.`,
-      );
-    }
-
-    const liveSchedule = subscriptionScheduleFromPolarSdkSubscription(liveSub);
-    if (
-      liveSchedule.pendingProductId == null ||
-      liveSchedule.pendingProductId === ""
-    ) {
-      throw new Error("There is no scheduled plan change to remove.");
-    }
-
-    const currentProductId =
-      polarLiveSubscriptionProductId(liveSub) ?? subscription.productId;
-    if (!currentProductId) {
-      throw new Error("Could not determine your current Polar product.");
-    }
-
-    if (liveSchedule.pendingProductId === currentProductId) {
-      throw new Error(
-        "Polar did not report a plan change queued for this renewal.",
+    const stripe = getStripeSdkClient();
+    const liveSub = await withTimeout(
+      stripe.subscriptions.retrieve(subscriptionId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.subscriptions.retrieve",
+    );
+    const scheduleId =
+      typeof liveSub.schedule === "string"
+        ? liveSub.schedule
+        : liveSub.schedule?.id;
+    if (scheduleId) {
+      await withTimeout(
+        stripe.subscriptionSchedules.release(scheduleId),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.subscriptionSchedules.release",
       );
     }
 
-    await invokePolarSubscriptionUpdate(polarSdk, {
-      id: subscriptionId,
-      subscriptionUpdate: {
-        productId: currentProductId,
-        prorationBehavior: "invoice",
-      },
-    });
+    await withTimeout(
+      stripe.subscriptions.update(subscriptionId, {
+        metadata: {
+          ...liveSub.metadata,
+          pendingPriceId: "",
+          pendingAppliesAtMs: "",
+        },
+      }),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.subscriptions.update",
+    );
+
     return { ok: true };
   },
 });
 
-export const ensureCurrentUserPolarCustomer = action({
+export const ensureCurrentUserStripeCustomer = action({
   args: {},
   handler: async (ctx): Promise<{ customerId: string }> => {
-    const customerId = await ensurePolarCustomerForCurrentUser(ctx);
+    const customerId = await ensureStripeCustomerForCurrentUser(ctx);
     return { customerId };
   },
 });
@@ -506,7 +552,6 @@ export const recordUsageEvent = action({
   ): Promise<{
     eventId: string;
     credits: number;
-    polarIngestedAt: number | undefined;
     tier: PlanTier;
     debitId: string | undefined;
     overdraftAmount: number;
@@ -534,11 +579,6 @@ export const recordUsageEvent = action({
     }
 
     const eventId = crypto.randomUUID();
-
-    // Authoritative debit against the Convex credit ledger. Idempotent on
-    // `(userId, requestKey)` so AI SDK retries / stream reconnection cannot
-    // double-charge the same generation. We use the assistant `messageId`
-    // as the request key — every chat finish event carries one.
     const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
     let debitId: string | undefined;
     let overdraftAmount = 0;
@@ -576,46 +616,9 @@ export const recordUsageEvent = action({
       });
     }
 
-    let polarIngestedAt: number | undefined;
-    // Polar cost event ingest is now best-effort analytics only — Convex is
-    // authoritative for balances. We continue emitting so Cost Insights
-    // (https://polar.sh/docs/features/cost-insights/cost-events) stays
-    // populated.
-    try {
-      const polarSdk = getPolarSdkClient();
-      const event = buildPolarCreditUsageEvent({
-        userId: ctx.userId,
-        requestId: args.requestId,
-        messageId: args.messageId,
-        threadId: args.threadId,
-        routeId: args.routeId,
-        tier: subscriptionState.tier,
-        charge,
-        usage: args.usage,
-        toolCalls: args.toolCalls,
-      });
-
-      await withTimeout(
-        polarSdk.events.ingest({
-          events: [event],
-        }),
-        POLAR_NETWORK_TIMEOUT_MS,
-        "polar.events.ingest",
-      );
-
-      polarIngestedAt = Date.now();
-    } catch (error) {
-      console.error("Failed to ingest Polar credit usage event", {
-        userId: ctx.userId,
-        requestId: args.requestId,
-        error: getErrorText(error),
-      });
-    }
-
     return {
       eventId,
       credits: charge.credits,
-      polarIngestedAt,
       tier: subscriptionState.tier,
       debitId,
       overdraftAmount,
@@ -638,8 +641,8 @@ export const internal_createCreditTopUpIntent = internalMutation({
       currency: "usd" as const,
       credits: args.credits,
       status: "created" as const,
-      polarCheckoutId: undefined,
-      polarOrderId: undefined,
+      stripeCheckoutSessionId: undefined,
+      stripePaymentIntentId: undefined,
       createdAt: now,
       updatedAt: now,
     };
@@ -653,20 +656,17 @@ export const internal_markCreditTopUpCheckoutCreated = internalMutation({
   args: {
     intentId: v.string(),
     userId: v.string(),
-    polarCheckoutId: v.string(),
+    stripeCheckoutSessionId: v.string(),
   },
   handler: async (ctx, args): Promise<{ ok: true }> => {
-    const intent = await ctx.db
-      .query("creditTopUpIntents")
-      .withIndex("by_intentId", (q) => q.eq("intentId", args.intentId))
-      .unique();
+    const intent = await getCreditTopUpIntentDoc(ctx, args.intentId);
     if (intent?.userId !== args.userId) {
       throw new Error("Credit top-up intent not found.");
     }
 
     await ctx.db.patch(intent._id, {
       status: "checkout_created",
-      polarCheckoutId: args.polarCheckoutId,
+      stripeCheckoutSessionId: args.stripeCheckoutSessionId,
       updatedAt: Date.now(),
     });
 
@@ -680,10 +680,7 @@ export const internal_markCreditTopUpIntentFailed = internalMutation({
     userId: v.string(),
   },
   handler: async (ctx, args): Promise<{ ok: true }> => {
-    const intent = await ctx.db
-      .query("creditTopUpIntents")
-      .withIndex("by_intentId", (q) => q.eq("intentId", args.intentId))
-      .unique();
+    const intent = await getCreditTopUpIntentDoc(ctx, args.intentId);
     if (intent?.userId !== args.userId || intent.status === "paid") {
       return { ok: true };
     }
@@ -716,8 +713,8 @@ export const internal_getCreditTopUpIntentByIntentId = internalQuery({
       currency: intent.currency,
       credits: intent.credits,
       status: intent.status,
-      polarCheckoutId: intent.polarCheckoutId,
-      polarOrderId: intent.polarOrderId,
+      stripeCheckoutSessionId: intent.stripeCheckoutSessionId,
+      stripePaymentIntentId: intent.stripePaymentIntentId,
       createdAt: intent.createdAt,
       updatedAt: intent.updatedAt,
     };
@@ -728,14 +725,11 @@ export const internal_markCreditTopUpIntentPaid = internalMutation({
   args: {
     intentId: v.string(),
     userId: v.string(),
-    polarOrderId: v.string(),
-    polarCheckoutId: v.optional(v.string()),
+    stripePaymentIntentId: v.string(),
+    stripeCheckoutSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ ok: true; alreadyPaid: boolean }> => {
-    const intent = await ctx.db
-      .query("creditTopUpIntents")
-      .withIndex("by_intentId", (q) => q.eq("intentId", args.intentId))
-      .unique();
+    const intent = await getCreditTopUpIntentDoc(ctx, args.intentId);
     if (intent?.userId !== args.userId) {
       throw new Error("Credit top-up intent not found.");
     }
@@ -746,8 +740,9 @@ export const internal_markCreditTopUpIntentPaid = internalMutation({
 
     await ctx.db.patch(intent._id, {
       status: "paid",
-      polarOrderId: args.polarOrderId,
-      polarCheckoutId: args.polarCheckoutId ?? intent.polarCheckoutId,
+      stripePaymentIntentId: args.stripePaymentIntentId,
+      stripeCheckoutSessionId:
+        args.stripeCheckoutSessionId ?? intent.stripeCheckoutSessionId,
       updatedAt: Date.now(),
     });
 
@@ -763,13 +758,10 @@ async function refreshBillingStateForUser(
     ctx,
     userId,
   );
-  await ensurePolarCustomerForCurrentUser(ctx);
+  await ensureStripeCustomerForCurrentUser(ctx);
   const periodKey = getPeriodKeyForTier(subscriptionState);
   const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
 
-  // Idempotently refresh free-monthly credits before reading the balance so
-  // the very first read in a new month still sees the user's allowance even
-  // if scheduled jobs haven't fired yet.
   let grantApplied = false;
   if (subscriptionState.tier === "free") {
     try {
@@ -786,9 +778,6 @@ async function refreshBillingStateForUser(
     }
   }
 
-  // Convex is now authoritative for credit balance. Polar lookups are kept
-  // only for subscription schedule details (pending plan changes, cancel
-  // flags) which the Convex Polar component does not mirror.
   const balance = await ctx.runQuery(
     internal.functions.credits.internal_getBalance,
     { userId },
@@ -797,23 +786,22 @@ async function refreshBillingStateForUser(
   const snapshot = subscriptionState.subscription;
   let subscriptionSchedule: BillingSubscriptionSchedule = {
     cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
-    pendingProductId: undefined,
+    pendingPriceId: undefined,
     pendingAppliesAtMs: undefined,
   };
 
   const subscriptionId = snapshot?.subscriptionId;
   if (subscriptionId) {
     try {
-      const polarSdk = getPolarSdkClient();
-      const liveSub: unknown = await withTimeout(
-        invokePolarSubscriptionGet(polarSdk, subscriptionId),
-        POLAR_NETWORK_TIMEOUT_MS,
-        "polar.subscriptions.get",
+      const stripe = getStripeSdkClient();
+      const liveSub = await withTimeout(
+        stripe.subscriptions.retrieve(subscriptionId),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.subscriptions.retrieve",
       );
-      subscriptionSchedule =
-        subscriptionScheduleFromPolarSdkSubscription(liveSub);
+      subscriptionSchedule = subscriptionScheduleFromStripeSubscription(liveSub);
     } catch (error) {
-      console.error("Failed to load Polar subscription schedule", {
+      console.error("Failed to load Stripe subscription schedule", {
         userId,
         subscriptionId,
         error: getErrorText(error),
@@ -839,14 +827,12 @@ async function resolveCurrentSubscriptionState(
   ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
   userId: string,
 ): Promise<BillingSubscriptionState> {
-  const subscription = toSubscriptionSnapshot(
-    await polar.getCurrentSubscription(ctx, { userId }),
+  const subscriptions = await ctx.runQuery(
+    components.stripe.public.listSubscriptionsByUserId,
+    { userId },
   );
 
-  return {
-    tier: resolveTierFromSubscription(subscription),
-    subscription,
-  };
+  return selectBestSubscriptionState(subscriptions);
 }
 
 async function resolveCurrentSubscriptionStateWithFallback(
@@ -856,7 +842,7 @@ async function resolveCurrentSubscriptionStateWithFallback(
   try {
     return await withTimeout(
       resolveCurrentSubscriptionState(ctx, userId),
-      POLAR_NETWORK_TIMEOUT_MS,
+      STRIPE_NETWORK_TIMEOUT_MS,
       "resolveCurrentSubscriptionState",
     );
   } catch (error) {
@@ -865,15 +851,6 @@ async function resolveCurrentSubscriptionStateWithFallback(
       error: getErrorText(error),
     });
 
-    try {
-      return await resolveCachedSubscriptionState(ctx, userId);
-    } catch (fallbackError) {
-      console.error("billing_subscription_fallback_failed", {
-        userId,
-        error: getErrorText(fallbackError),
-      });
-    }
-
     return {
       tier: "free",
       subscription: null,
@@ -881,20 +858,16 @@ async function resolveCurrentSubscriptionStateWithFallback(
   }
 }
 
-async function resolveCachedSubscriptionState(
-  ctx: BillingActionCtx,
-  userId: string,
-): Promise<BillingSubscriptionState> {
-  const subscriptions = await ctx.runQuery(
-    components.polar.lib.listUserSubscriptions,
-    { userId },
-  );
-
+function selectBestSubscriptionState(
+  subscriptions: unknown[],
+): BillingSubscriptionState {
   return subscriptions.reduce<BillingSubscriptionState>(
     (best, candidate) => {
       const subscription = toSubscriptionSnapshot(candidate);
+      if (!isPaidSubscriptionStatus(subscription?.status)) {
+        return best;
+      }
       const tier = resolveTierFromSubscription(subscription);
-
       return planTierRank(tier) > planTierRank(best.tier)
         ? { tier, subscription }
         : best;
@@ -903,146 +876,196 @@ async function resolveCachedSubscriptionState(
   );
 }
 
-async function ensurePolarCustomerForCurrentUser(ctx: BillingActionCtx) {
-  const polarSdk = getPolarSdkClient();
-  let customerId: string | undefined;
-
-  try {
-    const customer = await polarSdk.customers.getExternal({
-      externalId: ctx.userId,
-    });
-    customerId = customer.id;
-  } catch (error) {
-    if (!isPolarNotFoundError(error)) {
-      throw error;
-    }
-  }
-  // const userIdentity = await authComponent.getAuthUser(ctx);
-  // console.log("userIdentity", userIdentity);
-
-  if (customerId === undefined) {
-    const user = await ctx.runQuery(
-      api.functions.user.getCurrentUserPolarInfo,
-      {},
-    );
-    try {
-      // const image = await ctx.runQuery(api.functions.user.getUserImage, {
-      //   userId: ctx.userId,
-      // });
-      const customer = await polarSdk.customers.create({
-        email: user.email,
-        externalId: user.userId,
-        // avatarUrl: image.image ?? undefined,
-        metadata: {
-          userId: user.userId,
-        },
-      });
-      customerId = customer.id;
-    } catch (error) {
-      if (!isPolarDuplicateCustomerEmailError(error)) {
-        throw error;
-      }
-
-      const existingCustomer = await findPolarCustomerByEmail(
-        polarSdk.customers,
-        user.email,
-      );
-      if (!existingCustomer) {
-        throw error;
-      }
-
-      const existingExternalId = getPolarCustomerExternalId(existingCustomer);
-      if (existingExternalId && existingExternalId !== user.userId) {
-        throw new Error(
-          `Polar customer ${existingCustomer.id} already belongs to a different external user`,
-        );
-      }
-
-      if (existingExternalId === user.userId) {
-        customerId = existingCustomer.id;
-      } else {
-        const updatedCustomer = await polarSdk.customers.update({
-          id: existingCustomer.id,
-          customerUpdate: {
-            email: user.email,
-            externalId: user.userId,
-          },
-        });
-        customerId = updatedCustomer.id;
-      }
-    }
-  }
-
-  // NOTE: free auto-subscribe is intentionally disabled after the Convex
-  // credit ledger migration. Free users now receive their monthly credit
-  // allowance via `internal_ensureMonthlyFreeCredits`; subscribing to the
-  // Polar free product could grant credits outside the ledger and double-fund
-  // balances. See plan: credit_bucket_ledger.
-
-  return customerId;
-}
-
-type PolarCustomersClient = ReturnType<typeof getPolarSdkClient>["customers"];
-
-type PolarCustomerRecord = {
-  id: string;
-  email?: string | null;
-  externalId?: string | null;
-  external_id?: string | null;
-};
-
-async function findPolarCustomerByEmail(
-  customers: PolarCustomersClient,
-  email: string,
-): Promise<PolarCustomerRecord | null> {
-  const normalizedEmail = normalizeEmail(email);
-  const result = await customers.list({});
-
-  for await (const page of result as AsyncIterable<unknown>) {
-    for (const customer of getPolarCustomersFromPage(page)) {
-      if (normalizeEmail(customer.email) === normalizedEmail) {
-        return customer;
-      }
-    }
-  }
-
-  return null;
-}
-
-function getPolarCustomersFromPage(page: unknown): PolarCustomerRecord[] {
-  if (Array.isArray(page)) {
-    return page.filter(isPolarCustomerRecord);
-  }
-
-  if (!page || typeof page !== "object") {
-    return [];
-  }
-
-  const candidate = page as Record<string, unknown>;
-  for (const key of ["items", "customers", "data", "result"]) {
-    const value = candidate[key];
-    if (Array.isArray(value)) {
-      return value.filter(isPolarCustomerRecord);
-    }
-  }
-
-  return isPolarCustomerRecord(page) ? [page] : [];
-}
-
-function isPolarCustomerRecord(value: unknown): value is PolarCustomerRecord {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    typeof (value as { id?: unknown }).id === "string"
+async function ensureStripeCustomerForCurrentUser(ctx: BillingActionCtx) {
+  const user = await ctx.runQuery(api.functions.user.getCurrentUserBillingInfo, {});
+  const override = await ctx.runQuery(
+    internal.functions.billing.internal_getStripeCustomerOverride,
+    { userId: user.userId },
   );
+  if (
+    override &&
+    (await stripeCustomerExists(override.stripeCustomerId))
+  ) {
+    return override.stripeCustomerId;
+  }
+
+  const customer = await stripeComponent.getOrCreateCustomer(ctx, {
+    userId: user.userId,
+    email: user.email,
+    name: user.name,
+  });
+  if (await stripeCustomerExists(customer.customerId)) {
+    await ctx.runMutation(
+      internal.functions.billing.internal_upsertStripeCustomerOverride,
+      {
+        userId: user.userId,
+        stripeCustomerId: customer.customerId,
+        email: user.email,
+      },
+    );
+    return customer.customerId;
+  }
+
+  const stripe = getStripeSdkClient();
+  const replacement = await stripe.customers.create({
+    email: user.email,
+    name: user.name,
+    metadata: { userId: user.userId },
+  });
+  await ctx.runMutation(components.stripe.public.createOrUpdateCustomer, {
+    stripeCustomerId: replacement.id,
+    email: user.email,
+    name: user.name,
+    metadata: { userId: user.userId },
+  });
+  await ctx.runMutation(
+    internal.functions.billing.internal_upsertStripeCustomerOverride,
+    {
+      userId: user.userId,
+      stripeCustomerId: replacement.id,
+      email: user.email,
+    },
+  );
+  return replacement.id;
 }
 
-function getPolarCustomerExternalId(customer: PolarCustomerRecord) {
-  return customer.externalId ?? customer.external_id ?? undefined;
+export const internal_getStripeCustomerOverride = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("stripeCustomerOverrides")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
+  },
+});
+
+export const internal_upsertStripeCustomerOverride = internalMutation({
+  args: {
+    userId: v.string(),
+    stripeCustomerId: v.string(),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ ok: true }> => {
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("stripeCustomerOverrides")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        stripeCustomerId: args.stripeCustomerId,
+        email: args.email,
+        updatedAt: now,
+      });
+      return { ok: true };
+    }
+
+    await ctx.db.insert("stripeCustomerOverrides", {
+      userId: args.userId,
+      stripeCustomerId: args.stripeCustomerId,
+      email: args.email,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { ok: true };
+  },
+});
+
+async function stripeCustomerExists(stripeCustomerId: string): Promise<boolean> {
+  try {
+    const stripe = getStripeSdkClient();
+    const customer = await stripe.customers.retrieve(stripeCustomerId);
+    return !("deleted" in customer && customer.deleted === true);
+  } catch (error) {
+    const text = getErrorText(error).toLowerCase();
+    if (text.includes("no such customer") || text.includes("resource_missing")) {
+      return false;
+    }
+    throw error;
+  }
 }
 
-function normalizeEmail(email: string | null | undefined) {
-  return email?.trim().toLowerCase() ?? "";
+async function getCreditTopUpIntentDoc(
+  ctx: {
+    db: {
+      query: GenericQueryCtx<DataModel>["db"]["query"];
+    };
+  },
+  intentId: string,
+) {
+  return await ctx.db
+    .query("creditTopUpIntents")
+    .withIndex("by_intentId", (q) => q.eq("intentId", intentId))
+    .unique();
+}
+
+async function createOrReplaceDowngradeSchedule(
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+  args: {
+    currentPriceId: string;
+    targetPriceId: string;
+    currentPeriodEnd: number;
+    userId: string;
+    targetTier: PlanTier;
+  },
+) {
+  const scheduleId =
+    typeof subscription.schedule === "string"
+      ? subscription.schedule
+      : subscription.schedule?.id;
+  if (scheduleId) {
+    await withTimeout(
+      stripe.subscriptionSchedules.release(scheduleId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.subscriptionSchedules.release",
+    );
+  }
+
+  await withTimeout(
+    stripe.subscriptionSchedules.create({
+      from_subscription: subscription.id,
+      phases: [
+        {
+          items: [
+            {
+              price: args.currentPriceId,
+              quantity: subscription.items.data[0]?.quantity ?? 1,
+            },
+          ],
+          end_date: args.currentPeriodEnd,
+        },
+        {
+          items: [
+            {
+              price: args.targetPriceId,
+              quantity: subscription.items.data[0]?.quantity ?? 1,
+            },
+          ],
+          metadata: {
+            userId: args.userId,
+            priceId: args.targetPriceId,
+            tier: args.targetTier,
+          },
+        },
+      ],
+    }),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.subscriptionSchedules.create",
+  );
+
+  await withTimeout(
+    stripe.subscriptions.update(subscription.id, {
+      metadata: {
+        ...subscription.metadata,
+        userId: args.userId,
+        pendingPriceId: args.targetPriceId,
+        pendingAppliesAtMs: String(args.currentPeriodEnd * 1000),
+      },
+    }),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.subscriptions.update",
+  );
 }
 
 function getPeriodKeyForTier(subscriptionState: BillingSubscriptionState) {
@@ -1058,44 +1081,10 @@ function getPeriodKeyForTier(subscriptionState: BillingSubscriptionState) {
   return getBillingPeriodKey();
 }
 
-function isPolarNotFoundError(error: unknown) {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const candidate = error as {
-    statusCode?: number;
-    response?: { status?: number };
-    message?: string;
-  };
-
-  return (
-    candidate.statusCode === 404 ||
-    candidate.response?.status === 404 ||
-    (typeof candidate.message === "string" &&
-      candidate.message.toLowerCase().includes("not found"))
-  );
-}
-
-function isPolarDuplicateCustomerEmailError(error: unknown) {
-  const message = getErrorText(error).toLowerCase();
-
-  return message.includes("customer with this email address already exists");
-}
-
 function getErrorText(error: unknown): string {
-  if (!error) {
-    return "";
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (error instanceof Error) {
-    return `${error.name} ${error.message}`;
-  }
-
+  if (!error) return "";
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return `${error.name} ${error.message}`;
   try {
     return JSON.stringify(error);
   } catch {
@@ -1108,20 +1097,21 @@ async function withTimeout<T>(
   timeoutMs: number,
   label: string,
 ): Promise<T> {
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       promise,
-      new Promise<T>((_, reject) => {
-        timeoutHandle = setTimeout(() => {
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
           reject(new Error(`${label} timed out after ${timeoutMs}ms`));
         }, timeoutMs);
       }),
     ]);
   } finally {
-    if (timeoutHandle !== undefined) {
-      clearTimeout(timeoutHandle);
-    }
+    if (timeout) clearTimeout(timeout);
   }
 }
+
+void internal;
+void api;
+void stripeLiveSubscriptionPriceId;

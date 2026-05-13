@@ -46,7 +46,6 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
         nonBlocking: false,
         // eslint-disable-next-line @typescript-eslint/require-await
         beforeLog: async (entry) => {
-          console.log("entry", entry);
           const { action } = entry;
           const ignoredPatterns = [
             /^convex:.*$/,

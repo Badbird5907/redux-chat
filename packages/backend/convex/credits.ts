@@ -10,6 +10,8 @@ import type {
 import {
   allocateDebit,
   CREDIT_BUCKETS,
+  DEFAULT_BILLING_CONFIG,
+  getPlanConfig,
   summarizeBalances,
 } from "@redux/shared";
 
@@ -434,7 +436,7 @@ function extractSubscriptionIdFromGrantRow(row: {
 /**
  * Revoke active recurring subscription grants, used when a paid subscription
  * is force-canceled immediately. By default it targets all active grants with
- * source `polar_subscription_renewal` for the user; when `subscriptionId` is
+ * source `stripe_subscription_renewal` for the user; when `subscriptionId` is
  * provided it narrows revocation to that subscription only.
  */
 export async function revokeSubscriptionMonthlyCreditsTx(
@@ -452,7 +454,7 @@ export async function revokeSubscriptionMonthlyCreditsTx(
   let revoked = 0;
 
   for (const row of rows) {
-    if (row.source !== "polar_subscription_renewal") {
+    if (row.source !== "stripe_subscription_renewal") {
       continue;
     }
     if (row.bucket !== "monthly" && row.bucket !== "free") {
@@ -499,6 +501,14 @@ export interface RevokeFreeMonthlyCreditsArgs {
   reason?: string;
 }
 
+export type EnsureFreeMonthlyCreditsAfterPaidCancellationResult = {
+  grantId: string;
+  created: boolean;
+  reactivated: boolean;
+  amount: number;
+  bucket: CreditBucket;
+};
+
 /**
  * Revoke active grants created by the free-tier monthly reset source. This is
  * used when a user upgrades to a paid plan so free monthly allowance does not
@@ -533,10 +543,12 @@ export async function revokeFreeMonthlyCreditsTx(
       row.metadata && typeof row.metadata === "object"
         ? {
             ...(row.metadata as Record<string, unknown>),
+            remainingAtRevocation: row.remaining,
             revokedReason: args.reason ?? "upgraded_to_paid",
             revokedAt: nowMs,
           }
         : {
+            remainingAtRevocation: row.remaining,
             revokedReason: args.reason ?? "upgraded_to_paid",
             revokedAt: nowMs,
           };
@@ -551,6 +563,98 @@ export async function revokeFreeMonthlyCreditsTx(
   }
 
   return { revoked };
+}
+
+export async function ensureFreeMonthlyCreditsAfterPaidCancellationTx(
+  ctx: LedgerMutationCtx,
+  args: { userId: string; reason?: string },
+): Promise<EnsureFreeMonthlyCreditsAfterPaidCancellationResult> {
+  const nowMs = Date.now();
+  const periodKey = getMonthlyPeriodKey(nowMs);
+  const sourceId = `${args.userId}:${periodKey}`;
+  const expiresAt = getMonthlyExpiresAt(nowMs);
+  const plan = getPlanConfig("free", DEFAULT_BILLING_CONFIG);
+
+  const existingRows = await ctx.db
+    .query("creditGrants")
+    .withIndex("by_source_sourceId", (q) =>
+      q.eq("source", "free_monthly_reset").eq("sourceId", sourceId),
+    )
+    .collect();
+
+  const active = existingRows.find(
+    (row) =>
+      row.userId === args.userId &&
+      row.status === "active" &&
+      row.remaining > 0 &&
+      (row.expiresAt === undefined || row.expiresAt > nowMs),
+  );
+  if (active) {
+    return {
+      grantId: active.grantId,
+      created: false,
+      reactivated: false,
+      amount: active.amount,
+      bucket: normalizeGrantBucket(active.bucket) ?? "monthly",
+    };
+  }
+
+  const revoked = existingRows.find(
+    (row) =>
+      row.userId === args.userId &&
+      row.status === "revoked" &&
+      (row.bucket === "monthly" || row.bucket === "free"),
+  );
+  if (revoked) {
+    const metadata =
+      revoked.metadata && typeof revoked.metadata === "object"
+        ? (revoked.metadata as Record<string, unknown>)
+        : {};
+    const remainingAtRevocation = metadata.remainingAtRevocation;
+    const restoredRemaining =
+      typeof remainingAtRevocation === "number" &&
+      Number.isFinite(remainingAtRevocation) &&
+      remainingAtRevocation > 0
+        ? remainingAtRevocation
+        : revoked.amount;
+
+    await ctx.db.patch(revoked._id, {
+      status: "active",
+      remaining: Math.min(revoked.amount, restoredRemaining),
+      bucket: "monthly",
+      periodKey,
+      expiresAt,
+      updatedAt: nowMs,
+      metadata: {
+        ...metadata,
+        reactivatedReason: args.reason ?? "paid_subscription_canceled",
+        reactivatedAt: nowMs,
+      },
+    });
+
+    return {
+      grantId: revoked.grantId,
+      created: false,
+      reactivated: true,
+      amount: revoked.amount,
+      bucket: "monthly",
+    };
+  }
+
+  const created = await grantCreditsTx(ctx, {
+    userId: args.userId,
+    bucket: "monthly",
+    amount: plan.includedMonthlyCredits,
+    source: "free_monthly_reset",
+    sourceId,
+    periodKey,
+    expiresAt,
+    metadata: {
+      reason: args.reason ?? "paid_subscription_canceled",
+    },
+  });
+
+  return { ...created, reactivated: false };
 }
 
 export interface RevokeCreditGrantForUserArgs {
