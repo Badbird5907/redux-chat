@@ -34,6 +34,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminPromotionsIndexRouteImport } from './routes/admin/promotions/index'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
 import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook/stripe'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -167,6 +168,11 @@ const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminUsersRoute,
 } as any)
+const AdminPromotionsIndexRoute = AdminPromotionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminPromotionsRoute,
+} as any)
 const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
@@ -239,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects/': typeof AppProjectsIndexRoute
+  '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -246,7 +253,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
-  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -270,6 +276,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects': typeof AppProjectsIndexRoute
+  '/admin/promotions': typeof AdminPromotionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
@@ -306,6 +313,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/_app/projects/': typeof AppProjectsIndexRoute
+  '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -342,6 +350,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/webhook/stripe'
     | '/projects/'
+    | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
     | '/api/chat/$id/stream/'
@@ -349,7 +358,6 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/components'
-    | '/admin/promotions'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -373,6 +381,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/webhook/stripe'
     | '/projects'
+    | '/admin/promotions'
     | '/admin/users'
     | '/api/chat'
     | '/api/chat/$id/stream'
@@ -408,6 +417,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/webhook/stripe'
     | '/_app/projects/'
+    | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
     | '/api/chat/$id/stream/'
@@ -606,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminUsersRoute
     }
+    '/admin/promotions/': {
+      id: '/admin/promotions/'
+      path: '/'
+      fullPath: '/admin/promotions/'
+      preLoaderRoute: typeof AdminPromotionsIndexRouteImport
+      parentRoute: typeof AdminPromotionsRoute
+    }
     '/_app/projects/': {
       id: '/_app/projects/'
       path: '/projects'
@@ -683,10 +700,12 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminPromotionsRouteChildren {
   AdminPromotionsPromotionIdRoute: typeof AdminPromotionsPromotionIdRoute
+  AdminPromotionsIndexRoute: typeof AdminPromotionsIndexRoute
 }
 
 const AdminPromotionsRouteChildren: AdminPromotionsRouteChildren = {
   AdminPromotionsPromotionIdRoute: AdminPromotionsPromotionIdRoute,
+  AdminPromotionsIndexRoute: AdminPromotionsIndexRoute,
 }
 
 const AdminPromotionsRouteWithChildren = AdminPromotionsRoute._addFileChildren(

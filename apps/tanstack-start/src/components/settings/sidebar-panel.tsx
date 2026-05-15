@@ -92,7 +92,7 @@ export function SettingsSidebarPanel() {
               <span>MCP Servers</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="max-md:hidden">
             <SidebarMenuButton
               isActive={isHotkeysActive}
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"

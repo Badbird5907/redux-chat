@@ -25,6 +25,7 @@ import {
   formatNumber,
 } from "@/components/billing/credit-balance-panel";
 import { CreditGrantHistoryDialog } from "@/components/billing/credit-grant-history";
+import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
 
 export const Route = createFileRoute("/settings/")({
@@ -70,6 +71,20 @@ function planTierLabel(tier: PlanTier): string {
     return "Plus";
   }
   return "Pro";
+}
+
+function planTierMarketingFeatures(tier: PlanTier): string[] {
+  if (tier === "free") {
+    return ["1 attachment per message (up to 10 MB)"];
+  }
+  if (tier === "plus") {
+    return [
+      "Multiple attachments per message",
+      "Project workspaces & knowledge search",
+      "Web search and analysis tools (credits apply)",
+    ];
+  }
+  return ["All features from Plus"];
 }
 
 function tierForConfiguredPriceId(
@@ -647,26 +662,23 @@ function RouteComponent() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-16 md:gap-14">
-      <header className="flex flex-col gap-6 pb-2 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
-        <div className="max-w-xl space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-[1.65rem]">
+      <header className="flex flex-row items-center justify-between gap-3 pb-2 sm:gap-8">
+        <div className="flex min-w-0 max-w-xl flex-1 items-center gap-2">
+          <SettingsMobileSidebarTrigger />
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight md:text-[1.65rem]">
             Billing
           </h1>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-1">
+        <div className="flex shrink-0 items-center gap-2">
           {showPaidManage ? (
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className={cn(
-                "border-border/60 hover:bg-accent/60 h-9 gap-1 rounded-full px-4 text-xs font-medium shadow-none",
-              )}
               disabled={portalLoading}
               onClick={() => void openCustomerPortal()}
             >
               {portalLoading ? "Opening…" : "Manage billing"}
-              <ChevronRight className="size-3.5 opacity-50" aria-hidden />
+              <ChevronRight className="opacity-50" aria-hidden />
             </Button>
           ) : null}
         </div>
@@ -799,11 +811,10 @@ function RouteComponent() {
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
-                    className="shrink-0 gap-1.5 text-xs font-medium shadow-none"
+                    className="shrink-0"
                     onClick={() => setAddCreditsOpen(true)}
                   >
-                    <CreditCard className="size-3.5 opacity-90" aria-hidden />
+                    <CreditCard className="opacity-90" aria-hidden />
                     Add credits
                   </Button>
                 ) : null}
@@ -816,11 +827,11 @@ function RouteComponent() {
         />
 
         {showStripeCustomerBalance ? (
-          <Card className="border-border/50 bg-card/55 gap-0 rounded-2xl border px-5 py-4 shadow-none">
+          <Card className="bg-card/55 gap-0 px-5 py-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">
                 <p className="text-sm font-semibold tracking-tight">
-                  Invoice credits (Stripe)
+                  Invoice credits
                 </p>
                 <p className="text-muted-foreground text-xs leading-snug">
                   Will apply on your next invoice.
@@ -835,17 +846,11 @@ function RouteComponent() {
       </article>
 
       <section id="plans" className="scroll-mt-10 space-y-5">
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.12em] uppercase">
-            Plans
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Upgrade or downgrade takes effect immediately or next cycle
-            depending on your choice — details appear in the confirmation step.
-          </p>
-        </div>
+        <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.12em] uppercase">
+          Plans
+        </p>
         {showBillingSchedulePanel ? (
-          <Card className="border-primary/25 bg-primary/6 ring-primary/15 gap-0 rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-none ring-1">
+          <Card className="border-primary/25 bg-primary/6 ring-primary/15 gap-0 px-5 py-4 text-sm leading-relaxed ring-1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="min-w-0 flex-1">
                 {scheduleNotice ? (
@@ -858,8 +863,7 @@ function RouteComponent() {
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="text-xs whitespace-nowrap"
+                      className="whitespace-nowrap"
                       disabled={
                         billingScheduleMutation !== null || planSwitchLoading
                       }
@@ -874,8 +878,7 @@ function RouteComponent() {
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="text-xs whitespace-nowrap"
+                      className="whitespace-nowrap"
                       disabled={
                         billingScheduleMutation !== null || planSwitchLoading
                       }
@@ -999,12 +1002,7 @@ function TierColumn({
 
   const footer: ReactNode =
     state === "current" ? (
-      <Button
-        disabled
-        variant="outline"
-        size="sm"
-        className="border-border/60 mt-auto h-10 w-full rounded-full text-xs font-medium"
-      >
+      <Button disabled variant="outline" className="mt-auto w-full">
         Current plan
       </Button>
     ) : state === "inactive" ? (
@@ -1013,11 +1011,7 @@ function TierColumn({
       <Button
         type="button"
         variant={emphasize ? "default" : "outline"}
-        size="sm"
-        className={cn(
-          "mt-auto h-10 w-full rounded-full text-xs font-medium",
-          !emphasize && "border-border/60 bg-transparent",
-        )}
+        className="mt-auto w-full"
         onClick={paidSwitch.onRequest}
       >
         {paidSwitch.isUpgrade
@@ -1028,23 +1022,14 @@ function TierColumn({
       <Button
         type="button"
         variant={emphasize ? "default" : "outline"}
-        size="sm"
-        className={cn(
-          "mt-auto h-10 w-full rounded-full text-xs font-medium",
-          !emphasize && "border-border/60 bg-transparent",
-        )}
+        className="mt-auto w-full"
         disabled={checkoutLoading}
         onClick={onSubscribe}
       >
         {checkoutLoading ? "Opening..." : `Subscribe to ${buttonLabel ?? name}`}
       </Button>
     ) : (
-      <Button
-        disabled
-        variant="outline"
-        size="sm"
-        className="border-border/60 mt-auto h-10 w-full rounded-full text-xs font-medium"
-      >
+      <Button disabled variant="outline" className="mt-auto w-full">
         Unavailable
       </Button>
     );
@@ -1052,7 +1037,7 @@ function TierColumn({
   return (
     <Card
       className={cn(
-        "border-border/50 bg-card/50 flex min-h-[220px] flex-col gap-0 rounded-2xl border px-5 py-6 shadow-none",
+        "flex min-h-[220px] flex-col gap-0 px-5 py-6",
         state === "current" &&
           "border-primary/25 bg-primary/6 ring-primary/15 ring-1",
         emphasize && state === "available" && "border-primary/30 shadow-sm",
@@ -1080,31 +1065,15 @@ function TierColumn({
             <span className="text-foreground font-medium">
               {formatNumber(plan.includedMonthlyCredits)}
             </span>{" "}
-            credits per billing period
+            credits per month
           </span>
         </li>
-        <li className="flex gap-2.5">
-          <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
-          <span className="min-w-0">
-            Usage multiplier{" "}
-            <span className="text-foreground font-mono font-medium tabular-nums">
-              {plan.markupMultiplier}×
-            </span>
-            <span className="sr-only">
-              {" "}
-              Credits charged toward AI usage versus raw model cost for this
-              tier.
-            </span>
-          </span>
-        </li>
-        <li className="flex gap-2.5">
-          <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
-          <span className="min-w-0">
-            {plan.overageAllowed
-              ? "Overage billed when you exceed included credits."
-              : "Hard cap — chat pauses once included credits run out."}
-          </span>
-        </li>
+        {planTierMarketingFeatures(plan.tier).map((line) => (
+          <li key={line} className="flex gap-2.5">
+            <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
+            <span className="min-w-0">{line}</span>
+          </li>
+        ))}
       </ul>
       <div className="mt-6">{footer}</div>
     </Card>

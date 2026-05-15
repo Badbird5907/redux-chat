@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "convex/react";
-import { KeyRound, Pencil, PlugZap, Plus, Save, Trash2, X } from "lucide-react";
+import {
+  KeyRound,
+  Loader2,
+  Pencil,
+  PlugZap,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -11,6 +20,7 @@ import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
 import { Switch } from "@redux/ui/components/switch";
 
+import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
 
 interface McpServerDraft {
@@ -203,8 +213,13 @@ export function McpSettingsManager() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">MCP Servers</h1>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex items-start gap-2">
+            <SettingsMobileSidebarTrigger className="mt-1" />
+            <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+              MCP Servers
+            </h1>
+          </div>
           <p className="text-muted-foreground max-w-3xl text-sm">
             Connect external tools and data sources to use in your chats.
           </p>
@@ -296,11 +311,13 @@ export function McpSettingsManager() {
                         {server.url}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1">
                       <Button
+                        type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon-sm"
                         disabled={isSaving || isDeleting}
+                        aria-label={isEditing ? "Close editor" : "Edit server"}
                         onClick={() =>
                           setEditingIds((current) => ({
                             ...current,
@@ -313,18 +330,28 @@ export function McpSettingsManager() {
                         ) : (
                           <Pencil className="size-4" />
                         )}
-                        {isEditing ? "Close" : "Edit"}
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon-sm"
                         disabled={isDeleting || isSaving}
+                        aria-label={
+                          isDeleting ? "Deleting server" : "Delete server"
+                        }
+                        aria-busy={isDeleting}
                         onClick={() =>
                           void handleDelete(server.mcpServerId, server.name)
                         }
                       >
-                        <Trash2 className="size-4" />
-                        {isDeleting ? "Deleting..." : "Delete"}
+                        {isDeleting ? (
+                          <Loader2
+                            className="size-4 animate-spin"
+                            aria-hidden
+                          />
+                        ) : (
+                          <Trash2 className="size-4" aria-hidden />
+                        )}
                       </Button>
                     </div>
                   </CardHeader>

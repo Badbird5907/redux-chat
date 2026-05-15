@@ -56,15 +56,17 @@ function Stat({
   hint?: string;
 }) {
   return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+    <div className="min-w-0 space-y-1">
+      <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase sm:text-[11px]">
         {label}
       </p>
-      <p className="text-foreground font-mono text-2xl leading-none font-semibold tabular-nums">
+      <p className="text-foreground font-mono text-base leading-none font-semibold tabular-nums sm:text-2xl">
         {value}
       </p>
       {hint ? (
-        <p className="text-muted-foreground text-[11px]">{hint}</p>
+        <p className="text-muted-foreground text-[10px] leading-snug sm:text-[11px]">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -217,9 +219,9 @@ export function CreditBalancePanel({
       <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
         {label}
       </p>
-      <Card className="bg-card/55 border-border/50 gap-0 overflow-hidden rounded-2xl border p-0 py-0 shadow-none ring-0">
+      <Card className="bg-card/55 gap-0 overflow-hidden p-0 py-0">
         <div className="space-y-4 px-5 py-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <Stat
               label="Total available"
               value={formatNumber(total)}

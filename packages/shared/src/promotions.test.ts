@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  canRedeemForUserCount,
   assertStripeInvoiceCreditPromotionConfig,
   assertSubscriptionPromotionConfig,
+  canRedeemForUserCount,
   formatPerUserRedemptionPolicy,
   formatPromotionBenefit,
   getPromotionRedeemableTiers,
@@ -23,45 +23,58 @@ describe("promotion helpers", () => {
   it("defaults missing per-user limit to once per user", () => {
     expect(policyFromStoredPerUserLimit(undefined)).toEqual({ type: "once" });
     expect(formatPerUserRedemptionPolicy(undefined)).toBe("Once per user");
-    expect(canRedeemForUserCount({
-      existingRedemptionCount: 0,
-      perUserRedemptionLimit: undefined,
-    })).toBe(true);
-    expect(canRedeemForUserCount({
-      existingRedemptionCount: 1,
-      perUserRedemptionLimit: undefined,
-    })).toBe(false);
+    expect(
+      canRedeemForUserCount({
+        existingRedemptionCount: 0,
+        perUserRedemptionLimit: undefined,
+      }),
+    ).toBe(true);
+    expect(
+      canRedeemForUserCount({
+        existingRedemptionCount: 1,
+        perUserRedemptionLimit: undefined,
+      }),
+    ).toBe(false);
   });
 
   it("supports finite per-user limits", () => {
     expect(storedPerUserLimitFromPolicy({ type: "limited", limit: 3 })).toBe(3);
     expect(formatPerUserRedemptionPolicy(3)).toBe("3 per user");
-    expect(canRedeemForUserCount({
-      existingRedemptionCount: 2,
-      perUserRedemptionLimit: 3,
-    })).toBe(true);
-    expect(canRedeemForUserCount({
-      existingRedemptionCount: 3,
-      perUserRedemptionLimit: 3,
-    })).toBe(false);
+    expect(
+      canRedeemForUserCount({
+        existingRedemptionCount: 2,
+        perUserRedemptionLimit: 3,
+      }),
+    ).toBe(true);
+    expect(
+      canRedeemForUserCount({
+        existingRedemptionCount: 3,
+        perUserRedemptionLimit: 3,
+      }),
+    ).toBe(false);
   });
 
   it("supports unlimited per-user redemption", () => {
     expect(storedPerUserLimitFromPolicy({ type: "unlimited" })).toBe(
       UNLIMITED_PER_USER_REDEMPTIONS,
     );
-    expect(policyFromStoredPerUserLimit(UNLIMITED_PER_USER_REDEMPTIONS)).toEqual({
+    expect(
+      policyFromStoredPerUserLimit(UNLIMITED_PER_USER_REDEMPTIONS),
+    ).toEqual({
       type: "unlimited",
     });
-    expect(canRedeemForUserCount({
-      existingRedemptionCount: 100,
-      perUserRedemptionLimit: UNLIMITED_PER_USER_REDEMPTIONS,
-    })).toBe(true);
+    expect(
+      canRedeemForUserCount({
+        existingRedemptionCount: 100,
+        perUserRedemptionLimit: UNLIMITED_PER_USER_REDEMPTIONS,
+      }),
+    ).toBe(true);
   });
 
   it("validates subscription promotion config and resolves target tiers", () => {
     const config = {
       mode: "discount",
+      freeUsersOnly: false,
       targetTiers: "all",
       discount: { type: "percent", percentOff: 25 },
       duration: { type: "repeating", months: 3 },
@@ -117,7 +130,9 @@ describe("promotion helpers", () => {
       description: "Launch credit",
     } as const;
 
-    expect(() => assertStripeInvoiceCreditPromotionConfig(config)).not.toThrow();
+    expect(() =>
+      assertStripeInvoiceCreditPromotionConfig(config),
+    ).not.toThrow();
     expect(
       formatPromotionBenefit({
         kind: "stripe_invoice_credit",

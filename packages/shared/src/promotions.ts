@@ -49,6 +49,7 @@ export type SubscriptionTargetTiers =
 
 export type SubscriptionPromotionConfig = {
   mode: "discount" | "gifted_subscription";
+  freeUsersOnly?: boolean;
   targetTiers: SubscriptionTargetTiers;
   discount:
     | { type: "percent"; percentOff: number }
@@ -187,6 +188,12 @@ export function assertSubscriptionPromotionConfig(
   if (value.mode !== "discount" && value.mode !== "gifted_subscription") {
     throw new Error("Subscription promotion mode is invalid.");
   }
+  if (
+    value.freeUsersOnly !== undefined &&
+    typeof value.freeUsersOnly !== "boolean"
+  ) {
+    throw new Error("Subscription promotion eligibility is invalid.");
+  }
   assertTargetTiers(value.targetTiers);
   assertDiscount(value.discount);
   assertDuration(value.duration);
@@ -197,8 +204,10 @@ export function assertSubscriptionPromotionConfig(
     throw new Error("Subscription cancellation setting is invalid.");
   }
   if (value.mode === "gifted_subscription") {
-    const discount = value.discount as SubscriptionPromotionConfig["discount"];
-    if (discount.type !== "percent" || discount.percentOff !== 100) {
+    if (
+      value.discount.type !== "percent" ||
+      value.discount.percentOff !== 100
+    ) {
       throw new Error("Gifted subscriptions must be configured as 100% off.");
     }
   }

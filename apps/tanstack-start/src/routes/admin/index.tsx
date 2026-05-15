@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@redux/ui/components/card";
 
+import { AdminPageNav } from "@/components/admin/admin-page-nav";
+
 export const Route = createFileRoute("/admin/")({
   head: () => ({
     meta: [{ title: "Admin | Redux Chat" }],
@@ -19,13 +21,16 @@ export const Route = createFileRoute("/admin/")({
 function AdminOverviewPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
-      <div>
-        <h1 className="text-foreground text-3xl font-semibold tracking-tight">
-          Admin
-        </h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Internal tools for user management.
-        </p>
+      <div className="flex flex-col gap-3">
+        <AdminPageNav items={[{ label: "Admin" }]} />
+        <div className="min-w-0">
+          <h1 className="text-foreground text-3xl font-semibold tracking-tight">
+            Admin
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Internal tools for user management.
+          </p>
+        </div>
       </div>
       <Card className="border-border/80">
         <CardHeader className="flex flex-row items-center justify-between gap-4">

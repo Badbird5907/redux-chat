@@ -14,6 +14,7 @@ import type {
   SubscriptionPromotionConfig,
 } from "@redux/shared";
 import {
+  canRedeemForUserCount,
   formatPerUserRedemptionPolicy,
   formatPromotionBenefit,
   getPromotionRedeemableTiers,
@@ -141,6 +142,7 @@ type SubscriptionAppliedResult = {
   redemptionId: string;
   targetTier: PromotionSubscriptionTier;
   stripeSubscriptionId: string;
+  freeUntil?: number;
 };
 
 type CheckoutRedirectResult = {
@@ -299,10 +301,32 @@ export const getPromotionByCode = query({
         r.status === "pending_checkout" ||
         r.status === "applied",
     ).length;
+    const now = Date.now();
+    const globalLimitReached =
+      promotion.maxRedemptions !== undefined &&
+      promotion.redeemedCount >= promotion.maxRedemptions;
+    const canRedeemForUser = canRedeemForUserCount({
+      existingRedemptionCount: consumed,
+      perUserRedemptionLimit: promotion.perUserRedemptionLimit,
+    });
+    const ineligibleReason =
+      promotion.status !== "active"
+        ? "This promotion is not active."
+        : promotion.startsAt !== undefined && promotion.startsAt > now
+          ? "This promotion is not available yet."
+          : promotion.endsAt !== undefined && promotion.endsAt <= now
+            ? "This promotion has expired."
+            : globalLimitReached
+              ? "This promotion has reached its redemption limit."
+              : !canRedeemForUser
+                ? "You already redeemed this promotion."
+                : undefined;
 
     return {
       ...promotionPreview(promotion),
       userRedemptionCount: consumed,
+      canRedeem: ineligibleReason === undefined,
+      ineligibleReason,
     };
   },
 });
@@ -483,11 +507,21 @@ async function applySubscriptionPromotion(
     throw new Error("Subscription target tier is required.");
   }
 
-  const billingState: { tier: string } = await ctx.runQuery(
-    api.functions.billing.getCurrentBillingState,
-    {},
-  );
-  if (billingState.tier !== "free") {
+  const billingState: {
+    tier: string;
+    subscription?: {
+      subscriptionId?: string;
+      customerId?: string;
+      priceId?: string;
+      status?: string;
+      currentPeriodEnd?: number;
+      cancelAtPeriodEnd?: boolean;
+    } | null;
+  } = await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
+  if (
+    billingState.tier !== "free" &&
+    promotionConfig.config.freeUsersOnly !== false
+  ) {
     throw new Error(
       "Subscription promotions are only available to free users.",
     );
@@ -500,6 +534,19 @@ async function applySubscriptionPromotion(
   }
 
   const stripe = getStripeSdkClient();
+
+  if (billingState.tier !== "free") {
+    return await applySubscriptionPromotionToPaidSubscriber(ctx, {
+      reservation,
+      promotionConfig,
+      targetTier,
+      customerId,
+      priceId,
+      billingState,
+      stripe,
+    });
+  }
+
   const coupon = await createPromotionCoupon(stripe, {
     promotion: reservation.promotion,
     redemption: reservation.redemption,
@@ -621,6 +668,136 @@ async function applySubscriptionPromotion(
     promotionId: reservation.promotion.promotionId,
     redemptionId: reservation.redemption.redemptionId,
     url: checkout.url,
+  };
+}
+
+async function applySubscriptionPromotionToPaidSubscriber(
+  ctx: PromotionActionCtx,
+  args: {
+    reservation: ReservationSnapshot;
+    promotionConfig: Extract<
+      PromotionConfigSnapshot,
+      { kind: "subscription_discount" }
+    >;
+    targetTier: PromotionSubscriptionTier;
+    customerId: string;
+    priceId: string;
+    billingState: {
+      tier: string;
+      subscription?: {
+        subscriptionId?: string;
+        customerId?: string;
+        priceId?: string;
+        status?: string;
+        currentPeriodEnd?: number;
+        cancelAtPeriodEnd?: boolean;
+      } | null;
+    };
+    stripe: Stripe;
+  },
+): Promise<SubscriptionAppliedResult> {
+  const { reservation, promotionConfig, targetTier, billingState, stripe } =
+    args;
+  const subscription = billingState.subscription;
+  const subscriptionId = subscription?.subscriptionId;
+  if (!subscriptionId) {
+    throw new Error("No active subscription found to extend.");
+  }
+  if (billingState.tier !== targetTier) {
+    throw new Error(
+      "Paid subscribers can only claim subscription promotions for their current tier.",
+    );
+  }
+  if (subscription.cancelAtPeriodEnd === true) {
+    throw new Error(
+      "Resume your subscription before claiming subscription promotion time.",
+    );
+  }
+  if (!isFullDiscount(promotionConfig.config)) {
+    throw new Error(
+      "Paid subscribers can only claim full-discount subscription promotions.",
+    );
+  }
+  if (promotionConfig.config.duration.type === "forever") {
+    throw new Error(
+      "Paid subscribers cannot claim forever subscription promotions.",
+    );
+  }
+
+  const months =
+    promotionConfig.config.duration.type === "repeating"
+      ? promotionConfig.config.duration.months
+      : 1;
+  const liveSub = await withTimeout(
+    stripe.subscriptions.retrieve(subscriptionId),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.subscriptions.retrieve",
+  );
+  const item = liveSub.items.data[0];
+  if (!item) {
+    throw new Error("Subscription has no billable item.");
+  }
+  if (item.price.id !== args.priceId) {
+    throw new Error(
+      "Your current subscription tier does not match this promo.",
+    );
+  }
+
+  const existingTrialEndMs =
+    typeof liveSub.trial_end === "number" ? liveSub.trial_end * 1000 : 0;
+  const currentPeriodEndMs =
+    typeof item.current_period_end === "number"
+      ? item.current_period_end * 1000
+      : (subscription.currentPeriodEnd ?? 0);
+  const extensionStartMs = Math.max(Date.now(), existingTrialEndMs);
+  const freeUntilMs = Math.max(
+    addUtcMonths(extensionStartMs, months),
+    currentPeriodEndMs,
+  );
+
+  await withTimeout(
+    stripe.subscriptions.update(subscriptionId, {
+      trial_end: Math.floor(freeUntilMs / 1000),
+      proration_behavior: "none",
+      metadata: {
+        ...liveSub.metadata,
+        promotionId: reservation.promotion.promotionId,
+        promotionRedemptionId: reservation.redemption.redemptionId,
+        promotionCode: reservation.promotion.code,
+        promotionFreeUntilMs: String(freeUntilMs),
+      },
+    }),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.subscriptions.update",
+  );
+
+  await ctx.runMutation(
+    internal.functions.promotions.internal_markPromotionRedemptionApplied,
+    {
+      redemptionId: reservation.redemption.redemptionId,
+      targetTier,
+      stripeCustomerId: args.customerId,
+      stripeSubscriptionId: subscriptionId,
+      metadata: {
+        promotionName: reservation.promotion.name,
+        targetTier,
+        priceId: args.priceId,
+        paidSubscriberExtension: true,
+        extensionMonths: months,
+        freeUntilMs,
+      },
+    },
+  );
+
+  return {
+    type: "subscription_applied" as const,
+    status: "applied" as const,
+    kind: "subscription_discount" as const,
+    promotionId: reservation.promotion.promotionId,
+    redemptionId: reservation.redemption.redemptionId,
+    targetTier,
+    stripeSubscriptionId: subscriptionId,
+    freeUntil: freeUntilMs,
   };
 }
 
@@ -860,13 +1037,15 @@ export const adminCreatePromotion = adminMutation({
 export const adminUpdatePromotion = adminMutation({
   args: {
     promotionId: v.string(),
+    code: v.optional(v.string()),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     status: v.optional(promotionStatusValidator),
-    maxRedemptions: v.optional(v.number()),
-    perUserRedemptionLimit: v.optional(v.number()),
-    startsAt: v.optional(v.number()),
-    endsAt: v.optional(v.number()),
+    kind: v.optional(promotionKindValidator),
+    maxRedemptions: v.optional(v.union(v.number(), v.null())),
+    perUserRedemptionLimit: v.optional(v.union(v.number(), v.null())),
+    startsAt: v.optional(v.union(v.number(), v.null())),
+    endsAt: v.optional(v.union(v.number(), v.null())),
     appCreditsConfig: v.optional(appCreditsConfigValidator),
     config: v.optional(promotionConfigValidator),
   },
@@ -875,13 +1054,40 @@ export const adminUpdatePromotion = adminMutation({
     if (!promotion) {
       throw new ConvexError("Promotion not found.");
     }
-    assertValidPromotionWindow(args);
-    assertValidRedemptionLimits(args);
+    const codeNormalized =
+      args.code === undefined ? undefined : normalizePromotionCode(args.code);
+    if (codeNormalized !== undefined && codeNormalized.length < 3) {
+      throw new ConvexError("Promotion code is too short.");
+    }
+    if (
+      codeNormalized !== undefined &&
+      codeNormalized !== promotion.codeNormalized
+    ) {
+      const existing = await getPromotionByCodeNormalized(ctx, codeNormalized);
+      if (existing) {
+        throw new ConvexError("A promotion with this code already exists.");
+      }
+    }
+
+    const startsAt = args.startsAt === null ? undefined : args.startsAt;
+    const endsAt = args.endsAt === null ? undefined : args.endsAt;
+    const maxRedemptions =
+      args.maxRedemptions === null ? undefined : args.maxRedemptions;
+    const perUserRedemptionLimit =
+      args.perUserRedemptionLimit === null
+        ? undefined
+        : args.perUserRedemptionLimit;
+
+    assertValidPromotionWindow({ startsAt, endsAt });
+    assertValidRedemptionLimits({ maxRedemptions, perUserRedemptionLimit });
 
     const patch: Partial<{
+      code: string;
+      codeNormalized: string;
       name: string;
       description: string | undefined;
       status: PromotionStatus;
+      kind: PromotionKind;
       maxRedemptions: number | undefined;
       perUserRedemptionLimit: number | undefined;
       startsAt: number | undefined;
@@ -890,6 +1096,10 @@ export const adminUpdatePromotion = adminMutation({
       updatedAt: number;
     }> = { updatedAt: Date.now() };
 
+    if (codeNormalized !== undefined) {
+      patch.code = codeNormalized;
+      patch.codeNormalized = codeNormalized;
+    }
     if (args.name !== undefined) {
       const name = args.name.trim();
       if (name.length === 0)
@@ -900,16 +1110,21 @@ export const adminUpdatePromotion = adminMutation({
       patch.description = normalizeOptionalText(args.description);
     }
     if (args.status !== undefined) patch.status = args.status;
+    if (args.kind !== undefined) patch.kind = args.kind;
     if (args.maxRedemptions !== undefined) {
-      patch.maxRedemptions = args.maxRedemptions;
+      patch.maxRedemptions = maxRedemptions;
     }
     if (args.perUserRedemptionLimit !== undefined) {
-      patch.perUserRedemptionLimit = args.perUserRedemptionLimit;
+      patch.perUserRedemptionLimit = perUserRedemptionLimit;
     }
-    if (args.startsAt !== undefined) patch.startsAt = args.startsAt;
-    if (args.endsAt !== undefined) patch.endsAt = args.endsAt;
-    if (args.appCreditsConfig !== undefined || args.config !== undefined) {
-      patch.metadata = buildPromotionMetadata(promotion.kind, {
+    if (args.startsAt !== undefined) patch.startsAt = startsAt;
+    if (args.endsAt !== undefined) patch.endsAt = endsAt;
+    if (
+      args.kind !== undefined ||
+      args.appCreditsConfig !== undefined ||
+      args.config !== undefined
+    ) {
+      patch.metadata = buildPromotionMetadata(args.kind ?? promotion.kind, {
         appCreditsConfig: args.appCreditsConfig,
         config: args.config as unknown,
       });
@@ -927,6 +1142,22 @@ export const adminPausePromotion = adminMutation({
     if (!promotion) throw new ConvexError("Promotion not found.");
     await ctx.db.patch(promotion._id, {
       status: "paused",
+      updatedAt: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+export const adminResumePromotion = adminMutation({
+  args: { promotionId: v.string() },
+  handler: async (ctx, args) => {
+    const promotion = await getPromotionByPromotionId(ctx, args.promotionId);
+    if (!promotion) throw new ConvexError("Promotion not found.");
+    if (promotion.status !== "paused") {
+      throw new ConvexError("Only paused promotions can be resumed.");
+    }
+    await ctx.db.patch(promotion._id, {
+      status: "active",
       updatedAt: Date.now(),
     });
     return { ok: true };
@@ -1021,10 +1252,23 @@ export const adminListPromotionRedemptions = adminQuery({
     );
     const next = safeStart + page.length;
 
+    const userIds = [...new Set(page.map((r) => r.userId))];
+    const userEmailById = new Map<string, string | null>();
+    for (const userId of userIds) {
+      const user = await authComponent.getAnyUserById(ctx, userId);
+      userEmailById.set(
+        userId,
+        typeof user?.email === "string" && user.email.length > 0
+          ? user.email
+          : null,
+      );
+    }
+
     return {
       page: page.map((redemption) => ({
         ...redemption,
         isRepeatUser: repeatedUsers.has(redemption.userId),
+        userEmail: userEmailById.get(redemption.userId) ?? null,
       })),
       isDone: next >= filtered.length,
       continueCursor: String(next),

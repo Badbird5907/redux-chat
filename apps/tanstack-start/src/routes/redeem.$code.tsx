@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useAction, useQuery } from "convex/react";
-import { CheckCircle2, Gift } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  Gift,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import {
   Select,
@@ -48,11 +56,12 @@ function RedeemPromotionPage() {
     amountCents?: number;
     currency?: string;
     expiresAt?: number;
+    freeUntil?: number;
     targetTier?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const attempted = useRef(false);
 
   const redeem = async () => {
     setPending(true);
@@ -88,6 +97,10 @@ function RedeemPromotionPage() {
           "expiresAt" in redeemed && typeof redeemed.expiresAt === "number"
             ? redeemed.expiresAt
             : undefined,
+        freeUntil:
+          "freeUntil" in redeemed && typeof redeemed.freeUntil === "number"
+            ? redeemed.freeUntil
+            : undefined,
         targetTier:
           "targetTier" in redeemed && typeof redeemed.targetTier === "string"
             ? redeemed.targetTier
@@ -100,25 +113,6 @@ function RedeemPromotionPage() {
       setPending(false);
     }
   };
-
-  useEffect(() => {
-    if (attempted.current || promotion === undefined || promotion === null) {
-      return;
-    }
-    if (promotion.requiresTargetTierSelection) {
-      return;
-    }
-    if (
-      promotion.kind === "subscription_discount" &&
-      promotion.requiresCheckout
-    ) {
-      return;
-    }
-    attempted.current = true;
-    const timeout = window.setTimeout(() => void redeem(), 0);
-    return () => window.clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promotion]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -135,159 +129,257 @@ function RedeemPromotionPage() {
       );
       return () => window.clearTimeout(timeout);
     }
+    if (checkout === "success") {
+      const timeout = window.setTimeout(
+        () =>
+          setCheckoutMessage(
+            "Checkout completed. Your promotion is being applied.",
+          ),
+        0,
+      );
+      return () => window.clearTimeout(timeout);
+    }
   }, [cancelPendingCheckout]);
 
   if (promotion === undefined) {
     return (
-      <main className="bg-muted/35 flex min-h-screen items-center justify-center p-6">
-        <p className="text-muted-foreground text-sm">Loading promotion…</p>
-      </main>
+      <RedeemShell>
+        <section className="border-border bg-card overflow-hidden rounded-xl border">
+          <div className="bg-muted h-2" />
+          <div className="space-y-5 p-6">
+            <div className="bg-muted h-12 w-12 rounded-lg" />
+            <div className="space-y-2">
+              <div className="bg-muted h-7 w-2/3 rounded" />
+              <div className="bg-muted h-4 w-1/2 rounded" />
+            </div>
+            <div className="bg-muted h-24 rounded-lg" />
+          </div>
+        </section>
+      </RedeemShell>
     );
   }
 
   if (promotion === null) {
     return (
-      <main className="bg-muted/35 flex min-h-screen items-center justify-center p-6">
-        <section className="bg-card border-border/70 w-full max-w-md rounded-xl border p-6 text-center">
-          <Gift className="text-muted-foreground mx-auto size-8" />
-          <h1 className="mt-4 text-xl font-semibold">Promotion not found</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            This code does not match an active promotion.
-          </p>
-        </section>
-      </main>
+      <RedeemShell>
+        <StatusPanel
+          icon={<AlertCircle className="size-6" />}
+          tone="destructive"
+          title="Promotion not found"
+          description="This code does not match an active promotion. Check the link and try again."
+        />
+      </RedeemShell>
     );
   }
 
+  const isSubscriptionPromo = promotion.kind === "subscription_discount";
+  const requiresTierSelection =
+    isSubscriptionPromo && promotion.requiresTargetTierSelection;
+  const selectedTierLabel =
+    targetTier === "pro" ? "Pro" : targetTier === "plus" ? "Plus" : undefined;
+  const actionDisabled =
+    result !== null ||
+    promotion.canRedeem === false ||
+    pending ||
+    (requiresTierSelection && targetTier === undefined);
+  const actionLabel = pending
+    ? "Redeeming..."
+    : promotion.ineligibleReason === "You already redeemed this promotion."
+      ? "Already Redeemed"
+      : promotion.canRedeem === false
+        ? "Unavailable"
+    : isSubscriptionPromo && promotion.requiresCheckout
+      ? "Continue to checkout"
+      : "Redeem promotion";
+
   return (
-    <main className="bg-muted/35 flex min-h-screen items-center justify-center p-6">
-      <section className="bg-card border-border/70 w-full max-w-md rounded-xl border p-6">
-        <div className="flex items-start gap-3">
-          <div className="bg-primary/10 text-primary rounded-lg p-2">
-            <Gift className="size-5" />
+    <RedeemShell>
+      <section className="border-border bg-card overflow-hidden rounded-xl border shadow-sm">
+        <div className="bg-primary h-2" />
+        <div className="p-6 sm:p-7">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="bg-primary/10 text-primary rounded-lg p-2.5">
+              <Gift className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <Badge variant="secondary" className="mb-2 font-mono">
+                {promotion.code}
+              </Badge>
+              <h1 className="text-foreground text-2xl font-semibold tracking-tight">
+                {promotion.name}
+              </h1>
+              {promotion.description ? (
+                <p className="text-muted-foreground mt-2 text-sm leading-6">
+                  {promotion.description}
+                </p>
+              ) : null}
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold">{promotion.name}</h1>
-            <p className="text-muted-foreground mt-1 font-mono text-xs">
-              {promotion.code}
+
+          <div className="mt-6">
+            <p className="text-sm font-medium">Promotion benefit</p>
+            <p className="text-muted-foreground mt-1 text-base leading-7">
+              {promotion.configSummary}
             </p>
           </div>
-        </div>
 
-        {promotion.description ? (
-          <p className="text-muted-foreground mt-4 text-sm">
-            {promotion.description}
-          </p>
-        ) : null}
-
-        <dl className="text-muted-foreground mt-5 grid gap-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt>Benefit</dt>
-            <dd className="text-foreground text-right">
-              {promotion.configSummary}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt>Per-user redemptions</dt>
-            <dd className="text-foreground text-right">
-              {promotion.perUserRedemptionLabel}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt>Your redemptions</dt>
-            <dd className="text-foreground tabular-nums">
-              {promotion.userRedemptionCount.toLocaleString()}
-            </dd>
-          </div>
-          {promotion.endsAt ? (
-            <div className="flex justify-between gap-4">
-              <dt>Ends</dt>
-              <dd className="text-foreground text-right">
-                {formatDate(promotion.endsAt)}
-              </dd>
+          {requiresTierSelection ? (
+            <div className="mt-6 grid gap-2">
+              <label className="text-sm font-medium">Choose your plan</label>
+              <Select
+                value={targetTier}
+                onValueChange={(value) => {
+                  if (value === "plus" || value === "pro") {
+                    setTargetTier(value);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Plus or Pro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {promotion.redeemableTargetTiers.includes("plus") ? (
+                    <SelectItem value="plus">Plus</SelectItem>
+                  ) : null}
+                  {promotion.redeemableTargetTiers.includes("pro") ? (
+                    <SelectItem value="pro">Pro</SelectItem>
+                  ) : null}
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Pick the plan you want this promotion applied to.
+              </p>
             </div>
           ) : null}
-        </dl>
 
-        {promotion.kind === "subscription_discount" &&
-        promotion.redeemableTargetTiers.length > 1 ? (
-          <div className="mt-5 grid gap-2">
-            <label className="text-sm font-medium">Subscription tier</label>
-            <Select
-              value={targetTier}
-              onValueChange={(value) => {
-                if (value === "plus" || value === "pro") {
-                  setTargetTier(value);
-                }
-              }}
+          {checkoutMessage ? (
+            <StatusPanel
+              icon={<Clock3 className="size-5" />}
+              tone="muted"
+              title="Checkout complete"
+              description={checkoutMessage}
+              className="mt-6"
+            />
+          ) : null}
+
+          {result ? (
+            <StatusPanel
+              icon={<CheckCircle2 className="size-5" />}
+              tone="success"
+              title="Promotion redeemed"
+              description={formatRedemptionResult(result)}
+              className="mt-6"
+            />
+          ) : null}
+
+          {error ? (
+            <StatusPanel
+              icon={<AlertCircle className="size-5" />}
+              tone="destructive"
+              title="Could not redeem"
+              description={error}
+              className="mt-6"
+            />
+          ) : null}
+
+          {!result ? (
+            <Button
+              type="button"
+              className="mt-6 h-11 w-full"
+              disabled={actionDisabled}
+              onClick={() => void redeem()}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose Plus or Pro" />
-              </SelectTrigger>
-              <SelectContent>
-                {promotion.redeemableTargetTiers.includes("plus") ? (
-                  <SelectItem value="plus">Plus</SelectItem>
-                ) : null}
-                {promotion.redeemableTargetTiers.includes("pro") ? (
-                  <SelectItem value="pro">Pro</SelectItem>
-                ) : null}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
+              {actionLabel}
+              {!pending ? <ArrowRight className="size-4" /> : null}
+            </Button>
+          ) : null}
 
-        {result ? (
-          <div className="mt-5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
-            <div className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="size-4" />
-              Redeemed
-            </div>
-            <p className="text-muted-foreground mt-2">
-              {result.kind === "stripe_invoice_credit" &&
-              result.amountCents !== undefined
-                ? `${formatCurrencyFromMinorUnits(
-                    result.amountCents,
-                    result.currency ?? "USD",
-                  )} was added to your Stripe invoice balance.`
-                : result.kind === "subscription_discount"
-                  ? `${result.targetTier ?? "Subscription"} promotion applied.`
-                  : `${result.amount.toLocaleString()} gifted credits were added to your account.`}
-              {result.kind !== "stripe_invoice_credit" && result.expiresAt
-                ? ` Expires ${formatDate(result.expiresAt)}.`
-                : ""}
+          {requiresTierSelection && targetTier === undefined && !result ? (
+            <p className="text-muted-foreground mt-3 text-center text-xs">
+              Choose a plan before redeeming.
             </p>
-          </div>
-        ) : null}
-
-        {error ? (
-          <p className="text-destructive mt-5 text-sm" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <Button
-          type="button"
-          className="mt-5 w-full"
-          disabled={
-            pending ||
-            (promotion.kind === "subscription_discount" &&
-              promotion.requiresTargetTierSelection &&
-              targetTier === undefined)
-          }
-          onClick={() => void redeem()}
-        >
-          {pending
-            ? "Redeeming…"
-            : promotion.kind === "subscription_discount" &&
-                promotion.requiresCheckout
-              ? "Continue to checkout"
-              : result
-                ? "Redeem again"
-                : "Redeem"}
-        </Button>
+          ) : selectedTierLabel && !result ? (
+            <p className="text-muted-foreground mt-3 text-center text-xs">
+              This promotion will be applied to {selectedTierLabel}.
+            </p>
+          ) : null}
+        </div>
       </section>
+    </RedeemShell>
+  );
+}
+
+function RedeemShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="bg-background min-h-screen">
+      <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-4 py-8 sm:px-6">
+        <div className="w-full min-w-0">{children}</div>
+      </div>
     </main>
   );
+}
+
+function StatusPanel({
+  icon,
+  tone,
+  title,
+  description,
+  className,
+}: {
+  icon: ReactNode;
+  tone: "success" | "destructive" | "muted";
+  title: string;
+  description: string;
+  className?: string;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+      : tone === "destructive"
+        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        : "border-border bg-muted/35 text-foreground";
+
+  return (
+    <div
+      className={`rounded-lg border p-4 text-sm ${toneClass} ${className ?? ""}`}
+    >
+      <div className="flex items-center gap-2 font-medium">
+        {icon}
+        {title}
+      </div>
+      <p className="text-muted-foreground mt-2 leading-6">{description}</p>
+    </div>
+  );
+}
+
+function formatRedemptionResult(result: {
+  kind?: string;
+  amount: number;
+  amountCents?: number;
+  currency?: string;
+  expiresAt?: number;
+  freeUntil?: number;
+  targetTier?: string;
+}) {
+  const base =
+    result.kind === "stripe_invoice_credit" && result.amountCents !== undefined
+      ? `${formatCurrencyFromMinorUnits(
+          result.amountCents,
+          result.currency ?? "USD",
+        )} was added to your Stripe invoice balance.`
+      : result.kind === "subscription_discount"
+        ? `${result.targetTier ?? "Subscription"} promotion applied.${
+            result.freeUntil
+              ? ` Free until ${formatDate(result.freeUntil)}.`
+              : ""
+          }`
+        : `${result.amount.toLocaleString()} gifted credits were added to your account.`;
+
+  return `${base}${
+    result.kind !== "stripe_invoice_credit" && result.expiresAt
+      ? ` Expires ${formatDate(result.expiresAt)}.`
+      : ""
+  }`;
 }
 
 function formatCurrencyFromMinorUnits(

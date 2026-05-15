@@ -17,11 +17,11 @@ import {
 } from "@redux/ui/components/tabs";
 
 import type { ActiveDialog, AdminUserDetail } from "./types";
+import { AdminPageNav } from "@/components/admin/admin-page-nav";
 import { authClient } from "@/lib/auth/client";
 import { useQuery as useConvexQuery } from "@/lib/hooks/convex";
 import { AdminUserAccountsTab } from "./accounts-tab";
 import { AdminUserActivityTab } from "./activity-tab";
-import { AdminUserDetailBreadcrumb } from "./breadcrumb";
 import { AdminUserCreditsTab } from "./credits-tab";
 import { BanDialog } from "./dialogs/ban-dialog";
 import { ChangePasswordDialog } from "./dialogs/change-password-dialog";
@@ -71,7 +71,13 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
   if (userQuery.isError) {
     return (
       <div className="mx-auto w-full max-w-5xl space-y-4">
-        <AdminUserDetailBreadcrumb name="Error" />
+        <AdminPageNav
+          items={[
+            { label: "Admin", to: "/admin" },
+            { label: "Users", to: "/admin/users" },
+            { label: "Error" },
+          ]}
+        />
         <Card className="border-destructive/30">
           <CardHeader>
             <CardTitle>Could not load user</CardTitle>
@@ -89,7 +95,13 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
   if (userQuery.isPending) {
     return (
       <div className="mx-auto w-full max-w-5xl space-y-6">
-        <Skeleton className="h-4 w-48" />
+        <AdminPageNav
+          items={[
+            { label: "Admin", to: "/admin" },
+            { label: "Users", to: "/admin/users" },
+            { label: "…" },
+          ]}
+        />
         <div className="border-border/60 bg-card/40 flex flex-wrap items-center gap-5 rounded-2xl border p-5">
           <Skeleton className="size-16 rounded-xl" />
           <div className="flex-1 space-y-2">
@@ -107,7 +119,13 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
   if (user == null) {
     return (
       <div className="mx-auto w-full max-w-5xl space-y-4">
-        <AdminUserDetailBreadcrumb name="Not found" />
+        <AdminPageNav
+          items={[
+            { label: "Admin", to: "/admin" },
+            { label: "Users", to: "/admin/users" },
+            { label: "Not found" },
+          ]}
+        />
         <Card>
           <CardHeader>
             <CardTitle>User not found</CardTitle>
@@ -131,7 +149,13 @@ export function AdminUserDetailPage({ userId }: { userId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
-      <AdminUserDetailBreadcrumb name={displayName} />
+      <AdminPageNav
+        items={[
+          { label: "Admin", to: "/admin" },
+          { label: "Users", to: "/admin/users" },
+          { label: displayName },
+        ]}
+      />
 
       <AdminUserDetailHeader
         user={user}
