@@ -1,5 +1,10 @@
 import type { ChatPreload } from "@/components/chat/preload";
-import { createFileRoute, Outlet, useMatch, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  useMatch,
+  useRouterState,
+} from "@tanstack/react-router";
 
 import { SidebarProvider } from "@redux/ui/components/sidebar";
 

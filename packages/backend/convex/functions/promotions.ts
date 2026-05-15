@@ -154,11 +154,45 @@ type CheckoutRedirectResult = {
   url: string;
 };
 
+type PromotionSubscriptionUpgradePreview = {
+  prorationDate: number;
+  currency: string;
+  subtotal: number;
+  total: number;
+  amountDue: number;
+  startingBalance: number;
+  prorationSubtotal: number;
+  prorationCredit: number;
+  prorationCharge: number;
+  otherInvoiceAmount: number;
+  lines: {
+    id: string;
+    description: string;
+    amount: number;
+    currency: string;
+    periodStart: number | undefined;
+    periodEnd: number | undefined;
+  }[];
+};
+
 type RedeemPromotionResult =
   | AppCreditsAppliedResult
   | InvoiceCreditAppliedResult
   | SubscriptionAppliedResult
   | CheckoutRedirectResult;
+
+type PromotionSubscriptionCheckoutArgs = {
+  siteUrl: string;
+  customerId: string;
+  priceId: string;
+  couponId: string;
+  promotionCode: string;
+  redemptionId: string;
+  userId: string;
+  targetTier: PromotionSubscriptionTier;
+  metadata: Record<string, string>;
+  requirePaymentMethod: boolean;
+};
 
 async function assertActionUserIsAdmin(ctx: PromotionActionCtx): Promise<void> {
   const me = await authComponent.getAuthUser(ctx);
@@ -243,6 +277,12 @@ function promotionPreview(promotion: PromotionDoc) {
   let benefit = "Promotion";
   let redeemableTargetTiers: PromotionSubscriptionTier[] = [];
   let subscriptionMode: "discount" | "gifted_subscription" | undefined;
+  let subscriptionDiscount:
+    | {
+        mode: SubscriptionPromotionConfig["mode"];
+        discount: SubscriptionPromotionConfig["discount"];
+      }
+    | undefined;
   let requiresCheckout = false;
   try {
     const config = getValidatedPromotionConfig(promotion);
@@ -250,6 +290,10 @@ function promotionPreview(promotion: PromotionDoc) {
     if (config.kind === "subscription_discount") {
       redeemableTargetTiers = getPromotionRedeemableTiers(config.config);
       subscriptionMode = config.config.mode;
+      subscriptionDiscount = {
+        mode: config.config.mode,
+        discount: config.config.discount,
+      };
       requiresCheckout = !(
         config.config.mode === "gifted_subscription" ||
         isFullDiscount(config.config)
@@ -278,6 +322,7 @@ function promotionPreview(promotion: PromotionDoc) {
     redeemableTargetTiers,
     requiresTargetTierSelection: redeemableTargetTiers.length > 1,
     subscriptionMode,
+    subscriptionDiscount,
     requiresCheckout,
   };
 }
@@ -335,6 +380,7 @@ export const redeemPromotion = action({
   args: {
     code: v.string(),
     targetTier: v.optional(paidPlanTierValidator),
+    prorationDate: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<RedeemPromotionResult> => {
     const reservation: ReservationSnapshot = await ctx.runMutation(
@@ -366,6 +412,7 @@ export const redeemPromotion = action({
         ctx,
         reservation,
         promotionConfig,
+        args.prorationDate,
       );
     } catch (error) {
       await ctx.runMutation(
@@ -382,6 +429,95 @@ export const redeemPromotion = action({
       );
       throw error;
     }
+  },
+});
+
+export const previewSubscriptionPromotionUpgrade = action({
+  args: {
+    code: v.string(),
+    targetTier: paidPlanTierValidator,
+  },
+  handler: async (ctx, args): Promise<PromotionSubscriptionUpgradePreview> => {
+    const redeemability = await ctx.runQuery(
+      api.functions.promotions.getPromotionByCode,
+      { code: args.code },
+    );
+    if (!redeemability) {
+      throw new Error("Promotion not found.");
+    }
+    if (redeemability.canRedeem === false) {
+      throw new Error(
+        redeemability.ineligibleReason ?? "This promotion cannot be redeemed.",
+      );
+    }
+
+    const codeNormalized = normalizePromotionCode(args.code);
+    const promotion: PromotionDoc | null = await ctx.runQuery(
+      internal.functions.promotions.internal_getPromotionByCodeNormalized,
+      { codeNormalized },
+    );
+    if (!promotion) {
+      throw new Error("Promotion not found.");
+    }
+    const promotionConfig = getValidatedPromotionConfig(promotion);
+    if (promotionConfig.kind !== "subscription_discount") {
+      throw new Error("This promotion is not a subscription promotion.");
+    }
+    const targetTier = resolveTargetTier(
+      promotionConfig.config,
+      args.targetTier,
+    );
+    const billingState: {
+      tier: string;
+      subscription?: {
+        subscriptionId?: string;
+        priceId?: string;
+        cancelAtPeriodEnd?: boolean;
+      } | null;
+    } = await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
+    assertSubscriptionPromotionUpgradeEligibility({
+      currentTier: billingState.tier,
+      targetTier,
+      subscriptionId: billingState.subscription?.subscriptionId,
+      cancelAtPeriodEnd: billingState.subscription?.cancelAtPeriodEnd,
+    });
+
+    const priceId = priceIdForTier(targetTier);
+    if (!priceId) {
+      throw new Error("That subscription tier is not configured.");
+    }
+
+    const stripe = getStripeSdkClient();
+    const liveSub = await getLiveSubscriptionForPromotionUpgrade(stripe, {
+      subscriptionId: billingState.subscription?.subscriptionId,
+      targetPriceId: priceId,
+    });
+    const customerId =
+      typeof liveSub.customer === "string"
+        ? liveSub.customer
+        : liveSub.customer.id;
+    const coupon = await createPromotionPreviewCoupon(stripe, {
+      promotion: {
+        promotionId: promotion.promotionId,
+        code: promotion.code,
+        codeNormalized: promotion.codeNormalized,
+        name: promotion.name,
+        kind: promotion.kind,
+        metadata: promotion.metadata,
+      },
+      userId: ctx.userId,
+      config: promotionConfig.config,
+      targetTier,
+    });
+
+    return await previewPromotionSubscriptionUpgradeInvoice(stripe, {
+      customerId,
+      subscriptionId: liveSub.id,
+      subscriptionItemId: liveSub.items.data[0]!.id,
+      targetPriceId: priceId,
+      couponId: coupon.id,
+      prorationDate: Math.floor(Date.now() / 1000),
+    });
   },
 });
 
@@ -450,20 +586,29 @@ async function applyInvoiceCreditPromotion(
   const customerId: string = await ensureCurrentStripeCustomer(ctx);
   const stripe = getStripeSdkClient();
   const transaction: Stripe.CustomerBalanceTransaction = await withTimeout(
-    stripe.customers.createBalanceTransaction(customerId, {
-      amount: -promotionConfig.config.amountCents,
-      currency: promotionConfig.config.currency,
-      description:
-        promotionConfig.config.description ??
-        `Promotion ${reservation.promotion.code}`,
-      metadata: stripeMetadata({
-        kind: "promotion_invoice_credit",
-        promotionId: reservation.promotion.promotionId,
-        redemptionId: reservation.redemption.redemptionId,
-        userId: reservation.redemption.userId,
-        code: reservation.promotion.code,
-      }),
-    }),
+    stripe.customers.createBalanceTransaction(
+      customerId,
+      {
+        amount: -promotionConfig.config.amountCents,
+        currency: promotionConfig.config.currency,
+        description:
+          promotionConfig.config.description ??
+          `Promotion ${reservation.promotion.code}`,
+        metadata: stripeMetadata({
+          kind: "promotion_invoice_credit",
+          promotionId: reservation.promotion.promotionId,
+          redemptionId: reservation.redemption.redemptionId,
+          userId: reservation.redemption.userId,
+          code: reservation.promotion.code,
+        }),
+      },
+      {
+        idempotencyKey: promotionStripeIdempotencyKey(
+          "invoice-credit",
+          reservation.redemption.redemptionId,
+        ),
+      },
+    ),
     STRIPE_NETWORK_TIMEOUT_MS,
     "stripe.customers.createBalanceTransaction",
   );
@@ -501,6 +646,7 @@ async function applySubscriptionPromotion(
     PromotionConfigSnapshot,
     { kind: "subscription_discount" }
   >,
+  requestedProrationDate: number | undefined,
 ): Promise<SubscriptionAppliedResult | CheckoutRedirectResult> {
   const targetTier = reservation.redemption.targetTier;
   if (!targetTier) {
@@ -518,14 +664,6 @@ async function applySubscriptionPromotion(
       cancelAtPeriodEnd?: boolean;
     } | null;
   } = await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
-  if (
-    billingState.tier !== "free" &&
-    promotionConfig.config.freeUsersOnly !== false
-  ) {
-    throw new Error(
-      "Subscription promotions are only available to free users.",
-    );
-  }
 
   const customerId = await ensureCurrentStripeCustomer(ctx);
   const priceId = priceIdForTier(targetTier);
@@ -544,6 +682,7 @@ async function applySubscriptionPromotion(
       priceId,
       billingState,
       stripe,
+      requestedProrationDate,
     });
   }
 
@@ -565,24 +704,29 @@ async function applySubscriptionPromotion(
     couponId: coupon.id,
   });
 
-  if (
-    promotionConfig.config.mode === "gifted_subscription" ||
-    isFullDiscount(promotionConfig.config)
-  ) {
+  if (shouldCreateDirectSubscriptionForPromotion(promotionConfig.config)) {
     const cancelConfig = await subscriptionCancellationParamsForGift(
       stripe,
       customerId,
       promotionConfig.config,
     );
     const subscription = await withTimeout(
-      stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: priceId }],
-        discounts: [{ coupon: coupon.id }],
-        metadata: { ...metadata, ...cancelConfig.metadata },
-        payment_behavior: "allow_incomplete",
-        ...cancelConfig.params,
-      }),
+      stripe.subscriptions.create(
+        {
+          customer: customerId,
+          items: [{ price: priceId }],
+          discounts: [{ coupon: coupon.id }],
+          metadata: { ...metadata, ...cancelConfig.metadata },
+          payment_behavior: "allow_incomplete",
+          ...cancelConfig.params,
+        },
+        {
+          idempotencyKey: promotionStripeIdempotencyKey(
+            "direct-subscription",
+            reservation.redemption.redemptionId,
+          ),
+        },
+      ),
       STRIPE_NETWORK_TIMEOUT_MS,
       "stripe.subscriptions.create",
     );
@@ -620,17 +764,28 @@ async function applySubscriptionPromotion(
   const env = backendEnv();
   const siteUrl = env.SITE_URL.replace(/\/+$/, "");
   const checkout = await withTimeout(
-    stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      client_reference_id: reservation.redemption.userId,
-      line_items: [{ price: priceId, quantity: 1 }],
-      discounts: [{ coupon: coupon.id }],
-      success_url: `${siteUrl}/redeem/${reservation.promotion.code}?checkout=success&redemptionId=${reservation.redemption.redemptionId}`,
-      cancel_url: `${siteUrl}/redeem/${reservation.promotion.code}?checkout=cancelled&redemptionId=${reservation.redemption.redemptionId}`,
-      metadata,
-      subscription_data: { metadata },
-    }),
+    stripe.checkout.sessions.create(
+      {
+        ...buildPromotionSubscriptionCheckoutParams({
+          siteUrl,
+          customerId,
+          priceId,
+          couponId: coupon.id,
+          promotionCode: reservation.promotion.code,
+          redemptionId: reservation.redemption.redemptionId,
+          userId: reservation.redemption.userId,
+          targetTier,
+          metadata,
+          requirePaymentMethod: promotionConfig.config.requirePaymentMethod,
+        }),
+      },
+      {
+        idempotencyKey: promotionStripeIdempotencyKey(
+          "subscription-checkout",
+          reservation.redemption.redemptionId,
+        ),
+      },
+    ),
     STRIPE_NETWORK_TIMEOUT_MS,
     "stripe.checkout.sessions.create",
   );
@@ -671,6 +826,35 @@ async function applySubscriptionPromotion(
   };
 }
 
+export function shouldCreateDirectSubscriptionForPromotion(
+  config: SubscriptionPromotionConfig,
+): boolean {
+  return (
+    !config.requirePaymentMethod &&
+    (config.mode === "gifted_subscription" || isFullDiscount(config))
+  );
+}
+
+export function buildPromotionSubscriptionCheckoutParams(
+  args: PromotionSubscriptionCheckoutArgs,
+): Stripe.Checkout.SessionCreateParams {
+  const promotionCode = encodeURIComponent(args.promotionCode);
+  const redemptionId = encodeURIComponent(args.redemptionId);
+
+  return {
+    mode: "subscription",
+    customer: args.customerId,
+    client_reference_id: args.userId,
+    line_items: [{ price: args.priceId, quantity: 1 }],
+    discounts: [{ coupon: args.couponId }],
+    success_url: `${args.siteUrl}/redeem/${promotionCode}?checkout=success&redemptionId=${redemptionId}`,
+    cancel_url: `${args.siteUrl}/redeem/${promotionCode}?checkout=cancelled&redemptionId=${redemptionId}`,
+    metadata: args.metadata,
+    subscription_data: { metadata: args.metadata },
+    payment_method_collection: args.requirePaymentMethod ? "always" : undefined,
+  };
+}
+
 async function applySubscriptionPromotionToPaidSubscriber(
   ctx: PromotionActionCtx,
   args: {
@@ -694,78 +878,70 @@ async function applySubscriptionPromotionToPaidSubscriber(
       } | null;
     };
     stripe: Stripe;
+    requestedProrationDate: number | undefined;
   },
 ): Promise<SubscriptionAppliedResult> {
   const { reservation, promotionConfig, targetTier, billingState, stripe } =
     args;
   const subscription = billingState.subscription;
   const subscriptionId = subscription?.subscriptionId;
+  assertSubscriptionPromotionUpgradeEligibility({
+    currentTier: billingState.tier,
+    targetTier,
+    subscriptionId,
+    cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd,
+  });
   if (!subscriptionId) {
-    throw new Error("No active subscription found to extend.");
-  }
-  if (billingState.tier !== targetTier) {
-    throw new Error(
-      "Paid subscribers can only claim subscription promotions for their current tier.",
-    );
-  }
-  if (subscription.cancelAtPeriodEnd === true) {
-    throw new Error(
-      "Resume your subscription before claiming subscription promotion time.",
-    );
-  }
-  if (!isFullDiscount(promotionConfig.config)) {
-    throw new Error(
-      "Paid subscribers can only claim full-discount subscription promotions.",
-    );
-  }
-  if (promotionConfig.config.duration.type === "forever") {
-    throw new Error(
-      "Paid subscribers cannot claim forever subscription promotions.",
-    );
+    throw new Error("No active subscription found to upgrade.");
   }
 
-  const months =
-    promotionConfig.config.duration.type === "repeating"
-      ? promotionConfig.config.duration.months
-      : 1;
-  const liveSub = await withTimeout(
-    stripe.subscriptions.retrieve(subscriptionId),
-    STRIPE_NETWORK_TIMEOUT_MS,
-    "stripe.subscriptions.retrieve",
-  );
+  const coupon = await createPromotionCoupon(stripe, {
+    promotion: reservation.promotion,
+    redemption: reservation.redemption,
+    config: promotionConfig.config,
+    targetTier,
+  });
+  const liveSub = await getLiveSubscriptionForPromotionUpgrade(stripe, {
+    subscriptionId,
+    targetPriceId: args.priceId,
+  });
   const item = liveSub.items.data[0];
   if (!item) {
     throw new Error("Subscription has no billable item.");
   }
-  if (item.price.id !== args.priceId) {
-    throw new Error(
-      "Your current subscription tier does not match this promo.",
-    );
-  }
+  const prorationDate =
+    typeof args.requestedProrationDate === "number" &&
+    Number.isInteger(args.requestedProrationDate)
+      ? args.requestedProrationDate
+      : Math.floor(Date.now() / 1000);
+  const preview = await previewPromotionSubscriptionUpgradeInvoice(stripe, {
+    customerId: args.customerId,
+    subscriptionId,
+    subscriptionItemId: item.id,
+    targetPriceId: args.priceId,
+    couponId: coupon.id,
+    prorationDate,
+  });
 
-  const existingTrialEndMs =
-    typeof liveSub.trial_end === "number" ? liveSub.trial_end * 1000 : 0;
-  const currentPeriodEndMs =
-    typeof item.current_period_end === "number"
-      ? item.current_period_end * 1000
-      : (subscription.currentPeriodEnd ?? 0);
-  const extensionStartMs = Math.max(Date.now(), existingTrialEndMs);
-  const freeUntilMs = Math.max(
-    addUtcMonths(extensionStartMs, months),
-    currentPeriodEndMs,
-  );
-
-  await withTimeout(
+  const updatedSubscription = await withTimeout(
     stripe.subscriptions.update(subscriptionId, {
-      trial_end: Math.floor(freeUntilMs / 1000),
-      proration_behavior: "none",
+      cancel_at_period_end: false,
+      items: [{ id: item.id, price: args.priceId }],
+      discounts: [{ coupon: coupon.id }],
       metadata: {
         ...liveSub.metadata,
+        userId: reservation.redemption.userId,
+        priceId: args.priceId,
+        tier: targetTier,
         promotionId: reservation.promotion.promotionId,
         promotionRedemptionId: reservation.redemption.redemptionId,
         promotionCode: reservation.promotion.code,
-        promotionFreeUntilMs: String(freeUntilMs),
+        promotionProrationDate: String(preview.prorationDate),
+        pendingPriceId: "",
+        pendingAppliesAtMs: "",
       },
+      proration_behavior: "always_invoice",
+      proration_date: preview.prorationDate,
     }),
     STRIPE_NETWORK_TIMEOUT_MS,
     "stripe.subscriptions.update",
@@ -778,13 +954,17 @@ async function applySubscriptionPromotionToPaidSubscriber(
       targetTier,
       stripeCustomerId: args.customerId,
       stripeSubscriptionId: subscriptionId,
+      stripeCouponId: coupon.id,
       metadata: {
         promotionName: reservation.promotion.name,
         targetTier,
         priceId: args.priceId,
-        paidSubscriberExtension: true,
-        extensionMonths: months,
-        freeUntilMs,
+        couponId: coupon.id,
+        paidSubscriberUpgrade: true,
+        prorationDate: preview.prorationDate,
+        amountDue: preview.amountDue,
+        prorationCredit: preview.prorationCredit,
+        prorationCharge: preview.prorationCharge,
       },
     },
   );
@@ -796,8 +976,7 @@ async function applySubscriptionPromotionToPaidSubscriber(
     promotionId: reservation.promotion.promotionId,
     redemptionId: reservation.redemption.redemptionId,
     targetTier,
-    stripeSubscriptionId: subscriptionId,
-    freeUntil: freeUntilMs,
+    stripeSubscriptionId: updatedSubscription.id,
   };
 }
 
@@ -841,18 +1020,27 @@ export const adminRevokePromotionStripeInvoiceCredit = action({
 
     const stripe = getStripeSdkClient();
     const reversal: Stripe.CustomerBalanceTransaction = await withTimeout(
-      stripe.customers.createBalanceTransaction(redemption.stripeCustomerId, {
-        amount: amountCents,
-        currency,
-        description: `Reversal for promotion ${redemption.codeNormalized}`,
-        metadata: stripeMetadata({
-          kind: "promotion_invoice_credit_reversal",
-          redemptionId: redemption.redemptionId,
-          promotionId: redemption.promotionId,
-          userId: redemption.userId,
-          reversal: "true",
-        }),
-      }),
+      stripe.customers.createBalanceTransaction(
+        redemption.stripeCustomerId,
+        {
+          amount: amountCents,
+          currency,
+          description: `Reversal for promotion ${redemption.codeNormalized}`,
+          metadata: stripeMetadata({
+            kind: "promotion_invoice_credit_reversal",
+            redemptionId: redemption.redemptionId,
+            promotionId: redemption.promotionId,
+            userId: redemption.userId,
+            reversal: "true",
+          }),
+        },
+        {
+          idempotencyKey: promotionStripeIdempotencyKey(
+            "invoice-credit-reversal",
+            redemption.redemptionId,
+          ),
+        },
+      ),
       STRIPE_NETWORK_TIMEOUT_MS,
       "stripe.customers.createBalanceTransaction.reversal",
     );
@@ -1451,6 +1639,7 @@ export const internal_markPromotionRedemptionFailed = internalMutation({
     failureReason: v.string(),
     releaseRedemption: v.optional(v.boolean()),
     requirePendingCheckout: v.optional(v.boolean()),
+    stripeCheckoutSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const redemption = await getRequiredRedemption(ctx, args.redemptionId);
@@ -1460,6 +1649,12 @@ export const internal_markPromotionRedemptionFailed = internalMutation({
     if (
       args.requirePendingCheckout === true &&
       redemption.status !== "pending_checkout"
+    ) {
+      return { ok: true, skipped: true };
+    }
+    if (
+      args.stripeCheckoutSessionId !== undefined &&
+      redemption.stripeCheckoutSessionId !== args.stripeCheckoutSessionId
     ) {
       return { ok: true, skipped: true };
     }
@@ -1511,6 +1706,13 @@ export const internal_getPromotionRedemptionById = internalQuery({
   },
 });
 
+export const internal_getPromotionByCodeNormalized = internalQuery({
+  args: { codeNormalized: v.string() },
+  handler: async (ctx, args): Promise<PromotionDoc | null> => {
+    return await getPromotionByCodeNormalized(ctx, args.codeNormalized);
+  },
+});
+
 export const internal_markPromotionCheckoutCompleted = internalMutation({
   args: {
     redemptionId: v.string(),
@@ -1525,6 +1727,27 @@ export const internal_markPromotionCheckoutCompleted = internalMutation({
     const redemption = await getRequiredRedemption(ctx, args.redemptionId);
     if (redemption.userId !== args.userId) {
       throw new ConvexError("Promotion redemption user mismatch.");
+    }
+    if (
+      redemption.status === "applied" &&
+      redemption.stripeCheckoutSessionId === args.stripeCheckoutSessionId
+    ) {
+      return { ok: true };
+    }
+    if (redemption.status !== "pending_checkout") {
+      throw new ConvexError("Promotion redemption is not pending checkout.");
+    }
+    if (
+      redemption.stripeCheckoutSessionId !== undefined &&
+      redemption.stripeCheckoutSessionId !== args.stripeCheckoutSessionId
+    ) {
+      throw new ConvexError("Promotion checkout session mismatch.");
+    }
+    if (
+      redemption.targetTier !== undefined &&
+      redemption.targetTier !== args.targetTier
+    ) {
+      throw new ConvexError("Promotion redemption target tier mismatch.");
     }
     await ctx.db.patch(redemption._id, {
       status: "applied",
@@ -1561,6 +1784,125 @@ async function getRedemptionByRedemptionId(
     .query("promotionRedemptions")
     .withIndex("by_redemptionId", (q) => q.eq("redemptionId", redemptionId))
     .unique();
+}
+
+function subscriptionTierRank(tier: string): number {
+  if (tier === "free") return 0;
+  if (tier === "plus") return 1;
+  if (tier === "pro") return 2;
+  return -1;
+}
+
+function assertSubscriptionPromotionUpgradeEligibility(args: {
+  currentTier: string;
+  targetTier: PromotionSubscriptionTier;
+  subscriptionId?: string;
+  cancelAtPeriodEnd?: boolean;
+}) {
+  if (args.currentTier === "free") {
+    return;
+  }
+  if (!args.subscriptionId) {
+    throw new Error("No active subscription found to upgrade.");
+  }
+  if (args.cancelAtPeriodEnd === true) {
+    throw new Error(
+      "Resume your subscription before redeeming an upgrade promotion.",
+    );
+  }
+  if (
+    subscriptionTierRank(args.targetTier) <=
+    subscriptionTierRank(args.currentTier)
+  ) {
+    throw new Error(
+      "Subscription promotions can only upgrade your current plan.",
+    );
+  }
+}
+
+async function getLiveSubscriptionForPromotionUpgrade(
+  stripe: Stripe,
+  args: {
+    subscriptionId: string | undefined;
+    targetPriceId: string;
+  },
+) {
+  if (!args.subscriptionId) {
+    throw new Error("No active subscription found to upgrade.");
+  }
+  const liveSub = await withTimeout(
+    stripe.subscriptions.retrieve(args.subscriptionId),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.subscriptions.retrieve",
+  );
+  const item = liveSub.items.data[0];
+  if (!item) {
+    throw new Error("Subscription has no billable item.");
+  }
+  if (item.price.id === args.targetPriceId) {
+    throw new Error(
+      "Stripe already has you on this plan. Refresh billing and try again.",
+    );
+  }
+  return liveSub;
+}
+
+async function previewPromotionSubscriptionUpgradeInvoice(
+  stripe: Stripe,
+  args: {
+    customerId: string;
+    subscriptionId: string;
+    subscriptionItemId: string;
+    targetPriceId: string;
+    couponId: string;
+    prorationDate: number;
+  },
+): Promise<PromotionSubscriptionUpgradePreview> {
+  const invoice = await withTimeout(
+    stripe.invoices.createPreview({
+      customer: args.customerId,
+      subscription: args.subscriptionId,
+      discounts: [{ coupon: args.couponId }],
+      subscription_details: {
+        items: [{ id: args.subscriptionItemId, price: args.targetPriceId }],
+        proration_behavior: "always_invoice",
+        proration_date: args.prorationDate,
+      },
+    }),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.invoices.createPreview",
+  );
+
+  const prorationLines = invoice.lines.data.filter(isStripeProrationLine);
+  const lines = prorationLines.map((line) => ({
+    id: line.id,
+    description: line.description ?? "Proration",
+    amount: line.amount,
+    currency: line.currency.toUpperCase(),
+    periodStart: line.period?.start ? line.period.start * 1000 : undefined,
+    periodEnd: line.period?.end ? line.period.end * 1000 : undefined,
+  }));
+  const prorationSubtotal = lines.reduce((sum, line) => sum + line.amount, 0);
+  const prorationCredit = lines
+    .filter((line) => line.amount < 0)
+    .reduce((sum, line) => sum + Math.abs(line.amount), 0);
+  const prorationCharge = lines
+    .filter((line) => line.amount > 0)
+    .reduce((sum, line) => sum + line.amount, 0);
+
+  return {
+    prorationDate: args.prorationDate,
+    currency: invoice.currency.toUpperCase(),
+    subtotal: invoice.subtotal,
+    total: invoice.total,
+    amountDue: invoice.amount_due,
+    startingBalance: invoice.starting_balance,
+    prorationSubtotal,
+    prorationCredit,
+    prorationCharge,
+    otherInvoiceAmount: invoice.total - prorationSubtotal,
+    lines,
+  };
 }
 
 function buildPromotionMetadata(
@@ -1634,10 +1976,37 @@ async function createPromotionCoupon(
         };
 
   return await withTimeout(
-    stripe.coupons.create(params),
+    stripe.coupons.create(params, {
+      idempotencyKey: promotionStripeIdempotencyKey(
+        "coupon",
+        args.redemption.redemptionId,
+        args.targetTier,
+      ),
+    }),
     STRIPE_NETWORK_TIMEOUT_MS,
     "stripe.coupons.create",
   );
+}
+
+async function createPromotionPreviewCoupon(
+  stripe: Stripe,
+  args: {
+    promotion: ReservationSnapshot["promotion"];
+    userId: string;
+    config: SubscriptionPromotionConfig;
+    targetTier: PromotionSubscriptionTier;
+  },
+) {
+  return await createPromotionCoupon(stripe, {
+    promotion: args.promotion,
+    redemption: {
+      redemptionId: `preview-${args.promotion.promotionId}-${args.userId}`,
+      userId: args.userId,
+      targetTier: args.targetTier,
+    },
+    config: args.config,
+    targetTier: args.targetTier,
+  });
 }
 
 async function subscriptionCancellationParamsForGift(
@@ -1706,6 +2075,16 @@ function stripeMetadata(values: Record<string, string | number | undefined>) {
   );
 }
 
+export function promotionStripeIdempotencyKey(
+  operation: string,
+  ...parts: string[]
+): string {
+  return ["redux-chat", "promotion", operation, ...parts]
+    .map((part) => part.replace(/[^A-Za-z0-9_-]/g, "_"))
+    .join(":")
+    .slice(0, 255);
+}
+
 function mergeMetadata(existing: unknown, next: unknown) {
   const existingObject =
     existing && typeof existing === "object"
@@ -1726,6 +2105,13 @@ function metadataString(metadata: unknown, key: string): string | undefined {
   if (!metadata || typeof metadata !== "object") return undefined;
   const value = (metadata as Record<string, unknown>)[key];
   return typeof value === "string" ? value : undefined;
+}
+
+function isStripeProrationLine(line: Stripe.InvoiceLineItem): boolean {
+  return (
+    line.parent?.subscription_item_details?.proration === true ||
+    line.parent?.invoice_item_details?.proration === true
+  );
 }
 
 function addUtcMonths(timestamp: number, months: number): number {

@@ -124,6 +124,34 @@ export async function getCreditBalanceForUser(
   };
 }
 
+export function sortCreditGrantHistory<
+  T extends { grantId: string; grantedAt: number; status: string },
+>(grants: T[]): T[] {
+  return [...grants].sort((a, b) => {
+    const aActive = a.status === "active";
+    const bActive = b.status === "active";
+    if (aActive !== bActive) return aActive ? -1 : 1;
+    if (a.grantedAt !== b.grantedAt) return b.grantedAt - a.grantedAt;
+    return a.grantId.localeCompare(b.grantId);
+  });
+}
+
+export function paginateSortedCreditGrantHistory<T>(
+  grants: T[],
+  paginationOpts: { cursor: string | null; numItems: number },
+) {
+  const start = paginationOpts.cursor ? Number(paginationOpts.cursor) : 0;
+  const safeStart = Number.isInteger(start) && start >= 0 ? start : 0;
+  const page = grants.slice(safeStart, safeStart + paginationOpts.numItems);
+  const next = safeStart + page.length;
+
+  return {
+    page,
+    isDone: next >= grants.length,
+    continueCursor: String(next),
+  };
+}
+
 export interface GrantCreditsArgs {
   userId: string;
   bucket: CreditBucket;
@@ -141,6 +169,21 @@ export interface GrantCreditsResult {
   amount: number;
   bucket: CreditBucket;
 }
+
+export interface UpsertSubscriptionMonthlyCreditsArgs {
+  userId: string;
+  amount: number;
+  sourceId: string;
+  periodKey?: string;
+  expiresAt?: number;
+  metadata?: unknown;
+}
+
+export type UpsertSubscriptionMonthlyCreditsResult = GrantCreditsResult & {
+  adjusted: boolean;
+  previousAmount?: number;
+  previousRemaining?: number;
+};
 
 /**
  * Idempotent grant insertion. If a row with the same `(source, sourceId)`
@@ -191,6 +234,108 @@ export async function grantCreditsTx(
   });
 
   return { grantId, created: true, amount: args.amount, bucket: args.bucket };
+}
+
+/**
+ * Subscription allowances are idempotent by subscription period, but the plan
+ * amount can change inside the same period (Plus -> Pro). In that case, keep
+ * the consumed credits consumed and adjust the active lot to the new allowance.
+ */
+export async function upsertSubscriptionMonthlyCreditsTx(
+  ctx: LedgerMutationCtx,
+  args: UpsertSubscriptionMonthlyCreditsArgs,
+): Promise<UpsertSubscriptionMonthlyCreditsResult> {
+  if (args.amount <= 0) {
+    throw new Error("Grant amount must be positive");
+  }
+
+  const existing = await ctx.db
+    .query("creditGrants")
+    .withIndex("by_source_sourceId", (q) =>
+      q
+        .eq("source", "stripe_subscription_renewal")
+        .eq("sourceId", args.sourceId),
+    )
+    .first();
+
+  if (!existing) {
+    const created = await grantCreditsTx(ctx, {
+      userId: args.userId,
+      bucket: "monthly",
+      amount: args.amount,
+      source: "stripe_subscription_renewal",
+      sourceId: args.sourceId,
+      periodKey: args.periodKey,
+      expiresAt: args.expiresAt,
+      metadata: args.metadata,
+    });
+    return { ...created, adjusted: false };
+  }
+
+  const existingBucket = normalizeGrantBucket(existing.bucket) ?? "monthly";
+  if (existing.userId !== args.userId || existingBucket !== "monthly") {
+    return {
+      grantId: existing.grantId,
+      created: false,
+      adjusted: false,
+      amount: existing.amount,
+      bucket: existingBucket,
+    };
+  }
+
+  const consumed = Math.max(0, existing.amount - existing.remaining);
+  const nextRemaining = Math.max(0, args.amount - consumed);
+  const shouldAdjust =
+    existing.amount !== args.amount ||
+    existing.remaining !== nextRemaining ||
+    existing.status !== "active" ||
+    existing.bucket !== "monthly" ||
+    existing.periodKey !== args.periodKey ||
+    existing.expiresAt !== args.expiresAt;
+
+  if (!shouldAdjust) {
+    return {
+      grantId: existing.grantId,
+      created: false,
+      adjusted: false,
+      amount: existing.amount,
+      bucket: existingBucket,
+    };
+  }
+
+  const metadata =
+    existing.metadata && typeof existing.metadata === "object"
+      ? (existing.metadata as Record<string, unknown>)
+      : {};
+
+  await ctx.db.patch(existing._id, {
+    amount: args.amount,
+    remaining: nextRemaining,
+    status: nextRemaining > 0 ? "active" : "exhausted",
+    bucket: "monthly",
+    periodKey: args.periodKey,
+    expiresAt: args.expiresAt,
+    updatedAt: Date.now(),
+    metadata: {
+      ...metadata,
+      ...(args.metadata && typeof args.metadata === "object"
+        ? (args.metadata as Record<string, unknown>)
+        : {}),
+      adjustedFromAmount: existing.amount,
+      adjustedFromRemaining: existing.remaining,
+      adjustedAt: Date.now(),
+    },
+  });
+
+  return {
+    grantId: existing.grantId,
+    created: false,
+    adjusted: true,
+    amount: args.amount,
+    bucket: "monthly",
+    previousAmount: existing.amount,
+    previousRemaining: existing.remaining,
+  };
 }
 
 export interface DebitCreditsArgs {

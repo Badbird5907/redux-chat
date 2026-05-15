@@ -12,14 +12,17 @@ import type { DebitCreditsResult, GrantCreditsResult } from "../credits";
 import { internal } from "../_generated/api";
 import {
   debitCreditsTx,
+  ensureFreeMonthlyCreditsAfterPaidCancellationTx,
   getCreditBalanceForUser,
   getMonthlyExpiresAt,
   getMonthlyPeriodKey,
   grantCreditsTx,
-  ensureFreeMonthlyCreditsAfterPaidCancellationTx,
+  paginateSortedCreditGrantHistory,
   revokeFreeMonthlyCreditsTx,
   revokeSubscriptionMonthlyCreditsTx,
+  sortCreditGrantHistory,
   sweepExpiredGrantsTx,
+  upsertSubscriptionMonthlyCreditsTx,
 } from "../credits";
 import { backendMutation, mutation, query } from "./index";
 import { internalMutation, internalQuery } from "./internal";
@@ -51,11 +54,14 @@ export const getCreditBalance = query({
 export const listCreditGrants = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
-    const results = await ctx.db
+    const grants = await ctx.db
       .query("creditGrants")
       .withIndex("by_user_granted_at", (q) => q.eq("userId", ctx.userId))
-      .order("desc")
-      .paginate(args.paginationOpts);
+      .collect();
+    const results = paginateSortedCreditGrantHistory(
+      sortCreditGrantHistory(grants),
+      args.paginationOpts,
+    );
 
     return {
       page: results.page.map((grant) => ({
@@ -136,6 +142,27 @@ export const internal_grantCredits = internalMutation({
       bucket: args.bucket,
       amount: args.amount,
       source: args.source,
+      sourceId: args.sourceId,
+      periodKey: args.periodKey,
+      expiresAt: args.expiresAt,
+      metadata: args.metadata,
+    });
+  },
+});
+
+export const internal_upsertSubscriptionMonthlyCredits = internalMutation({
+  args: {
+    userId: v.string(),
+    amount: v.number(),
+    sourceId: v.string(),
+    periodKey: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    metadata: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    return await upsertSubscriptionMonthlyCreditsTx(ctx, {
+      userId: args.userId,
+      amount: args.amount,
       sourceId: args.sourceId,
       periodKey: args.periodKey,
       expiresAt: args.expiresAt,

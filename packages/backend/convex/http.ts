@@ -1,6 +1,6 @@
+import type Stripe from "stripe";
 import { registerRoutes } from "@convex-dev/stripe";
 import { httpRouter } from "convex/server";
-import type Stripe from "stripe";
 
 import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
 
@@ -77,12 +77,17 @@ registerRoutes(http, components.stripe, {
       await handleCreditTopUpCheckoutCompleted(ctx, event);
       await handlePromotionSubscriptionCheckoutCompleted(ctx, event);
     },
+    "checkout.session.expired": async (ctx, event) => {
+      await handlePromotionSubscriptionCheckoutExpired(ctx, event);
+    },
   },
 });
 
 async function handleSubscriptionCancellationRevoke(
   ctx: { runMutation: typeof internal extends never ? never : any }, // eslint-disable-line @typescript-eslint/no-explicit-any
-  event: Stripe.CustomerSubscriptionDeletedEvent | Stripe.CustomerSubscriptionUpdatedEvent,
+  event:
+    | Stripe.CustomerSubscriptionDeletedEvent
+    | Stripe.CustomerSubscriptionUpdatedEvent,
   reason: "customer.subscription.deleted" | "customer.subscription.updated",
 ): Promise<void> {
   const subscription = event.data.object;
@@ -114,13 +119,10 @@ async function handleSubscriptionCancellationRevoke(
       internal.functions.credits
         .internal_ensureFreeMonthlyCreditsAfterPaidCancellation;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const freeGrantResult = (await ctx.runMutation(
-      ensureFreeGrant,
-      {
-        userId,
-        reason,
-      },
-    )) as { grantId?: string; created?: boolean; reactivated?: boolean };
+    const freeGrantResult = (await ctx.runMutation(ensureFreeGrant, {
+      userId,
+      reason,
+    })) as { grantId?: string; created?: boolean; reactivated?: boolean };
 
     await recordStripeAuditEvent(ctx, {
       userId,
@@ -150,7 +152,9 @@ async function handleSubscriptionCancellationRevoke(
 
 async function handleSubscriptionPeriodGrant(
   ctx: { runMutation: typeof internal extends never ? never : any }, // eslint-disable-line @typescript-eslint/no-explicit-any
-  event: Stripe.CustomerSubscriptionCreatedEvent | Stripe.CustomerSubscriptionUpdatedEvent,
+  event:
+    | Stripe.CustomerSubscriptionCreatedEvent
+    | Stripe.CustomerSubscriptionUpdatedEvent,
 ): Promise<void> {
   const subscription = event.data.object;
   const item = subscription.items.data[0];
@@ -195,20 +199,21 @@ async function handleSubscriptionPeriodGrant(
     );
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    await ctx.runMutation(internal.functions.credits.internal_grantCredits, {
-      userId,
-      bucket: "monthly",
-      amount: plan.includedMonthlyCredits,
-      source: "stripe_subscription_renewal",
-      sourceId,
-      periodKey: new Date(periodStart).toISOString().slice(0, 7),
-      expiresAt: periodEnd,
-      metadata: {
-        subscriptionId: subscription.id,
-        tier,
-        priceId,
+    await ctx.runMutation(
+      internal.functions.credits.internal_upsertSubscriptionMonthlyCredits,
+      {
+        userId,
+        amount: plan.includedMonthlyCredits,
+        sourceId,
+        periodKey: new Date(periodStart).toISOString().slice(0, 7),
+        expiresAt: periodEnd,
+        metadata: {
+          subscriptionId: subscription.id,
+          tier,
+          priceId,
+        },
       },
-    });
+    );
 
     await recordStripeAuditEvent(ctx, {
       userId,
@@ -256,7 +261,8 @@ async function handleCreditTopUpCheckoutCompleted(
   }
 
   const intentId = pickString(metadata.intentId);
-  const userId = pickString(metadata.userId) ?? pickString(session.client_reference_id);
+  const userId =
+    pickString(metadata.userId) ?? pickString(session.client_reference_id);
   const amountCents = pickInteger(metadata.amountCents);
   const credits = pickInteger(metadata.credits);
   const paymentIntentId =
@@ -265,13 +271,21 @@ async function handleCreditTopUpCheckoutCompleted(
       : session.payment_intent?.id;
 
   try {
-    if (!intentId || !userId || amountCents === undefined || credits === undefined) {
+    if (
+      !intentId ||
+      !userId ||
+      amountCents === undefined ||
+      credits === undefined
+    ) {
       throw new Error("credit_top_up_metadata_invalid");
     }
     if (!paymentIntentId) {
       throw new Error("credit_top_up_payment_intent_missing");
     }
-    if (session.amount_subtotal !== amountCents || session.amount_total !== amountCents) {
+    if (
+      session.amount_subtotal !== amountCents ||
+      session.amount_total !== amountCents
+    ) {
       throw new Error("credit_top_up_amount_mismatch");
     }
     if (session.currency?.toLowerCase() !== "usd") {
@@ -284,7 +298,8 @@ async function handleCreditTopUpCheckoutCompleted(
       { intentId },
     )) as CreditTopUpIntentSnapshot | null;
     if (!intent) throw new Error("credit_top_up_intent_not_found");
-    if (intent.userId !== userId) throw new Error("credit_top_up_customer_mismatch");
+    if (intent.userId !== userId)
+      throw new Error("credit_top_up_customer_mismatch");
     if (intent.amountCents !== amountCents || intent.credits !== credits) {
       throw new Error("credit_top_up_intent_amount_mismatch");
     }
@@ -372,7 +387,8 @@ async function handlePromotionSubscriptionCheckoutCompleted(
 
   const promotionId = pickString(metadata.promotionId);
   const redemptionId = pickString(metadata.redemptionId);
-  const userId = pickString(metadata.userId) ?? pickString(session.client_reference_id);
+  const userId =
+    pickString(metadata.userId) ?? pickString(session.client_reference_id);
   const targetTier = pickString(metadata.targetTier);
   const couponId = pickString(metadata.couponId);
   const subscriptionId =
@@ -380,7 +396,9 @@ async function handlePromotionSubscriptionCheckoutCompleted(
       ? session.subscription
       : session.subscription?.id;
   const customerId =
-    typeof session.customer === "string" ? session.customer : session.customer?.id;
+    typeof session.customer === "string"
+      ? session.customer
+      : session.customer?.id;
 
   try {
     if (!promotionId || !redemptionId || !userId) {
@@ -391,6 +409,9 @@ async function handlePromotionSubscriptionCheckoutCompleted(
     }
     if (!subscriptionId || !customerId) {
       throw new Error("promotion_subscription_missing_stripe_ids");
+    }
+    if (!isPromotionSubscriptionCheckoutComplete(session)) {
+      throw new Error("promotion_subscription_payment_incomplete");
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -432,6 +453,85 @@ async function handlePromotionSubscriptionCheckoutCompleted(
         redemptionId,
         targetTier,
         subscriptionId,
+        checkoutSessionId: session.id,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+}
+
+export function isPromotionSubscriptionCheckoutComplete(
+  session: Pick<Stripe.Checkout.Session, "amount_total" | "payment_status">,
+): boolean {
+  if (session.payment_status === "paid") {
+    return true;
+  }
+  return (
+    session.payment_status === "no_payment_required" &&
+    session.amount_total === 0
+  );
+}
+
+async function handlePromotionSubscriptionCheckoutExpired(
+  ctx: {
+    runMutation: typeof internal extends never ? never : any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  },
+  event: Stripe.CheckoutSessionExpiredEvent,
+): Promise<void> {
+  const session = event.data.object;
+  if (session.mode !== "subscription") {
+    return;
+  }
+
+  const metadata = session.metadata ?? {};
+  if (metadata.kind !== "promotion_subscription") {
+    return;
+  }
+
+  const promotionId = pickString(metadata.promotionId);
+  const redemptionId = pickString(metadata.redemptionId);
+  const userId =
+    pickString(metadata.userId) ?? pickString(session.client_reference_id);
+
+  try {
+    if (!promotionId || !redemptionId || !userId) {
+      throw new Error("promotion_subscription_metadata_invalid");
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await ctx.runMutation(
+      internal.functions.promotions.internal_markPromotionRedemptionFailed,
+      {
+        redemptionId,
+        userId,
+        failureReason: "Checkout expired.",
+        releaseRedemption: true,
+        requirePendingCheckout: true,
+        stripeCheckoutSessionId: session.id,
+      },
+    );
+
+    await recordStripeAuditEvent(ctx, {
+      userId,
+      action: "stripe:checkout.session.expired:promotion_subscription",
+      status: "success",
+      severity: "medium",
+      metadata: {
+        promotionId,
+        redemptionId,
+        checkoutSessionId: session.id,
+      },
+    });
+  } catch (error) {
+    console.error("promotion_subscription_checkout_expired_failed", error);
+    await recordStripeAuditEvent(ctx, {
+      userId: userId ?? null,
+      action: "stripe:checkout.session.expired:promotion_subscription",
+      status: "failed",
+      severity: "high",
+      metadata: {
+        promotionId,
+        redemptionId,
         checkoutSessionId: session.id,
         error: error instanceof Error ? error.message : String(error),
       },

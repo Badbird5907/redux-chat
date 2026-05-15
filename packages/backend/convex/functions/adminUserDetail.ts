@@ -14,7 +14,9 @@ import {
 import {
   getCreditBalanceForUser,
   grantCreditsTx,
+  paginateSortedCreditGrantHistory,
   revokeCreditGrantForUserTx,
+  sortCreditGrantHistory,
 } from "../credits";
 import { getDenormalizedUsageStats } from "../usageStats";
 import { adminMutation, adminQuery } from "./index";
@@ -203,11 +205,15 @@ export const listGrantsForUser = adminQuery({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, { targetUserId, paginationOpts }) => {
-    return await ctx.db
+    const grants = await ctx.db
       .query("creditGrants")
       .withIndex("by_user_granted_at", (q) => q.eq("userId", targetUserId))
-      .order("desc")
-      .paginate(paginationOpts);
+      .collect();
+
+    return paginateSortedCreditGrantHistory(
+      sortCreditGrantHistory(grants),
+      paginationOpts,
+    );
   },
 });
 

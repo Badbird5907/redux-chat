@@ -79,6 +79,29 @@ type StripeCustomerBalanceCredit = {
   currency: string;
 };
 
+type PaidPlanSwitchPreviewLine = {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  periodStart: number | undefined;
+  periodEnd: number | undefined;
+};
+
+type PaidPlanSwitchPreview = {
+  prorationDate: number;
+  currency: string;
+  subtotal: number;
+  total: number;
+  amountDue: number;
+  startingBalance: number;
+  prorationSubtotal: number;
+  prorationCredit: number;
+  prorationCharge: number;
+  otherInvoiceAmount: number;
+  lines: PaidPlanSwitchPreviewLine[];
+};
+
 type CreditTopUpIntent = {
   intentId: string;
   userId: string;
@@ -235,6 +258,16 @@ export const createCurrentUserSubscriptionCheckout = action({
     }
 
     const targetTier = tierFromStripePriceId(args.priceId);
+    const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
+      ctx,
+      ctx.userId,
+    );
+    if (subscriptionState.tier !== "free") {
+      throw new Error(
+        "You already have a paid subscription. Use plan switching or Manage billing instead.",
+      );
+    }
+
     const env = backendEnv();
     const siteUrl = env.SITE_URL.replace(/\/+$/, "");
     const customerId = await ensureStripeCustomerForCurrentUser(ctx);
@@ -423,8 +456,106 @@ export const refreshCurrentUserBillingState = action({
   },
 });
 
-export const switchCurrentUserPaidPlan = action({
+export const previewCurrentUserPaidPlanSwitch = action({
   args: { priceId: v.string() },
+  handler: async (ctx, args): Promise<PaidPlanSwitchPreview> => {
+    const subscriptionState = await resolveCurrentSubscriptionState(
+      ctx,
+      ctx.userId,
+    );
+    if (subscriptionState.tier === "free") {
+      throw new Error("Use checkout to subscribe from the free plan.");
+    }
+
+    let targetTier: PlanTier;
+    try {
+      targetTier = tierFromStripePriceId(args.priceId);
+    } catch {
+      throw new Error("That price is not a configured plan.");
+    }
+
+    if (planTierRank(targetTier) <= planTierRank(subscriptionState.tier)) {
+      throw new Error("Immediate invoice previews are only used for upgrades.");
+    }
+
+    const subscription = subscriptionState.subscription;
+    if (!subscription?.subscriptionId) {
+      throw new Error("No subscription found to preview.");
+    }
+    if (subscription.priceId === args.priceId) {
+      throw new Error("You are already on this plan.");
+    }
+
+    const stripe = getStripeSdkClient();
+    const liveSub = await withTimeout(
+      stripe.subscriptions.retrieve(subscription.subscriptionId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.subscriptions.retrieve",
+    );
+    const item = liveSub.items.data[0];
+    if (!item) {
+      throw new Error("Subscription has no billable item.");
+    }
+    if (item.price.id === args.priceId) {
+      throw new Error(
+        "Stripe already has you on this plan. Refresh billing and try again.",
+      );
+    }
+    const customerId =
+      typeof liveSub.customer === "string"
+        ? liveSub.customer
+        : liveSub.customer.id;
+    const prorationDate = Math.floor(Date.now() / 1000);
+
+    const invoice = await withTimeout(
+      stripe.invoices.createPreview({
+        customer: customerId,
+        subscription: liveSub.id,
+        subscription_details: {
+          items: [{ id: item.id, price: args.priceId }],
+          proration_behavior: "always_invoice",
+          proration_date: prorationDate,
+        },
+      }),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.invoices.createPreview",
+    );
+
+    const prorationLines = invoice.lines.data.filter(isStripeProrationLine);
+    const lines = prorationLines.map((line) => ({
+      id: line.id,
+      description: line.description ?? "Proration",
+      amount: line.amount,
+      currency: line.currency.toUpperCase(),
+      periodStart: line.period?.start ? line.period.start * 1000 : undefined,
+      periodEnd: line.period?.end ? line.period.end * 1000 : undefined,
+    }));
+    const prorationSubtotal = lines.reduce((sum, line) => sum + line.amount, 0);
+    const prorationCredit = lines
+      .filter((line) => line.amount < 0)
+      .reduce((sum, line) => sum + Math.abs(line.amount), 0);
+    const prorationCharge = lines
+      .filter((line) => line.amount > 0)
+      .reduce((sum, line) => sum + line.amount, 0);
+
+    return {
+      prorationDate,
+      currency: invoice.currency.toUpperCase(),
+      subtotal: invoice.subtotal,
+      total: invoice.total,
+      amountDue: invoice.amount_due,
+      startingBalance: invoice.starting_balance,
+      prorationSubtotal,
+      prorationCredit,
+      prorationCharge,
+      otherInvoiceAmount: invoice.total - prorationSubtotal,
+      lines,
+    };
+  },
+});
+
+export const switchCurrentUserPaidPlan = action({
+  args: { priceId: v.string(), prorationDate: v.optional(v.number()) },
   handler: async (
     ctx,
     args,
@@ -469,9 +600,19 @@ export const switchCurrentUserPaidPlan = action({
     if (!item) {
       throw new Error("Subscription has no billable item.");
     }
+    if (item.price.id === args.priceId) {
+      throw new Error(
+        "Stripe already has you on this plan. Refresh billing and try again.",
+      );
+    }
 
     if (toRank > fromRank) {
-      await withTimeout(
+      const prorationDate =
+        typeof args.prorationDate === "number" &&
+        Number.isInteger(args.prorationDate)
+          ? args.prorationDate
+          : Math.floor(Date.now() / 1000);
+      const updatedSubscription = await withTimeout(
         stripe.subscriptions.update(liveSub.id, {
           cancel_at_period_end: false,
           items: [{ id: item.id, price: args.priceId }],
@@ -484,9 +625,24 @@ export const switchCurrentUserPaidPlan = action({
             pendingAppliesAtMs: "",
           },
           proration_behavior: "always_invoice",
+          proration_date: prorationDate,
         }),
         STRIPE_NETWORK_TIMEOUT_MS,
         "stripe.subscriptions.update",
+      );
+      await withTimeout(
+        syncStripeSubscriptionToConvex(ctx, updatedSubscription),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "syncStripeSubscriptionToConvex",
+      );
+      await withTimeout(
+        upsertSubscriptionMonthlyAllowance(
+          ctx,
+          updatedSubscription,
+          targetTier,
+        ),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "upsertSubscriptionMonthlyAllowance",
       );
       return { prorationBehavior: "invoice", targetTier };
     }
@@ -1065,6 +1221,8 @@ async function createOrReplaceDowngradeSchedule(
     targetTier: PlanTier;
   },
 ) {
+  const currentItem = subscription.items.data[0];
+  const currentPeriodStart = currentItem?.current_period_start;
   const scheduleId =
     typeof subscription.schedule === "string"
       ? subscription.schedule
@@ -1077,24 +1235,38 @@ async function createOrReplaceDowngradeSchedule(
     );
   }
 
-  await withTimeout(
+  const schedule = await withTimeout(
     stripe.subscriptionSchedules.create({
       from_subscription: subscription.id,
+    }),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.subscriptionSchedules.create",
+  );
+
+  await withTimeout(
+    stripe.subscriptionSchedules.update(schedule.id, {
+      end_behavior: "release",
       phases: [
         {
+          start_date: currentPeriodStart ?? "now",
           items: [
             {
               price: args.currentPriceId,
-              quantity: subscription.items.data[0]?.quantity ?? 1,
+              quantity: currentItem?.quantity ?? 1,
             },
           ],
           end_date: args.currentPeriodEnd,
+          metadata: {
+            ...subscription.metadata,
+            userId: args.userId,
+            priceId: args.currentPriceId,
+          },
         },
         {
           items: [
             {
               price: args.targetPriceId,
-              quantity: subscription.items.data[0]?.quantity ?? 1,
+              quantity: currentItem?.quantity ?? 1,
             },
           ],
           metadata: {
@@ -1102,11 +1274,13 @@ async function createOrReplaceDowngradeSchedule(
             priceId: args.targetPriceId,
             tier: args.targetTier,
           },
+          proration_behavior: "none",
         },
       ],
+      proration_behavior: "none",
     }),
     STRIPE_NETWORK_TIMEOUT_MS,
-    "stripe.subscriptionSchedules.create",
+    "stripe.subscriptionSchedules.update",
   );
 
   await withTimeout(
@@ -1120,6 +1294,54 @@ async function createOrReplaceDowngradeSchedule(
     }),
     STRIPE_NETWORK_TIMEOUT_MS,
     "stripe.subscriptions.update",
+  );
+}
+
+async function syncStripeSubscriptionToConvex(
+  ctx: BillingActionCtx,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const item = subscription.items.data[0];
+  await ctx.runMutation(components.stripe.private.handleSubscriptionUpdated, {
+    stripeSubscriptionId: subscription.id,
+    status: subscription.status,
+    currentPeriodEnd: item?.current_period_end ?? 0,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+    cancelAt: subscription.cancel_at ?? undefined,
+    quantity: item?.quantity ?? 1,
+    priceId: item?.price?.id,
+    metadata: subscription.metadata || {},
+  });
+}
+
+async function upsertSubscriptionMonthlyAllowance(
+  ctx: BillingActionCtx,
+  subscription: Stripe.Subscription,
+  tier: PlanTier,
+): Promise<void> {
+  const item = subscription.items.data[0];
+  if (!item?.current_period_start || !item.current_period_end) {
+    return;
+  }
+
+  const plan = getPlanConfig(tier, getBillingConfig());
+  const periodStart = item.current_period_start * 1000;
+  const periodEnd = item.current_period_end * 1000;
+
+  await ctx.runMutation(
+    internal.functions.credits.internal_upsertSubscriptionMonthlyCredits,
+    {
+      userId: ctx.userId,
+      amount: plan.includedMonthlyCredits,
+      sourceId: `${subscription.id}:${periodStart}`,
+      periodKey: new Date(periodStart).toISOString().slice(0, 7),
+      expiresAt: periodEnd,
+      metadata: {
+        subscriptionId: subscription.id,
+        tier,
+        priceId: item.price.id,
+      },
+    },
   );
 }
 
@@ -1145,6 +1367,13 @@ function getErrorText(error: unknown): string {
   } catch {
     return "";
   }
+}
+
+function isStripeProrationLine(line: Stripe.InvoiceLineItem): boolean {
+  return (
+    line.parent?.subscription_item_details?.proration === true ||
+    line.parent?.invoice_item_details?.proration === true
+  );
 }
 
 async function withTimeout<T>(

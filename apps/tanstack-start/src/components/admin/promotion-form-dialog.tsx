@@ -272,8 +272,9 @@ export function PromotionFormDialog({
       ? (config.amountCents / 100).toFixed(2)
       : "",
   );
-  const [targetTierMode, setTargetTierMode] =
-    useState<TargetTierMode>(initialTargetTierMode);
+  const [targetTierMode, setTargetTierMode] = useState<TargetTierMode>(
+    initialTargetTierMode,
+  );
   const [freeUsersOnly, setFreeUsersOnly] = useState(
     subscriptionConfig?.freeUsersOnly !== false,
   );

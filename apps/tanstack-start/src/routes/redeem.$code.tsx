@@ -11,18 +11,21 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import type { SubscriptionPromotionConfig } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
+import {
+  DEFAULT_BILLING_CONFIG,
+  discountedPriceCentsFromList,
+  getPlanConfig,
+} from "@redux/shared";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@redux/ui/components/select";
 
 import { formatDate } from "@/components/admin/user-detail/utils";
+import {
+  formatCurrencyFromMinorUnits,
+  PlanTierMarketingCard,
+} from "@/components/billing/plan-tier-marketing-card";
 
 export const Route = createFileRoute("/redeem/$code")({
   beforeLoad: ({ context }) => {
@@ -39,11 +42,90 @@ export const Route = createFileRoute("/redeem/$code")({
   component: RedeemPromotionPage,
 });
 
+const billingConfig = DEFAULT_BILLING_CONFIG;
+
+type StripeConfiguredPrices = {
+  plus: { id: string; amount: number | null; currency: string | null };
+  pro: { id: string; amount: number | null; currency: string | null };
+};
+
+type PaidPlanSwitchPreview = {
+  prorationDate: number;
+  currency: string;
+  amountDue: number;
+  startingBalance: number;
+  prorationCredit: number;
+  prorationCharge: number;
+  otherInvoiceAmount: number;
+};
+
+function tierRank(tier: string | undefined): number {
+  if (tier === "free") return 0;
+  if (tier === "plus") return 1;
+  if (tier === "pro") return 2;
+  return -1;
+}
+
+function planTierLabel(tier: string | undefined): string {
+  if (tier === "plus") return "Plus";
+  if (tier === "pro") return "Pro";
+  return "Free";
+}
+
+function redeemPlanPriceLabels(
+  product: StripeConfiguredPrices["plus"] | undefined,
+  discount: SubscriptionPromotionConfig["discount"] | undefined,
+): { priceLabel?: string; compareAtPriceLabel?: string } {
+  if (product?.amount == null || typeof product.amount !== "number") {
+    return {};
+  }
+  const currency = (product.currency ?? "USD").toUpperCase();
+  const listCents = product.amount;
+  const listFormatted = formatCurrencyFromMinorUnits(listCents, currency);
+  if (!discount) {
+    return { priceLabel: listFormatted };
+  }
+  const discountedCents = discountedPriceCentsFromList(listCents, discount);
+  if (discountedCents >= listCents) {
+    return { priceLabel: listFormatted };
+  }
+  const discountedFormatted = formatCurrencyFromMinorUnits(
+    discountedCents,
+    currency,
+  );
+  return {
+    compareAtPriceLabel: listFormatted,
+    priceLabel: discountedFormatted,
+  };
+}
+
+function formatSignedCurrencyFromMinorUnits(
+  amount: number,
+  currency: string,
+): string {
+  if (amount < 0) {
+    return `-${formatCurrencyFromMinorUnits(Math.abs(amount), currency)}`;
+  }
+  return formatCurrencyFromMinorUnits(amount, currency);
+}
+
 function RedeemPromotionPage() {
   const { code } = Route.useParams();
   const promotion = useQuery(api.functions.promotions.getPromotionByCode, {
     code,
   });
+  const billingState = useQuery(
+    api.functions.billing.getCurrentBillingState,
+    {},
+  );
+  const getStripePriceDetails = useAction(
+    api.functions.billing.getConfiguredStripePriceDetails,
+  );
+  const previewSubscriptionPromotionUpgrade = useAction(
+    api.functions.promotions.previewSubscriptionPromotionUpgrade,
+  );
+  const [configuredStripePrices, setConfiguredStripePrices] =
+    useState<StripeConfiguredPrices | null>(null);
   const redeemPromotion = useAction(api.functions.promotions.redeemPromotion);
   const cancelPendingCheckout = useAction(
     api.functions.promotions.cancelPendingPromotionCheckout,
@@ -62,12 +144,25 @@ function RedeemPromotionPage() {
   const [error, setError] = useState<string | null>(null);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [upgradePreview, setUpgradePreview] = useState<{
+    targetTier: "plus" | "pro";
+    loading: boolean;
+    data: PaidPlanSwitchPreview | null;
+    error: string | null;
+  } | null>(null);
 
   const redeem = async () => {
     setPending(true);
     setError(null);
     try {
-      const redeemed = await redeemPromotion({ code, targetTier });
+      const redeemed = await redeemPromotion({
+        code,
+        targetTier,
+        prorationDate:
+          upgradePreview?.targetTier === targetTier
+            ? (upgradePreview?.data?.prorationDate ?? undefined)
+            : undefined,
+      });
       if (redeemed.type === "checkout_redirect") {
         window.location.assign(redeemed.url);
         return;
@@ -141,6 +236,91 @@ function RedeemPromotionPage() {
     }
   }, [cancelPendingCheckout]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getStripePriceDetails({})
+      .then((prices) => {
+        if (!cancelled) {
+          setConfiguredStripePrices(prices);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setConfiguredStripePrices(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getStripePriceDetails]);
+
+  const isSubscriptionPromo = promotion?.kind === "subscription_discount";
+  const configuredTargetTiers = isSubscriptionPromo
+    ? promotion.redeemableTargetTiers
+    : [];
+  const selectedTargetTier =
+    targetTier ??
+    (configuredTargetTiers.length === 1 ? configuredTargetTiers[0] : undefined);
+  const currentTier = billingState?.tier ?? "free";
+  const currentTierRank = tierRank(currentTier);
+  const selectedTargetRank = tierRank(selectedTargetTier);
+  const paidUpgradeSelected =
+    isSubscriptionPromo &&
+    currentTierRank > 0 &&
+    selectedTargetTier !== undefined &&
+    selectedTargetRank > currentTierRank;
+  const activeUpgradePreview =
+    upgradePreview?.targetTier === selectedTargetTier ? upgradePreview : null;
+
+  useEffect(() => {
+    if (!paidUpgradeSelected) {
+      return;
+    }
+
+    let cancelled = false;
+    void previewSubscriptionPromotionUpgrade({
+      code,
+      targetTier: selectedTargetTier,
+    })
+      .then((preview) => {
+        if (!cancelled) {
+          setUpgradePreview({
+            targetTier: selectedTargetTier,
+            loading: false,
+            data: preview,
+            error: null,
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setUpgradePreview({
+            targetTier: selectedTargetTier,
+            loading: false,
+            data: null,
+            error:
+              err instanceof Error
+                ? err.message
+                : "Could not load the Stripe invoice preview.",
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    code,
+    paidUpgradeSelected,
+    previewSubscriptionPromotionUpgrade,
+    selectedTargetTier,
+  ]);
+
+  const selectSubscriptionTargetTier = (tier: "plus" | "pro") => {
+    setTargetTier(tier);
+    setUpgradePreview(null);
+  };
+
   if (promotion === undefined) {
     return (
       <RedeemShell>
@@ -172,25 +352,50 @@ function RedeemPromotionPage() {
     );
   }
 
-  const isSubscriptionPromo = promotion.kind === "subscription_discount";
   const requiresTierSelection =
     isSubscriptionPromo && promotion.requiresTargetTierSelection;
   const selectedTierLabel =
-    targetTier === "pro" ? "Pro" : targetTier === "plus" ? "Plus" : undefined;
+    selectedTargetTier === "pro"
+      ? "Pro"
+      : selectedTargetTier === "plus"
+        ? "Plus"
+        : undefined;
+  const selectedTargetIsNotUpgrade =
+    isSubscriptionPromo &&
+    currentTierRank > 0 &&
+    selectedTargetTier !== undefined &&
+    selectedTargetRank <= currentTierRank;
+  const subscriptionBillingLoading =
+    isSubscriptionPromo && billingState === undefined;
   const actionDisabled =
     result !== null ||
     promotion.canRedeem === false ||
     pending ||
-    (requiresTierSelection && targetTier === undefined);
+    subscriptionBillingLoading ||
+    (requiresTierSelection && targetTier === undefined) ||
+    selectedTargetIsNotUpgrade ||
+    (paidUpgradeSelected &&
+      (!activeUpgradePreview?.data || activeUpgradePreview.error !== null));
   const actionLabel = pending
     ? "Redeeming..."
     : promotion.ineligibleReason === "You already redeemed this promotion."
       ? "Already Redeemed"
       : promotion.canRedeem === false
         ? "Unavailable"
-    : isSubscriptionPromo && promotion.requiresCheckout
-      ? "Continue to checkout"
-      : "Redeem promotion";
+        : subscriptionBillingLoading
+          ? "Loading billing..."
+          : selectedTargetIsNotUpgrade
+            ? "Upgrade required"
+            : isSubscriptionPromo && promotion.requiresCheckout
+              ? "Continue to checkout"
+              : "Redeem promotion";
+
+  const promotionDiscount =
+    promotion.kind === "subscription_discount" &&
+    "subscriptionDiscount" in promotion &&
+    promotion.subscriptionDiscount != null
+      ? promotion.subscriptionDiscount.discount
+      : undefined;
 
   return (
     <RedeemShell>
@@ -224,31 +429,152 @@ function RedeemPromotionPage() {
           </div>
 
           {requiresTierSelection ? (
-            <div className="mt-6 grid gap-2">
-              <label className="text-sm font-medium">Choose your plan</label>
-              <Select
-                value={targetTier}
-                onValueChange={(value) => {
-                  if (value === "plus" || value === "pro") {
-                    setTargetTier(value);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Plus or Pro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {promotion.redeemableTargetTiers.includes("plus") ? (
-                    <SelectItem value="plus">Plus</SelectItem>
-                  ) : null}
-                  {promotion.redeemableTargetTiers.includes("pro") ? (
-                    <SelectItem value="pro">Pro</SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
+            <div className="mt-6 grid gap-3">
+              <p className="text-sm font-medium">Choose your plan</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {promotion.redeemableTargetTiers.includes("plus") ? (
+                  <PlanTierMarketingCard
+                    name="Plus"
+                    plan={getPlanConfig("plus", billingConfig)}
+                    {...redeemPlanPriceLabels(
+                      configuredStripePrices?.plus,
+                      promotionDiscount,
+                    )}
+                    renewalLine={undefined}
+                    state={
+                      currentTierRank > 0 && tierRank("plus") <= currentTierRank
+                        ? "inactive"
+                        : "available"
+                    }
+                    emphasize={false}
+                    selected={targetTier === "plus"}
+                    onSelect={() => {
+                      selectSubscriptionTargetTier("plus");
+                    }}
+                    footer={
+                      <p className="text-muted-foreground text-center text-xs">
+                        {currentTierRank > 0 &&
+                        tierRank("plus") <= currentTierRank
+                          ? currentTier === "plus"
+                            ? "Already on Plus"
+                            : "Not an upgrade"
+                          : targetTier === "plus"
+                            ? "Selected for checkout"
+                            : "Apply promotion to Plus"}
+                      </p>
+                    }
+                  />
+                ) : null}
+                {promotion.redeemableTargetTiers.includes("pro") ? (
+                  <PlanTierMarketingCard
+                    name="Pro"
+                    plan={getPlanConfig("pro", billingConfig)}
+                    {...redeemPlanPriceLabels(
+                      configuredStripePrices?.pro,
+                      promotionDiscount,
+                    )}
+                    renewalLine={undefined}
+                    state={
+                      currentTierRank > 0 && tierRank("pro") <= currentTierRank
+                        ? "inactive"
+                        : "available"
+                    }
+                    emphasize={false}
+                    selected={targetTier === "pro"}
+                    onSelect={() => {
+                      selectSubscriptionTargetTier("pro");
+                    }}
+                    footer={
+                      <p className="text-muted-foreground text-center text-xs">
+                        {currentTierRank > 0 &&
+                        tierRank("pro") <= currentTierRank
+                          ? currentTier === "pro"
+                            ? "Already on Pro"
+                            : "Not an upgrade"
+                          : targetTier === "pro"
+                            ? "Selected for checkout"
+                            : "Apply promotion to Pro"}
+                      </p>
+                    }
+                  />
+                ) : null}
+              </div>
               <p className="text-muted-foreground text-xs">
-                Pick the plan you want this promotion applied to.
+                Pick the plan you want this promotion applied to. Subscription
+                promotions can only upgrade your current plan.
               </p>
+            </div>
+          ) : null}
+
+          {paidUpgradeSelected ? (
+            <div className="ring-border bg-muted/25 mt-6 space-y-4 rounded-lg p-4 ring-1">
+              {activeUpgradePreview?.error ? (
+                <p className="text-destructive text-sm">
+                  {activeUpgradePreview.error}
+                </p>
+              ) : activeUpgradePreview?.data ? (
+                <>
+                  <div className="space-y-3 text-sm">
+                    {activeUpgradePreview.data.prorationCredit > 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>Unused {planTierLabel(currentTier)} credit</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatSignedCurrencyFromMinorUnits(
+                            -activeUpgradePreview.data.prorationCredit,
+                            activeUpgradePreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                    {activeUpgradePreview.data.prorationCharge > 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>{selectedTierLabel} prorated charge</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatCurrencyFromMinorUnits(
+                            activeUpgradePreview.data.prorationCharge,
+                            activeUpgradePreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                    {activeUpgradePreview.data.otherInvoiceAmount !== 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>Promotion, taxes, or invoice adjustments</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatSignedCurrencyFromMinorUnits(
+                            activeUpgradePreview.data.otherInvoiceAmount,
+                            activeUpgradePreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                    {activeUpgradePreview.data.startingBalance < 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>Invoice credits applied</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatSignedCurrencyFromMinorUnits(
+                            activeUpgradePreview.data.startingBalance,
+                            activeUpgradePreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="border-border flex items-center justify-between gap-4 border-t pt-4 text-base font-semibold">
+                    <span>Due today</span>
+                    <span className="font-mono tabular-nums">
+                      {formatCurrencyFromMinorUnits(
+                        activeUpgradePreview.data.amountDue,
+                        activeUpgradePreview.data.currency,
+                      )}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Preparing Stripe invoice preview...
+                </p>
+              )}
             </div>
           ) : null}
 
@@ -294,7 +620,11 @@ function RedeemPromotionPage() {
             </Button>
           ) : null}
 
-          {requiresTierSelection && targetTier === undefined && !result ? (
+          {selectedTargetIsNotUpgrade && !result ? (
+            <p className="text-muted-foreground mt-3 text-center text-xs">
+              This promotion cannot be applied to your current plan.
+            </p>
+          ) : requiresTierSelection && targetTier === undefined && !result ? (
             <p className="text-muted-foreground mt-3 text-center text-xs">
               Choose a plan before redeeming.
             </p>
@@ -380,18 +710,4 @@ function formatRedemptionResult(result: {
       ? ` Expires ${formatDate(result.expiresAt)}.`
       : ""
   }`;
-}
-
-function formatCurrencyFromMinorUnits(
-  amount: number,
-  currency: string,
-): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount / 100);
-  } catch {
-    return `$${String(amount / 100)}`;
-  }
 }

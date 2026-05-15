@@ -153,6 +153,20 @@ export function isFullDiscount(config: SubscriptionPromotionConfig): boolean {
   );
 }
 
+/** Applies subscription promo discount to a recurring list price (minor units). */
+export function discountedPriceCentsFromList(
+  listAmountCents: number,
+  discount: SubscriptionPromotionConfig["discount"],
+): number {
+  if (discount.type === "percent") {
+    return Math.max(
+      0,
+      Math.round((listAmountCents * (100 - discount.percentOff)) / 100),
+    );
+  }
+  return Math.max(0, listAmountCents - discount.amountOffCents);
+}
+
 export function formatPromotionBenefit(promotion: PromotionConfig): string {
   if (promotion.kind === "app_credits") {
     return `${promotion.config.amount.toLocaleString()} gifted credits`;

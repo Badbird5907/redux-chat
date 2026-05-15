@@ -4,6 +4,7 @@ import {
   assertStripeInvoiceCreditPromotionConfig,
   assertSubscriptionPromotionConfig,
   canRedeemForUserCount,
+  discountedPriceCentsFromList,
   formatPerUserRedemptionPolicy,
   formatPromotionBenefit,
   getPromotionRedeemableTiers,
@@ -92,6 +93,16 @@ describe("promotion helpers", () => {
         config,
       }),
     ).toBe("25% off Plus or Pro for 3 months");
+    expect(
+      discountedPriceCentsFromList(10000, { type: "percent", percentOff: 25 }),
+    ).toBe(7500);
+    expect(
+      discountedPriceCentsFromList(10000, {
+        type: "amount",
+        amountOffCents: 2500,
+        currency: "usd",
+      }),
+    ).toBe(7500);
   });
 
   it("recognizes gifted subscription configs as full discounts", () => {

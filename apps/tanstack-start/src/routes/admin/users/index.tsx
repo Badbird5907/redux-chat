@@ -135,10 +135,7 @@ function AdminUsersPage() {
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex flex-col gap-3">
         <AdminPageNav
-          items={[
-            { label: "Admin", to: "/admin" },
-            { label: "Users" },
-          ]}
+          items={[{ label: "Admin", to: "/admin" }, { label: "Users" }]}
         />
         <div className="min-w-0">
           <h1 className="text-foreground text-3xl font-semibold tracking-tight">

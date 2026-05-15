@@ -1,3 +1,4 @@
+import type { StripePlanPrice } from "@/components/billing/plan-tier-marketing-card";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -17,14 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@redux/ui/components/dialog";
-import { cn } from "@redux/ui/lib/utils";
 
 import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
-import {
-  CreditBalancePanel,
-  formatNumber,
-} from "@/components/billing/credit-balance-panel";
+import { CreditBalancePanel } from "@/components/billing/credit-balance-panel";
 import { CreditGrantHistoryDialog } from "@/components/billing/credit-grant-history";
+import {
+  formatStripeRecurringPrice,
+  PlanTierMarketingCard,
+} from "@/components/billing/plan-tier-marketing-card";
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
 
@@ -33,12 +34,6 @@ export const Route = createFileRoute("/settings/")({
 });
 
 const billingConfig = DEFAULT_BILLING_CONFIG;
-
-type StripePlanPrice = {
-  id: string;
-  amount?: number | null;
-  currency?: string | null;
-} | null;
 
 type StripePriceConfig = {
   plus: NonNullable<StripePlanPrice>;
@@ -50,6 +45,27 @@ type StripeCustomerBalanceSummary = {
   balances: {
     amount: number;
     currency: string;
+  }[];
+};
+
+type PaidPlanSwitchPreview = {
+  prorationDate: number;
+  currency: string;
+  subtotal: number;
+  total: number;
+  amountDue: number;
+  startingBalance: number;
+  prorationSubtotal: number;
+  prorationCredit: number;
+  prorationCharge: number;
+  otherInvoiceAmount: number;
+  lines: {
+    id: string;
+    description: string;
+    amount: number;
+    currency: string;
+    periodStart: number | undefined;
+    periodEnd: number | undefined;
   }[];
 };
 
@@ -71,20 +87,6 @@ function planTierLabel(tier: PlanTier): string {
     return "Plus";
   }
   return "Pro";
-}
-
-function planTierMarketingFeatures(tier: PlanTier): string[] {
-  if (tier === "free") {
-    return ["1 attachment per message (up to 10 MB)"];
-  }
-  if (tier === "plus") {
-    return [
-      "Multiple attachments per message",
-      "Project workspaces & knowledge search",
-      "Web search and analysis tools (credits apply)",
-    ];
-  }
-  return ["All features from Plus"];
 }
 
 function tierForConfiguredPriceId(
@@ -109,35 +111,6 @@ function tierForConfiguredPriceId(
   return null;
 }
 
-function formatStripeRecurringPrice(
-  product: StripePlanPrice | undefined,
-): string | undefined {
-  const price = getStripeRecurringPrice(product);
-  if (!price) {
-    return undefined;
-  }
-
-  return formatCurrencyFromMinorUnits(price.amount, price.currency);
-}
-
-function getStripeRecurringPrice(product: StripePlanPrice | undefined):
-  | {
-      amount: number;
-      currency: string;
-    }
-  | undefined {
-  if (!product || typeof product.amount !== "number") {
-    return undefined;
-  }
-  if (product.amount < 0) {
-    return undefined;
-  }
-  return {
-    amount: product.amount,
-    currency: (product.currency ?? "USD").toUpperCase(),
-  };
-}
-
 function formatCurrencyFromMinorUnits(
   amount: number,
   currency: string,
@@ -152,6 +125,16 @@ function formatCurrencyFromMinorUnits(
   }
 }
 
+function formatSignedCurrencyFromMinorUnits(
+  amount: number,
+  currency: string,
+): string {
+  if (amount < 0) {
+    return `-${formatCurrencyFromMinorUnits(Math.abs(amount), currency)}`;
+  }
+  return formatCurrencyFromMinorUnits(amount, currency);
+}
+
 function formatStripeCustomerBalance(
   balances: StripeCustomerBalanceSummary["balances"],
 ): string {
@@ -163,81 +146,6 @@ function formatStripeCustomerBalance(
       formatCurrencyFromMinorUnits(balance.amount, balance.currency),
     )
     .join(" / ");
-}
-
-function getProratedUpgradeBreakdown({
-  currentProduct,
-  targetProduct,
-  periodStart,
-  periodEnd,
-}: {
-  currentProduct: StripePlanPrice | undefined;
-  targetProduct: StripePlanPrice | undefined;
-  periodStart: number | undefined;
-  periodEnd: number | undefined;
-}):
-  | {
-      currentCredit: string;
-      currentMonthlyPrice: string;
-      targetCharge: string;
-      targetMonthlyPrice: string;
-      dueToday: string;
-      effectiveDate: string;
-    }
-  | undefined {
-  const currentPrice = getStripeRecurringPrice(currentProduct);
-  const targetPrice = getStripeRecurringPrice(targetProduct);
-  const currentAmount = currentPrice?.amount;
-  const targetAmount = targetPrice?.amount;
-  const targetCurrency = targetPrice?.currency;
-  const periodDuration =
-    typeof periodStart === "number" && typeof periodEnd === "number"
-      ? periodEnd - periodStart
-      : undefined;
-  if (
-    typeof currentAmount !== "number" ||
-    typeof targetAmount !== "number" ||
-    typeof targetCurrency !== "string" ||
-    currentPrice?.currency !== targetCurrency ||
-    typeof periodDuration !== "number" ||
-    typeof periodEnd !== "number" ||
-    periodDuration <= 0
-  ) {
-    return undefined;
-  }
-
-  const remainingRatio = Math.min(
-    1,
-    Math.max(0, (periodEnd - Date.now()) / periodDuration),
-  );
-  const priceDifference = targetAmount - currentAmount;
-  if (priceDifference <= 0) {
-    return undefined;
-  }
-
-  const currentCredit = Math.round(currentAmount * remainingRatio);
-  const targetCharge = Math.round(targetAmount * remainingRatio);
-  const dueToday = targetCharge - currentCredit;
-  if (dueToday <= 0) {
-    return undefined;
-  }
-
-  return {
-    currentCredit: `-${formatCurrencyFromMinorUnits(currentCredit, targetCurrency)}`,
-    currentMonthlyPrice: formatCurrencyFromMinorUnits(
-      currentAmount,
-      targetCurrency,
-    ),
-    targetCharge: formatCurrencyFromMinorUnits(targetCharge, targetCurrency),
-    targetMonthlyPrice: formatCurrencyFromMinorUnits(
-      targetAmount,
-      targetCurrency,
-    ),
-    dueToday: formatCurrencyFromMinorUnits(dueToday, targetCurrency),
-    effectiveDate: new Intl.DateTimeFormat("en-US", {
-      dateStyle: "medium",
-    }).format(Date.now()),
-  };
 }
 
 function renewalSummary(periodEnd: number | undefined): string | null {
@@ -305,6 +213,9 @@ function RouteComponent() {
   const switchPaidPlan = useAction(
     api.functions.billing.switchCurrentUserPaidPlan,
   );
+  const previewPaidPlanSwitch = useAction(
+    api.functions.billing.previewCurrentUserPaidPlanSwitch,
+  );
   const rescindCancellation = useAction(
     api.functions.billing.rescindPaidSubscriptionCancellation,
   );
@@ -326,6 +237,12 @@ function RouteComponent() {
   const [stripeCustomerBalance, setStripeCustomerBalance] =
     useState<StripeCustomerBalanceSummary | null>(null);
   const [planSwitchLoading, setPlanSwitchLoading] = useState(false);
+  const [planSwitchPreview, setPlanSwitchPreview] = useState<{
+    priceId: string;
+    loading: boolean;
+    data: PaidPlanSwitchPreview | null;
+    error: string | null;
+  } | null>(null);
   const [liveSubscriptionSchedule, setLiveSubscriptionSchedule] = useState<
     | {
         cancelAtPeriodEnd: boolean;
@@ -384,25 +301,18 @@ function RouteComponent() {
   const currentTier = billingState?.tier ?? "free";
   const plusPrice = configuredStripePrices?.plus ?? null;
   const proPrice = configuredStripePrices?.pro ?? null;
-  const currentPaidProduct =
-    currentTier === "plus"
-      ? plusPrice
-      : currentTier === "pro"
-        ? proPrice
-        : null;
-  const planSwitchTargetProduct =
-    planSwitchConfirm?.priceId === plusPrice?.id
-      ? plusPrice
-      : planSwitchConfirm?.priceId === proPrice?.id
-        ? proPrice
-        : null;
-  const proratedUpgradeBreakdown = getProratedUpgradeBreakdown({
-    currentProduct: currentPaidProduct,
-    targetProduct: planSwitchTargetProduct,
-    periodStart: billingState?.currentPeriodStart,
-    periodEnd: billingState?.currentPeriodEnd,
-  });
   const subscriptionId = billingState?.subscription?.subscriptionId;
+  const activePlanSwitchPreview =
+    planSwitchConfirm?.isUpgrade === true &&
+    planSwitchPreview?.priceId === planSwitchConfirm.priceId
+      ? planSwitchPreview
+      : null;
+  const upgradePreviewHasAmount =
+    activePlanSwitchPreview?.data != null &&
+    (activePlanSwitchPreview.data.prorationCharge > 0 ||
+      activePlanSwitchPreview.data.prorationCredit > 0 ||
+      activePlanSwitchPreview.data.amountDue > 0 ||
+      activePlanSwitchPreview.data.total !== 0);
   const effectiveLiveSubscriptionSchedule =
     subscriptionId != null && subscriptionId !== ""
       ? liveSubscriptionSchedule
@@ -533,6 +443,43 @@ function RouteComponent() {
     };
   }, [getStripeCustomerBalance]);
 
+  useEffect(() => {
+    const confirm = planSwitchConfirm;
+    if (!confirm?.isUpgrade) {
+      return;
+    }
+
+    let cancelled = false;
+    void previewPaidPlanSwitch({ priceId: confirm.priceId })
+      .then((preview) => {
+        if (!cancelled) {
+          setPlanSwitchPreview({
+            priceId: confirm.priceId,
+            loading: false,
+            data: preview,
+            error: null,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setPlanSwitchPreview({
+            priceId: confirm.priceId,
+            loading: false,
+            data: null,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not load the Stripe invoice preview.",
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [planSwitchConfirm, previewPaidPlanSwitch]);
+
   const applyBillingScheduleRefresh = async () => {
     const result = await refreshBillingStatus({});
     setLiveSubscriptionSchedule(
@@ -586,8 +533,16 @@ function RouteComponent() {
     setPlanSwitchLoading(true);
     setBillingError(null);
     try {
-      const switchResult = await switchPaidPlan({ priceId });
+      const switchResult = await switchPaidPlan({
+        priceId,
+        prorationDate:
+          planSwitchConfirm.isUpgrade &&
+          activePlanSwitchPreview?.priceId === priceId
+            ? (activePlanSwitchPreview.data?.prorationDate ?? undefined)
+            : undefined,
+      });
       setPlanSwitchConfirm(null);
+      setPlanSwitchPreview(null);
 
       if (switchResult.prorationBehavior === "next_period") {
         setLiveSubscriptionSchedule({
@@ -663,7 +618,7 @@ function RouteComponent() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-16 md:gap-14">
       <header className="flex flex-row items-center justify-between gap-3 pb-2 sm:gap-8">
-        <div className="flex min-w-0 max-w-xl flex-1 items-center gap-2">
+        <div className="flex max-w-xl min-w-0 flex-1 items-center gap-2">
           <SettingsMobileSidebarTrigger />
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight md:text-[1.65rem]">
             Billing
@@ -698,6 +653,7 @@ function RouteComponent() {
         onOpenChange={(open) => {
           if (!open && !planSwitchLoading) {
             setPlanSwitchConfirm(null);
+            setPlanSwitchPreview(null);
           }
         }}
       >
@@ -710,18 +666,10 @@ function RouteComponent() {
             </DialogTitle>
             <DialogDescription>
               {planSwitchConfirm?.isUpgrade ? (
-                proratedUpgradeBreakdown ? (
-                  <>
-                    Your new plan starts right away. Your card will be charged
-                    for the prorated amount below.
-                  </>
-                ) : (
-                  <>
-                    Your new plan starts right away. You&apos;ll be charged a
-                    prorated amount for the rest of this billing period. After
-                    that, you&apos;ll pay the usual renewal price.
-                  </>
-                )
+                <>
+                  Your new plan starts right away. Stripe calculates the exact
+                  prorated invoice before you confirm.
+                </>
               ) : (
                 <>
                   You will be downgraded to {planSwitchConfirm?.planName} at the
@@ -730,43 +678,96 @@ function RouteComponent() {
               )}
             </DialogDescription>
           </DialogHeader>
-          {planSwitchConfirm?.isUpgrade && proratedUpgradeBreakdown ? (
+          {planSwitchConfirm?.isUpgrade ? (
             <div className="ring-border bg-muted/25 space-y-4 rounded-lg p-4 ring-1">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-4">
-                  <span>
-                    Unused {planTierLabel(currentTier)} -{" "}
-                    {proratedUpgradeBreakdown.currentMonthlyPrice}/mo (from{" "}
-                    {proratedUpgradeBreakdown.effectiveDate})
-                  </span>
-                  <span className="font-mono font-semibold tabular-nums">
-                    {proratedUpgradeBreakdown.currentCredit}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between gap-4">
-                  <span>
-                    {planSwitchConfirm.planName} -{" "}
-                    {proratedUpgradeBreakdown.targetMonthlyPrice}/mo (from{" "}
-                    {proratedUpgradeBreakdown.effectiveDate})
-                  </span>
-                  <span className="font-mono font-semibold tabular-nums">
-                    {proratedUpgradeBreakdown.targetCharge}
-                  </span>
-                </div>
-              </div>
-              <div className="border-border flex items-center justify-between gap-4 border-t pt-4 text-base font-semibold">
-                <span>Due today</span>
-                <span className="font-mono tabular-nums">
-                  {proratedUpgradeBreakdown.dueToday}
-                </span>
-              </div>
+              {activePlanSwitchPreview?.error ? (
+                <p className="text-destructive text-sm">
+                  {activePlanSwitchPreview.error}
+                </p>
+              ) : activePlanSwitchPreview?.data && upgradePreviewHasAmount ? (
+                <>
+                  <div className="space-y-3 text-sm">
+                    {activePlanSwitchPreview.data.prorationCredit > 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>Unused {planTierLabel(currentTier)} credit</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatSignedCurrencyFromMinorUnits(
+                            -activePlanSwitchPreview.data.prorationCredit,
+                            activePlanSwitchPreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                    {activePlanSwitchPreview.data.prorationCharge > 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>
+                          {planSwitchConfirm.planName} prorated charge
+                        </span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatCurrencyFromMinorUnits(
+                            activePlanSwitchPreview.data.prorationCharge,
+                            activePlanSwitchPreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                    {activePlanSwitchPreview.data.otherInvoiceAmount !== 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>Taxes, discounts, or invoice adjustments</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatSignedCurrencyFromMinorUnits(
+                            activePlanSwitchPreview.data.otherInvoiceAmount,
+                            activePlanSwitchPreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                    {activePlanSwitchPreview.data.startingBalance < 0 ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span>Invoice credits applied</span>
+                        <span className="font-mono font-semibold tabular-nums">
+                          {formatSignedCurrencyFromMinorUnits(
+                            activePlanSwitchPreview.data.startingBalance,
+                            activePlanSwitchPreview.data.currency,
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="border-border flex items-center justify-between gap-4 border-t pt-4 text-base font-semibold">
+                    <span>Due today</span>
+                    <span className="font-mono tabular-nums">
+                      {formatCurrencyFromMinorUnits(
+                        activePlanSwitchPreview.data.amountDue,
+                        activePlanSwitchPreview.data.currency,
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-xs leading-snug">
+                    After this billing period, you&apos;ll pay the usual renewal
+                    price for {planSwitchConfirm.planName}.
+                  </p>
+                </>
+              ) : activePlanSwitchPreview?.data ? (
+                <p className="text-muted-foreground text-sm">
+                  Stripe did not return a payable upgrade preview. Refresh
+                  billing and try again.
+                </p>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Preparing Stripe invoice preview...
+                </p>
+              )}
             </div>
           ) : null}
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setPlanSwitchConfirm(null)}
+              onClick={() => {
+                setPlanSwitchConfirm(null);
+                setPlanSwitchPreview(null);
+              }}
               disabled={planSwitchLoading}
             >
               {planSwitchConfirm?.isUpgrade
@@ -776,7 +777,13 @@ function RouteComponent() {
             <Button
               type="button"
               onClick={() => void confirmPlanSwitch()}
-              disabled={planSwitchLoading}
+              disabled={
+                planSwitchLoading ||
+                (planSwitchConfirm?.isUpgrade === true &&
+                  (!activePlanSwitchPreview?.data ||
+                    !upgradePreviewHasAmount ||
+                    activePlanSwitchPreview.error !== null))
+              }
             >
               {planSwitchLoading
                 ? planSwitchConfirm?.isUpgrade
@@ -993,13 +1000,6 @@ function TierColumn({
   onSubscribe?: () => void;
   paidSwitch?: { isUpgrade: boolean; onRequest: () => void };
 }) {
-  const priced =
-    priceLabel !== undefined
-      ? `${priceLabel}/mo`
-      : name === "Free"
-        ? "$0/mo"
-        : "—";
-
   const footer: ReactNode =
     state === "current" ? (
       <Button disabled variant="outline" className="mt-auto w-full">
@@ -1035,47 +1035,14 @@ function TierColumn({
     );
 
   return (
-    <Card
-      className={cn(
-        "flex min-h-[220px] flex-col gap-0 px-5 py-6",
-        state === "current" &&
-          "border-primary/25 bg-primary/6 ring-primary/15 ring-1",
-        emphasize && state === "available" && "border-primary/30 shadow-sm",
-      )}
-    >
-      <p className="text-lg font-semibold tracking-tight">{name}</p>
-      <p className="text-foreground mt-2 font-mono text-xl font-semibold tracking-tight tabular-nums">
-        {priced}
-      </p>
-      {state === "current" ? (
-        renewalLine != null ? (
-          <p className="text-muted-foreground mt-2 text-[11px] leading-snug">
-            Renews {renewalLine}
-          </p>
-        ) : (
-          <p className="text-muted-foreground mt-2 text-[11px] leading-snug">
-            Renewal details are loading.
-          </p>
-        )
-      ) : null}
-      <ul className="text-muted-foreground mt-5 flex-1 space-y-2 text-xs leading-snug">
-        <li className="flex gap-2.5">
-          <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
-          <span className="min-w-0">
-            <span className="text-foreground font-medium">
-              {formatNumber(plan.includedMonthlyCredits)}
-            </span>{" "}
-            credits per month
-          </span>
-        </li>
-        {planTierMarketingFeatures(plan.tier).map((line) => (
-          <li key={line} className="flex gap-2.5">
-            <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
-            <span className="min-w-0">{line}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-6">{footer}</div>
-    </Card>
+    <PlanTierMarketingCard
+      name={name}
+      plan={plan}
+      priceLabel={priceLabel}
+      renewalLine={renewalLine}
+      footer={footer}
+      state={state}
+      emphasize={emphasize}
+    />
   );
 }

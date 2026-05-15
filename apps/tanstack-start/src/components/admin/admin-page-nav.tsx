@@ -49,7 +49,7 @@ export function AdminPageNav({
               ) : (
                 <span
                   className={cn(
-                    "min-w-0 max-w-[min(100%,20rem)] truncate font-medium",
+                    "max-w-[min(100%,20rem)] min-w-0 truncate font-medium",
                     isLast && "text-foreground",
                   )}
                 >

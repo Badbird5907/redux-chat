@@ -106,6 +106,20 @@ export function resolveAppCreditExpiry(args: {
   return (args.nowMs ?? Date.now()) + args.expiresAfterDays * 86_400_000;
 }
 
+export function computePaidSubscriberPromotionFreeUntil(args: {
+  nowMs: number;
+  existingTrialEndMs: number;
+  currentPeriodEndMs: number;
+  months: number;
+}): number {
+  const extensionStartMs = Math.max(
+    args.nowMs,
+    args.existingTrialEndMs,
+    args.currentPeriodEndMs,
+  );
+  return addUtcMonths(extensionStartMs, args.months);
+}
+
 export function assertAppCreditsConfig(config: unknown): asserts config is {
   amount: number;
   expiresAt?: number;
@@ -139,6 +153,19 @@ export function assertAppCreditsConfig(config: unknown): asserts config is {
   if (value.note !== undefined && typeof value.note !== "string") {
     throw new ConvexError("Promotion note is invalid.");
   }
+}
+
+function addUtcMonths(timestamp: number, months: number): number {
+  const date = new Date(timestamp);
+  return Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + months,
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds(),
+  );
 }
 
 export function assertStripeInvoiceCreditConfig(

@@ -3,13 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   debitCreditsTx,
+  ensureFreeMonthlyCreditsAfterPaidCancellationTx,
   getCreditBalanceForUser,
   grantCreditsTx,
+  paginateSortedCreditGrantHistory,
   revokeCreditGrantForUserTx,
-  ensureFreeMonthlyCreditsAfterPaidCancellationTx,
   revokeFreeMonthlyCreditsTx,
   revokeSubscriptionMonthlyCreditsTx,
+  sortCreditGrantHistory,
   sweepExpiredGrantsTx,
+  upsertSubscriptionMonthlyCreditsTx,
 } from "../credits";
 import schema from "../schema";
 import { modules } from "../test.setup";
@@ -33,6 +36,36 @@ describe("credit ledger helpers", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.useRealTimers();
+  });
+
+  it("orders grant history with active grants first, newest grants first", () => {
+    const sorted = sortCreditGrantHistory([
+      { grantId: "revoked-new", grantedAt: NOW + 3000, status: "revoked" },
+      { grantId: "active-old", grantedAt: NOW + 1000, status: "active" },
+      { grantId: "exhausted", grantedAt: NOW + 4000, status: "exhausted" },
+      { grantId: "active-new", grantedAt: NOW + 2000, status: "active" },
+    ]);
+
+    expect(sorted.map((grant) => grant.grantId)).toEqual([
+      "active-new",
+      "active-old",
+      "exhausted",
+      "revoked-new",
+    ]);
+
+    expect(
+      paginateSortedCreditGrantHistory(sorted, {
+        cursor: "1",
+        numItems: 2,
+      }),
+    ).toMatchObject({
+      page: [
+        { grantId: "active-old" },
+        { grantId: "exhausted" },
+      ],
+      isDone: false,
+      continueCursor: "3",
+    });
   });
 
   it("grants are idempotent on (source, sourceId)", async () => {
@@ -61,6 +94,50 @@ describe("credit ledger helpers", () => {
     expect(first.created).toBe(true);
     expect(second.created).toBe(false);
     expect(second.grantId).toBe(first.grantId);
+  });
+
+  it("adjusts same-period subscription allowance when a paid plan upgrades", async () => {
+    const t = convexTest(schema, modules);
+    const sourceId = "sub-1:1700000000000";
+
+    await t.run(async (ctx) => {
+      await upsertSubscriptionMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 1_000_000,
+        sourceId,
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+        metadata: { subscriptionId: "sub-1", tier: "plus" },
+      });
+      await debitCreditsTx(ctx, {
+        userId: USER_ID,
+        requestKey: "msg-uses-plus",
+        amount: 250_000,
+        overageAllowed: false,
+      });
+    });
+
+    const adjusted = await t.run(async (ctx) =>
+      upsertSubscriptionMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 3_500_000,
+        sourceId,
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+        metadata: { subscriptionId: "sub-1", tier: "pro" },
+      }),
+    );
+
+    expect(adjusted.created).toBe(false);
+    expect(adjusted.adjusted).toBe(true);
+    expect(adjusted.previousAmount).toBe(1_000_000);
+    expect(adjusted.previousRemaining).toBe(750_000);
+
+    const balance = await t.run(async (ctx) =>
+      getCreditBalanceForUser(ctx, USER_ID),
+    );
+    expect(balance.bucketBalances.monthly).toBe(3_250_000);
+    expect(balance.spendableCredits).toBe(3_250_000);
   });
 
   it("debits allocate gifted → monthly → paid", async () => {

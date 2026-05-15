@@ -1,10 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, FolderKanban } from "lucide-react";
 
-import {
-  SidebarTrigger,
-  useSidebar,
-} from "@redux/ui/components/sidebar";
+import { SidebarTrigger, useSidebar } from "@redux/ui/components/sidebar";
 import {
   Tooltip,
   TooltipContent,

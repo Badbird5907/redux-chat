@@ -205,9 +205,7 @@ export function CreditGrantHistoryDialog() {
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Credit grants</DialogTitle>
-          <DialogDescription>
-            Current and past grants
-          </DialogDescription>
+          <DialogDescription>Current and past grants</DialogDescription>
         </DialogHeader>
         <CreditGrantHistoryList />
       </DialogContent>
