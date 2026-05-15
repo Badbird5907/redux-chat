@@ -84,6 +84,7 @@
     "./components/label": "./src/components/label.tsx",
     "./components/popover": "./src/components/popover.tsx",
     "./components/progress": "./src/components/progress.tsx",
+    "./components/radio-group": "./src/components/radio-group.tsx",
     "./components/resizable": "./src/components/resizable.tsx",
     "./components/select": "./src/components/select.tsx",
     "./components/separator": "./src/components/separator.tsx",

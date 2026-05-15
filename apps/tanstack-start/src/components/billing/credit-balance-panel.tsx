@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Info } from "lucide-react";
 
@@ -138,6 +139,7 @@ export function CreditBalancePanel({
   currentPeriodStart,
   currentPeriodEnd,
   label = "Credit balance",
+  footer,
 }: {
   bucketBalances: Record<CreditBucket, number> | undefined;
   expiringSoon:
@@ -152,6 +154,7 @@ export function CreditBalancePanel({
   currentPeriodStart: number | undefined;
   currentPeriodEnd: number | undefined;
   label?: string;
+  footer?: ReactNode;
 }) {
   const nowMs = useNowMs();
   const orderedBuckets = useMemo<CreditBucket[]>(
@@ -214,7 +217,7 @@ export function CreditBalancePanel({
       <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
         {label}
       </p>
-      <Card className="bg-muted/35 ring-border gap-0 overflow-hidden p-0 py-0 shadow-none">
+      <Card className="bg-card/55 border-border/50 gap-0 overflow-hidden rounded-2xl border p-0 py-0 shadow-none ring-0">
         <div className="space-y-4 px-5 py-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Stat
@@ -318,6 +321,14 @@ export function CreditBalancePanel({
                 )
                 .join(" · ")}
             </p>
+          </>
+        ) : null}
+        {footer ? (
+          <>
+            <Separator />
+            <div className="flex w-full min-w-0 items-center px-5 py-2.5">
+              {footer}
+            </div>
           </>
         ) : null}
       </Card>

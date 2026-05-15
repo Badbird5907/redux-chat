@@ -75,6 +75,7 @@ registerRoutes(http, components.stripe, {
     },
     "checkout.session.completed": async (ctx, event) => {
       await handleCreditTopUpCheckoutCompleted(ctx, event);
+      await handlePromotionSubscriptionCheckoutCompleted(ctx, event);
     },
   },
 });
@@ -347,6 +348,91 @@ async function handleCreditTopUpCheckoutCompleted(
         intentId,
         amountCents,
         credits,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+}
+
+async function handlePromotionSubscriptionCheckoutCompleted(
+  ctx: {
+    runMutation: typeof internal extends never ? never : any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  },
+  event: Stripe.CheckoutSessionCompletedEvent,
+): Promise<void> {
+  const session = event.data.object;
+  if (session.mode !== "subscription") {
+    return;
+  }
+
+  const metadata = session.metadata ?? {};
+  if (metadata.kind !== "promotion_subscription") {
+    return;
+  }
+
+  const promotionId = pickString(metadata.promotionId);
+  const redemptionId = pickString(metadata.redemptionId);
+  const userId = pickString(metadata.userId) ?? pickString(session.client_reference_id);
+  const targetTier = pickString(metadata.targetTier);
+  const couponId = pickString(metadata.couponId);
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+  const customerId =
+    typeof session.customer === "string" ? session.customer : session.customer?.id;
+
+  try {
+    if (!promotionId || !redemptionId || !userId) {
+      throw new Error("promotion_subscription_metadata_invalid");
+    }
+    if (targetTier !== "plus" && targetTier !== "pro") {
+      throw new Error("promotion_subscription_target_tier_invalid");
+    }
+    if (!subscriptionId || !customerId) {
+      throw new Error("promotion_subscription_missing_stripe_ids");
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await ctx.runMutation(
+      internal.functions.promotions.internal_markPromotionCheckoutCompleted,
+      {
+        redemptionId,
+        userId,
+        targetTier,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        stripeCheckoutSessionId: session.id,
+        stripeCouponId: couponId,
+      },
+    );
+
+    await recordStripeAuditEvent(ctx, {
+      userId,
+      action: "stripe:checkout.session.completed:promotion_subscription",
+      status: "success",
+      severity: "medium",
+      metadata: {
+        promotionId,
+        redemptionId,
+        targetTier,
+        subscriptionId,
+        checkoutSessionId: session.id,
+      },
+    });
+  } catch (error) {
+    console.error("promotion_subscription_checkout_failed", error);
+    await recordStripeAuditEvent(ctx, {
+      userId: userId ?? null,
+      action: "stripe:checkout.session.completed:promotion_subscription",
+      status: "failed",
+      severity: "high",
+      metadata: {
+        promotionId,
+        redemptionId,
+        targetTier,
+        subscriptionId,
+        checkoutSessionId: session.id,
         error: error instanceof Error ? error.message : String(error),
       },
     });

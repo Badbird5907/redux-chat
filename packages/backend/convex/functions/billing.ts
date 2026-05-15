@@ -1,6 +1,6 @@
 import type { GenericActionCtx, GenericQueryCtx } from "convex/server";
-import { v } from "convex/values";
 import type Stripe from "stripe";
+import { v } from "convex/values";
 
 import type { PlanTier } from "@redux/shared";
 import {
@@ -28,8 +28,8 @@ import {
 import { getCreditBalanceForUser } from "../credits";
 import { backendEnv } from "../env";
 import {
-  getStripeSdkClient,
   getStripePlanPrices,
+  getStripeSdkClient,
   isConfiguredStripePlanPrice,
   stripeComponent,
   tierFromStripePriceId,
@@ -72,6 +72,11 @@ type BillingRefreshResult = {
   grantApplied: boolean;
   periodKey: string;
   subscriptionSchedule: BillingSubscriptionSchedule;
+};
+
+type StripeCustomerBalanceCredit = {
+  amount: number;
+  currency: string;
 };
 
 type CreditTopUpIntent = {
@@ -139,6 +144,48 @@ export const getConfiguredStripePriceDetails = action({
         amount: pro.unit_amount,
         currency: pro.currency.toUpperCase(),
       },
+    };
+  },
+});
+
+export const getCurrentUserStripeCustomerBalance = action({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{
+    balanceCount: number;
+    balances: StripeCustomerBalanceCredit[];
+  }> => {
+    const customerId = await ensureStripeCustomerForCurrentUser(ctx);
+    const stripe = getStripeSdkClient();
+    const customer = await stripe.customers.retrieve(customerId);
+    if ("deleted" in customer && customer.deleted) {
+      return { balanceCount: 0, balances: [] };
+    }
+
+    const balancesByCurrency = new Map<string, number>();
+    const invoiceCreditBalance = customer.invoice_credit_balance;
+    if (invoiceCreditBalance) {
+      for (const [currency, balance] of Object.entries(invoiceCreditBalance)) {
+        if (balance < 0) {
+          balancesByCurrency.set(currency.toUpperCase(), Math.abs(balance));
+        }
+      }
+    }
+    if (balancesByCurrency.size === 0 && customer.balance < 0) {
+      balancesByCurrency.set(
+        (customer.currency ?? "usd").toUpperCase(),
+        Math.abs(customer.balance),
+      );
+    }
+
+    const balances = [...balancesByCurrency.entries()]
+      .map(([currency, amount]) => ({ currency, amount }))
+      .sort((a, b) => a.currency.localeCompare(b.currency));
+
+    return {
+      balanceCount: balances.length,
+      balances,
     };
   },
 });
@@ -799,7 +846,8 @@ async function refreshBillingStateForUser(
         STRIPE_NETWORK_TIMEOUT_MS,
         "stripe.subscriptions.retrieve",
       );
-      subscriptionSchedule = subscriptionScheduleFromStripeSubscription(liveSub);
+      subscriptionSchedule =
+        subscriptionScheduleFromStripeSubscription(liveSub);
     } catch (error) {
       console.error("Failed to load Stripe subscription schedule", {
         userId,
@@ -876,16 +924,18 @@ function selectBestSubscriptionState(
   );
 }
 
-async function ensureStripeCustomerForCurrentUser(ctx: BillingActionCtx) {
-  const user = await ctx.runQuery(api.functions.user.getCurrentUserBillingInfo, {});
+export async function ensureStripeCustomerForCurrentUser(
+  ctx: BillingActionCtx,
+) {
+  const user = await ctx.runQuery(
+    api.functions.user.getCurrentUserBillingInfo,
+    {},
+  );
   const override = await ctx.runQuery(
     internal.functions.billing.internal_getStripeCustomerOverride,
     { userId: user.userId },
   );
-  if (
-    override &&
-    (await stripeCustomerExists(override.stripeCustomerId))
-  ) {
+  if (override && (await stripeCustomerExists(override.stripeCustomerId))) {
     return override.stripeCustomerId;
   }
 
@@ -971,14 +1021,19 @@ export const internal_upsertStripeCustomerOverride = internalMutation({
   },
 });
 
-async function stripeCustomerExists(stripeCustomerId: string): Promise<boolean> {
+async function stripeCustomerExists(
+  stripeCustomerId: string,
+): Promise<boolean> {
   try {
     const stripe = getStripeSdkClient();
     const customer = await stripe.customers.retrieve(stripeCustomerId);
     return !("deleted" in customer && customer.deleted === true);
   } catch (error) {
     const text = getErrorText(error).toLowerCase();
-    if (text.includes("no such customer") || text.includes("resource_missing")) {
+    if (
+      text.includes("no such customer") ||
+      text.includes("resource_missing")
+    ) {
       return false;
     }
     throw error;

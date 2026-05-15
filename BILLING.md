@@ -37,6 +37,22 @@ Credits are stored in Convex buckets:
 Allocation consumes lower-priority buckets first so expiring or promotional
 credits are spent before purchased credits.
 
+## Promotions
+
+Promotions are redeemed through Redux Chat codes at `/redeem/<code>`; Stripe
+hosted promotion codes are not used. The redemption action reserves a Convex
+usage row first, then applies the benefit and records every attempt for admin
+tracking.
+
+- App credit promotions grant Convex `gifted` credit buckets.
+- Subscription discount promotions create Stripe Coupons internally. Partial
+  discounts send the user to Stripe Checkout; gifted or 100% discount
+  subscriptions create the Stripe subscription directly without requiring a
+  payment method.
+- Stripe invoice credit promotions use Stripe Customer Balance Transactions.
+  Credits are written as negative customer balance transactions. Revoking one
+  creates an offsetting positive transaction and marks the usage row revoked.
+
 ## Stripe Dashboard Requirements
 
 - Recurring prices exist for Plus and Pro and match:

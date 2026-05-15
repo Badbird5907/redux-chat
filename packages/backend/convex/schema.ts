@@ -61,6 +61,29 @@ const creditTopUpIntentStatus = v.union(
   v.literal("failed"),
 );
 
+const promotionKind = v.union(
+  v.literal("app_credits"),
+  v.literal("subscription_discount"),
+  v.literal("stripe_invoice_credit"),
+);
+
+const promotionStatus = v.union(
+  v.literal("draft"),
+  v.literal("active"),
+  v.literal("paused"),
+  v.literal("archived"),
+);
+
+const promotionRedemptionStatus = v.union(
+  v.literal("reserved"),
+  v.literal("pending_checkout"),
+  v.literal("applied"),
+  v.literal("failed"),
+  v.literal("revoked"),
+);
+
+const paidPlanTier = v.union(v.literal("plus"), v.literal("pro"));
+
 const messageTools = v.object({
   search: v.optional(v.object({})),
   analysisWorkspace: v.optional(
@@ -372,6 +395,58 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  promotions: defineTable({
+    promotionId: v.string(),
+    code: v.string(),
+    codeNormalized: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    status: promotionStatus,
+    kind: promotionKind,
+    maxRedemptions: v.optional(v.number()),
+    perUserRedemptionLimit: v.optional(v.number()),
+    redeemedCount: v.number(),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    createdByUserId: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_promotionId", ["promotionId"])
+    .index("by_codeNormalized", ["codeNormalized"])
+    .index("by_status_createdAt", ["status", "createdAt"])
+    .index("by_kind_createdAt", ["kind", "createdAt"]),
+
+  promotionRedemptions: defineTable({
+    redemptionId: v.string(),
+    promotionId: v.string(),
+    codeNormalized: v.string(),
+    userId: v.string(),
+    status: promotionRedemptionStatus,
+    kind: promotionKind,
+    reservedAt: v.number(),
+    appliedAt: v.optional(v.number()),
+    failedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+    targetTier: v.optional(paidPlanTier),
+    appCreditGrantId: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    stripeCouponId: v.optional(v.string()),
+    stripeCreditGrantId: v.optional(v.string()),
+    stripeCheckoutSessionId: v.optional(v.string()),
+    stripeCheckoutSessionExpiresAt: v.optional(v.number()),
+    stripeCustomerBalanceTransactionId: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_redemptionId", ["redemptionId"])
+    .index("by_promotion_reservedAt", ["promotionId", "reservedAt"])
+    .index("by_user_promotion", ["userId", "promotionId"])
+    .index("by_user_codeNormalized", ["userId", "codeNormalized"])
+    .index("by_status_reservedAt", ["status", "reservedAt"]),
 
   // Per-debit per-grant allocation rows. Preserved for audit so the
   // exact slice of each lot consumed by each request is recoverable.

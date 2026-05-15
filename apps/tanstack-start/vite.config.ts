@@ -9,6 +9,8 @@ import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   server: {
+    allowedHosts: ["evan-lpt"],
+    host: true,
     port: 3712,
   },
   build: {

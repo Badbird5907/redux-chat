@@ -255,13 +255,7 @@ function GrantCreditsForm({
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue>
-                        {(value: string) =>
-                          isCreditBucket(value)
-                            ? CREDIT_BUCKETS[value].label
-                            : value
-                        }
-                      </SelectValue>
+                      <SelectValue />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>

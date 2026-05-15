@@ -44,6 +44,14 @@ type StripePriceConfig = {
   pro: NonNullable<StripePlanPrice>;
 };
 
+type StripeCustomerBalanceSummary = {
+  balanceCount: number;
+  balances: {
+    amount: number;
+    currency: string;
+  }[];
+};
+
 function tierRank(tier: PlanTier): number {
   if (tier === "free") {
     return 0;
@@ -127,6 +135,19 @@ function formatCurrencyFromMinorUnits(
   } catch {
     return `$${String(amount / 100)}`;
   }
+}
+
+function formatStripeCustomerBalance(
+  balances: StripeCustomerBalanceSummary["balances"],
+): string {
+  if (balances.length === 0) {
+    return formatCurrencyFromMinorUnits(0, "USD");
+  }
+  return balances
+    .map((balance) =>
+      formatCurrencyFromMinorUnits(balance.amount, balance.currency),
+    )
+    .join(" / ");
 }
 
 function getProratedUpgradeBreakdown({
@@ -243,9 +264,15 @@ function coerceSubscriptionSchedule(input: unknown): {
 }
 
 function RouteComponent() {
-  const stripePrices = useQuery(api.functions.billing.getConfiguredStripePrices, {});
+  const stripePrices = useQuery(
+    api.functions.billing.getConfiguredStripePrices,
+    {},
+  );
   const getStripePriceDetails = useAction(
     api.functions.billing.getConfiguredStripePriceDetails,
+  );
+  const getStripeCustomerBalance = useAction(
+    api.functions.billing.getCurrentUserStripeCustomerBalance,
   );
   const baseBillingState = useQuery(
     api.functions.billing.getCurrentBillingState,
@@ -281,6 +308,8 @@ function RouteComponent() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [stripePriceDetails, setStripePriceDetails] =
     useState<StripePriceConfig | null>(null);
+  const [stripeCustomerBalance, setStripeCustomerBalance] =
+    useState<StripeCustomerBalanceSummary | null>(null);
   const [planSwitchLoading, setPlanSwitchLoading] = useState(false);
   const [liveSubscriptionSchedule, setLiveSubscriptionSchedule] = useState<
     | {
@@ -334,6 +363,8 @@ function RouteComponent() {
     typeof billingState?.includedMonthlyCredits === "number"
       ? billingState.includedMonthlyCredits
       : undefined;
+  const showStripeCustomerBalance =
+    stripeCustomerBalance !== null && stripeCustomerBalance.balanceCount > 0;
 
   const currentTier = billingState?.tier ?? "free";
   const plusPrice = configuredStripePrices?.plus ?? null;
@@ -424,8 +455,7 @@ function RouteComponent() {
     renewSummary,
   ]);
 
-  const pendingPriceIdLive =
-    effectiveLiveSubscriptionSchedule?.pendingPriceId;
+  const pendingPriceIdLive = effectiveLiveSubscriptionSchedule?.pendingPriceId;
   const pendingTierLive = tierForConfiguredPriceId(
     pendingPriceIdLive,
     configuredStripePrices,
@@ -468,6 +498,25 @@ function RouteComponent() {
       cancelled = true;
     };
   }, [getStripePriceDetails]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getStripeCustomerBalance({})
+      .then((customerBalance) => {
+        if (!cancelled) {
+          setStripeCustomerBalance(customerBalance);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          console.error("Failed to load Stripe customer balance", error);
+          setStripeCustomerBalance(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getStripeCustomerBalance]);
 
   const applyBillingScheduleRefresh = async () => {
     const result = await refreshBillingStatus({});
@@ -588,34 +637,49 @@ function RouteComponent() {
       window.location.href = portal.url;
     } catch (error) {
       setBillingError(
-        error instanceof Error ? error.message : "Could not open billing portal",
+        error instanceof Error
+          ? error.message
+          : "Could not open billing portal",
       );
       setPortalLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 pb-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">Billing</h1>
-        <div className="flex items-center gap-2">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-16 md:gap-14">
+      <header className="flex flex-col gap-6 pb-2 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+        <div className="max-w-xl space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-[1.65rem]">
+            Billing
+          </h1>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-1">
           {showPaidManage ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
               className={cn(
-                "h-8 gap-1 px-2.5 text-xs",
+                "border-border/60 hover:bg-accent/60 h-9 gap-1 rounded-full px-4 text-xs font-medium shadow-none",
               )}
               disabled={portalLoading}
               onClick={() => void openCustomerPortal()}
             >
-              {portalLoading ? "Opening..." : "Manage billing"}
-              <ChevronRight className="size-3.5 opacity-60" aria-hidden />
+              {portalLoading ? "Opening…" : "Manage billing"}
+              <ChevronRight className="size-3.5 opacity-50" aria-hidden />
             </Button>
           ) : null}
         </div>
-      </div>
+      </header>
+
+      {billingError ? (
+        <div
+          className="border-destructive/35 bg-destructive/10 text-destructive rounded-2xl border px-4 py-3 text-sm leading-snug"
+          role="alert"
+        >
+          {billingError}
+        </div>
+      ) : null}
 
       <Dialog
         open={planSwitchConfirm !== null}
@@ -721,53 +785,67 @@ function RouteComponent() {
         triggerContext="settings"
       />
 
-      <div className="space-y-2">
+      <article className="flex flex-col gap-4 md:gap-5">
         <CreditBalancePanel
           bucketBalances={billingState?.bucketBalances}
           expiringSoon={billingState?.expiringSoon}
           includedMonthlyCredits={includedMonthlyCredits}
           currentPeriodStart={billingState?.currentPeriodStart}
           currentPeriodEnd={billingState?.currentPeriodEnd}
+          footer={
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
+              <div className="flex shrink-0 items-center">
+                {isOnPaidPlan ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5 text-xs font-medium shadow-none"
+                    onClick={() => setAddCreditsOpen(true)}
+                  >
+                    <CreditCard className="size-3.5 opacity-90" aria-hidden />
+                    Add credits
+                  </Button>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 items-center">
+                <CreditGrantHistoryDialog />
+              </div>
+            </div>
+          }
         />
-        <div className="flex justify-end">
-          <CreditGrantHistoryDialog />
-        </div>
-      </div>
 
-      {isOnPaidPlan ? (
-        <section className="space-y-3">
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-            Credit top-up
-          </p>
-          <Card className="bg-muted/35 ring-border gap-0 px-5 py-4 shadow-none">
+        {showStripeCustomerBalance ? (
+          <Card className="border-border/50 bg-card/55 gap-0 rounded-2xl border px-5 py-4 shadow-none">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Add more credits</p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Purchased credits are spent after monthly credits and do not
-                  expire.
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold tracking-tight">
+                  Invoice credits (Stripe)
+                </p>
+                <p className="text-muted-foreground text-xs leading-snug">
+                  Will apply on your next invoice.
                 </p>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 shrink-0 gap-2 text-xs"
-                onClick={() => setAddCreditsOpen(true)}
-              >
-                <CreditCard className="size-3.5" aria-hidden />
-                Add credits
-              </Button>
+              <span className="font-mono text-xl font-semibold tabular-nums">
+                {formatStripeCustomerBalance(stripeCustomerBalance.balances)}
+              </span>
             </div>
           </Card>
-        </section>
-      ) : null}
+        ) : null}
+      </article>
 
-      <section id="plans" className="scroll-mt-6 space-y-3">
-        <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-          Plans
-        </p>
+      <section id="plans" className="scroll-mt-10 space-y-5">
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.12em] uppercase">
+            Plans
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Upgrade or downgrade takes effect immediately or next cycle
+            depending on your choice — details appear in the confirmation step.
+          </p>
+        </div>
         {showBillingSchedulePanel ? (
-          <Card className="bg-primary/4 ring-primary/30 gap-0 px-5 py-3 text-sm leading-relaxed">
+          <Card className="border-primary/25 bg-primary/6 ring-primary/15 gap-0 rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-none ring-1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="min-w-0 flex-1">
                 {scheduleNotice ? (
@@ -813,7 +891,7 @@ function RouteComponent() {
             </div>
           </Card>
         ) : null}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
           <TierColumn
             name="Free"
             plan={getPlanConfig("free", billingConfig)}
@@ -863,7 +941,9 @@ function RouteComponent() {
             renewalSummary={renewSummary}
             checkoutLoading={checkoutLoadingPriceId === proPrice?.id}
             onSubscribe={
-              proPrice?.id ? () => void subscribeToPrice(proPrice.id) : undefined
+              proPrice?.id
+                ? () => void subscribeToPrice(proPrice.id)
+                : undefined
             }
             paidSwitch={
               isOnPaidPlan && rank === 1 && proPrice?.id
@@ -881,12 +961,6 @@ function RouteComponent() {
           />
         </div>
       </section>
-
-      {billingError ? (
-        <p className="text-destructive text-sm" role="alert">
-          {billingError}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -929,7 +1003,7 @@ function TierColumn({
         disabled
         variant="outline"
         size="sm"
-        className="mt-auto w-full text-xs"
+        className="border-border/60 mt-auto h-10 w-full rounded-full text-xs font-medium"
       >
         Current plan
       </Button>
@@ -940,7 +1014,10 @@ function TierColumn({
         type="button"
         variant={emphasize ? "default" : "outline"}
         size="sm"
-        className={cn("mt-auto w-full text-xs", !emphasize && "bg-transparent")}
+        className={cn(
+          "mt-auto h-10 w-full rounded-full text-xs font-medium",
+          !emphasize && "border-border/60 bg-transparent",
+        )}
         onClick={paidSwitch.onRequest}
       >
         {paidSwitch.isUpgrade
@@ -953,8 +1030,8 @@ function TierColumn({
         variant={emphasize ? "default" : "outline"}
         size="sm"
         className={cn(
-          "mt-auto w-full text-xs",
-          !emphasize && "bg-transparent",
+          "mt-auto h-10 w-full rounded-full text-xs font-medium",
+          !emphasize && "border-border/60 bg-transparent",
         )}
         disabled={checkoutLoading}
         onClick={onSubscribe}
@@ -966,7 +1043,7 @@ function TierColumn({
         disabled
         variant="outline"
         size="sm"
-        className="mt-auto w-full text-xs"
+        className="border-border/60 mt-auto h-10 w-full rounded-full text-xs font-medium"
       >
         Unavailable
       </Button>
@@ -975,32 +1052,61 @@ function TierColumn({
   return (
     <Card
       className={cn(
-        "bg-muted/35 ring-border flex min-h-[192px] flex-col gap-0 px-5 py-5 shadow-none",
-        emphasize && state === "available"
-          ? "bg-primary/3 ring-primary/40 ring-1"
-          : null,
+        "border-border/50 bg-card/50 flex min-h-[220px] flex-col gap-0 rounded-2xl border px-5 py-6 shadow-none",
+        state === "current" &&
+          "border-primary/25 bg-primary/6 ring-primary/15 ring-1",
+        emphasize && state === "available" && "border-primary/30 shadow-sm",
       )}
     >
-      <p className="text-base font-semibold">{name}</p>
-      <p className="text-foreground mt-1 font-mono text-lg font-semibold tabular-nums">
+      <p className="text-lg font-semibold tracking-tight">{name}</p>
+      <p className="text-foreground mt-2 font-mono text-xl font-semibold tracking-tight tabular-nums">
         {priced}
       </p>
       {state === "current" ? (
         renewalLine != null ? (
-          <p className="text-muted-foreground mt-2 text-xs">
+          <p className="text-muted-foreground mt-2 text-[11px] leading-snug">
             Renews {renewalLine}
           </p>
         ) : (
-          <p className="text-muted-foreground mt-2 text-xs">
+          <p className="text-muted-foreground mt-2 text-[11px] leading-snug">
             Renewal details are loading.
           </p>
         )
       ) : null}
-      <ul className="text-muted-foreground mt-3 flex-1 space-y-1.5 text-xs leading-relaxed">
-        <li>{formatNumber(plan.includedMonthlyCredits)} credits / period</li>
-        {/* TODO: finish this */}
+      <ul className="text-muted-foreground mt-5 flex-1 space-y-2 text-xs leading-snug">
+        <li className="flex gap-2.5">
+          <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
+          <span className="min-w-0">
+            <span className="text-foreground font-medium">
+              {formatNumber(plan.includedMonthlyCredits)}
+            </span>{" "}
+            credits per billing period
+          </span>
+        </li>
+        <li className="flex gap-2.5">
+          <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
+          <span className="min-w-0">
+            Usage multiplier{" "}
+            <span className="text-foreground font-mono font-medium tabular-nums">
+              {plan.markupMultiplier}×
+            </span>
+            <span className="sr-only">
+              {" "}
+              Credits charged toward AI usage versus raw model cost for this
+              tier.
+            </span>
+          </span>
+        </li>
+        <li className="flex gap-2.5">
+          <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-current" />
+          <span className="min-w-0">
+            {plan.overageAllowed
+              ? "Overage billed when you exceed included credits."
+              : "Hard cap — chat pauses once included credits run out."}
+          </span>
+        </li>
       </ul>
-      {footer}
+      <div className="mt-6">{footer}</div>
     </Card>
   );
 }
