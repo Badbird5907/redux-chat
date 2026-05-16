@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReasoningRouteImport } from './routes/reasoning'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -47,6 +48,11 @@ import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReasoningRoute = ReasoningRouteImport.update({
+  id: '/reasoning',
+  path: '/reasoning',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ComponentsRoute = ComponentsRouteImport.update({
@@ -220,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -253,6 +260,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -325,6 +334,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/components'
+    | '/reasoning'
     | '/settings'
     | '/admin/promotions'
     | '/admin/users'
@@ -358,6 +368,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/components'
+    | '/reasoning'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/components'
+    | '/reasoning'
     | '/settings'
     | '/admin/promotions'
     | '/admin/users'
@@ -428,6 +440,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
+  ReasoningRoute: typeof ReasoningRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiUploadRoute: typeof ApiUploadRoute
   RedeemCodeRoute: typeof RedeemCodeRoute
@@ -446,6 +459,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reasoning': {
+      id: '/reasoning'
+      path: '/reasoning'
+      fullPath: '/reasoning'
+      preLoaderRoute: typeof ReasoningRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/components': {
@@ -783,6 +803,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
+  ReasoningRoute: ReasoningRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ApiUploadRoute: ApiUploadRoute,
   RedeemCodeRoute: RedeemCodeRoute,

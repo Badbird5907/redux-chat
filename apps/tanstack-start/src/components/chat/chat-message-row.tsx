@@ -305,6 +305,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 isLastMessage={isLastMessage}
                 isStreaming={isStreamingAssistant}
                 message={message}
+                messageStats={messageStats}
               />
               {isStoppedMessage && (
                 <Card

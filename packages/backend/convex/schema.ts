@@ -16,6 +16,13 @@ const messageRole = v.union(
   v.literal("system"),
 );
 
+const thinkingLevel = v.union(
+  v.literal("instant"),
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
 const mutationInfo = v.union(
   v.object({ type: v.literal("original") }),
   v.object({ type: v.literal("edit"), fromMessageId: v.string() }),
@@ -101,6 +108,7 @@ const messageTools = v.object({
 export const messageSettings = v.object({
   model: v.string(),
   tools: messageTools,
+  thinkingLevel: v.optional(thinkingLevel),
   instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
 });
@@ -241,12 +249,14 @@ export default defineSchema({
     ),
     generationStats: v.optional(
       v.object({
+        reasoningDurationMs: v.optional(v.number()),
         timeToFirstTokenMs: v.number(),
         totalDurationMs: v.number(),
         tokensPerSecond: v.number(),
       }),
     ),
     error: v.optional(v.string()),
+    thinkingLevel: v.optional(thinkingLevel),
   })
     .index("by_threadId", ["threadId"])
     .index("by_threadId_messageId", ["threadId", "messageId"])

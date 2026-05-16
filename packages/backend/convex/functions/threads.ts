@@ -44,8 +44,16 @@ type AuthenticatedMutationCtx = GenericMutationCtx<DataModel> & {
 
 type ThreadReadCtx = GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>;
 
+const thinkingLevelValidator = v.union(
+  v.literal("instant"),
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
 const messageSettingsValidator = v.object({
   model: v.string(),
+  thinkingLevel: v.optional(thinkingLevelValidator),
   instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
   tools: v.object({
@@ -486,6 +494,7 @@ export const internal_updateMessageUsage = backendMutation({
     }),
     generationStats: v.optional(
       v.object({
+        reasoningDurationMs: v.optional(v.number()),
         timeToFirstTokenMs: v.number(),
         totalDurationMs: v.number(),
         tokensPerSecond: v.number(),
@@ -762,6 +771,7 @@ export const sendMessage = mutation({
       siblingIndex: 0,
       mutation: { type: "original" },
       model: args.model,
+      thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
@@ -825,6 +835,8 @@ export const editUserMessageBranch = mutation({
       throw new ConvexError("Only user messages can be edited");
     }
 
+    const normalizedSettings = normalizeMessageSettings(args.settings);
+
     const userMsgId = await verifySignedId(args.userMessageId, "userMessageId");
     const assistantMsgId = await verifySignedId(
       args.assistantMessageId,
@@ -877,6 +889,7 @@ export const editUserMessageBranch = mutation({
       siblingIndex: 0,
       mutation: { type: "original" },
       model: args.model,
+      thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
@@ -926,6 +939,8 @@ export const regenerateAssistantMessageBranch = mutation({
       throw new ConvexError("Only assistant messages can be regenerated");
     }
 
+    const normalizedSettings = normalizeMessageSettings(args.settings);
+
     const assistantMsgId = await verifySignedId(
       args.assistantMessageId,
       "assistantMessageId",
@@ -956,6 +971,7 @@ export const regenerateAssistantMessageBranch = mutation({
         fromMessageId: sourceMessage.messageId,
       },
       model: args.model,
+      thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
@@ -1161,6 +1177,7 @@ export const updateThreadSettings = mutation({
       instructionId: v.optional(v.string()),
       clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
+      thinkingLevel: v.optional(thinkingLevelValidator),
       tools: v.optional(
         v.object({
           search: v.optional(v.object({})),

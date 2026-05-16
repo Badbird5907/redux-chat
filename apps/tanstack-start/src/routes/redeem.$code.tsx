@@ -457,7 +457,7 @@ function RedeemPromotionPage() {
                         tierRank("plus") <= currentTierRank
                           ? currentTier === "plus"
                             ? "Already on Plus"
-                            : "Not an upgrade"
+                            : "On a higher plan"
                           : targetTier === "plus"
                             ? "Selected for checkout"
                             : "Apply promotion to Plus"}
@@ -490,7 +490,7 @@ function RedeemPromotionPage() {
                         tierRank("pro") <= currentTierRank
                           ? currentTier === "pro"
                             ? "Already on Pro"
-                            : "Not an upgrade"
+                            : "On a higher plan"
                           : targetTier === "pro"
                             ? "Selected for checkout"
                             : "Apply promotion to Pro"}

@@ -2,6 +2,13 @@ import type { ModelsDevModelCost } from "@redux/models";
 
 export type CanonicalModelId = `${string}/${string}`;
 export type ModelProviderRouteId = `${string}:${string}`;
+export type ThinkingLevel = "instant" | "low" | "medium" | "high";
+export const DEFAULT_THINKING_LEVELS = [
+  "instant",
+  "low",
+  "medium",
+  "high",
+] as const satisfies readonly ThinkingLevel[];
 export type AllowedMimeType = string;
 export type ChatAttachmentKind =
   | "image"
@@ -110,6 +117,8 @@ export interface CuratedModelDefinition {
   providerIds: ModelProviderRouteId[];
   defaultProviderId?: ModelProviderRouteId;
   name?: string;
+  thinkingLevels?: readonly ThinkingLevel[];
+  defaultThinkingLevel?: ThinkingLevel;
   benchmarks?: ChatModelBenchmarks;
   attachments?: CuratedAttachmentOverride;
   routeBehavior?: Partial<Record<ModelProviderRouteId, ModelRouteBehavior>>;
@@ -152,6 +161,8 @@ export interface ChatModelConfig {
   acceptedChatExtensions: string[];
   acceptedChatMimeTypes: AllowedMimeType[];
   maxFiles?: number;
+  thinkingLevels: readonly ThinkingLevel[];
+  defaultThinkingLevel?: ThinkingLevel;
   knowledgeCutoff?: ModelKnowledgeCutoff;
   supports: ModelSupports;
   costs: ModelPricing;

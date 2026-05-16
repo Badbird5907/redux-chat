@@ -23,15 +23,18 @@ import {
   getChainOfThoughtHeaderState,
 } from "./assistant-message-helpers";
 import { normalizeAssistantMessage } from "./assistant-message-timeline";
+import type { MessageStats } from "./chat-types";
 
 export function AssistantMessageParts({
   isLastMessage,
   isStreaming,
   message,
+  messageStats,
 }: {
   isLastMessage: boolean;
   isStreaming: boolean;
   message: UIMessage;
+  messageStats?: MessageStats;
 }) {
   const { reasoningText, steps, textContent } =
     normalizeAssistantMessage(message);
@@ -87,6 +90,7 @@ export function AssistantMessageParts({
         <Reasoning
           className="mb-3"
           defaultOpen={isReasoningStreaming}
+          duration={messageStats?.generationStats?.reasoningDurationMs}
           isStreaming={isReasoningStreaming}
           key={`${message.id}:reasoning:${isReasoningStreaming ? "streaming" : "done"}`}
         >

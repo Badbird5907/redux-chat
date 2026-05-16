@@ -5,6 +5,13 @@ import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 import { mutation } from "./index";
 import { normalizeInstructionIdForUser } from "./instructions";
 
+const thinkingLevelValidator = v.union(
+  v.literal("instant"),
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
 export const getOrCreate = mutation({
   args: {},
   handler: async (ctx) => {
@@ -52,6 +59,7 @@ export const update = mutation({
       instructionId: v.optional(v.string()),
       clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
+      thinkingLevel: v.optional(thinkingLevelValidator),
       tools: v.optional(
         v.object({
           search: v.optional(v.object({})),

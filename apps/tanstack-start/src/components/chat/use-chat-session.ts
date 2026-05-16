@@ -541,6 +541,7 @@ export function useChatSession({
           usage: m.usage,
           generationStats: m.generationStats,
           model: m.model,
+          thinkingLevel: m.thinkingLevel,
         });
       }
     });

@@ -141,7 +141,7 @@ export async function createToolRuntime(
 
       for (const [toolName, toolDefinition] of Object.entries(serverTools)) {
         tools[`mcp_${prefix}_${toolName}`] = instrumentTool(
-          toolDefinition as ToolSet[string],
+          toolDefinition,
           billingKey,
           toolUsageCounts,
         );

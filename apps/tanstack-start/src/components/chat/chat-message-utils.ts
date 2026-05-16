@@ -39,6 +39,8 @@ export function toChatUIMessage(
     metadata,
     error: "error" in message ? message.error : undefined,
     model: "model" in message ? message.model : undefined,
+    thinkingLevel:
+      "thinkingLevel" in message ? message.thinkingLevel : undefined,
     mutation: "mutation" in message ? message.mutation : undefined,
     parentId: "parentId" in message ? message.parentId : undefined,
     siblingIndex: "siblingIndex" in message ? message.siblingIndex : undefined,
