@@ -415,6 +415,9 @@ export const redeemPromotion = action({
         args.prorationDate,
       );
     } catch (error) {
+      if (isUnknownStripeWriteState(error)) {
+        throw error;
+      }
       await ctx.runMutation(
         internal.functions.promotions.internal_markPromotionRedemptionFailed,
         {
@@ -1040,6 +1043,20 @@ export const cancelPendingPromotionCheckout = action({
     return { ok: true };
   },
 });
+
+function isUnknownStripeWriteState(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return [
+    "stripe.customers.createBalanceTransaction timed out",
+    "stripe.coupons.create timed out",
+    "stripe.subscriptions.create timed out",
+    "stripe.checkout.sessions.create timed out",
+    "stripe.subscriptions.update timed out",
+  ].some((message) => error.message.includes(message));
+}
 
 export const adminRevokePromotionStripeInvoiceCredit = action({
   args: { redemptionId: v.string() },
