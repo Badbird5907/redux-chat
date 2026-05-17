@@ -197,6 +197,7 @@ export const fileRouter = {
         chatProjectId: metadata.chatProjectId,
         fileName: file.fileName,
         mimeType: file.mimeType,
+        size: file.size,
         accessKey: file.accessKey,
         isPublic: true,
         serveImage,

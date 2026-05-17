@@ -17,10 +17,14 @@ export interface IndexProjectFileInput {
   chatProjectId: string;
   fileName: string;
   mimeType: string;
+  size: number;
   accessKey: string;
   isPublic: boolean;
   serveImage: boolean;
 }
+
+const MAX_PROJECT_INDEX_BYTES = 10 * 1024 * 1024;
+const MAX_PROJECT_INDEX_CHUNKS = 100;
 
 function generateEmbeddingId() {
   // Same scheme used elsewhere — 22-char crypto-random id.
@@ -58,6 +62,16 @@ async function setStatus(input: {
  * message recorded — the user can retry via a UI affordance.
  */
 export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
+  if (input.size > MAX_PROJECT_INDEX_BYTES) {
+    await setStatus({
+      userId: input.userId,
+      attachmentId: input.attachmentId,
+      status: "failed",
+      error: "Project file is too large to index.",
+    });
+    return;
+  }
+
   await setStatus({
     userId: input.userId,
     attachmentId: input.attachmentId,
@@ -81,13 +95,16 @@ export async function embedAndIndexProjectFile(input: IndexProjectFileInput) {
       );
     }
     const bytes = await response.arrayBuffer();
+    if (bytes.byteLength > MAX_PROJECT_INDEX_BYTES) {
+      throw new Error("Project file is too large to index.");
+    }
 
     const extracted = await extractChunks({
       mimeType: input.mimeType,
       fileName: input.fileName,
       bytes,
       downloadUrl,
-    });
+    }).then((chunks) => chunks.slice(0, MAX_PROJECT_INDEX_CHUNKS));
 
     if (extracted.length === 0) {
       await setStatus({
