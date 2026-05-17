@@ -107,6 +107,10 @@ export const fileRouter = {
     .expires("7 days")
     .onUploadComplete(async ({ metadata, file }) => {
       const serveImage = file.mimeType.startsWith("image/");
+      const billingState = await fetchAuthQuery(
+        api.functions.billing.getCurrentBillingState,
+        {},
+      );
 
       await createUploadedAttachmentRecord({
         attachmentId: file.fileKeyId,
@@ -125,6 +129,8 @@ export const fileRouter = {
         expiresAt: metadata.expiresAt
           ? new Date(metadata.expiresAt).getTime()
           : undefined,
+        maxUserDraftAttachments:
+          billingState.tier === "free" ? FREE_PLAN_MAX_ATTACHMENTS : undefined,
       });
 
       return {

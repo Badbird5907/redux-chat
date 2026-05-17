@@ -113,6 +113,7 @@ export const internal_createUploadedAttachment = backendMutation({
     isPublic: v.boolean(),
     serveImage: v.boolean(),
     expiresAt: v.optional(v.number()),
+    maxUserDraftAttachments: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -185,6 +186,22 @@ export const internal_createUploadedAttachment = backendMutation({
         lastActiveAt: now,
       });
       return { attachmentId: existing.attachmentId };
+    }
+
+    if (
+      args.maxUserDraftAttachments !== undefined &&
+      !isProjectFile &&
+      status === "draft"
+    ) {
+      const existingDrafts = await ctx.db
+        .query("attachments")
+        .withIndex("by_userId_status", (q) =>
+          q.eq("userId", args.userId).eq("status", "draft"),
+        )
+        .collect();
+      if (existingDrafts.length >= args.maxUserDraftAttachments) {
+        throw new ConvexError("Attachment limit reached");
+      }
     }
 
     await ctx.db.insert("attachments", {
