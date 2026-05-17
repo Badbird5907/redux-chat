@@ -36,7 +36,13 @@ export function snapshotAttachmentsForQueue(
 
 export function useMessageQueue({ threadId }: { threadId?: string }) {
   const [queue, setQueue] = useState<QueuedMessage[]>([]);
+  const queueRef = useRef(queue);
   const previousThreadRef = useRef(threadId);
+
+  const replaceQueue = useCallback((next: QueuedMessage[]) => {
+    queueRef.current = next;
+    setQueue(next);
+  }, []);
 
   useEffect(() => {
     const previous = previousThreadRef.current;
@@ -54,86 +60,71 @@ export function useMessageQueue({ threadId }: { threadId?: string }) {
     previousThreadRef.current = threadId;
 
     if (shouldClear) {
-      setQueue([]);
+      replaceQueue([]);
     }
-  }, [threadId]);
+  }, [replaceQueue, threadId]);
 
   const enqueue = useCallback((message: Omit<QueuedMessage, "id">) => {
     const id = newQueuedId();
-    setQueue((previous) => [...previous, { ...message, id }]);
+    replaceQueue([...queueRef.current, { ...message, id }]);
     return id;
-  }, []);
+  }, [replaceQueue]);
 
   const removeQueued = useCallback((id: string) => {
-    setQueue((previous) => previous.filter((message) => message.id !== id));
-  }, []);
+    replaceQueue(queueRef.current.filter((message) => message.id !== id));
+  }, [replaceQueue]);
 
   const updateQueued = useCallback(
     (
       id: string,
       patch: Partial<Pick<QueuedMessage, "text" | "attachments">>,
     ) => {
-      setQueue((previous) =>
-        previous.map((message) =>
+      replaceQueue(
+        queueRef.current.map((message) =>
           message.id === id ? { ...message, ...patch } : message,
         ),
       );
     },
-    [],
+    [replaceQueue],
   );
 
   const moveQueuedToFront = useCallback((id: string) => {
-    setQueue((previous) => {
-      const index = previous.findIndex((message) => message.id === id);
-      if (index <= 0) {
-        return previous;
-      }
+    const index = queueRef.current.findIndex((message) => message.id === id);
+    if (index <= 0) {
+      return;
+    }
 
-      const next = [...previous];
-      const moved = next.splice(index, 1)[0];
-      if (!moved) {
-        return previous;
-      }
+    const next = [...queueRef.current];
+    const moved = next.splice(index, 1)[0];
+    if (!moved) {
+      return;
+    }
 
-      return [moved, ...next];
-    });
-  }, []);
+    replaceQueue([moved, ...next]);
+  }, [replaceQueue]);
 
   const consumeHead = useCallback(() => {
-    let head: QueuedMessage | undefined;
-
-    setQueue((previous) => {
-      if (previous.length === 0) {
-        return previous;
-      }
-
-      head = previous[0];
-      return previous.slice(1);
-    });
-
+    const head = queueRef.current[0];
+    if (head) {
+      replaceQueue(queueRef.current.slice(1));
+    }
     return head;
-  }, []);
+  }, [replaceQueue]);
 
   const takeQueued = useCallback((id: string) => {
-    let taken: QueuedMessage | undefined;
-
-    setQueue((previous) => {
-      const index = previous.findIndex((message) => message.id === id);
-      if (index < 0) {
-        return previous;
-      }
-
-      taken = previous[index];
-
-      return previous.filter((_, candidateIndex) => candidateIndex !== index);
-    });
-
+    const index = queueRef.current.findIndex((message) => message.id === id);
+    const taken = queueRef.current[index];
+    if (index >= 0) {
+      replaceQueue(
+        queueRef.current.filter((_, candidateIndex) => candidateIndex !== index),
+      );
+    }
     return taken;
-  }, []);
+  }, [replaceQueue]);
 
   const prependQueued = useCallback((message: QueuedMessage) => {
-    setQueue((previous) => [message, ...previous]);
-  }, []);
+    replaceQueue([message, ...queueRef.current]);
+  }, [replaceQueue]);
 
   return {
     queue,
