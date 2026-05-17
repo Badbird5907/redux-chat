@@ -156,6 +156,38 @@ async function verifySignedId(signedId: string, label: string) {
   return id;
 }
 
+async function assertThreadIdAvailable(
+  ctx: AuthenticatedMutationCtx,
+  threadId: string,
+) {
+  const existing = await ctx.db
+    .query("threads")
+    .withIndex("by_threadId", (q) => q.eq("threadId", threadId))
+    .first();
+  if (existing) {
+    throw new ConvexError("Thread ID has already been used");
+  }
+}
+
+async function assertMessageIdsAvailable(
+  ctx: AuthenticatedMutationCtx,
+  threadId: string,
+  messageIds: string[],
+) {
+  for (const messageId of messageIds) {
+    const existing = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q.eq("threadId", threadId).eq("messageId", messageId),
+      )
+      .first();
+
+    if (existing) {
+      throw new ConvexError("Message ID has already been used");
+    }
+  }
+}
+
 async function cloneAttachedAttachmentsToMessage(
   ctx: AuthenticatedMutationCtx,
   args: {
@@ -667,6 +699,7 @@ export const sendMessage = mutation({
     if (threadId.includes(":")) {
       // is a new thread
       threadId = await verifySignedId(threadId, "threadId");
+      await assertThreadIdAvailable(ctx, threadId);
 
       // If creating a project-scoped thread, verify the project belongs to this user.
       if (args.chatProjectId) {
@@ -732,6 +765,7 @@ export const sendMessage = mutation({
         deadMessageCheckSchedulerId: undefined,
       });
     }
+    await assertMessageIdsAvailable(ctx, threadId, [userMsgId, assistantMsgId]);
 
     // 4. Insert user message
     await ctx.db.insert("messages", {
@@ -842,6 +876,10 @@ export const editUserMessageBranch = mutation({
       args.assistantMessageId,
       "assistantMessageId",
     );
+    await assertMessageIdsAvailable(ctx, args.threadId, [
+      userMsgId,
+      assistantMsgId,
+    ]);
 
     if (thread.deadMessageCheckSchedulerId) {
       await ctx.scheduler.cancel(thread.deadMessageCheckSchedulerId);
@@ -945,6 +983,7 @@ export const regenerateAssistantMessageBranch = mutation({
       args.assistantMessageId,
       "assistantMessageId",
     );
+    await assertMessageIdsAvailable(ctx, args.threadId, [assistantMsgId]);
 
     if (thread.deadMessageCheckSchedulerId) {
       await ctx.scheduler.cancel(thread.deadMessageCheckSchedulerId);
