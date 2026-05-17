@@ -10,6 +10,11 @@ const MAX_AUTH_HEADERS = 20;
 const MAX_HEADER_NAME_LENGTH = 128;
 const MAX_HEADER_VALUE_LENGTH = 4096;
 const headerNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const blockedMcpHostnames = new Set([
+  "localhost",
+  "metadata.google.internal",
+  "metadata",
+]);
 
 interface McpAuthHeaderInput {
   name: string;
@@ -33,6 +38,48 @@ function normalizeMcpServerName(name: string) {
   return normalized;
 }
 
+function isPrivateIpv4(hostname: string) {
+  const parts = hostname.split(".");
+  if (parts.length !== 4) return false;
+  const octets = parts.map((part) => Number(part));
+  if (
+    octets.some(
+      (octet, index) =>
+        !Number.isInteger(octet) ||
+        octet < 0 ||
+        octet > 255 ||
+        String(octet) !== parts[index],
+    )
+  ) {
+    return false;
+  }
+
+  const [a = 0, b = 0] = octets;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224
+  );
+}
+
+function isBlockedIpv6(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("ff")
+  );
+}
+
 function normalizeMcpServerUrl(url: string) {
   const normalized = url.trim();
 
@@ -47,8 +94,27 @@ function normalizeMcpServerUrl(url: string) {
     throw new ConvexError("Server URL must be a valid absolute URL");
   }
 
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new ConvexError("Only HTTP and HTTPS MCP servers are supported");
+  if (parsed.protocol !== "https:") {
+    throw new ConvexError("MCP server URLs must use HTTPS");
+  }
+
+  if (parsed.username || parsed.password) {
+    throw new ConvexError("MCP server URLs cannot include credentials");
+  }
+
+  if (parsed.port && parsed.port !== "443") {
+    throw new ConvexError("MCP server URLs cannot use a custom port");
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (
+    blockedMcpHostnames.has(hostname) ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    isPrivateIpv4(hostname) ||
+    isBlockedIpv6(hostname)
+  ) {
+    throw new ConvexError("MCP server URL must use a public hostname");
   }
 
   return parsed.toString();

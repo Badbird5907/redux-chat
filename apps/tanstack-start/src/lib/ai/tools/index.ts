@@ -1,4 +1,6 @@
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import type { ToolSet } from "ai";
 import type { Value } from "convex/values";
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -49,6 +51,74 @@ function toToolKeyPrefix(name: string) {
     .replace(/^_+|_+$/g, "");
 
   return normalized || "server";
+}
+
+function isBlockedIpv4(address: string) {
+  const parts = address.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) {
+    return true;
+  }
+  const [a = 0, b = 0] = parts;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224
+  );
+}
+
+function isBlockedIpv6(address: string) {
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::" ||
+    normalized === "::1" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("ff")
+  );
+}
+
+function isBlockedIpAddress(address: string) {
+  const family = isIP(address);
+  if (family === 4) return isBlockedIpv4(address);
+  if (family === 6) return isBlockedIpv6(address);
+  return true;
+}
+
+async function assertPublicMcpServerUrl(url: string) {
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    throw new Error("MCP server URL is not allowed.");
+  }
+  if (parsed.port && parsed.port !== "443") {
+    throw new Error("MCP server URL port is not allowed.");
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname === "metadata" ||
+    hostname === "metadata.google.internal" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    isBlockedIpAddress(hostname)
+  ) {
+    throw new Error("MCP server URL must resolve to a public address.");
+  }
+
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  if (
+    addresses.length === 0 ||
+    addresses.some(({ address }) => isBlockedIpAddress(address))
+  ) {
+    throw new Error("MCP server URL must resolve only to public addresses.");
+  }
 }
 
 export async function createToolRuntime(
@@ -119,6 +189,7 @@ export async function createToolRuntime(
 
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
+      await assertPublicMcpServerUrl(server.url);
       const client = await createMCPClient({
         name: `redux-chat-${server.mcpServerId}`,
         transport: {
@@ -139,7 +210,10 @@ export async function createToolRuntime(
       const prefix = toToolKeyPrefix(server.name);
       const billingKey = `mcp:${prefix}` satisfies ToolBillingKey;
 
-      for (const [toolName, toolDefinition] of Object.entries(serverTools)) {
+      for (const [toolName, toolDefinition] of Object.entries(serverTools) as [
+        string,
+        ToolSet[string],
+      ][]) {
         tools[`mcp_${prefix}_${toolName}`] = instrumentTool(
           toolDefinition,
           billingKey,
