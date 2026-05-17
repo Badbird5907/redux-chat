@@ -188,6 +188,20 @@ async function assertMessageIdsAvailable(
   }
 }
 
+async function deleteAttachmentEmbeddings(
+  ctx: GenericMutationCtx<DataModel>,
+  attachmentId: string,
+) {
+  const rows = await ctx.db
+    .query("attachmentEmbeddings")
+    .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
+    .collect();
+
+  for (const row of rows) {
+    await ctx.db.delete(row._id);
+  }
+}
+
 async function cloneAttachedAttachmentsToMessage(
   ctx: AuthenticatedMutationCtx,
   args: {
@@ -1365,11 +1379,64 @@ export const deleteThread = mutation({
     const userMessageCount = messages.filter(
       (message) => message.role === "user",
     ).length;
+    const attachments = await ctx.db
+      .query("attachments")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
+    const uniqueFiles = new Map<
+      string,
+      {
+        projectId: string;
+        environmentId: string;
+        fileKeyId: string;
+        accessKey: string;
+        size: number;
+      }
+    >();
+
+    for (const attachment of attachments) {
+      uniqueFiles.set(attachment.fileKeyId, {
+        projectId: attachment.projectId,
+        environmentId: attachment.environmentId,
+        fileKeyId: attachment.fileKeyId,
+        accessKey: attachment.accessKey,
+        size: attachment.size,
+      });
+      await deleteAttachmentEmbeddings(ctx, attachment.attachmentId);
+      await ctx.db.delete(attachment._id);
+    }
+
+    for (const file of uniqueFiles.values()) {
+      const remainingRefs = await ctx.db
+        .query("attachments")
+        .withIndex("by_fileKeyId", (q) => q.eq("fileKeyId", file.fileKeyId))
+        .first();
+      if (remainingRefs) {
+        continue;
+      }
+
+      await ctx.scheduler.runAfter(
+        0,
+        internal.functions.attachments.internal_deleteFileFromSilo,
+        {
+          projectId: file.projectId,
+          environmentId: file.environmentId,
+          fileKeyId: file.fileKeyId,
+          accessKey: file.accessKey,
+        },
+      );
+    }
+
     await Promise.all(messages.map((message) => ctx.db.delete(message._id)));
     await ctx.db.delete(thread._id);
     await updateUserUsageStats(ctx, ctx.userId, {
       threadsDelta: -1,
       userMessagesDelta: -userMessageCount,
+      attachmentsDelta: -uniqueFiles.size,
+      storageBytesDelta: -Array.from(uniqueFiles.values()).reduce(
+        (total, file) => total + file.size,
+        0,
+      ),
       lastActiveAt: Date.now(),
     });
 
