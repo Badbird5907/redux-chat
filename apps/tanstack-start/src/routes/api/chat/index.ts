@@ -678,6 +678,15 @@ export const Route = createFileRoute("/api/chat/")({
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
+          await fetchAuthQuery(
+            api.functions.threads.internal_validateGenerationMessage,
+            {
+              secret: env.INTERNAL_CONVEX_SECRET,
+              userId: requestUserId,
+              messageId: assistantMessageId,
+              threadId,
+            },
+          );
           const checkMessageAbort = throttle(() => {
             void fetchAuthQuery(
               api.functions.threads.internal_checkMessageAbort,

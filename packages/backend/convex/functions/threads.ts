@@ -617,6 +617,22 @@ export const internal_checkMessageAbort = backendQuery({
   },
 });
 
+export const internal_validateGenerationMessage = backendQuery({
+  args: { userId: v.string(), messageId: v.string(), threadId: v.string() },
+  handler: async (ctx, args) => {
+    await getThreadForOwner(ctx, args.threadId, args.userId);
+    const message = await getMessageForThreadId(
+      ctx,
+      args.threadId,
+      args.messageId,
+    );
+    if (message.role !== "assistant" || message.status !== "generating") {
+      throw new ConvexError("Assistant message is not ready for generation");
+    }
+    return { ok: true as const };
+  },
+});
+
 const sendMessageSchema = v.object({
   parts: v.array(v.any()),
 
