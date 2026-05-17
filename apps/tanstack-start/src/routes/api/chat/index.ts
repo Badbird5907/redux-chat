@@ -78,6 +78,7 @@ const requestBody = z.object({
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
 type AiSdkReasoning = "none" | "low" | "medium" | "high";
 type EnabledAiSdkReasoning = Exclude<AiSdkReasoning, "none">;
+const MIN_GENERATION_CREDIT_FLOOR = 5_000;
 type StreamTextProviderOptions = NonNullable<
   Parameters<typeof streamText>[0]["providerOptions"]
 >;
@@ -446,13 +447,17 @@ export const Route = createFileRoute("/api/chat/")({
           ),
         ]);
         const spendableCredits = billingState.spendableCredits;
-        if (spendableCredits <= 0 && !billingState.overageAllowed) {
+        if (
+          spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
+          !billingState.overageAllowed
+        ) {
           return new Response(
             JSON.stringify({
               error: "out_of_credits",
               tier: billingSnapshot.tier,
               spendableCredits,
               availableCredits: billingState.availableCredits,
+              minimumRequiredCredits: MIN_GENERATION_CREDIT_FLOOR,
             }),
             {
               status: 402,
