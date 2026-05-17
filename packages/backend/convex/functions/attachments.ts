@@ -39,10 +39,6 @@ export async function attachDraftAttachmentsToMessage(
     messageId: string;
   },
 ) {
-  if (args.attachmentIds.length > MAX_ATTACHMENTS_PER_MESSAGE) {
-    throw new ConvexError("Too many attachments for one message");
-  }
-
   const thread = await ctx.db
     .query("threads")
     .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
@@ -59,6 +55,25 @@ export async function attachDraftAttachmentsToMessage(
     .first();
   if (!message) {
     throw new ConvexError("Message not found");
+  }
+
+  const alreadyAttached = await ctx.db
+    .query("attachments")
+    .withIndex("by_messageId", (q) => q.eq("messageId", args.messageId))
+    .collect();
+  const alreadyAttachedIds = new Set(
+    alreadyAttached.map((attachment) => attachment.attachmentId),
+  );
+  const incomingUnique = new Set(
+    args.attachmentIds.filter(
+      (attachmentId) => !alreadyAttachedIds.has(attachmentId),
+    ),
+  );
+  if (
+    alreadyAttached.length + incomingUnique.size >
+    MAX_ATTACHMENTS_PER_MESSAGE
+  ) {
+    throw new ConvexError("Too many attachments for one message");
   }
 
   for (const attachmentId of args.attachmentIds) {

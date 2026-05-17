@@ -1,6 +1,8 @@
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import { lookup } from "node:dns/promises";
+import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
+import { Readable } from "node:stream";
 import type { ToolSet } from "ai";
 import type { Value } from "convex/values";
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -73,7 +75,11 @@ function isBlockedIpv4(address: string) {
 }
 
 function isBlockedIpv6(address: string) {
-  const normalized = address.toLowerCase();
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
+  if (normalized.startsWith("::ffff:")) {
+    return true;
+  }
+
   return (
     normalized === "::" ||
     normalized === "::1" ||
@@ -85,10 +91,27 @@ function isBlockedIpv6(address: string) {
 }
 
 function isBlockedIpAddress(address: string) {
-  const family = isIP(address);
-  if (family === 4) return isBlockedIpv4(address);
-  if (family === 6) return isBlockedIpv6(address);
+  const normalized = address.replace(/^\[|\]$/g, "");
+  const family = isIP(normalized);
+  if (family === 4) return isBlockedIpv4(normalized);
+  if (family === 6) return isBlockedIpv6(normalized);
   return true;
+}
+
+function getUrlHostname(parsed: URL) {
+  return parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+}
+
+async function resolvePublicMcpAddresses(hostname: string) {
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  if (
+    addresses.length === 0 ||
+    addresses.some(({ address }) => isBlockedIpAddress(address))
+  ) {
+    throw new Error("MCP server URL must resolve only to public addresses.");
+  }
+
+  return addresses;
 }
 
 async function assertPublicMcpServerUrl(url: string) {
@@ -100,7 +123,7 @@ async function assertPublicMcpServerUrl(url: string) {
     throw new Error("MCP server URL port is not allowed.");
   }
 
-  const hostname = parsed.hostname.toLowerCase();
+  const hostname = getUrlHostname(parsed);
   if (
     hostname === "localhost" ||
     hostname === "metadata" ||
@@ -112,13 +135,62 @@ async function assertPublicMcpServerUrl(url: string) {
     throw new Error("MCP server URL must resolve to a public address.");
   }
 
-  const addresses = await lookup(hostname, { all: true, verbatim: true });
-  if (
-    addresses.length === 0 ||
-    addresses.some(({ address }) => isBlockedIpAddress(address))
-  ) {
-    throw new Error("MCP server URL must resolve only to public addresses.");
+  if (isIP(hostname) === 0) {
+    await resolvePublicMcpAddresses(hostname);
   }
+}
+
+async function createMcpFetch(url: string): Promise<typeof fetch> {
+  const parsed = new URL(url);
+  const hostname = getUrlHostname(parsed);
+
+  return async (input, init) => {
+    const requestUrl = new URL(
+      typeof input === "string" || input instanceof URL
+        ? input.toString()
+        : input.url,
+    );
+    if (getUrlHostname(requestUrl) !== hostname) {
+      throw new Error("MCP request hostname changed unexpectedly.");
+    }
+
+    const addresses =
+      isIP(hostname) === 0
+        ? await resolvePublicMcpAddresses(hostname)
+        : [{ address: hostname, family: isIP(hostname) as 4 | 6 }];
+    const selected = addresses[0];
+    if (!selected || isBlockedIpAddress(selected.address)) {
+      throw new Error("MCP server URL must resolve to a public address.");
+    }
+
+    return await new Promise<Response>((resolve, reject) => {
+      const headers = new Headers(init?.headers);
+      const request = httpsRequest(
+        {
+          hostname,
+          method: init?.method ?? "GET",
+          path: `${requestUrl.pathname}${requestUrl.search}`,
+          port: requestUrl.port ? Number(requestUrl.port) : 443,
+          headers: Object.fromEntries(headers.entries()),
+          lookup: (_host, _options, callback) => {
+            callback(null, selected.address, selected.family);
+          },
+        },
+        (response) => {
+          resolve(
+            new Response(Readable.toWeb(response) as ReadableStream, {
+              status: response.statusCode,
+              statusText: response.statusMessage,
+              headers: response.headers as HeadersInit,
+            }),
+          );
+        },
+      );
+
+      request.on("error", reject);
+      request.end(init?.body as Parameters<typeof request.end>[0]);
+    });
+  };
 }
 
 export async function createToolRuntime(
@@ -190,6 +262,7 @@ export async function createToolRuntime(
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
       await assertPublicMcpServerUrl(server.url);
+      const mcpFetch = await createMcpFetch(server.url);
       const client = await createMCPClient({
         name: `redux-chat-${server.mcpServerId}`,
         transport: {
@@ -202,6 +275,7 @@ export async function createToolRuntime(
             ]),
           ),
           redirect: "error",
+          fetch: mcpFetch,
         },
       });
       mcpClients.push(client);

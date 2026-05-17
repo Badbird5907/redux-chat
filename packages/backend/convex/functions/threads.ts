@@ -1438,6 +1438,13 @@ export const deleteThread = mutation({
         size: number;
       }
     >();
+    const unreferencedFiles: Array<{
+      projectId: string;
+      environmentId: string;
+      fileKeyId: string;
+      accessKey: string;
+      size: number;
+    }> = [];
 
     for (const attachment of attachments) {
       uniqueFiles.set(attachment.fileKeyId, {
@@ -1460,6 +1467,7 @@ export const deleteThread = mutation({
         continue;
       }
 
+      unreferencedFiles.push(file);
       await ctx.scheduler.runAfter(
         0,
         internal.functions.attachments.internal_deleteFileFromSilo,
@@ -1477,8 +1485,8 @@ export const deleteThread = mutation({
     await updateUserUsageStats(ctx, ctx.userId, {
       threadsDelta: -1,
       userMessagesDelta: -userMessageCount,
-      attachmentsDelta: -uniqueFiles.size,
-      storageBytesDelta: -Array.from(uniqueFiles.values()).reduce(
+      attachmentsDelta: -unreferencedFiles.length,
+      storageBytesDelta: -unreferencedFiles.reduce(
         (total, file) => total + file.size,
         0,
       ),

@@ -69,7 +69,11 @@ function isPrivateIpv4(hostname: string) {
 }
 
 function isBlockedIpv6(hostname: string) {
-  const normalized = hostname.toLowerCase();
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (normalized.startsWith("::ffff:")) {
+    return true;
+  }
+
   return (
     normalized === "::1" ||
     normalized === "::" ||

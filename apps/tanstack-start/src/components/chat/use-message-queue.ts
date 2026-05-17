@@ -41,7 +41,7 @@ export function useMessageQueue({ threadId }: { threadId?: string }) {
 
   const replaceQueue = useCallback((next: QueuedMessage[]) => {
     queueRef.current = next;
-    setQueue(next);
+    setQueue(queueRef.current);
   }, []);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export function useMessageQueue({ threadId }: { threadId?: string }) {
 
   return {
     queue,
-    setQueue,
+    replaceQueue,
     enqueue,
     removeQueued,
     updateQueued,

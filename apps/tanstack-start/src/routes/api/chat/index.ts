@@ -451,6 +451,14 @@ export const Route = createFileRoute("/api/chat/")({
           spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
           !billingState.overageAllowed
         ) {
+          await fetchAuthMutation(api.functions.threads.internal_failStream, {
+            secret: env.INTERNAL_CONVEX_SECRET,
+            userId: requestUserId,
+            threadId,
+            assistantMessageId,
+            error: "Insufficient credits to start generation.",
+          });
+
           return new Response(
             JSON.stringify({
               error: "out_of_credits",
@@ -701,12 +709,22 @@ export const Route = createFileRoute("/api/chat/")({
                 messageId: assistantMessageId,
                 threadId: threadId,
               },
-            ).then((res) => {
-              if (res) {
-                console.log("Stream aborted by user");
+            )
+              .then((res) => {
+                if (res) {
+                  console.log("Stream aborted by user");
+                  abortController.abort();
+                }
+              })
+              .catch((error) => {
+                console.error("Failed to check chat stream abort state", {
+                  requestUserId,
+                  assistantMessageId,
+                  threadId,
+                  error,
+                });
                 abortController.abort();
-              }
-            });
+              });
           }, 1000);
 
           // Track generation timing stats
