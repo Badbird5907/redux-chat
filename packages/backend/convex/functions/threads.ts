@@ -268,6 +268,13 @@ async function attachMixedAttachmentsToMessage(
     targetMessageId: string;
   },
 ) {
+  if (
+    args.retainedAttachmentIds.length + args.draftAttachmentIds.length >
+    10
+  ) {
+    throw new ConvexError("Too many attachments for one message");
+  }
+
   if (args.retainedAttachmentIds.length > 0) {
     await cloneAttachedAttachmentsToMessage(ctx, {
       sourceMessageId: args.sourceMessageId,

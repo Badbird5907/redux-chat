@@ -16,6 +16,7 @@ type AttachmentMutationCtx = GenericMutationCtx<DataModel> & {
 const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
 const ATTACHED_ATTACHMENT_TTL_MS =
   ATTACHED_ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
+const MAX_ATTACHMENTS_PER_MESSAGE = 10;
 
 export function createBackendSiloCore() {
   const env = backendEnv();
@@ -38,6 +39,10 @@ export async function attachDraftAttachmentsToMessage(
     messageId: string;
   },
 ) {
+  if (args.attachmentIds.length > MAX_ATTACHMENTS_PER_MESSAGE) {
+    throw new ConvexError("Too many attachments for one message");
+  }
+
   const thread = await ctx.db
     .query("threads")
     .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
