@@ -3,7 +3,6 @@ import type { BetterAuthPlugin } from "better-auth";
 import type { AuditLogOptions, PathConfig, ResolvedOptions } from "./types";
 import {
   createGetLogEndpoint,
-  createInsertLogEndpoint,
   createListLogsEndpoint,
 } from "./endpoints";
 import { createAfterHooks, createBeforeHooks } from "./hooks";
@@ -126,7 +125,6 @@ export function auditLog(options?: AuditLogOptions) {
     endpoints: {
       listAuditLogs: createListLogsEndpoint(resolved, modelName),
       getAuditLog: createGetLogEndpoint(resolved, modelName),
-      insertAuditLog: createInsertLogEndpoint(resolved, modelName),
     },
     rateLimit: [
       {
