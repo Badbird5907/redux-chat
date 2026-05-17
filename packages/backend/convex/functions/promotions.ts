@@ -72,6 +72,7 @@ const appCreditsConfigValidator = v.object({
 
 const promotionConfigValidator = v.any();
 const STRIPE_NETWORK_TIMEOUT_MS = 10_000;
+const MIN_PROMOTION_CODE_LENGTH = 12;
 
 type PromotionDoc = DataModel["promotions"]["document"];
 type RedemptionDoc = DataModel["promotionRedemptions"]["document"];
@@ -331,6 +332,9 @@ export const getPromotionByCode = query({
   args: { code: v.string() },
   handler: async (ctx, args) => {
     const codeNormalized = normalizePromotionCode(args.code);
+    if (codeNormalized.length < MIN_PROMOTION_CODE_LENGTH) {
+      return null;
+    }
     const promotion = await getPromotionByCodeNormalized(ctx, codeNormalized);
     if (!promotion) return null;
 
@@ -1237,8 +1241,10 @@ export const adminCreatePromotion = adminMutation({
   },
   handler: async (ctx, args) => {
     const codeNormalized = normalizePromotionCode(args.code);
-    if (codeNormalized.length < 3) {
-      throw new ConvexError("Promotion code is too short.");
+    if (codeNormalized.length < MIN_PROMOTION_CODE_LENGTH) {
+      throw new ConvexError(
+        `Promotion code must be at least ${MIN_PROMOTION_CODE_LENGTH} characters.`,
+      );
     }
     const name = args.name.trim();
     if (name.length === 0) {
@@ -1305,8 +1311,13 @@ export const adminUpdatePromotion = adminMutation({
     }
     const codeNormalized =
       args.code === undefined ? undefined : normalizePromotionCode(args.code);
-    if (codeNormalized !== undefined && codeNormalized.length < 3) {
-      throw new ConvexError("Promotion code is too short.");
+    if (
+      codeNormalized !== undefined &&
+      codeNormalized.length < MIN_PROMOTION_CODE_LENGTH
+    ) {
+      throw new ConvexError(
+        `Promotion code must be at least ${MIN_PROMOTION_CODE_LENGTH} characters.`,
+      );
     }
     if (
       codeNormalized !== undefined &&
