@@ -20,6 +20,9 @@ import { backendMutation, backendQuery, mutation, query } from "./index";
 import { normalizeInstructionIdForUser } from "./instructions";
 import { internalAction, internalMutation } from "./internal";
 
+const THREAD_TITLE_GENERATION_COOLDOWN_MS = 60_000;
+const THREAD_TITLE_PROMPT_MAX_LENGTH = 2_000;
+
 async function cleanupInactiveStreamThread(
   ctx: GenericMutationCtx<DataModel>,
   thread: Doc<"threads">,
@@ -750,6 +753,7 @@ export const sendMessage = mutation({
         name: "New Thread",
         status: "generating",
         updatedAt: Date.now(),
+        titleGenerationRequestedAt: Date.now(),
         settings: normalizedSettings,
         chatProjectId: args.chatProjectId,
       });
@@ -862,7 +866,7 @@ export const sendMessage = mutation({
         internal.functions.threads.internal_generateThreadTitle,
         {
           threadId,
-          prompt: userPrompt,
+          prompt: userPrompt.slice(0, THREAD_TITLE_PROMPT_MAX_LENGTH),
         },
       );
     }
@@ -1191,6 +1195,7 @@ export const internal_setThreadTitle = internalMutation({
       // updatedAt: now,
       titleSource: "generated",
       titleGeneratedAt: now,
+      titleGenerationRequestedAt: undefined,
     });
   },
 });
@@ -1302,6 +1307,19 @@ export const regenerateThreadTitle = mutation({
     if (thread?.userId !== ctx.userId) {
       throw new ConvexError("Thread not found");
     }
+    const now = Date.now();
+    if (
+      thread.titleGenerationRequestedAt !== undefined &&
+      now - thread.titleGenerationRequestedAt < THREAD_TITLE_GENERATION_COOLDOWN_MS
+    ) {
+      throw new ConvexError("Thread title generation is already in progress");
+    }
+    if (
+      thread.titleGeneratedAt !== undefined &&
+      now - thread.titleGeneratedAt < THREAD_TITLE_GENERATION_COOLDOWN_MS
+    ) {
+      throw new ConvexError("Thread title was regenerated recently");
+    }
 
     const messages = await ctx.db
       .query("messages")
@@ -1326,12 +1344,16 @@ export const regenerateThreadTitle = mutation({
       throw new ConvexError("No message text found to generate a title from");
     }
 
+    await ctx.db.patch(thread._id, {
+      titleGenerationRequestedAt: now,
+    });
+
     await ctx.scheduler.runAfter(
       0,
       internal.functions.threads.internal_generateThreadTitle,
       {
         threadId: args.threadId,
-        prompt,
+        prompt: prompt.slice(0, THREAD_TITLE_PROMPT_MAX_LENGTH),
         forceOverwrite: true,
       },
     );

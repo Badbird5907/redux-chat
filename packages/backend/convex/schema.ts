@@ -213,6 +213,7 @@ export default defineSchema({
     name: v.string(),
     titleSource: v.optional(v.union(v.literal("user"), v.literal("generated"))),
     titleGeneratedAt: v.optional(v.number()),
+    titleGenerationRequestedAt: v.optional(v.number()),
     status: threadStatus,
     settings: messageSettings,
     selectedLeafMessageId: v.optional(v.string()),
