@@ -1,6 +1,14 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
+const authSecretSchema = z
+  .string()
+  .min(32, "AUTH_SECRET must be at least 32 characters")
+  .refine(
+    (value) => !["supersecret", "changeme", "change-me"].includes(value),
+    "AUTH_SECRET must not use a placeholder value",
+  );
+
 export function backendEnv() {
   // Skip validation if environment variables aren't available
   // This happens during Convex deployment/analysis
@@ -17,8 +25,8 @@ export function backendEnv() {
       AUTH_GOOGLE_SECRET: z.string().min(1),
       AUTH_SECRET:
         process.env.NODE_ENV === "production"
-          ? z.string().min(1)
-          : z.string().min(1).optional(),
+          ? authSecretSchema
+          : authSecretSchema.optional(),
       NODE_ENV: z
         .enum(["development", "production", "test"])
         .default("development"),
