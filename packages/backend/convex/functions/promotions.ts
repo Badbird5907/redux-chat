@@ -995,6 +995,37 @@ async function applySubscriptionPromotionToPaidSubscriber(
 export const cancelPendingPromotionCheckout = action({
   args: { redemptionId: v.string() },
   handler: async (ctx, args) => {
+    const redemption: RedemptionDoc | null = await ctx.runQuery(
+      internal.functions.promotions.internal_getPromotionRedemptionById,
+      { redemptionId: args.redemptionId },
+    );
+    if (!redemption || redemption.userId !== ctx.userId) {
+      throw new Error("Redemption not found.");
+    }
+    if (redemption.status !== "pending_checkout") {
+      return { ok: true };
+    }
+
+    const stripeCheckoutSessionId = redemption.stripeCheckoutSessionId;
+    if (stripeCheckoutSessionId) {
+      const stripe = getStripeSdkClient();
+      const session = await withTimeout(
+        stripe.checkout.sessions.retrieve(stripeCheckoutSessionId),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.checkout.sessions.retrieve",
+      );
+      if (session.status === "complete") {
+        throw new Error("Checkout already completed.");
+      }
+      if (session.status === "open") {
+        await withTimeout(
+          stripe.checkout.sessions.expire(stripeCheckoutSessionId),
+          STRIPE_NETWORK_TIMEOUT_MS,
+          "stripe.checkout.sessions.expire",
+        );
+      }
+    }
+
     await ctx.runMutation(
       internal.functions.promotions.internal_markPromotionRedemptionFailed,
       {
@@ -1003,6 +1034,7 @@ export const cancelPendingPromotionCheckout = action({
         failureReason: "Checkout cancelled.",
         releaseRedemption: true,
         requirePendingCheckout: true,
+        stripeCheckoutSessionId,
       },
     );
     return { ok: true };
