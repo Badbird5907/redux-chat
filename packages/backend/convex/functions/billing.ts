@@ -607,11 +607,7 @@ export const switchCurrentUserPaidPlan = action({
     }
 
     if (toRank > fromRank) {
-      const prorationDate =
-        typeof args.prorationDate === "number" &&
-        Number.isInteger(args.prorationDate)
-          ? args.prorationDate
-          : Math.floor(Date.now() / 1000);
+      const prorationDate = Math.floor(Date.now() / 1000);
       const updatedSubscription = await withTimeout(
         stripe.subscriptions.update(liveSub.id, {
           cancel_at_period_end: false,
