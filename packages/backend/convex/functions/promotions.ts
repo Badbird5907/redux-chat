@@ -475,6 +475,12 @@ export const previewSubscriptionPromotionUpgrade = action({
         cancelAtPeriodEnd?: boolean;
       } | null;
     } = await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
+    if (
+      promotionConfig.config.freeUsersOnly === true &&
+      billingState.tier !== "free"
+    ) {
+      throw new Error("This promotion is only available to free users.");
+    }
     assertSubscriptionPromotionUpgradeEligibility({
       currentTier: billingState.tier,
       targetTier,
@@ -664,6 +670,12 @@ async function applySubscriptionPromotion(
       cancelAtPeriodEnd?: boolean;
     } | null;
   } = await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
+  if (
+    promotionConfig.config.freeUsersOnly === true &&
+    billingState.tier !== "free"
+  ) {
+    throw new Error("This promotion is only available to free users.");
+  }
 
   const customerId = await ensureCurrentStripeCustomer(ctx);
   const priceId = priceIdForTier(targetTier);
