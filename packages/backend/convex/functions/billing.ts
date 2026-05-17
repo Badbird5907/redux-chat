@@ -1,6 +1,6 @@
 import type { GenericActionCtx, GenericQueryCtx } from "convex/server";
 import type Stripe from "stripe";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import type { PlanTier } from "@redux/shared";
 import {
@@ -738,6 +738,7 @@ export const ensureCurrentUserStripeCustomer = action({
 
 export const recordUsageEvent = action({
   args: {
+    secret: v.string(),
     requestId: v.string(),
     messageId: v.string(),
     threadId: v.string(),
@@ -755,6 +756,10 @@ export const recordUsageEvent = action({
     debitId: string | undefined;
     overdraftAmount: number;
   }> => {
+    if (args.secret !== backendEnv().INTERNAL_CONVEX_SECRET) {
+      throw new ConvexError("Invalid secret");
+    }
+
     const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
       ctx,
       ctx.userId,
@@ -779,48 +784,35 @@ export const recordUsageEvent = action({
 
     const eventId = crypto.randomUUID();
     const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
-    let debitId: string | undefined;
-    let overdraftAmount = 0;
-    try {
-      const debit = await ctx.runMutation(
-        internal.functions.credits.internal_debitCredits,
-        {
-          userId: ctx.userId,
-          requestKey: args.messageId,
-          amount: charge.credits,
-          overageAllowed: plan.overageAllowed,
-          routeId: args.routeId,
-          threadId: args.threadId,
-          messageId: args.messageId,
-          rawUsdCost: charge.rawUsdCost,
-          effectiveUsdCost: charge.effectiveUsdCost,
-          markupMultiplier: charge.markupMultiplier,
-          tier: subscriptionState.tier,
-          metadata: {
-            requestId: args.requestId,
-            usedPricingFallback: charge.usedPricingFallback,
-            toolUsdCost: charge.toolUsdCost,
-            modelUsdCost: charge.modelUsdCost,
-          },
-        },
-      );
-      debitId = debit.debitId;
-      overdraftAmount = debit.overdraftAmount;
-    } catch (error) {
-      console.error("Failed to debit Convex credits", {
+    const debit = await ctx.runMutation(
+      internal.functions.credits.internal_debitCredits,
+      {
         userId: ctx.userId,
-        requestId: args.requestId,
+        requestKey: args.messageId,
+        amount: charge.credits,
+        overageAllowed: plan.overageAllowed,
+        routeId: args.routeId,
+        threadId: args.threadId,
         messageId: args.messageId,
-        error: getErrorText(error),
-      });
-    }
+        rawUsdCost: charge.rawUsdCost,
+        effectiveUsdCost: charge.effectiveUsdCost,
+        markupMultiplier: charge.markupMultiplier,
+        tier: subscriptionState.tier,
+        metadata: {
+          requestId: args.requestId,
+          usedPricingFallback: charge.usedPricingFallback,
+          toolUsdCost: charge.toolUsdCost,
+          modelUsdCost: charge.modelUsdCost,
+        },
+      },
+    );
 
     return {
       eventId,
       credits: charge.credits,
       tier: subscriptionState.tier,
-      debitId,
-      overdraftAmount,
+      debitId: debit.debitId,
+      overdraftAmount: debit.overdraftAmount,
     };
   },
 });

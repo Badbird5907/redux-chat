@@ -775,6 +775,7 @@ export const Route = createFileRoute("/api/chat/")({
                   await fetchAuthAction(
                     api.functions.billing.recordUsageEvent,
                     {
+                      secret: env.INTERNAL_CONVEX_SECRET,
                       requestId: assistantMessageId,
                       messageId: assistantMessageId,
                       threadId,
