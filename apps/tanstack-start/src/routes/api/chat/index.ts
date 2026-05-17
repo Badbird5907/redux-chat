@@ -678,6 +678,22 @@ export const Route = createFileRoute("/api/chat/")({
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
+          const checkMessageAbort = throttle(() => {
+            void fetchAuthQuery(
+              api.functions.threads.internal_checkMessageAbort,
+              {
+                secret: env.INTERNAL_CONVEX_SECRET,
+                userId: requestUserId,
+                messageId: assistantMessageId,
+                threadId: threadId,
+              },
+            ).then((res) => {
+              if (res) {
+                console.log("Stream aborted by user");
+                abortController.abort();
+              }
+            });
+          }, 1000);
 
           // Track generation timing stats
           const streamStartTime = Date.now();
@@ -792,24 +808,7 @@ export const Route = createFileRoute("/api/chat/")({
                 reasoningStartTime ??= firstTokenTime;
                 reasoningEndTime = Date.now();
               }
-              throttle(() => {
-                // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
-                void fetchAuthQuery(
-                  api.functions.threads.internal_checkMessageAbort,
-                  {
-                    secret: env.INTERNAL_CONVEX_SECRET,
-                    userId: requestUserId,
-                    messageId: assistantMessageId,
-                    threadId: threadId,
-                  },
-                ).then((res) => {
-                  if (res) {
-                    console.log("Stream aborted by user");
-                    abortController.abort();
-                    return;
-                  }
-                });
-              }, 1000);
+              checkMessageAbort();
             },
             onAbort: () => {
               console.log("Stream aborted");
