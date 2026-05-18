@@ -1,8 +1,8 @@
-import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
+import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import type { ToolSet } from "ai";
 import type { Value } from "convex/values";
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -99,7 +99,10 @@ function isBlockedIpAddress(address: string) {
 }
 
 function getUrlHostname(parsed: URL) {
-  return parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return parsed.hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.+$/g, "");
 }
 
 async function resolvePublicMcpAddresses(hostname: string) {
@@ -124,18 +127,19 @@ async function assertPublicMcpServerUrl(url: string) {
   }
 
   const hostname = getUrlHostname(parsed);
+  const hostnameIpFamily = isIP(hostname);
   if (
     hostname === "localhost" ||
     hostname === "metadata" ||
     hostname === "metadata.google.internal" ||
     hostname.endsWith(".localhost") ||
     hostname.endsWith(".local") ||
-    isBlockedIpAddress(hostname)
+    (hostnameIpFamily !== 0 && isBlockedIpAddress(hostname))
   ) {
     throw new Error("MCP server URL must resolve to a public address.");
   }
 
-  if (isIP(hostname) === 0) {
+  if (hostnameIpFamily === 0) {
     await resolvePublicMcpAddresses(hostname);
   }
 }
