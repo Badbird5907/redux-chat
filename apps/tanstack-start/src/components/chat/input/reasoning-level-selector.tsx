@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 
+import type { ReasoningLevelSelectorRequestDetail } from "@/components/chat/open-reasoning-level-selector";
 import { OPEN_REASONING_LEVEL_SELECTOR_EVENT } from "@/components/chat/open-reasoning-level-selector";
 import { useResolvedHotkey } from "@/lib/hotkeys";
 import {
@@ -39,7 +40,18 @@ export function ReasoningLevelSelector({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onOpenRequest = () => setOpen(true);
+    const onOpenRequest = (event: Event) => {
+      const detail = (
+        event as CustomEvent<ReasoningLevelSelectorRequestDetail | undefined>
+      ).detail;
+
+      if (detail?.toggle) {
+        setOpen((current) => !current);
+        return;
+      }
+
+      setOpen(detail?.open ?? true);
+    };
     window.addEventListener(OPEN_REASONING_LEVEL_SELECTOR_EVENT, onOpenRequest);
     return () => {
       window.removeEventListener(

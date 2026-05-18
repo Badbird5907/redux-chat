@@ -22,6 +22,7 @@ import type {
   MinKnowledgeCutoff,
   ModelFeatureFilterId,
 } from "./feature-filters";
+import type { ModelSelectorRequestDetail } from "@/components/chat/open-model-selector";
 import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
 import { useQuery } from "@/lib/hooks/convex";
 import {
@@ -324,16 +325,44 @@ export function useModelSelectorState({
     [activeSidebar, sidebarProviders, resetPickerDismissState],
   );
 
+  const handleToggleOpen = useCallback(() => {
+    setOpen((current) => {
+      const next = !current;
+
+      if (next) {
+        setNavColumn("search");
+        setListNavIndex(-1);
+        if (activeSidebar === "favorites") setSidebarNavIndex(0);
+        else {
+          const i = sidebarProviders.findIndex((p) => p.slug === activeSidebar);
+          setSidebarNavIndex(i >= 0 ? i + 1 : 0);
+        }
+      } else {
+        resetPickerDismissState();
+      }
+
+      return next;
+    });
+  }, [activeSidebar, resetPickerDismissState, sidebarProviders]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onOpenRequest = () => {
-      handleOpenChange(true);
+    const onOpenRequest = (event: Event) => {
+      const detail = (event as CustomEvent<ModelSelectorRequestDetail | undefined>)
+        .detail;
+
+      if (detail?.toggle) {
+        handleToggleOpen();
+        return;
+      }
+
+      handleOpenChange(detail?.open ?? true);
     };
     window.addEventListener(OPEN_MODEL_SELECTOR_EVENT, onOpenRequest);
     return () => {
       window.removeEventListener(OPEN_MODEL_SELECTOR_EVENT, onOpenRequest);
     };
-  }, [handleOpenChange]);
+  }, [handleOpenChange, handleToggleOpen]);
 
   const pickModelAt = useCallback(
     (index: number) => {
