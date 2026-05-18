@@ -657,37 +657,15 @@ export const Route = createFileRoute("/api/chat/")({
             messagesWithAttachments,
           );
 
-          // Prepend base, selected, project, tool, and retrieved RAG context as
-          // leading system messages. We do this on the model-message array
-          // (after conversion) so they never get persisted on the thread.
-          if (projectContextBlock) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectContextBlock,
-            });
-          }
-          if (projectToolInstruction) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectToolInstruction,
-            });
-          }
-          if (projectInstructions) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectInstructions,
-            });
-          }
-          if (selectedInstructionPrompt) {
-            modelMessages.unshift({
-              role: "system",
-              content: selectedInstructionPrompt,
-            });
-          }
-          modelMessages.unshift({
-            role: "system",
-            content: BASE_SYSTEM_PROMPT,
-          });
+          const systemPrompt = [
+            BASE_SYSTEM_PROMPT,
+            selectedInstructionPrompt,
+            projectInstructions,
+            projectToolInstruction,
+            projectContextBlock,
+          ]
+            .filter((prompt): prompt is string => Boolean(prompt))
+            .join("\n\n");
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
@@ -735,6 +713,7 @@ export const Route = createFileRoute("/api/chat/")({
 
           const result = streamText({
             model: resolvedModel.model,
+            system: systemPrompt,
             messages: modelMessages,
             ...(reasoning ? { reasoning } : {}),
             ...(providerOptions ? { providerOptions } : {}),
