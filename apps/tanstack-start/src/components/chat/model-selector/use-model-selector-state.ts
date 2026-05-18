@@ -22,6 +22,7 @@ import type {
   MinKnowledgeCutoff,
   ModelFeatureFilterId,
 } from "./feature-filters";
+import { requestFocusComposer } from "@/components/chat/focus-composer";
 import type { ModelSelectorRequestDetail } from "@/components/chat/open-model-selector";
 import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
 import { useQuery } from "@/lib/hooks/convex";
@@ -325,6 +326,17 @@ export function useModelSelectorState({
     [activeSidebar, sidebarProviders, resetPickerDismissState],
   );
 
+  const handleUserOpenChange = useCallback(
+    (next: boolean) => {
+      handleOpenChange(next);
+
+      if (!next) {
+        requestFocusComposer();
+      }
+    },
+    [handleOpenChange],
+  );
+
   const handleToggleOpen = useCallback(() => {
     setOpen((current) => {
       const next = !current;
@@ -339,6 +351,7 @@ export function useModelSelectorState({
         }
       } else {
         resetPickerDismissState();
+        requestFocusComposer();
       }
 
       return next;
@@ -371,6 +384,7 @@ export function useModelSelectorState({
       onModelChange(m.id);
       setOpen(false);
       resetPickerDismissState();
+      requestFocusComposer();
     },
     [filteredModels, onModelChange, resetPickerDismissState],
   );
@@ -486,6 +500,7 @@ export function useModelSelectorState({
     clearFilters,
     resetPickerDismissState,
     handleOpenChange,
+    handleUserOpenChange,
     pickModelAt,
     activateSidebarSlotByNavIndex,
     effectiveListNavIndex,

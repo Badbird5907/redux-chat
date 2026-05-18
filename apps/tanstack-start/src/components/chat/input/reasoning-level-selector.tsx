@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 
+import { requestFocusComposer } from "@/components/chat/focus-composer";
 import type { ReasoningLevelSelectorRequestDetail } from "@/components/chat/open-reasoning-level-selector";
 import { OPEN_REASONING_LEVEL_SELECTOR_EVENT } from "@/components/chat/open-reasoning-level-selector";
 import { useResolvedHotkey } from "@/lib/hotkeys";
@@ -37,6 +38,13 @@ export function ReasoningLevelSelector({
   const TriggerIcon = THINKING_LEVEL_ICONS[thinkingLevel];
   const [open, setOpen] = useState(false);
   const reasoningLevelHotkey = useResolvedHotkey("reasoning.level.open");
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+
+    if (!next) {
+      requestFocusComposer();
+    }
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -46,7 +54,13 @@ export function ReasoningLevelSelector({
       ).detail;
 
       if (detail?.toggle) {
-        setOpen((current) => !current);
+        setOpen((current) => {
+          if (current) {
+            requestFocusComposer();
+          }
+
+          return !current;
+        });
         return;
       }
 
@@ -62,7 +76,7 @@ export function ReasoningLevelSelector({
   }, []);
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         render={
           <Button
@@ -83,9 +97,11 @@ export function ReasoningLevelSelector({
       <DropdownMenuContent align="end" side="top" sideOffset={8}>
         <DropdownMenuRadioGroup
           value={thinkingLevel}
-          onValueChange={(value) =>
-            onThinkingLevelChange(value as ThinkingLevel)
-          }
+          onValueChange={(value) => {
+            onThinkingLevelChange(value as ThinkingLevel);
+            setOpen(false);
+            requestFocusComposer();
+          }}
         >
           {thinkingLevels.map((level) => {
             const LevelIcon = THINKING_LEVEL_ICONS[level];

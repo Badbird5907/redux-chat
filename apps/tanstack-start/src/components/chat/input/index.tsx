@@ -25,6 +25,7 @@ import { cn } from "@redux/ui/lib/utils";
 import type { ChatInputProps, PreviewableFile } from "./types";
 import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
 import { useSignedCid } from "@/components/chat/client-id";
+import { FOCUS_COMPOSER_EVENT } from "@/components/chat/focus-composer";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
 import {
@@ -166,6 +167,21 @@ export function ChatInput({
 
     editingMessageIdRef.current = undefined;
   }, [editMessage]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onFocusComposer = () => {
+      window.requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
+    };
+
+    window.addEventListener(FOCUS_COMPOSER_EVENT, onFocusComposer);
+    return () => {
+      window.removeEventListener(FOCUS_COMPOSER_EVENT, onFocusComposer);
+    };
+  }, []);
 
   useEffect(() => {
     const textarea = textareaRef.current;
