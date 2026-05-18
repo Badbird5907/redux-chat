@@ -716,7 +716,7 @@ export const Route = createFileRoute("/api/chat/")({
                   abortController.abort();
                 }
               })
-              .catch((error) => {
+              .catch((error: unknown) => {
                 console.error("Failed to check chat stream abort state", {
                   requestUserId,
                   assistantMessageId,

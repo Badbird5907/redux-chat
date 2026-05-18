@@ -509,6 +509,11 @@ export const previewSubscriptionPromotionUpgrade = action({
       typeof liveSub.customer === "string"
         ? liveSub.customer
         : liveSub.customer.id;
+    const subscriptionItem = liveSub.items.data[0];
+    if (!subscriptionItem) {
+      throw new Error("Subscription item is missing.");
+    }
+
     const coupon = await createPromotionPreviewCoupon(stripe, {
       promotion: {
         promotionId: promotion.promotionId,
@@ -526,7 +531,7 @@ export const previewSubscriptionPromotionUpgrade = action({
     return await previewPromotionSubscriptionUpgradeInvoice(stripe, {
       customerId,
       subscriptionId: liveSub.id,
-      subscriptionItemId: liveSub.items.data[0]!.id,
+      subscriptionItemId: subscriptionItem.id,
       targetPriceId: priceId,
       couponId: coupon.id,
       prorationDate: Math.floor(Date.now() / 1000),
@@ -1006,7 +1011,7 @@ export const cancelPendingPromotionCheckout = action({
       internal.functions.promotions.internal_getPromotionRedemptionById,
       { redemptionId: args.redemptionId },
     );
-    if (!redemption || redemption.userId !== ctx.userId) {
+    if (redemption?.userId !== ctx.userId) {
       throw new Error("Redemption not found.");
     }
     if (redemption.status !== "pending_checkout") {
@@ -1951,8 +1956,8 @@ async function previewPromotionSubscriptionUpgradeInvoice(
     description: line.description ?? "Proration",
     amount: line.amount,
     currency: line.currency.toUpperCase(),
-    periodStart: line.period?.start ? line.period.start * 1000 : undefined,
-    periodEnd: line.period?.end ? line.period.end * 1000 : undefined,
+    periodStart: line.period.start ? line.period.start * 1000 : undefined,
+    periodEnd: line.period.end ? line.period.end * 1000 : undefined,
   }));
   const prorationSubtotal = lines.reduce((sum, line) => sum + line.amount, 0);
   const prorationCredit = lines

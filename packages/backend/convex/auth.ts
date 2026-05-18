@@ -108,7 +108,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
               ? error.status
               : undefined,
           path:
-            ctx && "path" in ctx && typeof ctx.path === "string"
+            "path" in ctx && typeof ctx.path === "string"
               ? ctx.path
               : undefined,
         });

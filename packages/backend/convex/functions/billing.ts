@@ -527,8 +527,8 @@ export const previewCurrentUserPaidPlanSwitch = action({
       description: line.description ?? "Proration",
       amount: line.amount,
       currency: line.currency.toUpperCase(),
-      periodStart: line.period?.start ? line.period.start * 1000 : undefined,
-      periodEnd: line.period?.end ? line.period.end * 1000 : undefined,
+      periodStart: line.period.start ? line.period.start * 1000 : undefined,
+      periodEnd: line.period.end ? line.period.end * 1000 : undefined,
     }));
     const prorationSubtotal = lines.reduce((sum, line) => sum + line.amount, 0);
     const prorationCredit = lines
@@ -1290,15 +1290,19 @@ async function syncStripeSubscriptionToConvex(
   subscription: Stripe.Subscription,
 ): Promise<void> {
   const item = subscription.items.data[0];
+  if (!item) {
+    throw new Error("Stripe subscription is missing an item.");
+  }
+
   await ctx.runMutation(components.stripe.private.handleSubscriptionUpdated, {
     stripeSubscriptionId: subscription.id,
     status: subscription.status,
-    currentPeriodEnd: item?.current_period_end ?? 0,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+    currentPeriodEnd: item.current_period_end,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end,
     cancelAt: subscription.cancel_at ?? undefined,
-    quantity: item?.quantity ?? 1,
-    priceId: item?.price?.id,
-    metadata: subscription.metadata || {},
+    quantity: item.quantity ?? 1,
+    priceId: item.price.id,
+    metadata: subscription.metadata,
   });
 }
 

@@ -268,10 +268,7 @@ async function attachMixedAttachmentsToMessage(
     targetMessageId: string;
   },
 ) {
-  if (
-    args.retainedAttachmentIds.length + args.draftAttachmentIds.length >
-    10
-  ) {
+  if (args.retainedAttachmentIds.length + args.draftAttachmentIds.length > 10) {
     throw new ConvexError("Too many attachments for one message");
   }
 
@@ -1317,7 +1314,8 @@ export const regenerateThreadTitle = mutation({
     const now = Date.now();
     if (
       thread.titleGenerationRequestedAt !== undefined &&
-      now - thread.titleGenerationRequestedAt < THREAD_TITLE_GENERATION_COOLDOWN_MS
+      now - thread.titleGenerationRequestedAt <
+        THREAD_TITLE_GENERATION_COOLDOWN_MS
     ) {
       throw new ConvexError("Thread title generation is already in progress");
     }
@@ -1438,13 +1436,13 @@ export const deleteThread = mutation({
         size: number;
       }
     >();
-    const unreferencedFiles: Array<{
+    const unreferencedFiles: {
       projectId: string;
       environmentId: string;
       fileKeyId: string;
       accessKey: string;
       size: number;
-    }> = [];
+    }[] = [];
 
     for (const attachment of attachments) {
       uniqueFiles.set(attachment.fileKeyId, {

@@ -1,10 +1,7 @@
 import type { BetterAuthPlugin } from "better-auth";
 
 import type { AuditLogOptions, PathConfig, ResolvedOptions } from "./types";
-import {
-  createGetLogEndpoint,
-  createListLogsEndpoint,
-} from "./endpoints";
+import { createGetLogEndpoint, createListLogsEndpoint } from "./endpoints";
 import { createAfterHooks, createBeforeHooks } from "./hooks";
 import { buildSchema, getModelName, validateSchema } from "./schema";
 import { DEFAULT_METADATA_LIMITS } from "./utils/validate_metadata";

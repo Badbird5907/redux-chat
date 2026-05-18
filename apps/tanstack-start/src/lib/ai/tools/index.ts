@@ -140,7 +140,7 @@ function assertAllowedMcpServerUrl(url: string) {
   }
 }
 
-async function createMcpFetch(url: string): Promise<typeof fetch> {
+function createMcpFetch(url: string): typeof fetch {
   const parsed = new URL(url);
   const hostname = getUrlHostname(parsed);
 
@@ -173,7 +173,7 @@ async function createMcpFetch(url: string): Promise<typeof fetch> {
           port: requestUrl.port ? Number(requestUrl.port) : 443,
           headers: Object.fromEntries(headers.entries()),
           lookup: (_host, options, callback) => {
-            if (typeof options === "object" && options?.all) {
+            if (typeof options === "object" && options.all) {
               callback(null, [
                 { address: selected.address, family: selected.family },
               ]);
@@ -269,7 +269,7 @@ export async function createToolRuntime(
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
       assertAllowedMcpServerUrl(server.url);
-      const mcpFetch = await createMcpFetch(server.url);
+      const mcpFetch = createMcpFetch(server.url);
       const client = await createMCPClient({
         name: `redux-chat-${server.mcpServerId}`,
         transport: {

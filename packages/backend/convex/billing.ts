@@ -1,10 +1,9 @@
-import type { PlanTier } from "@redux/shared";
+import type { BillableToolCall, PlanTier } from "@redux/shared";
 import {
   aggregateBillableToolCalls,
   DEFAULT_BILLING_CONFIG,
   getPlanConfig,
 } from "@redux/shared";
-import type { BillableToolCall } from "@redux/shared";
 
 import { backendEnv } from "./env";
 

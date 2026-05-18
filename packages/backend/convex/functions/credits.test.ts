@@ -59,10 +59,7 @@ describe("credit ledger helpers", () => {
         numItems: 2,
       }),
     ).toMatchObject({
-      page: [
-        { grantId: "active-old" },
-        { grantId: "exhausted" },
-      ],
+      page: [{ grantId: "active-old" }, { grantId: "exhausted" }],
       isDone: false,
       continueCursor: "3",
     });
