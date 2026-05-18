@@ -176,7 +176,14 @@ async function createMcpFetch(url: string): Promise<typeof fetch> {
           path: `${requestUrl.pathname}${requestUrl.search}`,
           port: requestUrl.port ? Number(requestUrl.port) : 443,
           headers: Object.fromEntries(headers.entries()),
-          lookup: (_host, _options, callback) => {
+          lookup: (_host, options, callback) => {
+            if (typeof options === "object" && options?.all) {
+              callback(null, [
+                { address: selected.address, family: selected.family },
+              ]);
+              return;
+            }
+
             callback(null, selected.address, selected.family);
           },
         },
