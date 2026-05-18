@@ -16,7 +16,7 @@ type AttachmentMutationCtx = GenericMutationCtx<DataModel> & {
 const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
 const ATTACHED_ATTACHMENT_TTL_MS =
   ATTACHED_ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
-const MAX_ATTACHMENTS_PER_MESSAGE = 10;
+const MAX_ATTACHMENTS_PER_MESSAGE = 15;
 
 export function createBackendSiloCore() {
   const env = backendEnv();

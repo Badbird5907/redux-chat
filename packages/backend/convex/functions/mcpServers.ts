@@ -70,6 +70,10 @@ function isPrivateIpv4(hostname: string) {
 
 function isBlockedIpv6(hostname: string) {
   const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (!normalized.includes(":")) {
+    return false;
+  }
+
   if (normalized.startsWith("::ffff:")) {
     return true;
   }
@@ -110,7 +114,7 @@ function normalizeMcpServerUrl(url: string) {
     throw new ConvexError("MCP server URLs cannot use a custom port");
   }
 
-  const hostname = parsed.hostname.toLowerCase();
+  const hostname = parsed.hostname.toLowerCase().replace(/\.+$/g, "");
   if (
     blockedMcpHostnames.has(hostname) ||
     hostname.endsWith(".localhost") ||
