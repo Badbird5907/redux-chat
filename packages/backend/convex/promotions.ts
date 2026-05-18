@@ -1,6 +1,8 @@
 import { ConvexError } from "convex/values";
 
 import type {
+  AppCreditsPromotionConfig,
+  PlanTier,
   StripeInvoiceCreditPromotionConfig,
   SubscriptionPromotionConfig,
 } from "@redux/shared";
@@ -122,6 +124,7 @@ export function computePaidSubscriberPromotionFreeUntil(args: {
 
 export function assertAppCreditsConfig(config: unknown): asserts config is {
   amount: number;
+  eligiblePlanTiers?: "all" | PlanTier[];
   expiresAt?: number;
   expiresAfterDays?: number;
   note?: string;
@@ -152,6 +155,27 @@ export function assertAppCreditsConfig(config: unknown): asserts config is {
   }
   if (value.note !== undefined && typeof value.note !== "string") {
     throw new ConvexError("Promotion note is invalid.");
+  }
+  assertEligiblePlanTiers(value.eligiblePlanTiers);
+}
+
+function assertEligiblePlanTiers(
+  value: unknown,
+): asserts value is AppCreditsPromotionConfig["eligiblePlanTiers"] {
+  if (value === undefined || value === "all") return;
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new ConvexError("Eligible plan tiers are invalid.");
+  }
+  const seen = new Set<PlanTier>();
+  for (const tierValue of value) {
+    const tier = tierValue as unknown;
+    if (tier !== "free" && tier !== "plus" && tier !== "pro") {
+      throw new ConvexError("Eligible plan tier is invalid.");
+    }
+    if (seen.has(tier)) {
+      throw new ConvexError("Eligible plan tiers must be unique.");
+    }
+    seen.add(tier);
   }
 }
 

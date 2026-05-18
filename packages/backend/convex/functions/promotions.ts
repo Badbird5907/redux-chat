@@ -8,6 +8,7 @@ import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import type {
+  PlanTier,
   PromotionKind,
   PromotionStatus,
   PromotionSubscriptionTier,
@@ -17,6 +18,7 @@ import {
   canRedeemForUserCount,
   formatPerUserRedemptionPolicy,
   formatPromotionBenefit,
+  getAppCreditEligiblePlanTiers,
   getPromotionRedeemableTiers,
   isFullDiscount,
 } from "@redux/shared";
@@ -62,9 +64,17 @@ const promotionRedemptionStatusValidator = v.union(
 );
 
 const paidPlanTierValidator = v.union(v.literal("plus"), v.literal("pro"));
+const planTierValidator = v.union(
+  v.literal("free"),
+  v.literal("plus"),
+  v.literal("pro"),
+);
 
 const appCreditsConfigValidator = v.object({
   amount: v.number(),
+  eligiblePlanTiers: v.optional(
+    v.union(v.literal("all"), v.array(planTierValidator)),
+  ),
   expiresAt: v.optional(v.number()),
   expiresAfterDays: v.optional(v.number()),
   note: v.optional(v.string()),
@@ -82,6 +92,7 @@ type PromotionConfigSnapshot =
       kind: "app_credits";
       config: {
         amount: number;
+        eligiblePlanTiers?: "all" | PlanTier[];
         expiresAt?: number;
         expiresAfterDays?: number;
         note?: string;
@@ -545,6 +556,28 @@ async function applyAppCreditsPromotion(
   promotionConfig: Extract<PromotionConfigSnapshot, { kind: "app_credits" }>,
 ): Promise<AppCreditsAppliedResult> {
   const now = Date.now();
+  const eligibleTiers = getAppCreditEligiblePlanTiers(promotionConfig.config);
+  if (eligibleTiers.length < 3) {
+    let currentTier: PlanTier = "free";
+    try {
+      const billingState: { tier: PlanTier } = await ctx.runQuery(
+        api.functions.billing.getCurrentBillingState,
+        {},
+      );
+      currentTier = billingState.tier;
+    } catch (error) {
+      console.error("promotion_plan_eligibility_resolution_failed", {
+        userId: reservation.redemption.userId,
+        promotionId: reservation.promotion.promotionId,
+        error,
+      });
+    }
+
+    if (!eligibleTiers.includes(currentTier)) {
+      throw new Error("This promotion is not available for your current plan.");
+    }
+  }
+
   const expiresAt = resolveAppCreditExpiry({
     expiresAt: promotionConfig.config.expiresAt,
     expiresAfterDays: promotionConfig.config.expiresAfterDays,

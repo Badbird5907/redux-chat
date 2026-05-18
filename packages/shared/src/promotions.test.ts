@@ -121,6 +121,15 @@ describe("promotion helpers", () => {
     expect(isFullDiscount(config)).toBe(true);
   });
 
+  it("formats gifted credit plan eligibility", () => {
+    expect(
+      formatPromotionBenefit({
+        kind: "app_credits",
+        config: { amount: 500, eligiblePlanTiers: ["plus", "pro"] },
+      }),
+    ).toBe("500 gifted credits for Plus, Pro");
+  });
+
   it("rejects invalid gifted subscription configs", () => {
     expect(() =>
       assertSubscriptionPromotionConfig({

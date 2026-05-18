@@ -1,3 +1,5 @@
+import type { PlanTier } from "./billing";
+
 export const UNLIMITED_PER_USER_REDEMPTIONS = -1;
 
 export const PROMOTION_KINDS = [
@@ -35,6 +37,7 @@ export type PerUserRedemptionPolicy =
 
 export type AppCreditsPromotionConfig = {
   amount: number;
+  eligiblePlanTiers?: "all" | PlanTier[];
   expiresAt?: number;
   expiresAfterDays?: number;
   note?: string;
@@ -169,7 +172,8 @@ export function discountedPriceCentsFromList(
 
 export function formatPromotionBenefit(promotion: PromotionConfig): string {
   if (promotion.kind === "app_credits") {
-    return `${promotion.config.amount.toLocaleString()} gifted credits`;
+    const tiers = formatEligiblePlanTiers(promotion.config.eligiblePlanTiers);
+    return `${promotion.config.amount.toLocaleString()} gifted credits${tiers}`;
   }
   if (promotion.kind === "stripe_invoice_credit") {
     return `${formatUsdCents(promotion.config.amountCents)} invoice credit`;
@@ -246,6 +250,24 @@ export function assertStripeInvoiceCreditPromotionConfig(
   ) {
     throw new Error("Invoice credit description is invalid.");
   }
+}
+
+export function getAppCreditEligiblePlanTiers(
+  config: AppCreditsPromotionConfig,
+): PlanTier[] {
+  if (config.eligiblePlanTiers === undefined) return ["free", "plus", "pro"];
+  if (config.eligiblePlanTiers === "all") return ["free", "plus", "pro"];
+  return [...config.eligiblePlanTiers];
+}
+
+function formatEligiblePlanTiers(
+  value: AppCreditsPromotionConfig["eligiblePlanTiers"],
+) {
+  if (value === undefined || value === "all") return "";
+  const labels = value.map(
+    (tier) => tier.charAt(0).toUpperCase() + tier.slice(1),
+  );
+  return ` for ${labels.join(", ")}`;
 }
 
 function assertTargetTiers(

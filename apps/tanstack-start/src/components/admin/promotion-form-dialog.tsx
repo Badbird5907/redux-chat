@@ -5,6 +5,7 @@ import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import type {
+  PlanTier,
   PromotionKind,
   PromotionStatus,
   SubscriptionPromotionConfig,
@@ -48,6 +49,7 @@ type PromotionFormType =
 type SubscriptionDuration = "once" | "repeating" | "forever";
 type DiscountType = "percent" | "amount";
 type TargetTierMode = "all" | "plus" | "pro";
+type AppCreditPlanEligibilityMode = "all" | "selected";
 
 export type PromotionFormDialogPromotion = {
   promotionId: string;
@@ -176,6 +178,23 @@ function targetTierModeFromStored(
   return targetTier === "plus" || targetTier === "pro" ? targetTier : "all";
 }
 
+function appCreditPlanEligibilityModeFromStored(
+  eligiblePlanTiers: unknown,
+): AppCreditPlanEligibilityMode {
+  return Array.isArray(eligiblePlanTiers) ? "selected" : "all";
+}
+
+function appCreditSelectedPlanTiersFromStored(
+  eligiblePlanTiers: unknown,
+): PlanTier[] {
+  if (!Array.isArray(eligiblePlanTiers)) return ["free", "plus", "pro"];
+  const tiers = eligiblePlanTiers.filter(
+    (tier): tier is PlanTier =>
+      tier === "free" || tier === "plus" || tier === "pro",
+  );
+  return tiers.length > 0 ? tiers : ["free"];
+}
+
 function usdDollarsStringToCents(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed === "") return null;
@@ -246,6 +265,10 @@ export function PromotionFormDialog({
   const initialTargetTierMode = targetTierModeFromStored(
     subscriptionConfig?.targetTiers,
   );
+  const initialAppCreditPlanEligibilityMode =
+    appCreditPlanEligibilityModeFromStored(config.eligiblePlanTiers);
+  const initialAppCreditSelectedPlanTiers =
+    appCreditSelectedPlanTiersFromStored(config.eligiblePlanTiers);
   const initialDuration =
     subscriptionDuration.type === "repeating" ||
     subscriptionDuration.type === "forever"
@@ -267,6 +290,11 @@ export function PromotionFormDialog({
   const [amount, setAmount] = useState(
     typeof config.amount === "number" ? config.amount.toString() : "",
   );
+  const [appCreditPlanEligibilityMode, setAppCreditPlanEligibilityMode] =
+    useState<AppCreditPlanEligibilityMode>(initialAppCreditPlanEligibilityMode);
+  const [appCreditSelectedPlanTiers, setAppCreditSelectedPlanTiers] = useState<
+    PlanTier[]
+  >(initialAppCreditSelectedPlanTiers);
   const [invoiceCreditUsd, setInvoiceCreditUsd] = useState(
     typeof config.amountCents === "number"
       ? (config.amountCents / 100).toFixed(2)
@@ -322,6 +350,8 @@ export function PromotionFormDialog({
     setAmount(
       typeof config.amount === "number" ? config.amount.toString() : "",
     );
+    setAppCreditPlanEligibilityMode(initialAppCreditPlanEligibilityMode);
+    setAppCreditSelectedPlanTiers(initialAppCreditSelectedPlanTiers);
     setInvoiceCreditUsd(
       typeof config.amountCents === "number"
         ? (config.amountCents / 100).toFixed(2)
@@ -420,6 +450,14 @@ export function PromotionFormDialog({
       toast.error("Per-user limit must be positive.");
       return;
     }
+    if (
+      promotionType === "app_credits" &&
+      appCreditPlanEligibilityMode === "selected" &&
+      appCreditSelectedPlanTiers.length === 0
+    ) {
+      toast.error("Select at least one eligible plan.");
+      return;
+    }
     if (startsAt.trim() !== "" && starts === undefined) {
       toast.error("Start date is invalid.");
       return;
@@ -441,7 +479,7 @@ export function PromotionFormDialog({
           : "subscription_discount";
 
     let config:
-      | { amount: number }
+      | { amount: number; eligiblePlanTiers?: "all" | PlanTier[] }
       | { amountCents: number; currency: "usd" }
       | {
           mode: "gifted_subscription" | "discount";
@@ -462,7 +500,13 @@ export function PromotionFormDialog({
         };
 
     if (promotionType === "app_credits") {
-      config = { amount: creditAmount };
+      config = {
+        amount: creditAmount,
+        eligiblePlanTiers:
+          appCreditPlanEligibilityMode === "all"
+            ? "all"
+            : appCreditSelectedPlanTiers,
+      };
     } else if (promotionType === "stripe_invoice_credit") {
       if (invoiceAmountCents === null) {
         toast.error("Invoice credit must be a positive USD amount.");
@@ -679,7 +723,7 @@ export function PromotionFormDialog({
               </div>
 
               {promotionType === "app_credits" ? (
-                <div className="border-border/80 bg-muted/15 grid gap-2 rounded-xl border px-4 py-3">
+                <div className="border-border/80 bg-muted/15 grid gap-4 rounded-xl border px-4 py-3">
                   <Label htmlFor={`promotion-credits-${mode}`}>
                     Gifted credits
                   </Label>
@@ -692,6 +736,70 @@ export function PromotionFormDialog({
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="100000"
                   />
+                  <div className="grid gap-2">
+                    <Label>Eligible plans</Label>
+                    <RadioGroup
+                      value={appCreditPlanEligibilityMode}
+                      onValueChange={(next) => {
+                        const value = typeof next === "string" ? next : "";
+                        if (value === "all" || value === "selected") {
+                          setAppCreditPlanEligibilityMode(value);
+                        }
+                      }}
+                      aria-label="Gifted credit eligible plans"
+                    >
+                      <Label className={perUserRadioTileClass}>
+                        <RadioGroupItem value="all" />
+                        <span className="min-w-0 flex-1 leading-snug">
+                          <span className="block text-sm font-medium">
+                            Any plan
+                          </span>
+                          <span className="text-muted-foreground block text-xs font-normal">
+                            Free, Plus, and Pro users can redeem
+                          </span>
+                        </span>
+                      </Label>
+                      <Label className={perUserRadioTileClass}>
+                        <RadioGroupItem value="selected" />
+                        <span className="min-w-0 flex-1 leading-snug">
+                          <span className="block text-sm font-medium">
+                            Selected plans
+                          </span>
+                          <span className="text-muted-foreground block text-xs font-normal">
+                            Restrict redemption by current plan
+                          </span>
+                        </span>
+                      </Label>
+                    </RadioGroup>
+                    {appCreditPlanEligibilityMode === "selected" ? (
+                      <div className="bg-card/50 grid gap-2 rounded-lg border p-3">
+                        {(["free", "plus", "pro"] satisfies PlanTier[]).map(
+                          (tier) => (
+                            <Label
+                              key={tier}
+                              className="flex items-center gap-3 text-sm"
+                            >
+                              <Checkbox
+                                checked={appCreditSelectedPlanTiers.includes(
+                                  tier,
+                                )}
+                                onCheckedChange={(checked) => {
+                                  setAppCreditSelectedPlanTiers((current) =>
+                                    checked === true
+                                      ? [...new Set([...current, tier])]
+                                      : current.filter(
+                                          (currentTier) => currentTier !== tier,
+                                        ),
+                                  );
+                                }}
+                              />
+                              <span className="capitalize">{tier}</span>
+                            </Label>
+                          ),
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
 

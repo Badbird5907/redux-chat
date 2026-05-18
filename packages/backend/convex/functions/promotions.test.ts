@@ -24,6 +24,7 @@ async function insertAppCreditPromotion(
   args: {
     code?: string;
     amount?: number;
+    eligiblePlanTiers?: "all" | ("free" | "plus" | "pro")[];
     maxRedemptions?: number;
     perUserRedemptionLimit?: number;
   } = {},
@@ -46,6 +47,7 @@ async function insertAppCreditPromotion(
       metadata: {
         config: {
           amount: args.amount ?? 100,
+          eligiblePlanTiers: args.eligiblePlanTiers,
         },
       },
     });
@@ -217,6 +219,25 @@ describe("functions/promotions", () => {
 
     const redemptions = await listRedemptions(root, promotionId);
     expect(redemptions).toHaveLength(1);
+  });
+
+  it("rejects gifted credit promotions for ineligible current plans", async () => {
+    const root = testDb();
+    const promotionId = await insertAppCreditPromotion(root, {
+      eligiblePlanTiers: ["plus"],
+    });
+    const user = root.withIdentity({ subject: USER_ID });
+
+    await expect(
+      user.action(api.functions.promotions.redeemPromotion, { code: "PROMO" }),
+    ).rejects.toThrow(/not available for your current plan/);
+
+    const redemptions = await listRedemptions(root, promotionId);
+    expect(redemptions).toHaveLength(1);
+    expect(redemptions[0]).toMatchObject({
+      status: "failed",
+      failureReason: "This promotion is not available for your current plan.",
+    });
   });
 
   it("tracks every repeated usage row", async () => {
