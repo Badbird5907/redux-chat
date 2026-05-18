@@ -1,5 +1,5 @@
-import { Zap } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
+import { Zap } from "lucide-react";
 
 import type { ThinkingLevel } from "@redux/shared/models";
 

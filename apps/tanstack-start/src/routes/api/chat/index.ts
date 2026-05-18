@@ -78,6 +78,7 @@ const requestBody = z.object({
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
 type AiSdkReasoning = "none" | "low" | "medium" | "high";
 type EnabledAiSdkReasoning = Exclude<AiSdkReasoning, "none">;
+const MIN_GENERATION_CREDIT_FLOOR = 0;
 type StreamTextProviderOptions = NonNullable<
   Parameters<typeof streamText>[0]["providerOptions"]
 >;
@@ -446,13 +447,25 @@ export const Route = createFileRoute("/api/chat/")({
           ),
         ]);
         const spendableCredits = billingState.spendableCredits;
-        if (spendableCredits <= 0 && !billingState.overageAllowed) {
+        if (
+          spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
+          !billingState.overageAllowed
+        ) {
+          await fetchAuthMutation(api.functions.threads.internal_failStream, {
+            secret: env.INTERNAL_CONVEX_SECRET,
+            userId: requestUserId,
+            threadId,
+            assistantMessageId,
+            error: "Insufficient credits to start generation.",
+          });
+
           return new Response(
             JSON.stringify({
               error: "out_of_credits",
               tier: billingSnapshot.tier,
               spendableCredits,
               availableCredits: billingState.availableCredits,
+              minimumRequiredCredits: MIN_GENERATION_CREDIT_FLOOR,
             }),
             {
               status: 402,
@@ -678,6 +691,41 @@ export const Route = createFileRoute("/api/chat/")({
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
+          await fetchAuthQuery(
+            api.functions.threads.internal_validateGenerationMessage,
+            {
+              secret: env.INTERNAL_CONVEX_SECRET,
+              userId: requestUserId,
+              messageId: assistantMessageId,
+              threadId,
+            },
+          );
+          const checkMessageAbort = throttle(() => {
+            void fetchAuthQuery(
+              api.functions.threads.internal_checkMessageAbort,
+              {
+                secret: env.INTERNAL_CONVEX_SECRET,
+                userId: requestUserId,
+                messageId: assistantMessageId,
+                threadId: threadId,
+              },
+            )
+              .then((res) => {
+                if (res) {
+                  console.log("Stream aborted by user");
+                  abortController.abort();
+                }
+              })
+              .catch((error: unknown) => {
+                console.error("Failed to check chat stream abort state", {
+                  requestUserId,
+                  assistantMessageId,
+                  threadId,
+                  error,
+                });
+                abortController.abort();
+              });
+          }, 1000);
 
           // Track generation timing stats
           const streamStartTime = Date.now();
@@ -759,6 +807,7 @@ export const Route = createFileRoute("/api/chat/")({
                   await fetchAuthAction(
                     api.functions.billing.recordUsageEvent,
                     {
+                      secret: env.INTERNAL_CONVEX_SECRET,
                       requestId: assistantMessageId,
                       messageId: assistantMessageId,
                       threadId,
@@ -792,24 +841,7 @@ export const Route = createFileRoute("/api/chat/")({
                 reasoningStartTime ??= firstTokenTime;
                 reasoningEndTime = Date.now();
               }
-              throttle(() => {
-                // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
-                void fetchAuthQuery(
-                  api.functions.threads.internal_checkMessageAbort,
-                  {
-                    secret: env.INTERNAL_CONVEX_SECRET,
-                    userId: requestUserId,
-                    messageId: assistantMessageId,
-                    threadId: threadId,
-                  },
-                ).then((res) => {
-                  if (res) {
-                    console.log("Stream aborted by user");
-                    abortController.abort();
-                    return;
-                  }
-                });
-              }, 1000);
+              checkMessageAbort();
             },
             onAbort: () => {
               console.log("Stream aborted");

@@ -72,6 +72,7 @@ const appCreditsConfigValidator = v.object({
 
 const promotionConfigValidator = v.any();
 const STRIPE_NETWORK_TIMEOUT_MS = 10_000;
+const MIN_PROMOTION_CODE_LENGTH = 12;
 
 type PromotionDoc = DataModel["promotions"]["document"];
 type RedemptionDoc = DataModel["promotionRedemptions"]["document"];
@@ -331,6 +332,9 @@ export const getPromotionByCode = query({
   args: { code: v.string() },
   handler: async (ctx, args) => {
     const codeNormalized = normalizePromotionCode(args.code);
+    if (codeNormalized.length < MIN_PROMOTION_CODE_LENGTH) {
+      return null;
+    }
     const promotion = await getPromotionByCodeNormalized(ctx, codeNormalized);
     if (!promotion) return null;
 
@@ -415,6 +419,9 @@ export const redeemPromotion = action({
         args.prorationDate,
       );
     } catch (error) {
+      if (isUnknownStripeWriteState(error)) {
+        throw error;
+      }
       await ctx.runMutation(
         internal.functions.promotions.internal_markPromotionRedemptionFailed,
         {
@@ -475,6 +482,12 @@ export const previewSubscriptionPromotionUpgrade = action({
         cancelAtPeriodEnd?: boolean;
       } | null;
     } = await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
+    if (
+      promotionConfig.config.freeUsersOnly === true &&
+      billingState.tier !== "free"
+    ) {
+      throw new Error("This promotion is only available to free users.");
+    }
     assertSubscriptionPromotionUpgradeEligibility({
       currentTier: billingState.tier,
       targetTier,
@@ -496,6 +509,11 @@ export const previewSubscriptionPromotionUpgrade = action({
       typeof liveSub.customer === "string"
         ? liveSub.customer
         : liveSub.customer.id;
+    const subscriptionItem = liveSub.items.data[0];
+    if (!subscriptionItem) {
+      throw new Error("Subscription item is missing.");
+    }
+
     const coupon = await createPromotionPreviewCoupon(stripe, {
       promotion: {
         promotionId: promotion.promotionId,
@@ -513,7 +531,7 @@ export const previewSubscriptionPromotionUpgrade = action({
     return await previewPromotionSubscriptionUpgradeInvoice(stripe, {
       customerId,
       subscriptionId: liveSub.id,
-      subscriptionItemId: liveSub.items.data[0]!.id,
+      subscriptionItemId: subscriptionItem.id,
       targetPriceId: priceId,
       couponId: coupon.id,
       prorationDate: Math.floor(Date.now() / 1000),
@@ -664,6 +682,12 @@ async function applySubscriptionPromotion(
       cancelAtPeriodEnd?: boolean;
     } | null;
   } = await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
+  if (
+    promotionConfig.config.freeUsersOnly === true &&
+    billingState.tier !== "free"
+  ) {
+    throw new Error("This promotion is only available to free users.");
+  }
 
   const customerId = await ensureCurrentStripeCustomer(ctx);
   const priceId = priceIdForTier(targetTier);
@@ -983,6 +1007,37 @@ async function applySubscriptionPromotionToPaidSubscriber(
 export const cancelPendingPromotionCheckout = action({
   args: { redemptionId: v.string() },
   handler: async (ctx, args) => {
+    const redemption: RedemptionDoc | null = await ctx.runQuery(
+      internal.functions.promotions.internal_getPromotionRedemptionById,
+      { redemptionId: args.redemptionId },
+    );
+    if (redemption?.userId !== ctx.userId) {
+      throw new Error("Redemption not found.");
+    }
+    if (redemption.status !== "pending_checkout") {
+      return { ok: true };
+    }
+
+    const stripeCheckoutSessionId = redemption.stripeCheckoutSessionId;
+    if (stripeCheckoutSessionId) {
+      const stripe = getStripeSdkClient();
+      const session = await withTimeout(
+        stripe.checkout.sessions.retrieve(stripeCheckoutSessionId),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.checkout.sessions.retrieve",
+      );
+      if (session.status === "complete") {
+        throw new Error("Checkout already completed.");
+      }
+      if (session.status === "open") {
+        await withTimeout(
+          stripe.checkout.sessions.expire(stripeCheckoutSessionId),
+          STRIPE_NETWORK_TIMEOUT_MS,
+          "stripe.checkout.sessions.expire",
+        );
+      }
+    }
+
     await ctx.runMutation(
       internal.functions.promotions.internal_markPromotionRedemptionFailed,
       {
@@ -991,11 +1046,26 @@ export const cancelPendingPromotionCheckout = action({
         failureReason: "Checkout cancelled.",
         releaseRedemption: true,
         requirePendingCheckout: true,
+        stripeCheckoutSessionId,
       },
     );
     return { ok: true };
   },
 });
+
+function isUnknownStripeWriteState(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return [
+    "stripe.customers.createBalanceTransaction timed out",
+    "stripe.coupons.create timed out",
+    "stripe.subscriptions.create timed out",
+    "stripe.checkout.sessions.create timed out",
+    "stripe.subscriptions.update timed out",
+  ].some((message) => error.message.includes(message));
+}
 
 export const adminRevokePromotionStripeInvoiceCredit = action({
   args: { redemptionId: v.string() },
@@ -1176,8 +1246,10 @@ export const adminCreatePromotion = adminMutation({
   },
   handler: async (ctx, args) => {
     const codeNormalized = normalizePromotionCode(args.code);
-    if (codeNormalized.length < 3) {
-      throw new ConvexError("Promotion code is too short.");
+    if (codeNormalized.length < MIN_PROMOTION_CODE_LENGTH) {
+      throw new ConvexError(
+        `Promotion code must be at least ${MIN_PROMOTION_CODE_LENGTH} characters.`,
+      );
     }
     const name = args.name.trim();
     if (name.length === 0) {
@@ -1244,8 +1316,13 @@ export const adminUpdatePromotion = adminMutation({
     }
     const codeNormalized =
       args.code === undefined ? undefined : normalizePromotionCode(args.code);
-    if (codeNormalized !== undefined && codeNormalized.length < 3) {
-      throw new ConvexError("Promotion code is too short.");
+    if (
+      codeNormalized !== undefined &&
+      codeNormalized.length < MIN_PROMOTION_CODE_LENGTH
+    ) {
+      throw new ConvexError(
+        `Promotion code must be at least ${MIN_PROMOTION_CODE_LENGTH} characters.`,
+      );
     }
     if (
       codeNormalized !== undefined &&
@@ -1879,8 +1956,8 @@ async function previewPromotionSubscriptionUpgradeInvoice(
     description: line.description ?? "Proration",
     amount: line.amount,
     currency: line.currency.toUpperCase(),
-    periodStart: line.period?.start ? line.period.start * 1000 : undefined,
-    periodEnd: line.period?.end ? line.period.end * 1000 : undefined,
+    periodStart: line.period.start ? line.period.start * 1000 : undefined,
+    periodEnd: line.period.end ? line.period.end * 1000 : undefined,
   }));
   const prorationSubtotal = lines.reduce((sum, line) => sum + line.amount, 0);
   const prorationCredit = lines

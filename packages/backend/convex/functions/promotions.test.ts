@@ -411,11 +411,17 @@ describe("functions/promotions", () => {
         status: "pending_checkout",
         stripeCheckoutSessionId: "cs_cancelled",
       });
-    const user = root.withIdentity({ subject: USER_ID });
-
-    await user.action(api.functions.promotions.cancelPendingPromotionCheckout, {
-      redemptionId,
-    });
+    await root.mutation(
+      internal.functions.promotions.internal_markPromotionRedemptionFailed,
+      {
+        redemptionId,
+        userId: USER_ID,
+        failureReason: "Checkout cancelled.",
+        releaseRedemption: true,
+        requirePendingCheckout: true,
+        stripeCheckoutSessionId: "cs_cancelled",
+      },
+    );
 
     await expect(
       root.mutation(

@@ -1,6 +1,7 @@
 import { StripeSubscriptions } from "@convex-dev/stripe";
-import type { PlanTier } from "@redux/shared";
 import Stripe from "stripe";
+
+import type { PlanTier } from "@redux/shared";
 
 import { components } from "./_generated/api";
 import { backendEnv } from "./env";

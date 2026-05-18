@@ -88,7 +88,30 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     },
     onAPIError: {
       onError(error, ctx) {
-        console.error("BETTER AUTH API ERROR", error, ctx);
+        const errorObject =
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+              }
+            : {
+                name: "UnknownError",
+                message: String(error),
+              };
+        console.error("BETTER AUTH API ERROR", {
+          ...errorObject,
+          status:
+            error &&
+            typeof error === "object" &&
+            "status" in error &&
+            typeof error.status === "number"
+              ? error.status
+              : undefined,
+          path:
+            "path" in ctx && typeof ctx.path === "string"
+              ? ctx.path
+              : undefined,
+        });
       },
     },
   } satisfies BetterAuthOptions;

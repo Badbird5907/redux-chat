@@ -3,6 +3,7 @@
 import type { UIMessage } from "ai";
 import { isReasoningUIPart, isToolUIPart } from "ai";
 
+import type { MessageStats } from "./chat-types";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -23,7 +24,6 @@ import {
   getChainOfThoughtHeaderState,
 } from "./assistant-message-helpers";
 import { normalizeAssistantMessage } from "./assistant-message-timeline";
-import type { MessageStats } from "./chat-types";
 
 export function AssistantMessageParts({
   isLastMessage,
