@@ -8,6 +8,7 @@ import { CommandPanel } from "@/components/command";
 import {
   ModelSwitcherHotkeyRegistration,
   NewChatHotkeyRegistration,
+  ReasoningLevelSelectorHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
 import { fetchAdminDashboardAccess } from "@/server/admin/ensure-admin-access";
@@ -51,6 +52,7 @@ function AdminLayout() {
       <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
       <NewChatHotkeyRegistration />
       <ModelSwitcherHotkeyRegistration />
+      <ReasoningLevelSelectorHotkeyRegistration />
       <SidebarToggleHotkeyRegistration />
       <AdminSidebarPanel />
       <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">

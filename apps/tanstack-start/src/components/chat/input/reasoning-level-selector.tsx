@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
 
 import type { ThinkingLevel } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
@@ -10,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 
+import { OPEN_REASONING_LEVEL_SELECTOR_EVENT } from "@/components/chat/open-reasoning-level-selector";
+import { useResolvedHotkey } from "@/lib/hotkeys";
 import {
   THINKING_LEVEL_ICONS,
   THINKING_LEVEL_LABELS,
@@ -30,9 +34,23 @@ export function ReasoningLevelSelector({
   onThinkingLevelChange,
 }: ReasoningLevelSelectorProps) {
   const TriggerIcon = THINKING_LEVEL_ICONS[thinkingLevel];
+  const [open, setOpen] = useState(false);
+  const reasoningLevelHotkey = useResolvedHotkey("reasoning.level.open");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onOpenRequest = () => setOpen(true);
+    window.addEventListener(OPEN_REASONING_LEVEL_SELECTOR_EVENT, onOpenRequest);
+    return () => {
+      window.removeEventListener(
+        OPEN_REASONING_LEVEL_SELECTOR_EVENT,
+        onOpenRequest,
+      );
+    };
+  }, []);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         render={
           <Button
@@ -40,6 +58,7 @@ export function ReasoningLevelSelector({
             variant="ghost"
             size="sm"
             className={triggerButtonClassName}
+            title={`Open reasoning level (${formatForDisplay(reasoningLevelHotkey)})`}
           />
         }
       >

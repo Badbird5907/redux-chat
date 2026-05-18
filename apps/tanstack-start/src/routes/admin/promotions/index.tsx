@@ -118,7 +118,12 @@ function AdminPromotionsPage() {
                     <Badge variant="secondary">{promotion.kind}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{promotion.status}</Badge>
+                    <Badge
+                      variant="secondary"
+                      color={promotion.status === "active" ? "green" : "red"}
+                    >
+                      {promotion.status}
+                    </Badge>
                   </TableCell>
                   <TableCell className="tabular-nums">
                     {promotion.redeemedCount.toLocaleString()}

@@ -8,6 +8,7 @@ import { SettingsSidebarPanel } from "@/components/settings/sidebar-panel";
 import {
   ModelSwitcherHotkeyRegistration,
   NewChatHotkeyRegistration,
+  ReasoningLevelSelectorHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
 import { getSidebarConfig } from "@/server/cookie";
@@ -37,6 +38,7 @@ function SettingsLayout() {
       <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
       <NewChatHotkeyRegistration />
       <ModelSwitcherHotkeyRegistration />
+      <ReasoningLevelSelectorHotkeyRegistration />
       <SidebarToggleHotkeyRegistration />
       <SettingsSidebarPanel />
       <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">

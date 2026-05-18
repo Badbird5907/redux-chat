@@ -9,7 +9,6 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
-  PlugZap,
   Plus,
   Search,
   Square,
@@ -37,6 +36,7 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import { ModelSelector } from "@/components/chat/model-selector";
+import McpLogo from "@/components/logos/mcp";
 import { useResolvedHotkey } from "@/lib/hotkeys";
 import { ReasoningLevelSelector } from "./reasoning-level-selector";
 
@@ -246,7 +246,7 @@ export function ChatInputToolbar({
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={!settingsReady}>
-                <PlugZap className="size-4 shrink-0" />
+                <McpLogo className="size-4 shrink-0" />
                 <span className="min-w-0 grow whitespace-nowrap">
                   MCP Servers
                 </span>
@@ -279,7 +279,7 @@ export function ChatInputToolbar({
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={onOpenMcpSettings}>
-                    <PlugZap className="size-4 shrink-0" />
+                    <McpLogo className="size-4 shrink-0" />
                     <span className="min-w-0 grow whitespace-nowrap">
                       Manage MCP Servers
                     </span>

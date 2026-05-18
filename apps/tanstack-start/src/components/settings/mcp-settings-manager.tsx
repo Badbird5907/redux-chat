@@ -2,16 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "convex/react";
-import {
-  KeyRound,
-  Loader2,
-  Pencil,
-  PlugZap,
-  Plus,
-  Save,
-  Trash2,
-  X,
-} from "lucide-react";
+import { KeyRound, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -20,6 +11,7 @@ import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
 import { Switch } from "@redux/ui/components/switch";
 
+import McpLogo from "@/components/logos/mcp";
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
 
@@ -236,7 +228,7 @@ export function McpSettingsManager() {
       {!mcpEnabled ? (
         <Card>
           <CardContent className="text-muted-foreground flex items-center gap-3 py-6 text-sm">
-            <PlugZap className="size-4" />
+            <McpLogo className="size-4" />
             MCP servers are disabled. Turn them on to add or manage servers.
           </CardContent>
         </Card>
@@ -288,7 +280,7 @@ export function McpSettingsManager() {
             {servers.length === 0 ? (
               <Card>
                 <CardContent className="text-muted-foreground flex items-center gap-3 py-6 text-sm">
-                  <PlugZap className="size-4" />
+                  <McpLogo className="size-4" />
                   No MCP servers configured yet.
                 </CardContent>
               </Card>

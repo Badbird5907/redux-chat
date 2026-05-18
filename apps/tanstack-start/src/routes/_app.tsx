@@ -16,6 +16,7 @@ import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
 import {
   ModelSwitcherHotkeyRegistration,
   NewChatHotkeyRegistration,
+  ReasoningLevelSelectorHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
 import { getSidebarConfig } from "@/server/cookie";
@@ -87,6 +88,7 @@ function AppLayout() {
       <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
         <NewChatHotkeyRegistration />
         <ModelSwitcherHotkeyRegistration />
+        <ReasoningLevelSelectorHotkeyRegistration />
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
         <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">

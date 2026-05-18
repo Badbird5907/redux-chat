@@ -4,7 +4,6 @@ import {
   BookText,
   Keyboard,
   Palette,
-  PlugZap,
   Shield,
   SlidersHorizontal,
 } from "lucide-react";
@@ -15,6 +14,7 @@ import {
   SidebarMenuItem,
 } from "@redux/ui/components/sidebar";
 
+import McpLogo from "@/components/logos/mcp";
 import AppSidebar from "@/components/sidebar";
 
 export function SettingsSidebarPanel() {
@@ -88,7 +88,7 @@ export function SettingsSidebarPanel() {
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
               render={<Link to="/settings/mcp" />}
             >
-              <PlugZap />
+              <McpLogo />
               <span>MCP Servers</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
