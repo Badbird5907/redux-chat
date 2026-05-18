@@ -117,7 +117,7 @@ async function resolvePublicMcpAddresses(hostname: string) {
   return addresses;
 }
 
-async function assertPublicMcpServerUrl(url: string) {
+function assertAllowedMcpServerUrl(url: string) {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
     throw new Error("MCP server URL is not allowed.");
@@ -137,10 +137,6 @@ async function assertPublicMcpServerUrl(url: string) {
     (hostnameIpFamily !== 0 && isBlockedIpAddress(hostname))
   ) {
     throw new Error("MCP server URL must resolve to a public address.");
-  }
-
-  if (hostnameIpFamily === 0) {
-    await resolvePublicMcpAddresses(hostname);
   }
 }
 
@@ -272,7 +268,7 @@ export async function createToolRuntime(
 
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
-      await assertPublicMcpServerUrl(server.url);
+      assertAllowedMcpServerUrl(server.url);
       const mcpFetch = await createMcpFetch(server.url);
       const client = await createMCPClient({
         name: `redux-chat-${server.mcpServerId}`,
