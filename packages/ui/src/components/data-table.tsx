@@ -180,7 +180,7 @@ function DataTablePagination({
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   unknownTotal = false,
 }: DataTablePaginationProps) {
-  if (totalCount <= 0) {
+  if (!unknownTotal && totalCount <= 0) {
     return null;
   }
 

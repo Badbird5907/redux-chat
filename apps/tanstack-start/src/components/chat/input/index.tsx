@@ -374,27 +374,34 @@ export function ChatInput({
 
   const handleModelChange = useCallback(
     async (modelId: string) => {
-      const nextSettings = await onModelChange(modelId);
-      const nextModelConfig = getChatModelConfig(modelId);
-      const nextThinkingLevels = nextModelConfig?.thinkingLevels ?? [];
+      try {
+        const nextSettings = await onModelChange(modelId);
+        const nextModelConfig = getChatModelConfig(modelId);
+        const nextThinkingLevels = nextModelConfig?.thinkingLevels ?? [];
 
-      if (
-        !nextModelConfig?.supports.reasoning ||
-        nextThinkingLevels.length === 0
-      ) {
-        return;
+        if (
+          !nextModelConfig?.supports.reasoning ||
+          nextThinkingLevels.length === 0
+        ) {
+          return;
+        }
+
+        if (
+          nextSettings.thinkingLevel &&
+          nextThinkingLevels.includes(nextSettings.thinkingLevel)
+        ) {
+          return;
+        }
+
+        void onSettingsChange({
+          thinkingLevel: nextModelConfig.defaultThinkingLevel ?? "low",
+        });
+      } catch (error) {
+        console.error("Failed to change model:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to change model",
+        );
       }
-
-      if (
-        nextSettings.thinkingLevel &&
-        nextThinkingLevels.includes(nextSettings.thinkingLevel)
-      ) {
-        return;
-      }
-
-      void onSettingsChange({
-        thinkingLevel: nextModelConfig.defaultThinkingLevel ?? "low",
-      });
     },
     [onModelChange, onSettingsChange],
   );

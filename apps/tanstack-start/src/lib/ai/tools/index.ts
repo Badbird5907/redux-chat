@@ -154,6 +154,15 @@ function createMcpFetch(url: string): typeof fetch {
       throw new Error("MCP request hostname changed unexpectedly.");
     }
 
+    if (requestUrl.protocol !== "https:") {
+      throw new Error("MCP request must use HTTPS protocol.");
+    }
+
+    const port = requestUrl.port;
+    if (port && port !== "443") {
+      throw new Error("MCP request must use port 443 or default HTTPS port.");
+    }
+
     const addresses =
       isIP(hostname) === 0
         ? await resolvePublicMcpAddresses(hostname)
@@ -165,6 +174,38 @@ function createMcpFetch(url: string): typeof fetch {
 
     return await new Promise<Response>((resolve, reject) => {
       const headers = new Headers(init?.headers);
+      let cleanedUp = false;
+
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        if (init?.signal) {
+          init.signal.removeEventListener("abort", abortHandler);
+        }
+      };
+
+      const abortHandler = () => {
+        cleanup();
+        request.destroy(new Error("Request aborted"));
+        reject(new Error("Request aborted"));
+      };
+
+      const timeoutId = setTimeout(() => {
+        cleanup();
+        request.destroy(new Error("Request timeout"));
+        reject(new Error("MCP request timeout"));
+      }, 30000);
+
+      if (init?.signal) {
+        if (init.signal.aborted) {
+          cleanup();
+          reject(new Error("Request aborted"));
+          return;
+        }
+        init.signal.addEventListener("abort", abortHandler);
+      }
+
       const request = httpsRequest(
         {
           hostname,
@@ -184,6 +225,7 @@ function createMcpFetch(url: string): typeof fetch {
           },
         },
         (response) => {
+          cleanup();
           resolve(
             new Response(Readable.toWeb(response) as ReadableStream, {
               status: response.statusCode,
@@ -194,7 +236,20 @@ function createMcpFetch(url: string): typeof fetch {
         },
       );
 
-      request.on("error", reject);
+      request.on("error", (error) => {
+        cleanup();
+        reject(error);
+      });
+
+      request.on("socket", (socket) => {
+        socket.setTimeout(30000);
+        socket.on("timeout", () => {
+          cleanup();
+          request.destroy(new Error("Socket timeout"));
+          reject(new Error("MCP socket timeout"));
+        });
+      });
+
       request.end(init?.body as Parameters<typeof request.end>[0]);
     });
   };

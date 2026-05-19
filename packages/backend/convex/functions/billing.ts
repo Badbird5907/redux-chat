@@ -152,8 +152,16 @@ export const getConfiguredStripePriceDetails = action({
     const prices = getStripePlanPrices();
     const stripe = getStripeSdkClient();
     const [plus, pro] = await Promise.all([
-      stripe.prices.retrieve(prices.plus),
-      stripe.prices.retrieve(prices.pro),
+      withTimeout(
+        stripe.prices.retrieve(prices.plus),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.prices.retrieve(plus)",
+      ),
+      withTimeout(
+        stripe.prices.retrieve(prices.pro),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.prices.retrieve(pro)",
+      ),
     ]);
 
     return {
@@ -181,7 +189,11 @@ export const getCurrentUserStripeCustomerBalance = action({
   }> => {
     const customerId = await ensureStripeCustomerForCurrentUser(ctx);
     const stripe = getStripeSdkClient();
-    const customer = await stripe.customers.retrieve(customerId);
+    const customer = await withTimeout(
+      stripe.customers.retrieve(customerId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.customers.retrieve",
+    );
     if ("deleted" in customer && customer.deleted) {
       return { balanceCount: 0, balances: [] };
     }
@@ -1101,11 +1113,15 @@ export async function ensureStripeCustomerForCurrentUser(
   }
 
   const stripe = getStripeSdkClient();
-  const replacement = await stripe.customers.create({
-    email: user.email,
-    name: user.name,
-    metadata: { userId: user.userId },
-  });
+  const replacement = await withTimeout(
+    stripe.customers.create({
+      email: user.email,
+      name: user.name,
+      metadata: { userId: user.userId },
+    }),
+    STRIPE_NETWORK_TIMEOUT_MS,
+    "stripe.customers.create",
+  );
   await ctx.runMutation(components.stripe.public.createOrUpdateCustomer, {
     stripeCustomerId: replacement.id,
     email: user.email,
@@ -1170,7 +1186,11 @@ async function stripeCustomerExists(
 ): Promise<boolean> {
   try {
     const stripe = getStripeSdkClient();
-    const customer = await stripe.customers.retrieve(stripeCustomerId);
+    const customer = await withTimeout(
+      stripe.customers.retrieve(stripeCustomerId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.customers.retrieve",
+    );
     return !("deleted" in customer && customer.deleted === true);
   } catch (error) {
     const text = getErrorText(error).toLowerCase();

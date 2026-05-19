@@ -279,6 +279,7 @@ export function PromotionFormDialog({
   );
 
   const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [code, setCode] = useState(promotion?.code ?? generatePromotionCode());
   const [name, setName] = useState(promotion?.name ?? "");
   const [description, setDescription] = useState(promotion?.description ?? "");
@@ -390,6 +391,10 @@ export function PromotionFormDialog({
   };
 
   const submit = async () => {
+    if (submitting) {
+      return;
+    }
+
     if (name.trim() === "") {
       toast.error("Promotion name is required.");
       return;
@@ -543,6 +548,7 @@ export function PromotionFormDialog({
     }
 
     try {
+      setSubmitting(true);
       if (mode === "create") {
         await createPromotion({
           code,
@@ -580,6 +586,8 @@ export function PromotionFormDialog({
       toast.error(
         error instanceof Error ? error.message : `Failed to ${mode} promotion.`,
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1089,10 +1097,17 @@ export function PromotionFormDialog({
         </div>
 
         <DialogFooter className="border-border/60 bg-background/95 supports-backdrop-filter:bg-background/80 shrink-0 border-t px-6 py-4 backdrop-blur-sm">
-          <DialogClose render={<Button type="button" variant="outline" />}>
+          <DialogClose
+            render={<Button type="button" variant="outline" />}
+            disabled={submitting}
+          >
             Cancel
           </DialogClose>
-          <Button type="button" onClick={() => void submit()}>
+          <Button
+            type="button"
+            onClick={() => void submit()}
+            disabled={submitting}
+          >
             {mode === "create" ? "Create promotion" : "Save changes"}
           </Button>
         </DialogFooter>

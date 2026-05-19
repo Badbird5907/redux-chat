@@ -763,9 +763,16 @@ export async function ensureFreeMonthlyCreditsAfterPaidCancellationTx(
         ? remainingAtRevocation
         : revoked.amount;
 
+    const currentIncludedMonthlyCredits = plan.includedMonthlyCredits;
+    const restoredAmount = Math.min(
+      currentIncludedMonthlyCredits,
+      restoredRemaining,
+    );
+
     await ctx.db.patch(revoked._id, {
       status: "active",
-      remaining: Math.min(revoked.amount, restoredRemaining),
+      amount: currentIncludedMonthlyCredits,
+      remaining: restoredAmount,
       bucket: "monthly",
       periodKey,
       expiresAt,
@@ -781,7 +788,7 @@ export async function ensureFreeMonthlyCreditsAfterPaidCancellationTx(
       grantId: revoked.grantId,
       created: false,
       reactivated: true,
-      amount: revoked.amount,
+      amount: currentIncludedMonthlyCredits,
       bucket: "monthly",
     };
   }

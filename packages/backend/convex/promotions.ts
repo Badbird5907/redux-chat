@@ -181,10 +181,19 @@ function assertEligiblePlanTiers(
 
 function addUtcMonths(timestamp: number, months: number): number {
   const date = new Date(timestamp);
+  const originalDay = date.getUTCDate();
+  const targetYear = date.getUTCFullYear();
+  const targetMonthIndex = date.getUTCMonth() + months;
+
+  const daysInTargetMonth = new Date(
+    Date.UTC(targetYear, targetMonthIndex + 1, 0),
+  ).getUTCDate();
+  const clampedDay = Math.min(originalDay, daysInTargetMonth);
+
   return Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth() + months,
-    date.getUTCDate(),
+    targetYear,
+    targetMonthIndex,
+    clampedDay,
     date.getUTCHours(),
     date.getUTCMinutes(),
     date.getUTCSeconds(),

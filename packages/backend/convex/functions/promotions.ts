@@ -539,14 +539,26 @@ export const previewSubscriptionPromotionUpgrade = action({
       targetTier,
     });
 
-    return await previewPromotionSubscriptionUpgradeInvoice(stripe, {
-      customerId,
-      subscriptionId: liveSub.id,
-      subscriptionItemId: subscriptionItem.id,
-      targetPriceId: priceId,
-      couponId: coupon.id,
-      prorationDate: Math.floor(Date.now() / 1000),
-    });
+    try {
+      return await previewPromotionSubscriptionUpgradeInvoice(stripe, {
+        customerId,
+        subscriptionId: liveSub.id,
+        subscriptionItemId: subscriptionItem.id,
+        targetPriceId: priceId,
+        couponId: coupon.id,
+        prorationDate: Math.floor(Date.now() / 1000),
+      });
+    } finally {
+      try {
+        await withTimeout(
+          stripe.coupons.del(coupon.id),
+          STRIPE_NETWORK_TIMEOUT_MS,
+          "stripe.coupons.del",
+        );
+      } catch (error) {
+        console.error("Failed to delete preview coupon:", error);
+      }
+    }
   },
 });
 
