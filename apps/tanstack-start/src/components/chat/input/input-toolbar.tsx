@@ -140,7 +140,7 @@ export function ChatInputToolbar({
   const uploadFileHotkey = useResolvedHotkey("chat.uploadFile");
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
-    <div className="flex items-center justify-between px-2 pb-2">
+    <div className="flex shrink-0 items-center justify-between px-2 pb-2">
       <div className="flex items-center gap-1">
         <input
           ref={fileInputRef}

@@ -19,14 +19,13 @@ import {
   resolveModelRoute,
 } from "@redux/shared/models";
 import { isToolEnabled } from "@redux/types";
-import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { ChatInputProps, PreviewableFile } from "./types";
 import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
 import { useSignedCid } from "@/components/chat/client-id";
-import { FOCUS_COMPOSER_EVENT } from "@/components/chat/focus-composer";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import { FOCUS_COMPOSER_EVENT } from "@/components/chat/focus-composer";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
 import {
   snapshotAttachmentsForQueue,
@@ -67,6 +66,7 @@ export function ChatInput({
   onCancelEdit,
   onSubmitEdit,
   onStopGeneration,
+  onComposerHeightChange,
 }: ChatInputProps) {
   const {
     text: input,
@@ -93,8 +93,8 @@ export function ChatInput({
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
-  const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
   const {
     instructions,
     instructionsById,
@@ -870,15 +870,31 @@ export function ChatInput({
     setIsExpanded(!isExpanded);
   }, [isExpanded]);
 
-  const fixedInputDesktopLeft = useMemo(() => {
-    if (sidebarState === "expanded") {
-      return "md:left-(--sidebar-width)";
+  useEffect(() => {
+    if (!onComposerHeightChange || isExpanded) {
+      return;
     }
-    if (sidebarCollapsible === "icon") {
-      return "md:left-(--sidebar-width-icon)";
+
+    const composer = composerRef.current;
+    if (!composer) {
+      return;
     }
-    return "md:left-0";
-  }, [sidebarCollapsible, sidebarState]);
+
+    const updateComposerHeight = () => {
+      onComposerHeightChange(
+        Math.ceil(composer.getBoundingClientRect().height),
+      );
+    };
+
+    updateComposerHeight();
+
+    const resizeObserver = new ResizeObserver(updateComposerHeight);
+    resizeObserver.observe(composer);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isExpanded, onComposerHeightChange]);
 
   return (
     <>
@@ -890,12 +906,14 @@ export function ChatInput({
         />
       )}
       <div
+        ref={composerRef}
         className={cn(
-          "fixed flex justify-center transition-all duration-300",
+          "flex justify-center transition-all duration-300",
           isExpanded
-            ? "inset-4 z-50"
-            : cn("right-0 bottom-6 left-0 px-4", fixedInputDesktopLeft),
+            ? "fixed inset-4 z-50"
+            : "absolute right-0 bottom-0 left-0 px-4 pb-2",
         )}
+        style={isExpanded ? undefined : { backgroundColor: "color-mix(in oklab, var(--card) 80%, var(--background))" }} // TODO: fix this in the CSS
       >
         <div
           className={cn(

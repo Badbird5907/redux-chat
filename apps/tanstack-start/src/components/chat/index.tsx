@@ -1,6 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { useStickToBottomContext } from "use-stick-to-bottom";
 
 import { cn } from "@redux/ui/lib/utils";
 
@@ -15,6 +23,35 @@ import { ChatMessageList } from "./chat-message-list";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
 import { ChatInput } from "./input";
 import { useChatSession } from "./use-chat-session";
+
+function ComposerHeightScrollAnchor({
+  composerHeight,
+}: {
+  composerHeight: number;
+}) {
+  const { isAtBottom, scrollRef, scrollToBottom } = useStickToBottomContext();
+  const wasAtBottomRef = useRef(isAtBottom);
+
+  useEffect(() => {
+    wasAtBottomRef.current = isAtBottom;
+  }, [isAtBottom]);
+
+  useLayoutEffect(() => {
+    if (!wasAtBottomRef.current) {
+      return;
+    }
+
+    const scrollElement = scrollRef.current;
+
+    if (scrollElement) {
+      scrollElement.scrollTop = scrollElement.scrollHeight;
+    }
+
+    void scrollToBottom();
+  }, [composerHeight, scrollRef, scrollToBottom]);
+
+  return null;
+}
 
 export function Chat({
   initialThreadId,
@@ -60,17 +97,36 @@ export function Chat({
     setModel,
     updateSettings,
   } = useChatSession({ initialThreadId, chatProjectId, preload });
+  const [composerHeight, setComposerHeight] = useState(0);
+  const composerHeightRef = useRef(composerHeight);
+
+  useEffect(() => {
+    composerHeightRef.current = composerHeight;
+  }, [composerHeight]);
+
+  const chatStyle = {
+    "--chat-composer-height": `${composerHeight}px`,
+  } as CSSProperties;
+  const handleComposerHeightChange = useCallback((height: number) => {
+    if (composerHeightRef.current !== height) {
+      setComposerHeight(height);
+    }
+  }, []);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div
+      className="relative flex h-full flex-col overflow-hidden"
+      style={chatStyle}
+    >
       <Conversation className="relative size-full">
+        <ComposerHeightScrollAnchor composerHeight={composerHeight} />
         <InitialThreadScrollInitializer
           enabled={shouldInitializeInitialThreadScroll}
           onReady={handleInitialThreadScrollReady}
         />
         <ConversationContent
           className={cn(
-            "pt-0 pb-36 transition-opacity duration-200 ease-out",
+            "pt-0 pb-0 transition-opacity duration-200 ease-out",
             shouldInitializeInitialThreadScroll
               ? "pointer-events-none opacity-0"
               : "opacity-100",
@@ -98,8 +154,15 @@ export function Chat({
             settings={settings}
             status={status}
           />
+          <div
+            aria-hidden="true"
+            className="h-[calc(var(--chat-composer-height)+2rem)] shrink-0"
+          />
         </ConversationContent>
-        <ConversationScrollButton />
+        <div className="pointer-events-none absolute inset-x-4 bottom-[var(--chat-composer-height)] flex justify-center">
+          <div className="from-card/0 via-card/20 to-card h-8 w-full max-w-3xl bg-gradient-to-b" />
+        </div>
+        <ConversationScrollButton className="bottom-[calc(var(--chat-composer-height)+1rem)]" />
       </Conversation>
 
       <ChatInput
@@ -120,6 +183,7 @@ export function Chat({
         editMessage={editMessage}
         onCancelEdit={cancelEditMessage}
         onSubmitEdit={submitEditedMessage}
+        onComposerHeightChange={handleComposerHeightChange}
       />
 
       <FilePreviewDialog

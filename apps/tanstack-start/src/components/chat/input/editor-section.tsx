@@ -37,7 +37,7 @@ export function ChatInputEditorSection({
   return (
     <div
       className={cn(
-        "px-4 pt-3 pb-2",
+        "shrink-0 px-4 pt-3 pb-2",
         isExpanded && "flex flex-1 flex-col overflow-hidden",
       )}
     >
@@ -59,7 +59,7 @@ export function ChatInputEditorSection({
           placeholder="Message..."
           rows={1}
           className={cn(
-            "text-foreground placeholder:text-muted-foreground w-full resize-none bg-transparent text-base leading-6 focus:outline-none",
+            "text-foreground placeholder:text-muted-foreground block min-h-6 w-full resize-none border-0 bg-transparent p-0 text-base leading-6 focus:outline-none",
             isExpanded && "flex-1",
           )}
           style={isExpanded ? undefined : { maxHeight: `${24 * 10}px` }}
