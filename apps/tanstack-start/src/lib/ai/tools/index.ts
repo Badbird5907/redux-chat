@@ -181,7 +181,6 @@ function createMcpFetch(url: string): typeof fetch {
         cleanedUp = true;
         clearTimeout(timeoutId);
         if (init?.signal) {
-   
           init.signal.removeEventListener("abort", abortHandler);
         }
       };
