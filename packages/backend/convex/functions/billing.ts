@@ -50,6 +50,7 @@ type BillingActionCtx = GenericActionCtx<DataModel> & {
 type BillingSubscriptionState = {
   tier: PlanTier;
   subscription: ReturnType<typeof toSubscriptionSnapshot>;
+  fromFallback?: boolean;
 };
 
 type BillingRefreshResult = {
@@ -274,6 +275,9 @@ export const createCurrentUserSubscriptionCheckout = action({
       ctx,
       ctx.userId,
     );
+    if (subscriptionState.fromFallback) {
+      throw new Error("Unable to verify current subscription; please try again");
+    }
     if (subscriptionState.tier !== "free") {
       throw new Error(
         "You already have a paid subscription. Use plan switching or Manage billing instead.",
@@ -346,6 +350,9 @@ export const createCurrentUserCreditTopUpCheckout = action({
       ctx,
       ctx.userId,
     );
+    if (subscriptionState.fromFallback) {
+      throw new Error("Unable to verify current subscription; please try again");
+    }
     if (subscriptionState.tier === "free") {
       throw new Error("Credit top-ups are available on paid plans.");
     }
@@ -619,7 +626,9 @@ export const switchCurrentUserPaidPlan = action({
     }
 
     if (toRank > fromRank) {
-      const prorationDate = Math.floor(Date.now() / 1000);
+      const prorationDate = args.prorationDate
+        ? Math.floor(args.prorationDate / 1000)
+        : Math.floor(Date.now() / 1000);
       const updatedSubscription = await withTimeout(
         stripe.subscriptions.update(liveSub.id, {
           cancel_at_period_end: false,
@@ -1058,6 +1067,7 @@ async function resolveCurrentSubscriptionStateWithFallback(
     return {
       tier: "free",
       subscription: null,
+      fromFallback: true,
     };
   }
 }
