@@ -78,7 +78,7 @@ const requestBody = z.object({
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
 type AiSdkReasoning = "none" | "low" | "medium" | "high";
 type EnabledAiSdkReasoning = Exclude<AiSdkReasoning, "none">;
-const MIN_GENERATION_CREDIT_FLOOR = 0;
+const MIN_GENERATION_CREDIT_FLOOR = 10;
 type StreamTextProviderOptions = NonNullable<
   Parameters<typeof streamText>[0]["providerOptions"]
 >;
