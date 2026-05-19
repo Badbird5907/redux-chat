@@ -644,8 +644,21 @@ export function useChatSession({
         });
       }
     });
+    messages.forEach((message) => {
+      if (
+        message.role !== "assistant" ||
+        message.metadata?.stats === undefined
+      ) {
+        return;
+      }
+
+      map.set(message.id, {
+        ...map.get(message.id),
+        ...message.metadata.stats,
+      });
+    });
     return map;
-  }, [convexMessages]);
+  }, [convexMessages, messages]);
 
   const [previewFile, setPreviewFile] = useState<{
     generatingDerivative?: boolean;
@@ -666,7 +679,7 @@ export function useChatSession({
       optimisticMessage &&
       !nextMessages.some((message) => message.id === optimisticMessage.id)
     ) {
-      nextMessages.push(optimisticMessage);
+      nextMessages.push(optimisticMessage as ChatMessageWithThreadMetadata);
     }
 
     if (

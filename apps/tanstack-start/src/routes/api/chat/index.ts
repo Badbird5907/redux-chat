@@ -1,7 +1,12 @@
 import type { RetrievedChunk } from "@/server/rag/vector-store";
 import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
 import type { OpenAILanguageModelResponsesOptions } from "@ai-sdk/openai";
-import type { UIDataTypes, UIMessagePart, UITools } from "ai";
+import type {
+  LanguageModelUsage,
+  UIDataTypes,
+  UIMessagePart,
+  UITools,
+} from "ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
 import {
@@ -402,6 +407,17 @@ function getErrorMessage(error: unknown) {
   }
 }
 
+function toMessageUsage(usage: LanguageModelUsage) {
+  const promptTokens = usage.inputTokens ?? 0;
+  const responseTokens = usage.outputTokens ?? 0;
+
+  return {
+    promptTokens,
+    responseTokens,
+    totalTokens: usage.totalTokens ?? promptTokens + responseTokens,
+  };
+}
+
 export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
@@ -710,6 +726,29 @@ export const Route = createFileRoute("/api/chat/")({
           let firstTokenTime: number | null = null;
           let reasoningStartTime: number | null = null;
           let reasoningEndTime: number | null = null;
+          const createGenerationStats = (outputTokens: number | undefined) => {
+            const totalDurationMs = Date.now() - streamStartTime;
+            const timeToFirstTokenMs = firstTokenTime
+              ? firstTokenTime - streamStartTime
+              : totalDurationMs;
+            const reasoningDurationMs =
+              reasoningStartTime && reasoningEndTime
+                ? Math.max(0, reasoningEndTime - reasoningStartTime)
+                : undefined;
+            const tokensPerSecond =
+              totalDurationMs > 0
+                ? ((outputTokens ?? 0) / totalDurationMs) * 1000
+                : 0;
+
+            return {
+              ...(reasoningDurationMs !== undefined
+                ? { reasoningDurationMs }
+                : {}),
+              timeToFirstTokenMs,
+              totalDurationMs,
+              tokensPerSecond,
+            };
+          };
 
           const result = streamText({
             model: resolvedModel.model,
@@ -728,42 +767,12 @@ export const Route = createFileRoute("/api/chat/")({
             onError: async ({ error }) => {
               await reportStreamFailure(error);
             },
-            onFinish: async ({ usage }) => {
+            onFinish: async ({ totalUsage }) => {
               try {
-                const usageData =
-                  usage.inputTokens !== undefined &&
-                  usage.outputTokens !== undefined &&
-                  usage.totalTokens !== undefined
-                    ? {
-                        promptTokens: usage.inputTokens,
-                        responseTokens: usage.outputTokens,
-                        totalTokens: usage.totalTokens,
-                      }
-                    : undefined;
-
-                // Calculate generation stats
-                const totalDurationMs = Date.now() - streamStartTime;
-                const timeToFirstTokenMs = firstTokenTime
-                  ? firstTokenTime - streamStartTime
-                  : totalDurationMs;
-                const reasoningDurationMs =
-                  reasoningStartTime && reasoningEndTime
-                    ? Math.max(0, reasoningEndTime - reasoningStartTime)
-                    : undefined;
-                const outputTokens = usage.outputTokens ?? 0;
-                const tokensPerSecond =
-                  totalDurationMs > 0
-                    ? (outputTokens / totalDurationMs) * 1000
-                    : 0;
-
-                const generationStats = {
-                  ...(reasoningDurationMs !== undefined
-                    ? { reasoningDurationMs }
-                    : {}),
-                  timeToFirstTokenMs,
-                  totalDurationMs,
-                  tokensPerSecond,
-                };
+                const usageData = toMessageUsage(totalUsage);
+                const generationStats = createGenerationStats(
+                  totalUsage.outputTokens,
+                );
 
                 // Save the completed response to Convex
                 await fetchAuthMutation(
@@ -773,11 +782,7 @@ export const Route = createFileRoute("/api/chat/")({
                     userId: requestUserId,
                     threadId,
                     messageId: assistantMessageId,
-                    usage: usageData ?? {
-                      promptTokens: 0,
-                      responseTokens: 0,
-                      totalTokens: 0,
-                    },
+                    usage: usageData,
                     generationStats,
                   },
                 );
@@ -792,11 +797,16 @@ export const Route = createFileRoute("/api/chat/")({
                       threadId,
                       routeId: resolvedModel.route.id,
                       usage: {
-                        inputTokens: usage.inputTokens,
-                        outputTokens: usage.outputTokens,
-                        reasoningTokens: usage.reasoningTokens,
-                        cacheReadTokens: usage.cachedInputTokens,
-                        cacheWriteTokens: undefined,
+                        inputTokens: totalUsage.inputTokens,
+                        outputTokens: totalUsage.outputTokens,
+                        reasoningTokens:
+                          totalUsage.outputTokenDetails.reasoningTokens ??
+                          totalUsage.reasoningTokens,
+                        cacheReadTokens:
+                          totalUsage.inputTokenDetails.cacheReadTokens ??
+                          totalUsage.cachedInputTokens,
+                        cacheWriteTokens:
+                          totalUsage.inputTokenDetails.cacheWriteTokens,
                         inputAudioTokens: undefined,
                         outputAudioTokens: undefined,
                       },
@@ -844,6 +854,18 @@ export const Route = createFileRoute("/api/chat/")({
             messageMetadata: ({ part }) => {
               if (part.type === "start") {
                 return { createdAt: Date.now() };
+              }
+              if (part.type === "finish") {
+                return {
+                  stats: {
+                    usage: toMessageUsage(part.totalUsage),
+                    generationStats: createGenerationStats(
+                      part.totalUsage.outputTokens,
+                    ),
+                    model: settings.model,
+                    thinkingLevel: settings.thinkingLevel,
+                  },
+                };
               }
             },
             onFinish: async ({ messages: finishedMessages }) => {

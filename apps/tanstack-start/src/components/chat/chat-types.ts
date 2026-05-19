@@ -20,6 +20,11 @@ export interface MessageStats {
   content?: string;
 }
 
+export type ChatMessageMetadata = {
+  attachments?: MessageAttachmentSummary[];
+  stats?: MessageStats;
+};
+
 export interface ResolvedAttachment {
   attachmentId: string;
   fileName: string;
@@ -51,7 +56,7 @@ export interface MessageAttachmentSummary {
 export type PersistedChatMessage =
   (typeof api.functions.threads.getThreadMessages)["_returnType"][number];
 
-export type ChatMessageWithThreadMetadata = UIMessage & {
+export type ChatMessageWithThreadMetadata = UIMessage<ChatMessageMetadata> & {
   attachments?: MessageAttachmentSummary[];
   canceledAt?: number;
   createdAt?: number;

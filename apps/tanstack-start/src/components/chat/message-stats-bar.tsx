@@ -82,14 +82,13 @@ export const MessageStatsBar = memo(function MessageStatsBar({
             <ClockIcon className="size-4" />
             TTFT: {(generationStats.timeToFirstTokenMs / 1000).toFixed(2)} sec
           </span>
-
-          {usage && (
-            <span className="flex items-center gap-1">
-              <WholeWord className="size-4" />
-              {usage.responseTokens} tokens
-            </span>
-          )}
         </>
+      )}
+      {usage && (
+        <span className="flex items-center gap-1">
+          <WholeWord className="size-4" />
+          {usage.responseTokens} tokens
+        </span>
       )}
     </div>
   );
