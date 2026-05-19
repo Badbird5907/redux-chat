@@ -179,8 +179,9 @@ function createMcpFetch(url: string): typeof fetch {
       const cleanup = () => {
         if (cleanedUp) return;
         cleanedUp = true;
-        if (timeoutId) clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
         if (init?.signal) {
+   
           init.signal.removeEventListener("abort", abortHandler);
         }
       };
