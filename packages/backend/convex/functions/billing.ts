@@ -276,7 +276,9 @@ export const createCurrentUserSubscriptionCheckout = action({
       ctx.userId,
     );
     if (subscriptionState.fromFallback) {
-      throw new Error("Unable to verify current subscription; please try again");
+      throw new Error(
+        "Unable to verify current subscription; please try again",
+      );
     }
     if (subscriptionState.tier !== "free") {
       throw new Error(
@@ -351,7 +353,9 @@ export const createCurrentUserCreditTopUpCheckout = action({
       ctx.userId,
     );
     if (subscriptionState.fromFallback) {
-      throw new Error("Unable to verify current subscription; please try again");
+      throw new Error(
+        "Unable to verify current subscription; please try again",
+      );
     }
     if (subscriptionState.tier === "free") {
       throw new Error("Credit top-ups are available on paid plans.");

@@ -1,3 +1,4 @@
+import type { ModelSelectorRequestDetail } from "@/components/chat/open-model-selector";
 import type { DragEvent, MouseEvent } from "react";
 import {
   useCallback,
@@ -23,7 +24,6 @@ import type {
   ModelFeatureFilterId,
 } from "./feature-filters";
 import { requestFocusComposer } from "@/components/chat/focus-composer";
-import type { ModelSelectorRequestDetail } from "@/components/chat/open-model-selector";
 import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
 import { useQuery } from "@/lib/hooks/convex";
 import {
@@ -361,8 +361,9 @@ export function useModelSelectorState({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onOpenRequest = (event: Event) => {
-      const detail = (event as CustomEvent<ModelSelectorRequestDetail | undefined>)
-        .detail;
+      const detail = (
+        event as CustomEvent<ModelSelectorRequestDetail | undefined>
+      ).detail;
 
       if (detail?.toggle) {
         handleToggleOpen();

@@ -55,7 +55,7 @@ function CollapsibleUserMessageText({
     : textContent;
 
   return (
-    <div className="wrap-break-word max-w-full min-w-0 whitespace-pre-wrap">
+    <div className="max-w-full min-w-0 wrap-break-word whitespace-pre-wrap">
       {displayContent}
       {shouldOfferCollapse ? (
         <button

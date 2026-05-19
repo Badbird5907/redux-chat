@@ -1,6 +1,7 @@
+import type { ReasoningLevelSelectorRequestDetail } from "@/components/chat/open-reasoning-level-selector";
 import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
+import { ChevronDown } from "lucide-react";
 
 import type { ThinkingLevel } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
@@ -13,7 +14,6 @@ import {
 } from "@redux/ui/components/dropdown-menu";
 
 import { requestFocusComposer } from "@/components/chat/focus-composer";
-import type { ReasoningLevelSelectorRequestDetail } from "@/components/chat/open-reasoning-level-selector";
 import { OPEN_REASONING_LEVEL_SELECTOR_EVENT } from "@/components/chat/open-reasoning-level-selector";
 import { useResolvedHotkey } from "@/lib/hotkeys";
 import {
