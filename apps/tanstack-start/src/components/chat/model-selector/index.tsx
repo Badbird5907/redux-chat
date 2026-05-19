@@ -74,7 +74,7 @@ export function ModelSelector({
 
   if (isMobile) {
     return (
-      <Sheet open={state.open} onOpenChange={state.handleOpenChange}>
+      <Sheet open={state.open} onOpenChange={state.handleUserOpenChange}>
         <SheetTrigger
           render={
             <Button
@@ -110,7 +110,7 @@ export function ModelSelector({
   }
 
   return (
-    <Popover open={state.open} onOpenChange={state.handleOpenChange}>
+    <Popover open={state.open} onOpenChange={state.handleUserOpenChange}>
       <PopoverTrigger
         render={
           <Button

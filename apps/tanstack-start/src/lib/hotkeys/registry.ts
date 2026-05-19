@@ -50,6 +50,13 @@ export const appHotkeyRegistry = defineAppHotkeys({
     category: "Chat",
     defaultHotkey: "Mod+/",
   },
+  "reasoning.level.open": {
+    label: "Open reasoning level chooser",
+    description:
+      "Open the reasoning level menu when the current model supports it.",
+    category: "Chat",
+    defaultHotkey: "Mod+.",
+  },
   "chat.uploadFile": {
     label: "Upload file",
     description: "Open the file picker to attach files to the active chat.",

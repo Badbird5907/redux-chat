@@ -212,7 +212,7 @@ export function AddCreditsDialog({
             <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Due today</span>
               <span className="font-mono font-semibold tabular-nums">
-                {formatUsd(amountCents ?? 0)} + tax
+                {formatUsd(amountCents ?? 0)}
               </span>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import type { ThinkingLevel } from "@redux/shared/models";
 import { DEFAULT_CHAT_MODEL_ID, normalizeModelId } from "@redux/shared/models";
 
 export const MESSAGE_TOOL_NAMES = [
@@ -44,6 +45,7 @@ export const DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES = 100;
 export interface MessageSettings {
   model: string;
   tools: MessageToolSettings;
+  thinkingLevel?: ThinkingLevel;
   instructionId?: string;
   /** Max newline-separated lines before showing "Show more". `0` disables collapsing. */
   userMessagePreviewMaxLines?: number;
@@ -93,6 +95,7 @@ export function normalizeMessageSettings(
     ...DEFAULT_MESSAGE_SETTINGS,
     ...rest,
     model: normalizedModel,
+    thinkingLevel: normalizeThinkingLevel(rest.thinkingLevel),
     tools: normalizeTools(toolsInputForNormalization(input)),
     userMessagePreviewMaxLines: normalizeUserMessagePreviewMaxLines(
       rest.userMessagePreviewMaxLines,
@@ -121,6 +124,19 @@ export function mergeMessageSettings(
           })
         : normalizedBase.tools,
   });
+}
+
+function normalizeThinkingLevel(value: unknown): ThinkingLevel | undefined {
+  if (
+    value === "instant" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high"
+  ) {
+    return value;
+  }
+
+  return undefined;
 }
 
 function normalizeUserMessagePreviewMaxLines(value: unknown): number {

@@ -10,6 +10,7 @@ import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
+import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   classifyChatAttachment,
@@ -25,6 +26,7 @@ import type { ChatInputProps, PreviewableFile } from "./types";
 import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import { FOCUS_COMPOSER_EVENT } from "@/components/chat/focus-composer";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
 import {
   snapshotAttachmentsForQueue,
@@ -167,6 +169,21 @@ export function ChatInput({
   }, [editMessage]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onFocusComposer = () => {
+      window.requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
+    };
+
+    window.addEventListener(FOCUS_COMPOSER_EVENT, onFocusComposer);
+    return () => {
+      window.removeEventListener(FOCUS_COMPOSER_EVENT, onFocusComposer);
+    };
+  }, []);
+
+  useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       if (isExpanded) {
@@ -227,6 +244,15 @@ export function ChatInput({
       : undefined) ?? defaultInstruction;
   const currentModelConfig = getChatModelConfig(selectedModel);
   const currentModelRoute = resolveModelRoute(selectedModel);
+  const availableThinkingLevels = currentModelConfig?.thinkingLevels ?? [];
+  const effectiveThinkingLevel: ThinkingLevel =
+    settings.thinkingLevel &&
+    availableThinkingLevels.includes(settings.thinkingLevel)
+      ? settings.thinkingLevel
+      : (currentModelConfig?.defaultThinkingLevel ?? "low");
+  const canConfigureReasoning =
+    !!currentModelConfig?.supports.reasoning &&
+    availableThinkingLevels.length > 0;
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
   const isSubmitting = status === "streaming" || status === "submitted";
   const canUploadFiles =
@@ -337,6 +363,47 @@ export function ChatInput({
       setDropdownOpen(false);
     },
     [onSettingsChange],
+  );
+
+  const handleThinkingLevelChange = useCallback(
+    (thinkingLevel: ThinkingLevel) => {
+      void onSettingsChange({ thinkingLevel });
+    },
+    [onSettingsChange],
+  );
+
+  const handleModelChange = useCallback(
+    async (modelId: string) => {
+      try {
+        const nextSettings = await onModelChange(modelId);
+        const nextModelConfig = getChatModelConfig(modelId);
+        const nextThinkingLevels = nextModelConfig?.thinkingLevels ?? [];
+
+        if (
+          !nextModelConfig?.supports.reasoning ||
+          nextThinkingLevels.length === 0
+        ) {
+          return;
+        }
+
+        if (
+          nextSettings.thinkingLevel &&
+          nextThinkingLevels.includes(nextSettings.thinkingLevel)
+        ) {
+          return;
+        }
+
+        void onSettingsChange({
+          thinkingLevel: nextModelConfig.defaultThinkingLevel ?? "low",
+        });
+      } catch (error) {
+        console.error("Failed to change model:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to change model",
+        );
+      }
+    },
+    [onModelChange, onSettingsChange],
   );
 
   const handleToggleMcpServer = useCallback(
@@ -976,8 +1043,12 @@ export function ChatInput({
               onTokenCountClick={handleTokenCountClick}
               selectedModel={selectedModel}
               onModelChange={(modelId) => {
-                void onModelChange(modelId);
+                void handleModelChange(modelId);
               }}
+              thinkingLevel={effectiveThinkingLevel}
+              thinkingLevels={availableThinkingLevels}
+              canConfigureReasoning={canConfigureReasoning}
+              onThinkingLevelChange={handleThinkingLevelChange}
               input={input}
               hasUsableAttachments={hasUsableAttachments}
               isSubmitting={isSubmitting}

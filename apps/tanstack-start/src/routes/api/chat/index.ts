@@ -1,4 +1,5 @@
 import type { RetrievedChunk } from "@/server/rag/vector-store";
+import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
 import type { OpenAILanguageModelResponsesOptions } from "@ai-sdk/openai";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createFileRoute } from "@tanstack/react-router";
@@ -13,6 +14,7 @@ import {
 import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
 
+import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
 
@@ -51,6 +53,7 @@ const requestBody = z.object({
   ),
   settings: z.object({
     model: z.string(),
+    thinkingLevel: z.enum(["instant", "low", "medium", "high"]).optional(),
     instructionId: z.string().optional(),
     tools: z.object({
       search: z.object({}).optional(),
@@ -73,6 +76,95 @@ const requestBody = z.object({
 });
 
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
+type AiSdkReasoning = "none" | "low" | "medium" | "high";
+type EnabledAiSdkReasoning = Exclude<AiSdkReasoning, "none">;
+const MIN_GENERATION_CREDIT_FLOOR = 10;
+type StreamTextProviderOptions = NonNullable<
+  Parameters<typeof streamText>[0]["providerOptions"]
+>;
+
+interface GoogleReasoningProviderOptions {
+  thinkingConfig: {
+    includeThoughts: true;
+  };
+}
+
+function isEnabledReasoning(
+  reasoning: AiSdkReasoning | undefined,
+): reasoning is EnabledAiSdkReasoning {
+  return reasoning !== undefined && reasoning !== "none";
+}
+
+function resolveProviderOptions(
+  runtimeProviderKey: string,
+  vendorId: string,
+  reasoning: AiSdkReasoning | undefined,
+): StreamTextProviderOptions | undefined {
+  if (!isEnabledReasoning(reasoning)) {
+    return undefined;
+  }
+
+  switch (runtimeProviderKey) {
+    case "openai":
+      return {
+        openai: {
+          reasoningSummary: "auto",
+        } satisfies OpenAILanguageModelResponsesOptions,
+      };
+    case "vertex":
+    case "google":
+      return {
+        [runtimeProviderKey]: {
+          thinkingConfig: {
+            includeThoughts: true,
+          },
+        } satisfies GoogleReasoningProviderOptions,
+      };
+    case "anthropic":
+      return supportsAdaptiveAnthropicThinking(vendorId)
+        ? {
+            anthropic: {
+              thinking: {
+                type: "adaptive",
+                display: "summarized",
+              },
+            } satisfies AnthropicLanguageModelOptions,
+          }
+        : undefined;
+    case "openrouter":
+      return undefined;
+    default:
+      return undefined;
+  }
+}
+
+function supportsAdaptiveAnthropicThinking(vendorId: string): boolean {
+  return (
+    vendorId.includes("claude-sonnet-4-6") ||
+    vendorId.includes("claude-opus-4-6") ||
+    vendorId.includes("claude-opus-4-7")
+  );
+}
+
+function resolveReasoningParam(
+  supportsReasoning: boolean,
+  allowed: readonly ThinkingLevel[],
+  requested: ThinkingLevel | undefined,
+  fallback: ThinkingLevel | undefined,
+): AiSdkReasoning | undefined {
+  if (!supportsReasoning || allowed.length === 0) {
+    return undefined;
+  }
+
+  const selected =
+    requested && allowed.includes(requested) ? requested : fallback;
+
+  if (!selected || !allowed.includes(selected)) {
+    return undefined;
+  }
+
+  return selected === "instant" ? "none" : selected;
+}
 
 const ENABLE_PROJECT_RAG_PREFETCH = true;
 
@@ -355,13 +447,25 @@ export const Route = createFileRoute("/api/chat/")({
           ),
         ]);
         const spendableCredits = billingState.spendableCredits;
-        if (spendableCredits <= 0 && !billingState.overageAllowed) {
+        if (
+          spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
+          !billingState.overageAllowed
+        ) {
+          await fetchAuthMutation(api.functions.threads.internal_failStream, {
+            secret: env.INTERNAL_CONVEX_SECRET,
+            userId: requestUserId,
+            threadId,
+            assistantMessageId,
+            error: "Insufficient credits to start generation.",
+          });
+
           return new Response(
             JSON.stringify({
               error: "out_of_credits",
               tier: billingSnapshot.tier,
               spendableCredits,
               availableCredits: billingState.availableCredits,
+              minimumRequiredCredits: MIN_GENERATION_CREDIT_FLOOR,
             }),
             {
               status: 402,
@@ -528,19 +632,20 @@ export const Route = createFileRoute("/api/chat/")({
           };
 
           const resolvedModel = resolveAiSdkModel(settings.model);
+          const reasoning = resolveReasoningParam(
+            resolvedModel.route.supports.reasoning,
+            resolvedModel.modelConfig.thinkingLevels,
+            settings.thinkingLevel,
+            resolvedModel.modelConfig.defaultThinkingLevel,
+          );
           const runtimeProviderKey =
             resolvedModel.route.behavior.runtimeProviderKey ??
             resolvedModel.route.provider;
-          const providerOptions =
-            runtimeProviderKey === "openai" &&
-            resolvedModel.route.supports.reasoning
-              ? {
-                  openai: {
-                    reasoningEffort: "medium", // TODO: we will set reasoning effort
-                    reasoningSummary: "auto", // we want reasoning!!
-                  } satisfies OpenAILanguageModelResponsesOptions,
-                }
-              : undefined;
+          const providerOptions = resolveProviderOptions(
+            runtimeProviderKey,
+            resolvedModel.route.vendorId,
+            reasoning,
+          );
           const messagesWithAttachments = await materializeAttachmentsForRoute(
             resolvedModel.route,
             messages,
@@ -552,49 +657,66 @@ export const Route = createFileRoute("/api/chat/")({
             messagesWithAttachments,
           );
 
-          // Prepend base, selected, project, tool, and retrieved RAG context as
-          // leading system messages. We do this on the model-message array
-          // (after conversion) so they never get persisted on the thread.
-          if (projectContextBlock) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectContextBlock,
-            });
-          }
-          if (projectToolInstruction) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectToolInstruction,
-            });
-          }
-          if (projectInstructions) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectInstructions,
-            });
-          }
-          if (selectedInstructionPrompt) {
-            modelMessages.unshift({
-              role: "system",
-              content: selectedInstructionPrompt,
-            });
-          }
-          modelMessages.unshift({
-            role: "system",
-            content: BASE_SYSTEM_PROMPT,
-          });
+          const systemPrompt = [
+            BASE_SYSTEM_PROMPT,
+            selectedInstructionPrompt,
+            projectInstructions,
+            projectToolInstruction,
+            projectContextBlock,
+          ]
+            .filter((prompt): prompt is string => Boolean(prompt))
+            .join("\n\n");
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
+          await fetchAuthQuery(
+            api.functions.threads.internal_validateGenerationMessage,
+            {
+              secret: env.INTERNAL_CONVEX_SECRET,
+              userId: requestUserId,
+              messageId: assistantMessageId,
+              threadId,
+            },
+          );
+          const checkMessageAbort = throttle(() => {
+            void fetchAuthQuery(
+              api.functions.threads.internal_checkMessageAbort,
+              {
+                secret: env.INTERNAL_CONVEX_SECRET,
+                userId: requestUserId,
+                messageId: assistantMessageId,
+                threadId: threadId,
+              },
+            )
+              .then((res) => {
+                if (res) {
+                  console.log("Stream aborted by user");
+                  abortController.abort();
+                }
+              })
+              .catch((error: unknown) => {
+                console.error("Failed to check chat stream abort state", {
+                  requestUserId,
+                  assistantMessageId,
+                  threadId,
+                  error,
+                });
+                abortController.abort();
+              });
+          }, 1000);
 
           // Track generation timing stats
           const streamStartTime = Date.now();
           let firstTokenTime: number | null = null;
+          let reasoningStartTime: number | null = null;
+          let reasoningEndTime: number | null = null;
 
           const result = streamText({
             model: resolvedModel.model,
+            system: systemPrompt,
             messages: modelMessages,
-            providerOptions,
+            ...(reasoning ? { reasoning } : {}),
+            ...(providerOptions ? { providerOptions } : {}),
             abortSignal: abortController.signal,
             tools: toolRuntime.tools,
             experimental_transform: smoothStream({
@@ -624,6 +746,10 @@ export const Route = createFileRoute("/api/chat/")({
                 const timeToFirstTokenMs = firstTokenTime
                   ? firstTokenTime - streamStartTime
                   : totalDurationMs;
+                const reasoningDurationMs =
+                  reasoningStartTime && reasoningEndTime
+                    ? Math.max(0, reasoningEndTime - reasoningStartTime)
+                    : undefined;
                 const outputTokens = usage.outputTokens ?? 0;
                 const tokensPerSecond =
                   totalDurationMs > 0
@@ -631,6 +757,9 @@ export const Route = createFileRoute("/api/chat/")({
                     : 0;
 
                 const generationStats = {
+                  ...(reasoningDurationMs !== undefined
+                    ? { reasoningDurationMs }
+                    : {}),
                   timeToFirstTokenMs,
                   totalDurationMs,
                   tokensPerSecond,
@@ -657,6 +786,7 @@ export const Route = createFileRoute("/api/chat/")({
                   await fetchAuthAction(
                     api.functions.billing.recordUsageEvent,
                     {
+                      secret: env.INTERNAL_CONVEX_SECRET,
                       requestId: assistantMessageId,
                       messageId: assistantMessageId,
                       threadId,
@@ -683,27 +813,14 @@ export const Route = createFileRoute("/api/chat/")({
                 await cleanupTools?.();
               }
             },
-            onChunk: () => {
+            onChunk: ({ chunk }) => {
               // Track time to first token
               firstTokenTime ??= Date.now();
-              throttle(() => {
-                // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
-                void fetchAuthQuery(
-                  api.functions.threads.internal_checkMessageAbort,
-                  {
-                    secret: env.INTERNAL_CONVEX_SECRET,
-                    userId: requestUserId,
-                    messageId: assistantMessageId,
-                    threadId: threadId,
-                  },
-                ).then((res) => {
-                  if (res) {
-                    console.log("Stream aborted by user");
-                    abortController.abort();
-                    return;
-                  }
-                });
-              }, 1000);
+              if (chunk.type === "reasoning-delta") {
+                reasoningStartTime ??= firstTokenTime;
+                reasoningEndTime = Date.now();
+              }
+              checkMessageAbort();
             },
             onAbort: () => {
               console.log("Stream aborted");

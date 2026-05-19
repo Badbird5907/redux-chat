@@ -3,6 +3,7 @@
 import type { UIMessage } from "ai";
 import { isReasoningUIPart, isToolUIPart } from "ai";
 
+import type { MessageStats } from "./chat-types";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -28,10 +29,12 @@ export function AssistantMessageParts({
   isLastMessage,
   isStreaming,
   message,
+  messageStats,
 }: {
   isLastMessage: boolean;
   isStreaming: boolean;
   message: UIMessage;
+  messageStats?: MessageStats;
 }) {
   const { reasoningText, steps, textContent } =
     normalizeAssistantMessage(message);
@@ -87,6 +90,7 @@ export function AssistantMessageParts({
         <Reasoning
           className="mb-3"
           defaultOpen={isReasoningStreaming}
+          duration={messageStats?.generationStats?.reasoningDurationMs}
           isStreaming={isReasoningStreaming}
           key={`${message.id}:reasoning:${isReasoningStreaming ? "streaming" : "done"}`}
         >

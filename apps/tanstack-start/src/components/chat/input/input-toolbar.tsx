@@ -9,13 +9,13 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
-  PlugZap,
   Plus,
   Search,
   Square,
   Trash2,
 } from "lucide-react";
 
+import type { ThinkingLevel } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import {
   DropdownMenu,
@@ -36,7 +36,9 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import { ModelSelector } from "@/components/chat/model-selector";
+import McpLogo from "@/components/logos/mcp";
 import { useResolvedHotkey } from "@/lib/hotkeys";
+import { ReasoningLevelSelector } from "./reasoning-level-selector";
 
 interface ChatInputToolbarProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -77,6 +79,10 @@ interface ChatInputToolbarProps {
   onTokenCountClick: () => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
+  thinkingLevel: ThinkingLevel;
+  thinkingLevels: readonly ThinkingLevel[];
+  canConfigureReasoning: boolean;
+  onThinkingLevelChange: (level: ThinkingLevel) => void;
   input: string;
   hasUsableAttachments: boolean;
   isSubmitting: boolean;
@@ -118,6 +124,10 @@ export function ChatInputToolbar({
   // project,
   selectedModel,
   onModelChange,
+  thinkingLevel,
+  thinkingLevels,
+  canConfigureReasoning,
+  onThinkingLevelChange,
   input,
   hasUsableAttachments,
   isSubmitting,
@@ -236,7 +246,7 @@ export function ChatInputToolbar({
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={!settingsReady}>
-                <PlugZap className="size-4 shrink-0" />
+                <McpLogo className="size-4 shrink-0" />
                 <span className="min-w-0 grow whitespace-nowrap">
                   MCP Servers
                 </span>
@@ -269,7 +279,7 @@ export function ChatInputToolbar({
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={onOpenMcpSettings}>
-                    <PlugZap className="size-4 shrink-0" />
+                    <McpLogo className="size-4 shrink-0" />
                     <span className="min-w-0 grow whitespace-nowrap">
                       Manage MCP Servers
                     </span>
@@ -352,6 +362,13 @@ export function ChatInputToolbar({
             {tokenCount.toLocaleString()} tokens
           </button>
         )}
+        {canConfigureReasoning ? (
+          <ReasoningLevelSelector
+            thinkingLevel={thinkingLevel}
+            thinkingLevels={thinkingLevels}
+            onThinkingLevelChange={onThinkingLevelChange}
+          />
+        ) : null}
         <ModelSelector
           selectedModel={selectedModel}
           onModelChange={onModelChange}

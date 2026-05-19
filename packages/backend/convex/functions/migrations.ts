@@ -47,7 +47,7 @@ export const backfillLegacyMessageSettingsTools = backendMutation({
  * migration cutover.
  *
  * Strategy chosen here = "fresh current-period credits" (option 1 from the
- * plan). This is simpler than importing historical Polar balances and avoids
+ * plan). This is simpler than importing historical provider balances and avoids
  * double-counting since Convex becomes authoritative.
  */
 export const backfillCurrentPeriodCredits = backendMutation({
@@ -88,7 +88,7 @@ export const backfillCurrentPeriodCredits = backendMutation({
       userId: args.userId,
       bucket: "monthly",
       amount: plan.includedMonthlyCredits,
-      source: "polar_subscription_renewal",
+      source: "stripe_subscription_renewal",
       sourceId,
       periodKey: new Date(args.paidPeriodStart).toISOString().slice(0, 7),
       expiresAt: args.paidPeriodEnd,
@@ -100,7 +100,7 @@ export const backfillCurrentPeriodCredits = backendMutation({
 
 /**
  * Diagnostic: count active grants and recent debits for a user. Useful for
- * the comparison-against-Polar step described in the rollout plan.
+ * the comparison-against-provider step described in the rollout plan.
  */
 export const getUserCreditLedgerSummary = backendQuery({
   args: { secret: v.string(), userId: v.string() },

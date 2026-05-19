@@ -5,6 +5,8 @@ import type { ThemeMode } from "@redux/ui/components/theme";
 import { Tabs, TabsList, TabsTrigger } from "@redux/ui/components/tabs";
 import { useTheme } from "@redux/ui/components/theme";
 
+import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
+
 export const Route = createFileRoute("/settings/appearance")({
   component: AppearanceRouteComponent,
 });
@@ -33,7 +35,12 @@ function AppearanceRouteComponent() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <div className="flex flex-row flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Appearance</h1>
+        <div className="flex min-w-0 items-center gap-2">
+          <SettingsMobileSidebarTrigger />
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+            Appearance
+          </h1>
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">

@@ -93,6 +93,7 @@ export async function createUploadedAttachmentRecord(input: {
   isPublic: boolean;
   serveImage: boolean;
   expiresAt?: number;
+  maxUserDraftAttachments?: number;
 }) {
   const client = getInternalConvexClient();
   return client.mutation(

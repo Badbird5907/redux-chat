@@ -61,9 +61,9 @@ function formatDate(value: number | undefined): string {
 
 function formatSource(source: string): string {
   switch (source) {
-    case "polar_subscription_renewal":
+    case "stripe_subscription_renewal":
       return "Subscription renewal";
-    case "polar_one_time_purchase":
+    case "stripe_one_time_purchase":
       return "One-time purchase";
     case "free_monthly_reset":
       return "Free monthly allowance";
@@ -205,9 +205,7 @@ export function CreditGrantHistoryDialog() {
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Credit grants</DialogTitle>
-          <DialogDescription>
-            Current and past grants
-          </DialogDescription>
+          <DialogDescription>Current and past grants</DialogDescription>
         </DialogHeader>
         <CreditGrantHistoryList />
       </DialogContent>

@@ -26,7 +26,6 @@ import type {
   ResolvedAttachment,
 } from "./chat-types";
 import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
-import { StaticMarkdown } from "@/components/markdown/static-markdown";
 import { normalizeAssistantMessage } from "./assistant-message-timeline";
 import { BranchSwitcher } from "./branch-switcher";
 import { getSiblingBranchGroup } from "./chat-branching";
@@ -39,7 +38,7 @@ import {
 } from "./chat-message-utils";
 import { MessageStatsBar } from "./message-stats-bar";
 
-function CollapsibleUserMessageMarkdown({
+function CollapsibleUserMessageText({
   textContent,
   previewMaxLines,
 }: {
@@ -56,8 +55,8 @@ function CollapsibleUserMessageMarkdown({
     : textContent;
 
   return (
-    <div className="max-w-full min-w-0">
-      <StaticMarkdown content={displayContent} />
+    <div className="max-w-full min-w-0 wrap-break-word whitespace-pre-wrap">
+      {displayContent}
       {shouldOfferCollapse ? (
         <button
           type="button"
@@ -305,6 +304,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 isLastMessage={isLastMessage}
                 isStreaming={isStreamingAssistant}
                 message={message}
+                messageStats={messageStats}
               />
               {isStoppedMessage && (
                 <Card
@@ -319,7 +319,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               )}
             </>
           ) : (
-            <CollapsibleUserMessageMarkdown
+            <CollapsibleUserMessageText
               previewMaxLines={userMessagePreviewMaxLines}
               textContent={textContent}
             />

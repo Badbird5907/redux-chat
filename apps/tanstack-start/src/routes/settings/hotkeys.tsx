@@ -8,6 +8,7 @@ import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import { Kbd } from "@redux/ui/components/kbd";
 
+import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { appHotkeyDefinitions, useHotkeySettings } from "@/lib/hotkeys";
 
 export const Route = createFileRoute("/settings/hotkeys")({
@@ -117,9 +118,12 @@ function HotkeysRouteComponent() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <div className="flex flex-row flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Keyboard shortcuts
-        </h1>
+        <div className="flex min-w-0 items-center gap-2">
+          <SettingsMobileSidebarTrigger />
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+            Keyboard shortcuts
+          </h1>
+        </div>
         <Button
           variant="outline"
           size="sm"
