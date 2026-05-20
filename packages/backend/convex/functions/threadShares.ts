@@ -205,15 +205,76 @@ function getSharedMessageIds(args: {
   return getVisibleBranchMessageIds(args.messages, args.selectedLeafMessageId);
 }
 
+function getTextPreview(parts: unknown[]) {
+  const text = parts
+    .map((part) => {
+      if (
+        part &&
+        typeof part === "object" &&
+        "type" in part &&
+        part.type === "text" &&
+        "text" in part &&
+        typeof part.text === "string"
+      ) {
+        return part.text;
+      }
+      return "";
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (text.length <= 80) {
+    return text;
+  }
+
+  return `${text.slice(0, 77)}...`;
+}
+
+async function getLockedBranchPreview(
+  ctx: ThreadReadCtx,
+  share: Doc<"threadShares">,
+) {
+  if (!share.settings.onlyCurrentBranch) {
+    return undefined;
+  }
+
+  const messageId = share.settings.autoUpdate
+    ? share.anchorLeafMessageId
+    : share.snapshotSelectedLeafMessageId;
+  if (!messageId) {
+    return undefined;
+  }
+
+  const message = await ctx.db
+    .query("messages")
+    .withIndex("by_threadId_messageId", (q) =>
+      q.eq("threadId", share.threadId).eq("messageId", messageId),
+    )
+    .first();
+
+  if (!message) {
+    return undefined;
+  }
+
+  const preview = getTextPreview(message.parts);
+
+  return {
+    messageId,
+    preview: preview || `${message.role} message`,
+  };
+}
+
 async function buildSnapshot(
   ctx: ThreadReadCtx,
   thread: Doc<"threads">,
   settings: ShareSettings,
+  leafMessageId?: string,
 ) {
   const messages = await getThreadMessages(ctx, thread.threadId);
   const selectedLeafMessageId = resolveSelectedLeaf(
     messages,
-    thread.selectedLeafMessageId,
+    leafMessageId ?? thread.selectedLeafMessageId,
   );
 
   return {
@@ -357,12 +418,19 @@ export const listForThread = query({
   handler: async (ctx, args) => {
     await getOwnedThread(ctx, args.threadId);
 
-    return await ctx.db
+    const shares = await ctx.db
       .query("threadShares")
       .withIndex("by_userId_threadId", (q) =>
         q.eq("userId", ctx.userId).eq("threadId", args.threadId),
       )
       .collect();
+
+    return await Promise.all(
+      shares.map(async (share) => ({
+        ...share,
+        lockedBranch: await getLockedBranchPreview(ctx, share),
+      })),
+    );
   },
 });
 
@@ -412,10 +480,74 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const share = await getOwnedShare(ctx, args.shareId);
     const thread = await getOwnedThread(ctx, share.threadId);
-    const snapshot = await buildSnapshot(ctx, thread, args.settings);
+    const shouldRecomputeBranchState =
+      share.settings.onlyCurrentBranch !== args.settings.onlyCurrentBranch ||
+      share.settings.autoUpdate !== args.settings.autoUpdate;
+    const snapshot = shouldRecomputeBranchState
+      ? await buildSnapshot(ctx, thread, args.settings)
+      : {};
 
     await ctx.db.patch(share._id, {
       settings: args.settings,
+      ...snapshot,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+export const updateSelectedBranch = mutation({
+  args: { shareId: v.string() },
+  handler: async (ctx, args) => {
+    const share = await getOwnedShare(ctx, args.shareId);
+    if (!share.settings.onlyCurrentBranch) {
+      throw new ConvexError("Share is configured to include all branches");
+    }
+
+    const thread = await getOwnedThread(ctx, share.threadId);
+    const snapshot = await buildSnapshot(ctx, thread, share.settings);
+
+    await ctx.db.patch(share._id, {
+      ...snapshot,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+export const updateSelectedBranchToLeaf = mutation({
+  args: {
+    shareId: v.string(),
+    leafMessageId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const share = await getOwnedShare(ctx, args.shareId);
+    if (!share.settings.onlyCurrentBranch) {
+      throw new ConvexError("Share is configured to include all branches");
+    }
+
+    const thread = await getOwnedThread(ctx, share.threadId);
+    const message = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q.eq("threadId", thread.threadId).eq("messageId", args.leafMessageId),
+      )
+      .first();
+
+    if (!message) {
+      throw new ConvexError("Message not found");
+    }
+
+    const snapshot = await buildSnapshot(
+      ctx,
+      thread,
+      share.settings,
+      args.leafMessageId,
+    );
+
+    await ctx.db.patch(share._id, {
       ...snapshot,
       updatedAt: Date.now(),
     });

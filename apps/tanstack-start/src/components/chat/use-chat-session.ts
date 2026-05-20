@@ -19,6 +19,10 @@ import type { ChatPreload } from "./preload";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
 import {
+  JUMP_TO_THREAD_BRANCH_EVENT,
+  UPDATE_SHARE_TO_CURRENT_BRANCH_EVENT,
+} from "./branch-events";
+import {
   getDeepestLeafForBranch,
   getVisibleBranchMessages,
 } from "./chat-branching";
@@ -120,6 +124,9 @@ export function useChatSession({
   );
   const regenerateAssistantMessageBranch = useMutation(
     api.functions.threads.regenerateAssistantMessageBranch,
+  );
+  const updateShareSelectedBranchToLeaf = useMutation(
+    api.functions.threadShares.updateSelectedBranchToLeaf,
   );
   const abortStreamMutation = useMutation(api.functions.threads.abortStream);
   const { allocate: allocateSignedIds } = useSignedCid();
@@ -776,6 +783,81 @@ export function useChatSession({
       status,
     ],
   );
+
+  useEffect(() => {
+    const handleJumpToBranch = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        leafMessageId?: string;
+        threadId?: string;
+      }>;
+      const { leafMessageId, threadId } = customEvent.detail;
+      if (
+        !leafMessageId ||
+        !threadId ||
+        threadId !== currentThreadId ||
+        status !== "ready"
+      ) {
+        return;
+      }
+
+      void selectBranch(leafMessageId);
+    };
+
+    window.addEventListener(JUMP_TO_THREAD_BRANCH_EVENT, handleJumpToBranch);
+
+    return () => {
+      window.removeEventListener(
+        JUMP_TO_THREAD_BRANCH_EVENT,
+        handleJumpToBranch,
+      );
+    };
+  }, [currentThreadId, selectBranch, status]);
+
+  useEffect(() => {
+    const handleUpdateShareBranch = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        onError?: (error: unknown) => void;
+        onSuccess?: () => void;
+        shareId?: string;
+        threadId?: string;
+      }>;
+      const { onError, onSuccess, shareId, threadId } = customEvent.detail;
+      if (!shareId || !threadId || threadId !== currentThreadId) {
+        return;
+      }
+
+      const leafMessageId =
+        finalMessages.at(-1)?.id ?? thread?.selectedLeafMessageId;
+      if (!leafMessageId) {
+        onError?.(new Error("No selected branch to share"));
+        return;
+      }
+
+      void updateShareSelectedBranchToLeaf({
+        shareId,
+        leafMessageId,
+      })
+        .then(() => onSuccess?.())
+        .catch((error: unknown) => onError?.(error));
+    };
+
+    window.addEventListener(
+      UPDATE_SHARE_TO_CURRENT_BRANCH_EVENT,
+      handleUpdateShareBranch,
+    );
+
+    return () => {
+      window.removeEventListener(
+        UPDATE_SHARE_TO_CURRENT_BRANCH_EVENT,
+        handleUpdateShareBranch,
+      );
+    };
+  }, [
+    currentThreadId,
+    finalMessages,
+    thread?.selectedLeafMessageId,
+    updateShareSelectedBranchToLeaf,
+  ]);
 
   const startEditMessage = useCallback(
     (messageId: string) => {
