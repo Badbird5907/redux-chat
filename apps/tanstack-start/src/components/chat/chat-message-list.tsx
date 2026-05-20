@@ -36,6 +36,7 @@ interface ChatMessageListProps {
   onRegenerateMessage: (message: ChatMessageWithThreadMetadata) => void;
   onSelectBranch: (messageId: string) => void;
   onStartEditMessage: (messageId: string) => void;
+  readOnly?: boolean;
   setPreviewFile: ChatMessageRowProps["onAttachmentPreview"];
 }
 
@@ -59,6 +60,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   onRegenerateMessage,
   onSelectBranch,
   onStartEditMessage,
+  readOnly = false,
   setPreviewFile,
 }: ChatMessageListProps) {
   const totalCount = finalMessages.length;
@@ -93,6 +95,7 @@ export const ChatMessageList = memo(function ChatMessageList({
               onRegenerateMessage={onRegenerateMessage}
               onSelectBranch={onSelectBranch}
               onStartEditMessage={onStartEditMessage}
+              readOnly={readOnly}
               resolvedMessageAttachments={resolvedMessageAttachments}
               status={status}
               totalCount={totalCount}

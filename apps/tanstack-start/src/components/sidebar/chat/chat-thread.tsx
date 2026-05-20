@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Ellipsis, Pencil, RotateCw, Trash } from "lucide-react";
+import { Ellipsis, Pencil, RotateCw, Share2, Trash } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -19,6 +19,8 @@ import {
   SidebarMenuItem,
 } from "@redux/ui/components/sidebar";
 import Spinner from "@redux/ui/components/spinner";
+
+import { ThreadShareDialog } from "@/components/share/thread-share-dialog";
 
 /** Must match `packages/backend/convex/functions/threads.ts` default thread name. */
 const THREAD_PLACEHOLDER_NAME = "New Thread";
@@ -54,6 +56,7 @@ export default function ChatThreadSidebarItem({
   );
   const deleteThread = useMutation(api.functions.threads.deleteThread);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [draftName, setDraftName] = React.useState(threadName);
   const [displayedTitle, setDisplayedTitle] = React.useState(threadName);
@@ -190,6 +193,11 @@ export default function ChatThreadSidebarItem({
     setIsRenaming(true);
   };
 
+  const openShareDialog = () => {
+    setMenuOpen(false);
+    setShareOpen(true);
+  };
+
   const cancelRenaming = () => {
     setDraftName(threadName);
     setIsRenaming(false);
@@ -310,6 +318,13 @@ export default function ChatThreadSidebarItem({
               {isRegeneratingTitle ? "Regenerating…" : "Regenerate title"}
             </span>
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={openShareDialog}
+            disabled={isDeleting || isRegeneratingTitle}
+          >
+            <Share2 className="size-4" />
+            <span>Share</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {
@@ -323,6 +338,11 @@ export default function ChatThreadSidebarItem({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <ThreadShareDialog
+        open={shareOpen}
+        threadId={threadId}
+        onOpenChange={setShareOpen}
+      />
     </SidebarMenuItem>
   );
 }

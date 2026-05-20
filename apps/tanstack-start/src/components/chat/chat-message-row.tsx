@@ -120,6 +120,7 @@ export interface ChatMessageRowProps {
   onRegenerateMessage: (message: ChatMessageWithThreadMetadata) => void;
   onSelectBranch: (messageId: string) => void;
   onStartEditMessage: (messageId: string) => void;
+  readOnly?: boolean;
   onAttachmentPreview: (
     file: {
       generatingDerivative?: boolean;
@@ -147,6 +148,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRegenerateMessage,
   onSelectBranch,
   onStartEditMessage,
+  readOnly = false,
   onAttachmentPreview,
   userMessagePreviewMaxLines,
 }: ChatMessageRowProps) {
@@ -406,24 +408,28 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onSelectBranch={onSelectBranch}
             />
             <MessageCopyButton text={textContent} />
-            <button
-              className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
-              title="Regenerate"
-              type="button"
-              disabled={controlsDisabled}
-              onClick={() => onRegenerateMessage(message)}
-            >
-              <RefreshCwIcon className="size-4" />
-            </button>
-            <button
-              className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
-              title="Edit"
-              type="button"
-              disabled={controlsDisabled}
-              onClick={() => onStartEditMessage(message.id)}
-            >
-              <PencilIcon className="size-4" />
-            </button>
+            {!readOnly && (
+              <>
+                <button
+                  className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
+                  title="Regenerate"
+                  type="button"
+                  disabled={controlsDisabled}
+                  onClick={() => onRegenerateMessage(message)}
+                >
+                  <RefreshCwIcon className="size-4" />
+                </button>
+                <button
+                  className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
+                  title="Edit"
+                  type="button"
+                  disabled={controlsDisabled}
+                  onClick={() => onStartEditMessage(message.id)}
+                >
+                  <PencilIcon className="size-4" />
+                </button>
+              </>
+            )}
           </div>
         )}
         {message.role === "assistant" && (
@@ -442,17 +448,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 onSelectBranch={onSelectBranch}
               />
               <MessageCopyButton text={textContent} />
-              <button
-                className={cn(
-                  "hover:bg-muted rounded p-2 transition-colors disabled:opacity-50",
-                )}
-                title="Regenerate"
-                type="button"
-                disabled={controlsDisabled}
-                onClick={() => onRegenerateMessage(message)}
-              >
-                <RefreshCwIcon className="size-4" />
-              </button>
+              {!readOnly && (
+                <button
+                  className={cn(
+                    "hover:bg-muted rounded p-2 transition-colors disabled:opacity-50",
+                  )}
+                  title="Regenerate"
+                  type="button"
+                  disabled={controlsDisabled}
+                  onClick={() => onRegenerateMessage(message)}
+                >
+                  <RefreshCwIcon className="size-4" />
+                </button>
+              )}
             </div>
             <MessageStatsBar
               stats={messageStats}

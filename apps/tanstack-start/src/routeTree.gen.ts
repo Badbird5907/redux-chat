@@ -41,6 +41,7 @@ import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook/strip
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
 import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/promotions.$promotionId'
+import { Route as AppShareShareIdRouteImport } from './routes/_app/share.$shareId'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
 import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
@@ -205,6 +206,11 @@ const AdminPromotionsPromotionIdRoute =
     path: '/$promotionId',
     getParentRoute: () => AdminPromotionsRoute,
   } as any)
+const AppShareShareIdRoute = AppShareShareIdRouteImport.update({
+  id: '/share/$shareId',
+  path: '/share/$shareId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProjectsIdRoute = AppProjectsIdRouteImport.update({
   id: '/projects/$id',
   path: '/projects/$id',
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/test/': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/share/$shareId': typeof AppShareShareIdRoute
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/test': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/share/$shareId': typeof AppShareShareIdRoute
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -317,6 +325,7 @@ export interface FileRoutesById {
   '/test/': typeof TestIndexRoute
   '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
+  '/_app/share/$shareId': typeof AppShareShareIdRoute
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | '/test/'
     | '/chat/$id'
     | '/projects/$id'
+    | '/share/$shareId'
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
@@ -387,6 +397,7 @@ export interface FileRouteTypes {
     | '/test'
     | '/chat/$id'
     | '/projects/$id'
+    | '/share/$shareId'
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
@@ -424,6 +435,7 @@ export interface FileRouteTypes {
     | '/test/'
     | '/_app/chat/$id'
     | '/_app/projects/$id'
+    | '/_app/share/$shareId'
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
@@ -678,6 +690,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPromotionsPromotionIdRouteImport
       parentRoute: typeof AdminPromotionsRoute
     }
+    '/_app/share/$shareId': {
+      id: '/_app/share/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof AppShareShareIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/projects/$id': {
       id: '/_app/projects/$id'
       path: '/projects/$id'
@@ -706,6 +725,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppChatIdRoute: typeof AppChatIdRoute
   AppProjectsIdRoute: typeof AppProjectsIdRoute
+  AppShareShareIdRoute: typeof AppShareShareIdRoute
   AppProjectsIndexRoute: typeof AppProjectsIndexRoute
 }
 
@@ -713,6 +733,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppChatIdRoute: AppChatIdRoute,
   AppProjectsIdRoute: AppProjectsIdRoute,
+  AppShareShareIdRoute: AppShareShareIdRoute,
   AppProjectsIndexRoute: AppProjectsIndexRoute,
 }
 

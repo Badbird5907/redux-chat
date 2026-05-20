@@ -91,6 +91,12 @@ const promotionRedemptionStatus = v.union(
 
 const paidPlanTier = v.union(v.literal("plus"), v.literal("pro"));
 
+const threadShareSettings = v.object({
+  onlyCurrentBranch: v.boolean(),
+  includeAttachments: v.boolean(),
+  autoUpdate: v.boolean(),
+});
+
 const messageTools = v.object({
   search: v.optional(v.object({})),
   analysisWorkspace: v.optional(
@@ -228,6 +234,23 @@ export default defineSchema({
     .index("by_threadId", ["threadId"])
     .index("by_userId", ["userId", "updatedAt"])
     .index("by_userId_chatProjectId", ["userId", "chatProjectId", "updatedAt"]),
+
+  threadShares: defineTable({
+    shareId: v.string(),
+    threadId: v.string(),
+    userId: v.string(),
+    settings: threadShareSettings,
+    anchorLeafMessageId: v.optional(v.string()),
+    snapshotMessageIds: v.optional(v.array(v.string())),
+    snapshotSelectedLeafMessageId: v.optional(v.string()),
+    viewCount: v.number(),
+    forkCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_shareId", ["shareId"])
+    .index("by_threadId", ["threadId", "createdAt"])
+    .index("by_userId_threadId", ["userId", "threadId", "createdAt"]),
 
   messages: defineTable({
     threadId: v.string(),

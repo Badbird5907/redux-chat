@@ -12,6 +12,7 @@ import { AppChatRoute } from "@/components/chat/app-chat-route";
 import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
 // import { getToken } from "@/lib/auth/server";
 import { TopLeftActions } from "@/components/layout/top-left-actions";
+import { TopRightActions } from "@/components/layout/top-right-actions";
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
 import {
   ModelSwitcherHotkeyRegistration,
@@ -94,6 +95,7 @@ function AppLayout() {
         <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">
           <div className="bg-card/80 border-border/60 relative w-full flex-1 overflow-hidden rounded-4xl border p-4">
             <TopLeftActions />
+            <TopRightActions />
             <div className="h-full overflow-hidden">
               {isChatSurfaceRoute ? (
                 shouldRenderChatSurface ? (
