@@ -157,6 +157,15 @@ export function useFileUpload({
               threadId,
             },
           });
+          const result = completion.result;
+
+          if (
+            !result ||
+            typeof result.attachmentId !== "string" ||
+            result.attachmentId.length === 0
+          ) {
+            throw new Error(`Upload failed for ${file.name}`);
+          }
 
           updateAttachment(tempId, (attachment) => {
             if (attachment.objectUrl) {
@@ -164,13 +173,13 @@ export function useFileUpload({
             }
 
             return {
-              attachmentId: completion.result.attachmentId,
-              fileName: completion.result.fileName,
-              mimeType: completion.result.mimeType,
-              size: completion.result.size,
-              url: completion.result.url,
+              attachmentId: result.attachmentId,
+              fileName: result.fileName,
+              mimeType: result.mimeType,
+              size: result.size,
+              url: result.url,
               uploading: false,
-              expiresAt: completion.result.expiresAt,
+              expiresAt: result.expiresAt,
             };
           });
         } catch (error) {
