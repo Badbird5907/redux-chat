@@ -476,10 +476,10 @@ export const previewSubscriptionPromotionUpgrade = action({
       { code: args.code },
     );
     if (!redeemability) {
-      throw new Error("Promotion not found.");
+      throw new ConvexError("Promotion not found.");
     }
     if (redeemability.canRedeem === false) {
-      throw new Error(
+      throw new ConvexError(
         redeemability.ineligibleReason ?? "This promotion cannot be redeemed.",
       );
     }
@@ -490,11 +490,11 @@ export const previewSubscriptionPromotionUpgrade = action({
       { codeNormalized },
     );
     if (!promotion) {
-      throw new Error("Promotion not found.");
+      throw new ConvexError("Promotion not found.");
     }
     const promotionConfig = getValidatedPromotionConfig(promotion);
     if (promotionConfig.kind !== "subscription_discount") {
-      throw new Error("This promotion is not a subscription promotion.");
+      throw new ConvexError("This promotion is not a subscription promotion.");
     }
     const targetTier = resolveTargetTier(
       promotionConfig.config,
@@ -512,7 +512,7 @@ export const previewSubscriptionPromotionUpgrade = action({
       promotionConfig.config.freeUsersOnly === true &&
       billingState.tier !== "free"
     ) {
-      throw new Error("This promotion is only available to free users.");
+      throw new ConvexError("This promotion is only available to free users.");
     }
     assertSubscriptionPromotionUpgradeEligibility({
       currentTier: billingState.tier,
@@ -523,7 +523,7 @@ export const previewSubscriptionPromotionUpgrade = action({
 
     const priceId = priceIdForTier(targetTier);
     if (!priceId) {
-      throw new Error("That subscription tier is not configured.");
+      throw new ConvexError("That subscription tier is not configured.");
     }
 
     const stripe = getStripeSdkClient();
@@ -537,7 +537,7 @@ export const previewSubscriptionPromotionUpgrade = action({
         : liveSub.customer.id;
     const subscriptionItem = liveSub.items.data[0];
     if (!subscriptionItem) {
-      throw new Error("Subscription item is missing.");
+      throw new ConvexError("Subscription item is missing.");
     }
 
     const coupon = await createPromotionPreviewCoupon(stripe, {
@@ -601,7 +601,9 @@ async function applyAppCreditsPromotion(
     }
 
     if (!eligibleTiers.includes(currentTier)) {
-      throw new Error("This promotion is not available for your current plan.");
+      throw new ConvexError(
+        "This promotion is not available for your current plan.",
+      );
     }
   }
 
@@ -728,7 +730,7 @@ async function applySubscriptionPromotion(
 ): Promise<SubscriptionAppliedResult | CheckoutRedirectResult> {
   const targetTier = reservation.redemption.targetTier;
   if (!targetTier) {
-    throw new Error("Subscription target tier is required.");
+    throw new ConvexError("Subscription target tier is required.");
   }
 
   const billingState: {
@@ -746,13 +748,13 @@ async function applySubscriptionPromotion(
     promotionConfig.config.freeUsersOnly === true &&
     billingState.tier !== "free"
   ) {
-    throw new Error("This promotion is only available to free users.");
+    throw new ConvexError("This promotion is only available to free users.");
   }
 
   const customerId = await ensureCurrentStripeCustomer(ctx);
   const priceId = priceIdForTier(targetTier);
   if (!priceId) {
-    throw new Error("That subscription tier is not configured.");
+    throw new ConvexError("That subscription tier is not configured.");
   }
 
   const stripe = getStripeSdkClient();
@@ -976,7 +978,7 @@ async function applySubscriptionPromotionToPaidSubscriber(
     cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd,
   });
   if (!subscriptionId) {
-    throw new Error("No active subscription found to upgrade.");
+    throw new ConvexError("No active subscription found to upgrade.");
   }
 
   const coupon = await createPromotionCoupon(stripe, {
@@ -991,7 +993,7 @@ async function applySubscriptionPromotionToPaidSubscriber(
   });
   const item = liveSub.items.data[0];
   if (!item) {
-    throw new Error("Subscription has no billable item.");
+    throw new ConvexError("Subscription has no billable item.");
   }
   const prorationDate =
     typeof args.requestedProrationDate === "number" &&
@@ -1072,7 +1074,7 @@ export const cancelPendingPromotionCheckout = action({
       { redemptionId: args.redemptionId },
     );
     if (redemption?.userId !== ctx.userId) {
-      throw new Error("Redemption not found.");
+      throw new ConvexError("Redemption not found.");
     }
     if (redemption.status !== "pending_checkout") {
       return { ok: true };
@@ -1087,7 +1089,7 @@ export const cancelPendingPromotionCheckout = action({
         "stripe.checkout.sessions.retrieve",
       );
       if (session.status === "complete") {
-        throw new Error("Checkout already completed.");
+        throw new ConvexError("Checkout already completed.");
       }
       if (session.status === "open") {
         await withTimeout(
@@ -1975,10 +1977,10 @@ function assertSubscriptionPromotionUpgradeEligibility(args: {
     return;
   }
   if (!args.subscriptionId) {
-    throw new Error("No active subscription found to upgrade.");
+    throw new ConvexError("No active subscription found to upgrade.");
   }
   if (args.cancelAtPeriodEnd === true) {
-    throw new Error(
+    throw new ConvexError(
       "Resume your subscription before redeeming an upgrade promotion.",
     );
   }
@@ -1986,7 +1988,7 @@ function assertSubscriptionPromotionUpgradeEligibility(args: {
     subscriptionTierRank(args.targetTier) <=
     subscriptionTierRank(args.currentTier)
   ) {
-    throw new Error(
+    throw new ConvexError(
       "Subscription promotions can only upgrade your current plan.",
     );
   }
@@ -2000,7 +2002,7 @@ async function getLiveSubscriptionForPromotionUpgrade(
   },
 ) {
   if (!args.subscriptionId) {
-    throw new Error("No active subscription found to upgrade.");
+    throw new ConvexError("No active subscription found to upgrade.");
   }
   const liveSub = await withTimeout(
     stripe.subscriptions.retrieve(args.subscriptionId),
@@ -2009,10 +2011,10 @@ async function getLiveSubscriptionForPromotionUpgrade(
   );
   const item = liveSub.items.data[0];
   if (!item) {
-    throw new Error("Subscription has no billable item.");
+    throw new ConvexError("Subscription has no billable item.");
   }
   if (item.price.id === args.targetPriceId) {
-    throw new Error(
+    throw new ConvexError(
       "Stripe already has you on this plan. Refresh billing and try again.",
     );
   }

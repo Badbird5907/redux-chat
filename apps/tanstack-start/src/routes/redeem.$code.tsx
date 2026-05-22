@@ -117,6 +117,51 @@ function formatSignedCurrencyFromMinorUnits(
   return formatCurrencyFromMinorUnits(amount, currency);
 }
 
+function promotionErrorMessage(error: unknown, fallback: string): string {
+  const data =
+    error && typeof error === "object" && "data" in error
+      ? (error as { data?: unknown }).data
+      : undefined;
+  if (typeof data === "string" && data.trim().length > 0) {
+    return data.trim();
+  }
+  if (
+    data &&
+    typeof data === "object" &&
+    "message" in data &&
+    typeof (data as { message?: unknown }).message === "string"
+  ) {
+    const message = (data as { message: string }).message.trim();
+    if (message.length > 0) return message;
+  }
+
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const uncaught = /Uncaught (?:ConvexError|Error):\s*([^\n]+)/.exec(raw);
+  if (uncaught?.[1]) {
+    return uncaught[1].trim();
+  }
+
+  const visibleLine = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(
+      (line) =>
+        line.length > 0 &&
+        !line.startsWith("[CONVEX") &&
+        !line.startsWith("A(") &&
+        !line.startsWith("[Request ID:") &&
+        !line.startsWith("Server Error") &&
+        !line.startsWith("Called by client"),
+    );
+
+  return visibleLine ?? fallback;
+}
+
 function RedeemPromotionPage() {
   const { code } = Route.useParams();
   const preloadedPromotion = Route.useLoaderData();
@@ -232,7 +277,7 @@ function RedeemPromotionPage() {
       });
       toast.success("Promotion redeemed");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not redeem code.");
+      setError(promotionErrorMessage(err, "Could not redeem code."));
     } finally {
       setPending(false);
     }
@@ -341,10 +386,10 @@ function RedeemPromotionPage() {
             targetTier: selectedTargetTier,
             loading: false,
             data: null,
-            error:
-              err instanceof Error
-                ? err.message
-                : "Could not load the Stripe invoice preview.",
+            error: promotionErrorMessage(
+              err,
+              "Could not load the Stripe invoice preview.",
+            ),
           });
         }
       });
