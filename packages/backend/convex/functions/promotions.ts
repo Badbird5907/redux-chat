@@ -1404,6 +1404,7 @@ export const adminUpdatePromotion = adminMutation({
       maxRedemptions: number | undefined;
       perUserRedemptionLimit: number | undefined;
       pauseOnRedemptionLimit: boolean | undefined;
+      autoStatusFromLimit: boolean | undefined;
       startsAt: number | undefined;
       endsAt: number | undefined;
       metadata: unknown;
@@ -1423,7 +1424,10 @@ export const adminUpdatePromotion = adminMutation({
     if (args.description !== undefined) {
       patch.description = normalizeOptionalText(args.description);
     }
-    if (args.status !== undefined) patch.status = args.status;
+    if (args.status !== undefined) {
+      patch.status = args.status;
+      patch.autoStatusFromLimit = undefined;
+    }
     if (args.kind !== undefined) patch.kind = args.kind;
     if (args.maxRedemptions !== undefined) {
       patch.maxRedemptions = maxRedemptions;
@@ -1459,6 +1463,7 @@ export const adminPausePromotion = adminMutation({
     if (!promotion) throw new ConvexError("Promotion not found.");
     await ctx.db.patch(promotion._id, {
       status: "paused",
+      autoStatusFromLimit: undefined,
       updatedAt: Date.now(),
     });
     return { ok: true };
@@ -1475,6 +1480,7 @@ export const adminResumePromotion = adminMutation({
     }
     await ctx.db.patch(promotion._id, {
       status: "active",
+      autoStatusFromLimit: undefined,
       updatedAt: Date.now(),
     });
     return { ok: true };
@@ -1488,6 +1494,7 @@ export const adminArchivePromotion = adminMutation({
     if (!promotion) throw new ConvexError("Promotion not found.");
     await ctx.db.patch(promotion._id, {
       status: "archived",
+      autoStatusFromLimit: undefined,
       updatedAt: Date.now(),
     });
     return { ok: true };
@@ -1688,6 +1695,7 @@ export const internal_reservePromotionRedemption = internalMutation({
       ...(reachedLimit
         ? {
             status: promotion.pauseOnRedemptionLimit ? "paused" : "archived",
+            autoStatusFromLimit: true,
           }
         : {}),
     });
@@ -1810,9 +1818,20 @@ export const internal_markPromotionRedemptionFailed = internalMutation({
       const promotionId = args.promotionId ?? redemption.promotionId;
       const promotion = await getPromotionByPromotionId(ctx, promotionId);
       if (promotion) {
+        const nextRedeemedCount = Math.max(0, promotion.redeemedCount - 1);
+        const reopenSlot =
+          promotion.autoStatusFromLimit === true &&
+          (promotion.maxRedemptions === undefined ||
+            nextRedeemedCount < promotion.maxRedemptions);
         await ctx.db.patch(promotion._id, {
-          redeemedCount: Math.max(0, promotion.redeemedCount - 1),
+          redeemedCount: nextRedeemedCount,
           updatedAt: Date.now(),
+          ...(reopenSlot
+            ? {
+                status: "active" as const,
+                autoStatusFromLimit: undefined,
+              }
+            : {}),
         });
       }
     }

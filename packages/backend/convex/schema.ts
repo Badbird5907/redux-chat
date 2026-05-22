@@ -441,6 +441,7 @@ export default defineSchema({
     maxRedemptions: v.optional(v.number()),
     perUserRedemptionLimit: v.optional(v.number()),
     pauseOnRedemptionLimit: v.optional(v.boolean()),
+    autoStatusFromLimit: v.optional(v.boolean()),
     redeemedCount: v.number(),
     startsAt: v.optional(v.number()),
     endsAt: v.optional(v.number()),

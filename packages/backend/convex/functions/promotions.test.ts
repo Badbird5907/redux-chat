@@ -262,6 +262,61 @@ describe("functions/promotions", () => {
     expect(promotion?.status).toBe("paused");
   });
 
+  it("restores active status when a cap-hitting redemption is released", async () => {
+    const root = testDb();
+    const promotionId = await insertAppCreditPromotion(root, {
+      maxRedemptions: 1,
+      eligiblePlanTiers: ["plus"],
+    });
+
+    await expect(
+      root
+        .withIdentity({ subject: USER_ID })
+        .action(api.functions.promotions.redeemPromotion, { code: "PROMO" }),
+    ).rejects.toThrow(/not available for your current plan/);
+
+    const promotion = await root.run(async (ctx) =>
+      ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique(),
+    );
+    expect(promotion?.status).toBe("active");
+    expect(promotion?.redeemedCount).toBe(0);
+    expect(promotion?.autoStatusFromLimit).toBeUndefined();
+  });
+
+  it("preserves manual status when a redemption is released", async () => {
+    const root = testDb();
+    const promotionId = await insertAppCreditPromotion(root, {
+      maxRedemptions: 5,
+      eligiblePlanTiers: ["plus"],
+    });
+    await root.run(async (ctx) => {
+      const promo = await ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique();
+      if (promo) {
+        await ctx.db.patch(promo._id, { status: "paused" });
+      }
+    });
+
+    await expect(
+      root
+        .withIdentity({ subject: USER_ID })
+        .action(api.functions.promotions.redeemPromotion, { code: "PROMO" }),
+    ).rejects.toThrow(/not active/);
+
+    const promotion = await root.run(async (ctx) =>
+      ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique(),
+    );
+    expect(promotion?.status).toBe("paused");
+  });
+
   it("rejects gifted credit promotions for ineligible current plans", async () => {
     const root = testDb();
     const promotionId = await insertAppCreditPromotion(root, {
