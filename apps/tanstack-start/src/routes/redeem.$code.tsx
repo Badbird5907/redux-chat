@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ConvexHttpClient } from "convex/browser";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
 import {
   AlertCircle,
@@ -26,8 +27,23 @@ import {
   formatCurrencyFromMinorUnits,
   PlanTierMarketingCard,
 } from "@/components/billing/plan-tier-marketing-card";
+import { env } from "@/env";
+
+type PublicPromotionPayload =
+  (typeof api.functions.promotions.getPublicPromotionByCode)["_returnType"];
+
+async function loadPublicPromotion(
+  code: string,
+): Promise<PublicPromotionPayload | null> {
+  const client = new ConvexHttpClient(env.VITE_CONVEX_URL);
+  return await client
+    .query(api.functions.promotions.getPublicPromotionByCode, { code })
+    .catch(() => null);
+}
 
 export const Route = createFileRoute("/redeem/$code")({
+  ssr: "data-only",
+  loader: ({ params }) => loadPublicPromotion(params.code),
   head: ({ params }) => ({
     meta: [{ title: `Redeem ${params.code} | Redux Chat` }],
   }),
@@ -103,6 +119,7 @@ function formatSignedCurrencyFromMinorUnits(
 
 function RedeemPromotionPage() {
   const { code } = Route.useParams();
+  const preloadedPromotion = Route.useLoaderData();
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const publicPromotion = useQuery(
@@ -115,7 +132,9 @@ function RedeemPromotionPage() {
     api.functions.promotions.getPromotionByCode,
     isAuthenticated ? { code } : "skip",
   );
-  const promotion = isAuthenticated ? authenticatedPromotion : publicPromotion;
+  const promotion = isAuthenticated
+    ? authenticatedPromotion
+    : (publicPromotion ?? preloadedPromotion);
   const billingState = useQuery(
     api.functions.billing.getCurrentBillingState,
     isAuthenticated ? {} : "skip",
