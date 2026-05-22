@@ -564,15 +564,7 @@ export const previewSubscriptionPromotionUpgrade = action({
         prorationDate: Math.floor(Date.now() / 1000),
       });
     } finally {
-      try {
-        await withTimeout(
-          stripe.coupons.del(coupon.id),
-          STRIPE_NETWORK_TIMEOUT_MS,
-          "stripe.coupons.del",
-        );
-      } catch (error) {
-        console.error("Failed to delete preview coupon:", error);
-      }
+      await deletePromotionPreviewCoupon(stripe, coupon.id);
     }
   },
 });
@@ -2181,6 +2173,41 @@ async function createPromotionPreviewCoupon(
     config: args.config,
     targetTier: args.targetTier,
   });
+}
+
+async function deletePromotionPreviewCoupon(stripe: Stripe, couponId: string) {
+  try {
+    await withTimeout(
+      stripe.coupons.del(couponId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.coupons.del",
+    );
+  } catch (error) {
+    if (isStripeResourceMissingError(error, "coupon")) {
+      return;
+    }
+    console.error("Failed to delete preview coupon:", error);
+  }
+}
+
+export function isStripeResourceMissingError(
+  error: unknown,
+  param?: string,
+): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const value = error as {
+    code?: unknown;
+    param?: unknown;
+    raw?: { code?: unknown; param?: unknown };
+  };
+  const code = value.code ?? value.raw?.code;
+  const errorParam = value.param ?? value.raw?.param;
+  return (
+    code === "resource_missing" && (param === undefined || errorParam === param)
+  );
 }
 
 async function subscriptionCancellationParamsForGift(

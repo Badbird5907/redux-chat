@@ -7,6 +7,7 @@ import schema from "../schema";
 import { modules } from "../test.setup";
 import {
   buildPromotionSubscriptionCheckoutParams,
+  isStripeResourceMissingError,
   promotionStripeIdempotencyKey,
   shouldCreateDirectSubscriptionForPromotion,
 } from "./promotions";
@@ -540,6 +541,34 @@ describe("functions/promotions", () => {
     expect(
       promotionStripeIdempotencyKey("invoice-credit", "redemption:with:colons"),
     ).toBe("redux-chat:promotion:invoice-credit:redemption_with_colons");
+  });
+
+  it("recognizes missing Stripe coupon errors as idempotent cleanup", () => {
+    expect(
+      isStripeResourceMissingError(
+        {
+          type: "StripeInvalidRequestError",
+          code: "resource_missing",
+          param: "coupon",
+          raw: {
+            code: "resource_missing",
+            param: "coupon",
+          },
+        },
+        "coupon",
+      ),
+    ).toBe(true);
+
+    expect(
+      isStripeResourceMissingError(
+        {
+          type: "StripeInvalidRequestError",
+          code: "resource_missing",
+          param: "customer",
+        },
+        "coupon",
+      ),
+    ).toBe(false);
   });
 
   it("extends paid subscriber gift time after existing paid and trial time", () => {
