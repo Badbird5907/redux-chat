@@ -2166,13 +2166,17 @@ async function createPromotionPreviewCoupon(
   return await createPromotionCoupon(stripe, {
     promotion: args.promotion,
     redemption: {
-      redemptionId: `preview-${args.promotion.promotionId}-${args.userId}`,
+      redemptionId: promotionPreviewCouponRedemptionId(),
       userId: args.userId,
       targetTier: args.targetTier,
     },
     config: args.config,
     targetTier: args.targetTier,
   });
+}
+
+export function promotionPreviewCouponRedemptionId(): string {
+  return `preview-${crypto.randomUUID()}`;
 }
 
 async function deletePromotionPreviewCoupon(stripe: Stripe, couponId: string) {

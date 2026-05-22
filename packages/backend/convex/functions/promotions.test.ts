@@ -8,6 +8,7 @@ import { modules } from "../test.setup";
 import {
   buildPromotionSubscriptionCheckoutParams,
   isStripeResourceMissingError,
+  promotionPreviewCouponRedemptionId,
   promotionStripeIdempotencyKey,
   shouldCreateDirectSubscriptionForPromotion,
 } from "./promotions";
@@ -569,6 +570,15 @@ describe("functions/promotions", () => {
         "coupon",
       ),
     ).toBe(false);
+  });
+
+  it("uses unique pseudo-redemption IDs for preview coupons", () => {
+    const first = promotionPreviewCouponRedemptionId();
+    const second = promotionPreviewCouponRedemptionId();
+
+    expect(first).toMatch(/^preview-/);
+    expect(second).toMatch(/^preview-/);
+    expect(first).not.toBe(second);
   });
 
   it("extends paid subscriber gift time after existing paid and trial time", () => {
