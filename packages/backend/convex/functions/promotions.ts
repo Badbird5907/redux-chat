@@ -295,6 +295,7 @@ function promotionPreview(promotion: PromotionDoc) {
         discount: SubscriptionPromotionConfig["discount"];
       }
     | undefined;
+  let subscriptionFreeUsersOnly = false;
   let requiresCheckout = false;
   try {
     const config = getValidatedPromotionConfig(promotion);
@@ -306,6 +307,7 @@ function promotionPreview(promotion: PromotionDoc) {
         mode: config.config.mode,
         discount: config.config.discount,
       };
+      subscriptionFreeUsersOnly = config.config.freeUsersOnly === true;
       requiresCheckout = !(
         config.config.mode === "gifted_subscription" ||
         isFullDiscount(config.config)
@@ -335,6 +337,7 @@ function promotionPreview(promotion: PromotionDoc) {
     requiresTargetTierSelection: redeemableTargetTiers.length > 1,
     subscriptionMode,
     subscriptionDiscount,
+    subscriptionFreeUsersOnly,
     requiresCheckout,
   };
 }

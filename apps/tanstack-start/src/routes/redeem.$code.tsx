@@ -301,8 +301,14 @@ function RedeemPromotionPage() {
   const currentTier = billingState?.tier ?? "free";
   const currentTierRank = tierRank(currentTier);
   const selectedTargetRank = tierRank(selectedTargetTier);
+  const freeUserPromotionUnavailable =
+    isAuthenticated &&
+    isSubscriptionPromo &&
+    promotion.subscriptionFreeUsersOnly &&
+    currentTierRank > 0;
   const paidUpgradeSelected =
     isSubscriptionPromo &&
+    !freeUserPromotionUnavailable &&
     currentTierRank > 0 &&
     selectedTargetTier !== undefined &&
     selectedTargetRank > currentTierRank;
@@ -411,6 +417,7 @@ function RedeemPromotionPage() {
     (isAuthenticated && authenticatedPromotion?.canRedeem === false) ||
     pending ||
     subscriptionBillingLoading ||
+    freeUserPromotionUnavailable ||
     (isAuthenticated && requiresTierSelection && targetTier === undefined) ||
     (isAuthenticated && selectedTargetIsNotUpgrade) ||
     (paidUpgradeSelected &&
@@ -426,11 +433,13 @@ function RedeemPromotionPage() {
           ? "Unavailable"
           : subscriptionBillingLoading
             ? "Loading billing..."
-            : selectedTargetIsNotUpgrade
-              ? "Upgrade required"
-              : isSubscriptionPromo && promotion.requiresCheckout
-                ? "Continue to checkout"
-                : "Redeem promotion";
+            : freeUserPromotionUnavailable
+              ? "Free users only"
+              : selectedTargetIsNotUpgrade
+                ? "Upgrade required"
+                : isSubscriptionPromo && promotion.requiresCheckout
+                  ? "Continue to checkout"
+                  : "Redeem promotion";
 
   const promotionDiscount =
     promotion.kind === "subscription_discount" &&
@@ -484,7 +493,9 @@ function RedeemPromotionPage() {
                     )}
                     renewalLine={undefined}
                     state={
-                      currentTierRank > 0 && tierRank("plus") <= currentTierRank
+                      freeUserPromotionUnavailable ||
+                      (currentTierRank > 0 &&
+                        tierRank("plus") <= currentTierRank)
                         ? "inactive"
                         : "available"
                     }
@@ -496,10 +507,13 @@ function RedeemPromotionPage() {
                     footer={
                       <p className="text-muted-foreground text-center text-xs">
                         {currentTierRank > 0 &&
-                        tierRank("plus") <= currentTierRank
-                          ? currentTier === "plus"
-                            ? "Already on Plus"
-                            : "On a higher plan"
+                        (freeUserPromotionUnavailable ||
+                          tierRank("plus") <= currentTierRank)
+                          ? freeUserPromotionUnavailable
+                            ? "Free plan only"
+                            : currentTier === "plus"
+                              ? "Already on Plus"
+                              : "On a higher plan"
                           : targetTier === "plus"
                             ? "Selected for checkout"
                             : "Apply promotion to Plus"}
@@ -517,7 +531,9 @@ function RedeemPromotionPage() {
                     )}
                     renewalLine={undefined}
                     state={
-                      currentTierRank > 0 && tierRank("pro") <= currentTierRank
+                      freeUserPromotionUnavailable ||
+                      (currentTierRank > 0 &&
+                        tierRank("pro") <= currentTierRank)
                         ? "inactive"
                         : "available"
                     }
@@ -529,10 +545,13 @@ function RedeemPromotionPage() {
                     footer={
                       <p className="text-muted-foreground text-center text-xs">
                         {currentTierRank > 0 &&
-                        tierRank("pro") <= currentTierRank
-                          ? currentTier === "pro"
-                            ? "Already on Pro"
-                            : "On a higher plan"
+                        (freeUserPromotionUnavailable ||
+                          tierRank("pro") <= currentTierRank)
+                          ? freeUserPromotionUnavailable
+                            ? "Free plan only"
+                            : currentTier === "pro"
+                              ? "Already on Pro"
+                              : "On a higher plan"
                           : targetTier === "pro"
                             ? "Selected for checkout"
                             : "Apply promotion to Pro"}
@@ -662,7 +681,11 @@ function RedeemPromotionPage() {
             </Button>
           ) : null}
 
-          {selectedTargetIsNotUpgrade && !result ? (
+          {freeUserPromotionUnavailable && !result ? (
+            <p className="text-muted-foreground mt-3 text-center text-xs">
+              This promotion is only available to users on the Free plan.
+            </p>
+          ) : selectedTargetIsNotUpgrade && !result ? (
             <p className="text-muted-foreground mt-3 text-center text-xs">
               This promotion cannot be applied to your current plan.
             </p>
