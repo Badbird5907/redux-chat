@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useAction, useQuery } from "convex/react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useAction, useConvexAuth, useQuery } from "convex/react";
 import {
   AlertCircle,
   ArrowRight,
@@ -28,14 +28,6 @@ import {
 } from "@/components/billing/plan-tier-marketing-card";
 
 export const Route = createFileRoute("/redeem/$code")({
-  beforeLoad: ({ context }) => {
-    if (!context.isAuthenticated) {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({
-        to: "/auth/sign-in",
-      });
-    }
-  },
   head: ({ params }) => ({
     meta: [{ title: `Redeem ${params.code} | Redux Chat` }],
   }),
@@ -111,12 +103,22 @@ function formatSignedCurrencyFromMinorUnits(
 
 function RedeemPromotionPage() {
   const { code } = Route.useParams();
-  const promotion = useQuery(api.functions.promotions.getPromotionByCode, {
-    code,
-  });
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+  const publicPromotion = useQuery(
+    api.functions.promotions.getPublicPromotionByCode,
+    {
+      code,
+    },
+  );
+  const authenticatedPromotion = useQuery(
+    api.functions.promotions.getPromotionByCode,
+    isAuthenticated ? { code } : "skip",
+  );
+  const promotion = isAuthenticated ? authenticatedPromotion : publicPromotion;
   const billingState = useQuery(
     api.functions.billing.getCurrentBillingState,
-    {},
+    isAuthenticated ? {} : "skip",
   );
   const getStripePriceDetails = useAction(
     api.functions.billing.getConfiguredStripePriceDetails,
@@ -152,6 +154,14 @@ function RedeemPromotionPage() {
   } | null>(null);
 
   const redeem = async () => {
+    if (!isAuthenticated) {
+      void navigate({
+        to: "/auth/sign-in",
+        search: { next: `/redeem/${encodeURIComponent(code)}` },
+      });
+      return;
+    }
+
     setPending(true);
     setError(null);
     try {
@@ -210,6 +220,10 @@ function RedeemPromotionPage() {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
     const redemptionId = params.get("redemptionId");
@@ -234,9 +248,13 @@ function RedeemPromotionPage() {
       );
       return () => window.clearTimeout(timeout);
     }
-  }, [cancelPendingCheckout]);
+  }, [cancelPendingCheckout, isAuthenticated]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     let cancelled = false;
     void getStripePriceDetails({})
       .then((prices) => {
@@ -252,7 +270,7 @@ function RedeemPromotionPage() {
     return () => {
       cancelled = true;
     };
-  }, [getStripePriceDetails]);
+  }, [getStripePriceDetails, isAuthenticated]);
 
   const isSubscriptionPromo = promotion?.kind === "subscription_discount";
   const configuredTargetTiers = isSubscriptionPromo
@@ -273,7 +291,7 @@ function RedeemPromotionPage() {
     upgradePreview?.targetTier === selectedTargetTier ? upgradePreview : null;
 
   useEffect(() => {
-    if (!paidUpgradeSelected) {
+    if (!isAuthenticated || !paidUpgradeSelected) {
       return;
     }
 
@@ -311,6 +329,7 @@ function RedeemPromotionPage() {
     };
   }, [
     code,
+    isAuthenticated,
     paidUpgradeSelected,
     previewSubscriptionPromotionUpgrade,
     selectedTargetTier,
@@ -366,29 +385,33 @@ function RedeemPromotionPage() {
     selectedTargetTier !== undefined &&
     selectedTargetRank <= currentTierRank;
   const subscriptionBillingLoading =
-    isSubscriptionPromo && billingState === undefined;
+    isAuthenticated && isSubscriptionPromo && billingState === undefined;
   const actionDisabled =
+    isAuthLoading ||
     result !== null ||
-    promotion.canRedeem === false ||
+    (isAuthenticated && authenticatedPromotion?.canRedeem === false) ||
     pending ||
     subscriptionBillingLoading ||
-    (requiresTierSelection && targetTier === undefined) ||
-    selectedTargetIsNotUpgrade ||
+    (isAuthenticated && requiresTierSelection && targetTier === undefined) ||
+    (isAuthenticated && selectedTargetIsNotUpgrade) ||
     (paidUpgradeSelected &&
       (!activeUpgradePreview?.data || activeUpgradePreview.error !== null));
   const actionLabel = pending
     ? "Redeeming..."
-    : promotion.ineligibleReason === "You already redeemed this promotion."
-      ? "Already Redeemed"
-      : promotion.canRedeem === false
-        ? "Unavailable"
-        : subscriptionBillingLoading
-          ? "Loading billing..."
-          : selectedTargetIsNotUpgrade
-            ? "Upgrade required"
-            : isSubscriptionPromo && promotion.requiresCheckout
-              ? "Continue to checkout"
-              : "Redeem promotion";
+    : !isAuthenticated
+      ? "Sign in to claim"
+      : authenticatedPromotion?.ineligibleReason ===
+          "You already redeemed this promotion."
+        ? "Already Redeemed"
+        : authenticatedPromotion?.canRedeem === false
+          ? "Unavailable"
+          : subscriptionBillingLoading
+            ? "Loading billing..."
+            : selectedTargetIsNotUpgrade
+              ? "Upgrade required"
+              : isSubscriptionPromo && promotion.requiresCheckout
+                ? "Continue to checkout"
+                : "Redeem promotion";
 
   const promotionDiscount =
     promotion.kind === "subscription_discount" &&
@@ -624,7 +647,10 @@ function RedeemPromotionPage() {
             <p className="text-muted-foreground mt-3 text-center text-xs">
               This promotion cannot be applied to your current plan.
             </p>
-          ) : requiresTierSelection && targetTier === undefined && !result ? (
+          ) : isAuthenticated &&
+            requiresTierSelection &&
+            targetTier === undefined &&
+            !result ? (
             <p className="text-muted-foreground mt-3 text-center text-xs">
               Choose a plan before redeeming.
             </p>

@@ -259,6 +259,26 @@ describe("functions/promotions", () => {
     expect(new Set(redemptions.map((r) => r.redemptionId)).size).toBe(2);
   });
 
+  it("returns public promotion preview without authentication", async () => {
+    const root = testDb();
+    await insertAppCreditPromotion(root, {
+      code: "PUBLIC-PROMO",
+      amount: 250,
+    });
+
+    await expect(
+      root.query(api.functions.promotions.getPublicPromotionByCode, {
+        code: "PUBLIC-PROMO",
+      }),
+    ).resolves.toMatchObject({
+      code: "PUBLIC-PROMO",
+      name: "Test promotion",
+      kind: "app_credits",
+      configSummary: "250 gifted credits",
+      requiresTargetTierSelection: false,
+    });
+  });
+
   it("requires Checkout for full-discount subscription promotions that need a payment method", () => {
     expect(
       shouldCreateDirectSubscriptionForPromotion({

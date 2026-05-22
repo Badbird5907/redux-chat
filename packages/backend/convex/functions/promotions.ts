@@ -39,7 +39,7 @@ import {
   resolveAppCreditExpiry,
 } from "../promotions";
 import { getStripeSdkClient, priceIdForTier } from "../stripe";
-import { action, adminMutation, adminQuery, query } from "./index";
+import { action, adminMutation, adminQuery, publicQuery, query } from "./index";
 import { internalMutation, internalQuery } from "./internal";
 
 const promotionKindValidator = v.union(
@@ -388,6 +388,18 @@ export const getPromotionByCode = query({
       canRedeem: ineligibleReason === undefined,
       ineligibleReason,
     };
+  },
+});
+
+export const getPublicPromotionByCode = publicQuery({
+  args: { code: v.string() },
+  handler: async (ctx, args) => {
+    const codeNormalized = normalizePromotionCode(args.code);
+    if (codeNormalized.length < MIN_PROMOTION_CODE_LENGTH) {
+      return null;
+    }
+    const promotion = await getPromotionByCodeNormalized(ctx, codeNormalized);
+    return promotion ? promotionPreview(promotion) : null;
   },
 });
 

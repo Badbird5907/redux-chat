@@ -24,6 +24,7 @@ import { Input } from "@redux/ui/components/input";
 import { ReduxChatBrand } from "@/components/auth/redux-chat-brand";
 import { SocialOAuthSection } from "@/components/auth/social-oauth-section";
 import { authClient } from "@/lib/auth/client";
+import { sanitizeAuthRedirect } from "@/lib/auth/redirect";
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -32,10 +33,16 @@ const signUpSchema = z.object({
 });
 
 export const Route = createFileRoute("/auth/sign-up")({
-  beforeLoad: ({ context }) => {
+  validateSearch: (search): { next?: string } => {
+    if (typeof search.next !== "string") {
+      return {};
+    }
+    return { next: sanitizeAuthRedirect(search.next) };
+  },
+  beforeLoad: ({ context, search }) => {
     if (context.isAuthenticated) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: "/" });
+      throw redirect({ to: sanitizeAuthRedirect(search.next) });
     }
   },
   component: SignUpPage,
@@ -43,6 +50,8 @@ export const Route = createFileRoute("/auth/sign-up")({
 
 function SignUpPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const redirectTo = sanitizeAuthRedirect(next);
 
   const form = useForm({
     defaultValues: {
@@ -60,7 +69,7 @@ function SignUpPage() {
         name: value.name,
         fetchOptions: {
           onSuccess: () => {
-            void navigate({ to: "/" });
+            void navigate({ to: redirectTo });
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);
@@ -82,6 +91,7 @@ function SignUpPage() {
           <SocialOAuthSection
             googleButtonLabel="Sign up with Google"
             githubButtonLabel="Sign up with GitHub"
+            callbackURL={redirectTo}
           />
 
           <form
@@ -162,7 +172,11 @@ function SignUpPage() {
         <CardFooter className="justify-center">
           <div className="text-muted-foreground text-sm">
             Already have an account?{" "}
-            <Link to="/auth/sign-in" className="text-primary hover:underline">
+            <Link
+              to="/auth/sign-in"
+              search={{ next: redirectTo }}
+              className="text-primary hover:underline"
+            >
               Sign in
             </Link>
           </div>
