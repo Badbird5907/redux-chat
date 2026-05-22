@@ -286,11 +286,10 @@ describe("functions/promotions", () => {
     expect(promotion?.autoStatusFromLimit).toBeUndefined();
   });
 
-  it("preserves manual status when a redemption is released", async () => {
+  it("rejects redemption on a manually paused promotion", async () => {
     const root = testDb();
     const promotionId = await insertAppCreditPromotion(root, {
       maxRedemptions: 5,
-      eligiblePlanTiers: ["plus"],
     });
     await root.run(async (ctx) => {
       const promo = await ctx.db
@@ -315,6 +314,69 @@ describe("functions/promotions", () => {
         .unique(),
     );
     expect(promotion?.status).toBe("paused");
+  });
+
+  it("preserves admin-set status when a reserved redemption is later released", async () => {
+    const root = testDb();
+    const promotionId = await insertAppCreditPromotion(root, {
+      maxRedemptions: 1,
+    });
+
+    const { redemptionId } = await root.run(async (ctx) => {
+      const promo = await ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique();
+      if (!promo) throw new Error("promo missing");
+      const redemptionId = crypto.randomUUID();
+      await ctx.db.insert("promotionRedemptions", {
+        redemptionId,
+        promotionId,
+        codeNormalized: "PROMO",
+        userId: USER_ID,
+        status: "reserved",
+        kind: "app_credits",
+        reservedAt: NOW,
+      });
+      await ctx.db.patch(promo._id, {
+        redeemedCount: 1,
+        status: "archived",
+        autoStatusFromLimit: true,
+      });
+      return { redemptionId };
+    });
+
+    await root.run(async (ctx) => {
+      const promo = await ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique();
+      if (promo) {
+        await ctx.db.patch(promo._id, {
+          status: "paused",
+          autoStatusFromLimit: undefined,
+        });
+      }
+    });
+
+    await root.mutation(
+      internal.functions.promotions.internal_markPromotionRedemptionFailed,
+      {
+        redemptionId,
+        failureReason: "Apply failed.",
+        releaseRedemption: true,
+      },
+    );
+
+    const promotion = await root.run(async (ctx) =>
+      ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique(),
+    );
+    expect(promotion?.status).toBe("paused");
+    expect(promotion?.redeemedCount).toBe(0);
+    expect(promotion?.autoStatusFromLimit).toBeUndefined();
   });
 
   it("rejects gifted credit promotions for ineligible current plans", async () => {
