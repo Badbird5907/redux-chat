@@ -60,6 +60,7 @@ export type PromotionFormDialogPromotion = {
   kind: PromotionKind;
   maxRedemptions?: number;
   perUserRedemptionLimit?: number;
+  pauseOnRedemptionLimit?: boolean;
   startsAt?: number;
   endsAt?: number;
   metadata?: unknown;
@@ -330,6 +331,9 @@ export function PromotionFormDialog({
   const [maxRedemptions, setMaxRedemptions] = useState(
     promotion?.maxRedemptions?.toString() ?? "",
   );
+  const [pauseOnRedemptionLimit, setPauseOnRedemptionLimit] = useState(
+    promotion?.pauseOnRedemptionLimit === true,
+  );
   const [perUserMode, setPerUserMode] =
     useState<PerUserMode>(initialPerUserMode);
   const [perUserLimit, setPerUserLimit] = useState(
@@ -380,6 +384,7 @@ export function PromotionFormDialog({
         : "3",
     );
     setMaxRedemptions(promotion?.maxRedemptions?.toString() ?? "");
+    setPauseOnRedemptionLimit(promotion?.pauseOnRedemptionLimit === true);
     setPerUserMode(initialPerUserMode);
     setPerUserLimit(
       initialPerUserMode === "limited"
@@ -558,6 +563,7 @@ export function PromotionFormDialog({
           status,
           maxRedemptions: max,
           perUserRedemptionLimit,
+          pauseOnRedemptionLimit,
           startsAt: starts,
           endsAt: ends,
           config,
@@ -574,6 +580,7 @@ export function PromotionFormDialog({
           status,
           maxRedemptions: max ?? null,
           perUserRedemptionLimit: perUserRedemptionLimit ?? null,
+          pauseOnRedemptionLimit,
           startsAt: starts ?? null,
           endsAt: ends ?? null,
           config,
@@ -1061,6 +1068,26 @@ export function PromotionFormDialog({
                     placeholder="Unlimited across all users"
                   />
                 </div>
+
+                <Label className="bg-card/50 flex items-start gap-3 rounded-lg border p-3">
+                  <Checkbox
+                    checked={pauseOnRedemptionLimit}
+                    onCheckedChange={(checked) =>
+                      setPauseOnRedemptionLimit(checked === true)
+                    }
+                    className="mt-0.5"
+                  />
+                  <span className="grid gap-1">
+                    <span className="text-sm font-medium">
+                      Pause instead of archive when limit is hit
+                    </span>
+                    <span className="text-muted-foreground text-xs font-normal">
+                      By default, the promotion is auto-archived once total
+                      redemptions reach the global cap. Enable to pause it
+                      instead so it can be resumed later.
+                    </span>
+                  </span>
+                </Label>
               </div>
             </FormSection>
 

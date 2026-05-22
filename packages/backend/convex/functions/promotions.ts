@@ -1284,6 +1284,7 @@ export const adminCreatePromotion = adminMutation({
     kind: promotionKindValidator,
     maxRedemptions: v.optional(v.number()),
     perUserRedemptionLimit: v.optional(v.number()),
+    pauseOnRedemptionLimit: v.optional(v.boolean()),
     startsAt: v.optional(v.number()),
     endsAt: v.optional(v.number()),
     appCreditsConfig: v.optional(appCreditsConfigValidator),
@@ -1326,6 +1327,7 @@ export const adminCreatePromotion = adminMutation({
       kind: args.kind,
       maxRedemptions: args.maxRedemptions,
       perUserRedemptionLimit: args.perUserRedemptionLimit,
+      pauseOnRedemptionLimit: args.pauseOnRedemptionLimit,
       redeemedCount: 0,
       startsAt: args.startsAt,
       endsAt: args.endsAt,
@@ -1349,6 +1351,7 @@ export const adminUpdatePromotion = adminMutation({
     kind: v.optional(promotionKindValidator),
     maxRedemptions: v.optional(v.union(v.number(), v.null())),
     perUserRedemptionLimit: v.optional(v.union(v.number(), v.null())),
+    pauseOnRedemptionLimit: v.optional(v.boolean()),
     startsAt: v.optional(v.union(v.number(), v.null())),
     endsAt: v.optional(v.union(v.number(), v.null())),
     appCreditsConfig: v.optional(appCreditsConfigValidator),
@@ -1400,6 +1403,7 @@ export const adminUpdatePromotion = adminMutation({
       kind: PromotionKind;
       maxRedemptions: number | undefined;
       perUserRedemptionLimit: number | undefined;
+      pauseOnRedemptionLimit: boolean | undefined;
       startsAt: number | undefined;
       endsAt: number | undefined;
       metadata: unknown;
@@ -1426,6 +1430,9 @@ export const adminUpdatePromotion = adminMutation({
     }
     if (args.perUserRedemptionLimit !== undefined) {
       patch.perUserRedemptionLimit = perUserRedemptionLimit;
+    }
+    if (args.pauseOnRedemptionLimit !== undefined) {
+      patch.pauseOnRedemptionLimit = args.pauseOnRedemptionLimit;
     }
     if (args.startsAt !== undefined) patch.startsAt = startsAt;
     if (args.endsAt !== undefined) patch.endsAt = endsAt;
@@ -1671,9 +1678,18 @@ export const internal_reservePromotionRedemption = internalMutation({
       },
     });
 
+    const nextRedeemedCount = promotion.redeemedCount + 1;
+    const reachedLimit =
+      promotion.maxRedemptions !== undefined &&
+      nextRedeemedCount >= promotion.maxRedemptions;
     await ctx.db.patch(promotion._id, {
-      redeemedCount: promotion.redeemedCount + 1,
+      redeemedCount: nextRedeemedCount,
       updatedAt: now,
+      ...(reachedLimit
+        ? {
+            status: promotion.pauseOnRedemptionLimit ? "paused" : "archived",
+          }
+        : {}),
     });
 
     return {

@@ -27,6 +27,7 @@ async function insertAppCreditPromotion(
     eligiblePlanTiers?: "all" | ("free" | "plus" | "pro")[];
     maxRedemptions?: number;
     perUserRedemptionLimit?: number;
+    pauseOnRedemptionLimit?: boolean;
   } = {},
 ) {
   const promotionId = crypto.randomUUID();
@@ -40,6 +41,7 @@ async function insertAppCreditPromotion(
       kind: "app_credits",
       maxRedemptions: args.maxRedemptions,
       perUserRedemptionLimit: args.perUserRedemptionLimit,
+      pauseOnRedemptionLimit: args.pauseOnRedemptionLimit,
       redeemedCount: 0,
       createdByUserId: "admin",
       createdAt: NOW,
@@ -196,7 +198,7 @@ describe("functions/promotions", () => {
     });
     await expect(
       user.action(api.functions.promotions.redeemPromotion, { code: "PROMO" }),
-    ).rejects.toThrow(/redemption limit/);
+    ).rejects.toThrow(/not active/);
 
     const redemptions = await listRedemptions(root, promotionId);
     expect(redemptions).toHaveLength(3);
@@ -215,10 +217,49 @@ describe("functions/promotions", () => {
       root
         .withIdentity({ subject: OTHER_USER_ID })
         .action(api.functions.promotions.redeemPromotion, { code: "PROMO" }),
-    ).rejects.toThrow(/redemption limit/);
+    ).rejects.toThrow(/not active/);
 
     const redemptions = await listRedemptions(root, promotionId);
     expect(redemptions).toHaveLength(1);
+  });
+
+  it("auto-archives the promotion when the global limit is reached", async () => {
+    const root = testDb();
+    const promotionId = await insertAppCreditPromotion(root, {
+      maxRedemptions: 1,
+    });
+
+    await root
+      .withIdentity({ subject: USER_ID })
+      .action(api.functions.promotions.redeemPromotion, { code: "PROMO" });
+
+    const promotion = await root.run(async (ctx) =>
+      ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique(),
+    );
+    expect(promotion?.status).toBe("archived");
+  });
+
+  it("auto-pauses (instead of archiving) when pauseOnRedemptionLimit is on", async () => {
+    const root = testDb();
+    const promotionId = await insertAppCreditPromotion(root, {
+      maxRedemptions: 1,
+      pauseOnRedemptionLimit: true,
+    });
+
+    await root
+      .withIdentity({ subject: USER_ID })
+      .action(api.functions.promotions.redeemPromotion, { code: "PROMO" });
+
+    const promotion = await root.run(async (ctx) =>
+      ctx.db
+        .query("promotions")
+        .withIndex("by_promotionId", (q) => q.eq("promotionId", promotionId))
+        .unique(),
+    );
+    expect(promotion?.status).toBe("paused");
   });
 
   it("rejects gifted credit promotions for ineligible current plans", async () => {
