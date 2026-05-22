@@ -160,7 +160,6 @@ export function useFileUpload({
           const result = completion.result;
 
           if (
-            !result ||
             typeof result.attachmentId !== "string" ||
             result.attachmentId.length === 0
           ) {
