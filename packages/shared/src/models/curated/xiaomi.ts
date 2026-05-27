@@ -3,6 +3,9 @@ import type { CuratedProviderDefinition } from "../types";
 export const XIAOMI_PROVIDER: CuratedProviderDefinition = {
   slug: "xiaomi",
   name: "Xiaomi",
+  routeBehavior: {
+    openrouter: { useOpenAICompatible: true },
+  },
   models: [
     {
       id: "mimo-v2-flash",

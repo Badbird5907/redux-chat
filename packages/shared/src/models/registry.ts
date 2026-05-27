@@ -46,6 +46,7 @@ export const CURATED_MODELS: CanonicalCuratedModelDefinition[] =
       providerSlug: provider.slug,
       providerName: provider.name,
       providerBenchmarks: provider.benchmarks,
+      providerRouteBehavior: provider.routeBehavior,
     })),
   );
 
@@ -73,10 +74,16 @@ for (const model of CURATED_MODELS) {
     if (routeBehavior) {
       ROUTE_BEHAVIOR_OVERRIDES.set(providerId, routeBehavior);
     }
+    const curatedProviderRouteBehavior =
+      model.providerRouteBehavior?.[route.provider];
     resolvedRoutes.push({
       ...route,
       canonicalModelId: model.id,
-      behavior: mergeModelRouteBehavior(route.provider, routeBehavior),
+      behavior: mergeModelRouteBehavior(
+        route.provider,
+        curatedProviderRouteBehavior,
+        routeBehavior,
+      ),
     });
   }
 

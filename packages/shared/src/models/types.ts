@@ -79,6 +79,12 @@ export interface ChatAttachmentPolicy {
 export interface ModelRouteBehavior {
   runtimeProviderKey?: string;
   attachmentPolicy?: ChatAttachmentPolicy;
+  /**
+   * When true, routes through this provider use the OpenAI Chat Completions
+   * compatible adapter instead of the provider's default SDK. Useful for
+   * OpenRouter-hosted models whose streams the default provider cannot parse.
+   */
+  useOpenAICompatible?: boolean;
 }
 
 export interface ModelRouteInfo {
@@ -144,6 +150,12 @@ export interface CuratedProviderDefinition {
   slug: string;
   name: string;
   benchmarks?: CuratedProviderBenchmarks;
+  /**
+   * Defaults applied to every model in this curated provider, keyed by the
+   * underlying route provider slug (e.g. "openrouter"). Per-model
+   * `routeBehavior` overrides take precedence.
+   */
+  routeBehavior?: Partial<Record<string, ModelRouteBehavior>>;
   models: readonly CuratedModelDefinition[];
 }
 
@@ -152,6 +164,7 @@ export interface CanonicalCuratedModelDefinition extends CuratedModelDefinition 
   providerSlug: string;
   providerName: string;
   providerBenchmarks?: CuratedProviderBenchmarks;
+  providerRouteBehavior?: Partial<Record<string, ModelRouteBehavior>>;
 }
 
 export interface ChatModelConfig {
