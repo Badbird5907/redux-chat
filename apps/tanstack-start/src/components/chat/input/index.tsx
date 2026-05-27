@@ -250,6 +250,10 @@ export function ChatInput({
 
   const selectedModel = settings.model;
   const isSearchEnabled = isToolEnabled(settings.tools, "search");
+  const isBashWorkspaceEnabled = isToolEnabled(
+    settings.tools,
+    "bashWorkspace",
+  );
   const isAnalysisWorkspaceEnabled = isToolEnabled(
     settings.tools,
     "analysisWorkspace",
@@ -409,6 +413,17 @@ export function ChatInput({
       void onSettingsChange({
         tools: {
           imageGeneration: { modelId },
+        },
+      });
+    },
+    [onSettingsChange],
+  );
+
+  const handleBashWorkspaceEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void onSettingsChange({
+        tools: {
+          bashWorkspace: enabled ? {} : undefined,
         },
       });
     },
@@ -1084,6 +1099,7 @@ export function ChatInput({
               canUploadFiles={canUploadFiles}
               isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
               isImageGenerationEnabled={isImageGenerationEnabled}
+              isBashWorkspaceEnabled={isBashWorkspaceEnabled}
               isSearchEnabled={isSearchEnabled}
               imageGenerationModels={imageGenerationModels}
               selectedImageGenerationModelId={selectedImageGenerationModelId}
@@ -1094,6 +1110,7 @@ export function ChatInput({
                 handleImageGenerationEnabledChange
               }
               onImageGenerationModelChange={handleImageGenerationModelChange}
+              onBashWorkspaceEnabledChange={handleBashWorkspaceEnabledChange}
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}
               mcpServers={mcpServers.map((server) => ({

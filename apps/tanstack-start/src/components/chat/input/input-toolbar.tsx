@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Square,
+  Terminal,
   Trash2,
 } from "lucide-react";
 
@@ -62,6 +63,7 @@ interface ChatInputToolbarProps {
   canUploadFiles: boolean;
   isAnalysisWorkspaceEnabled: boolean;
   isImageGenerationEnabled: boolean;
+  isBashWorkspaceEnabled: boolean;
   isSearchEnabled: boolean;
   imageGenerationModels: {
     id: string;
@@ -72,6 +74,7 @@ interface ChatInputToolbarProps {
   onAnalysisWorkspaceEnabledChange: (enabled: boolean) => void;
   onImageGenerationEnabledChange: (enabled: boolean) => void;
   onImageGenerationModelChange: (modelId: string) => void;
+  onBashWorkspaceEnabledChange: (enabled: boolean) => void;
   onToggleSearch: () => void;
   settingsReady: boolean;
   mcpServers: {
@@ -118,12 +121,14 @@ export function ChatInputToolbar({
   canUploadFiles,
   isAnalysisWorkspaceEnabled,
   isImageGenerationEnabled,
+  isBashWorkspaceEnabled,
   isSearchEnabled,
   imageGenerationModels,
   selectedImageGenerationModelId,
   onAnalysisWorkspaceEnabledChange,
   onImageGenerationEnabledChange,
   onImageGenerationModelChange,
+  onBashWorkspaceEnabledChange,
   onToggleSearch,
   settingsReady,
   mcpServers,
@@ -244,6 +249,14 @@ export function ChatInputToolbar({
                     <span className="min-w-0 grow whitespace-nowrap">
                       Search
                     </span>
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={isBashWorkspaceEnabled}
+                    disabled={!settingsReady}
+                    onCheckedChange={onBashWorkspaceEnabledChange}
+                  >
+                    <Terminal className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">Bash</span>
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={isAnalysisWorkspaceEnabled}

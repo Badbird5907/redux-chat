@@ -3,6 +3,7 @@ import { DEFAULT_CHAT_MODEL_ID, normalizeModelId } from "@redux/shared/models";
 
 export const MESSAGE_TOOL_NAMES = [
   "search",
+  "bashWorkspace",
   "analysisWorkspace",
   "mcpServers",
   "imageGeneration",
@@ -11,6 +12,8 @@ export const MESSAGE_TOOL_NAMES = [
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
 
 export type SearchToolSettings = object;
+
+export type BashWorkspaceToolSettings = object;
 
 export interface AnalysisWorkspaceToolSettings {
   syncUploads: boolean;
@@ -38,6 +41,7 @@ export interface ImageGenerationToolSettingsInput {
 
 export interface MessageToolSettings {
   search?: SearchToolSettings;
+  bashWorkspace?: BashWorkspaceToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettings;
   mcpServers?: McpServersToolSettings;
   imageGeneration?: ImageGenerationToolSettings;
@@ -45,6 +49,7 @@ export interface MessageToolSettings {
 
 export interface MessageToolSettingsInput {
   search?: SearchToolSettings;
+  bashWorkspace?: BashWorkspaceToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettingsInput;
   mcpServers?: McpServersToolSettingsInput;
   imageGeneration?: ImageGenerationToolSettingsInput;
@@ -78,6 +83,7 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
   tools: {
     search: {},
+    bashWorkspace: {},
     analysisWorkspace: { syncUploads: true },
   },
   instructionId: undefined,
@@ -175,6 +181,14 @@ function normalizeTools(
     !Array.isArray(tools.search)
   ) {
     normalizedTools.search = {};
+  }
+
+  if (
+    tools?.bashWorkspace &&
+    typeof tools.bashWorkspace === "object" &&
+    !Array.isArray(tools.bashWorkspace)
+  ) {
+    normalizedTools.bashWorkspace = {};
   }
 
   if (

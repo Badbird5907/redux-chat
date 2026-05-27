@@ -15,6 +15,7 @@ import type { MessageSettings } from "@redux/types";
 import { isImageGenerationToolModel } from "@redux/shared/models";
 import { getEnabledMessageTools } from "@redux/types";
 
+import { createBashWorkspaceRuntime } from "@/lib/ai/tools/bash-workspace";
 import {
   createSandboxRuntime,
   SANDBOX_UPLOADS_DIR,
@@ -277,10 +278,32 @@ export async function createToolRuntime(
   const toolUsageCounts = new Map<string, number>();
 
   let sandboxRuntime: ReturnType<typeof createSandboxRuntime> | undefined;
+  let bashWorkspaceRuntime:
+    | Awaited<ReturnType<typeof createBashWorkspaceRuntime>>
+    | undefined;
   const mcpClients: Awaited<ReturnType<typeof createMCPClient>>[] = [];
 
   if (enabledTools.includes("search")) {
     tools.search = instrumentTool(webSearch(), "search", toolUsageCounts);
+  }
+
+  if (enabledTools.includes("bashWorkspace")) {
+    bashWorkspaceRuntime = await createBashWorkspaceRuntime({ attachments });
+    tools.bash = instrumentTool(
+      bashWorkspaceRuntime.tools.bash,
+      "bash_workspace",
+      toolUsageCounts,
+    );
+    tools.readFile = instrumentTool(
+      bashWorkspaceRuntime.tools.readFile,
+      "bash_workspace",
+      toolUsageCounts,
+    );
+    tools.writeFile = instrumentTool(
+      bashWorkspaceRuntime.tools.writeFile,
+      "bash_workspace",
+      toolUsageCounts,
+    );
   }
 
   if (enabledTools.includes("analysisWorkspace")) {
@@ -292,7 +315,8 @@ export async function createToolRuntime(
       syncUploads: uploadsEnabled,
     });
 
-    const { getSandbox, syncUploadsToSandbox } = sandboxRuntime;
+    const { getSandbox, getUploadManifest, syncUploadsToSandbox } =
+      sandboxRuntime;
 
     tools.analysis_workspace = instrumentTool(
       tool({
@@ -300,17 +324,24 @@ export async function createToolRuntime(
           ? [
               "Execute Python code in a Jupyter notebook cell and return the result.",
               "Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
-              `Before execution, uploaded chat files are synced into ${SANDBOX_UPLOADS_DIR}.`,
+              `Uploaded chat file metadata is available in the tool result as uploadManifest.`,
+              `To sync uploaded files into ${SANDBOX_UPLOADS_DIR}, pass the specific attachmentIds needed for this analysis call.`,
             ].join(" ")
           : "Execute Python code in a Jupyter notebook cell and return the result. Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
         inputSchema: z.object({
           code: z
             .string()
             .describe("The Python code to execute in a single notebook cell."),
+          attachmentIds: z
+            .array(z.string())
+            .optional()
+            .describe(
+              "Optional uploaded attachment IDs to sync into the analysis workspace before execution.",
+            ),
         }),
-        execute: async ({ code }) => {
+        execute: async ({ code, attachmentIds }) => {
           const sandbox = await getSandbox();
-          const uploadedFiles = await syncUploadsToSandbox();
+          const uploadedFiles = await syncUploadsToSandbox(attachmentIds);
           const execution = await sandbox.runCode(code);
 
           return {
@@ -321,6 +352,7 @@ export async function createToolRuntime(
             },
             results: toConvexSafeValue(execution.results) ?? [],
             text: execution.text ?? null,
+            uploadManifest: getUploadManifest(),
             uploadedFiles,
           };
         },
@@ -434,6 +466,7 @@ export async function createToolRuntime(
     cleanup: async () => {
       await Promise.allSettled(mcpClients.map((client) => client.close()));
       await sandboxRuntime?.cleanup();
+      await bashWorkspaceRuntime?.cleanup();
     },
   };
 }

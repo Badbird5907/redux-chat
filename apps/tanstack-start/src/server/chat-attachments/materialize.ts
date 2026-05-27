@@ -6,6 +6,7 @@ import type { AttachmentSourceRef } from "../attachments-core/types";
 import { storeReadyPdfDerivativeText } from "../attachments-core/cache";
 import { ensureAttachmentDerivative } from "../attachments-core/ensure-derivative";
 import { extractPdfTextDerivative } from "../attachments-core/extract-text";
+import { formatBashUploadSummary } from "./bash-uploads";
 import { planChatAttachment } from "./plan";
 
 export interface ChatAttachmentRecord extends AttachmentSourceRef {
@@ -67,6 +68,9 @@ export async function materializeAttachmentsForRoute<
   route: ModelRouteInfo,
   messages: TMessage[],
   attachmentsByMessageId: Map<string, ChatAttachmentRecord[]>,
+  options: {
+    useBashUploadReferences?: boolean;
+  } = {},
 ) {
   if (attachmentsByMessageId.size === 0) {
     return messages;
@@ -86,6 +90,22 @@ export async function materializeAttachmentsForRoute<
       }
 
       const materializedParts: UIMessagePart<UIDataTypes, UITools>[] = [];
+
+      if (options.useBashUploadReferences) {
+        const uploadSummary = formatBashUploadSummary(attachments);
+        return uploadSummary
+          ? {
+              ...message,
+              parts: [
+                ...message.parts,
+                {
+                  type: "text",
+                  text: uploadSummary,
+                },
+              ],
+            }
+          : message;
+      }
 
       for (const attachment of attachments) {
         const plan = planChatAttachment(route, attachment);

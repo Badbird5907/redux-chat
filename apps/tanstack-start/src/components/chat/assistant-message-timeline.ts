@@ -231,11 +231,18 @@ function humanizeToolName(toolName: string) {
 }
 
 function getToolLabel(toolName: string, title: string | undefined) {
-  if (toolName.toLowerCase() === "analysis_workspace") {
-    return "Analysis";
+  switch (toolName.toLowerCase()) {
+    case "analysis_workspace":
+      return "Analysis";
+    case "bash":
+      return "Bash";
+    case "readfile":
+      return "Read File";
+    case "writefile":
+      return "Write File";
+    default:
+      return title ?? humanizeToolName(toolName);
   }
-
-  return title ?? humanizeToolName(toolName);
 }
 
 function getToolDescription(
@@ -293,6 +300,18 @@ function getToolDescription(
     }
   }
 
+  if (normalizedToolName === "bash") {
+    return getBashToolDescription(part);
+  }
+
+  if (normalizedToolName === "readfile") {
+    return getReadFileToolDescription(part);
+  }
+
+  if (normalizedToolName === "writefile") {
+    return getWriteFileToolDescription(part);
+  }
+
   if (part.state === "output-available") {
     const outputText = summarizeUnknown(part.output);
     if (outputText) {
@@ -329,6 +348,20 @@ function getToolSummary(
     }
   }
 
+  if (normalizedToolName === "bash") {
+    return part.state === "output-available"
+      ? "Ran Bash command"
+      : "Running Bash command";
+  }
+
+  if (normalizedToolName === "readfile") {
+    return part.state === "output-available" ? "Read file" : "Reading file";
+  }
+
+  if (normalizedToolName === "writefile") {
+    return part.state === "output-available" ? "Wrote file" : "Writing file";
+  }
+
   switch (part.state) {
     case "output-error":
       return `${label} failed`;
@@ -347,6 +380,76 @@ function getToolSummary(
   }
 }
 
+function getBashToolDescription(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const input = getToolInput(part);
+  const command =
+    isRecord(input) && typeof input.command === "string"
+      ? input.command
+      : undefined;
+  const commandText = command ? `\`${summarizeText(command, 96) ?? command}\`` : "command";
+
+  if (part.state !== "output-available") {
+    return `Running ${commandText}`;
+  }
+
+  const output = part.output;
+  const exitCode =
+    isRecord(output) && typeof output.exitCode === "number"
+      ? output.exitCode
+      : undefined;
+  const stdout =
+    isRecord(output) && typeof output.stdout === "string"
+      ? summarizeText(output.stdout, 120)
+      : undefined;
+  const stderr =
+    isRecord(output) && typeof output.stderr === "string"
+      ? summarizeText(output.stderr, 120)
+      : undefined;
+  const statusText =
+    exitCode === undefined ? "finished" : `exited with code ${exitCode}`;
+  const outputText = stderr
+    ? ` stderr: ${stderr}`
+    : stdout
+      ? ` output: ${stdout}`
+      : "";
+
+  return `Ran ${commandText}; ${statusText}.${outputText}`;
+}
+
+function getReadFileToolDescription(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const path = getToolPath(part);
+  const pathText = path ? `\`${path}\`` : "file";
+
+  if (part.state !== "output-available") {
+    return `Reading ${pathText}`;
+  }
+
+  const output = part.output;
+  const contentLength =
+    isRecord(output) && typeof output.content === "string"
+      ? output.content.length
+      : undefined;
+
+  return contentLength === undefined
+    ? `Read ${pathText}.`
+    : `Read ${pathText} (${contentLength.toLocaleString()} characters).`;
+}
+
+function getWriteFileToolDescription(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const path = getToolPath(part);
+  const pathText = path ? `\`${path}\`` : "file";
+
+  return part.state === "output-available"
+    ? `Wrote ${pathText}.`
+    : `Writing ${pathText}`;
+}
+
 function getToolInput(
   part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
 ) {
@@ -363,6 +466,15 @@ function getToolQuery(
   const input = getToolInput(part);
   return isRecord(input) && typeof input.query === "string"
     ? input.query
+    : undefined;
+}
+
+function getToolPath(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const input = getToolInput(part);
+  return isRecord(input) && typeof input.path === "string"
+    ? input.path
     : undefined;
 }
 

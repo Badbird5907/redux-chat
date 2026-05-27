@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+import path from "node:path";
 import { sentryTanstackStart } from "@sentry/tanstackstart-react/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
@@ -7,7 +9,15 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
+const require = createRequire(import.meta.url);
+const justBashBundleDir = path.dirname(require.resolve("just-bash"));
+
 export default defineConfig({
+  resolve: {
+    alias: {
+      "just-bash": path.join(justBashBundleDir, "index.js"),
+    },
+  },
   server: {
     allowedHosts: ["evan-lpt"],
     host: true,
