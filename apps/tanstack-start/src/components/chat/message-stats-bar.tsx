@@ -1,9 +1,9 @@
 "use client";
 
 import { memo } from "react";
-import { ClockIcon, WholeWord, ZapIcon } from "lucide-react";
+import { ClockIcon, ImageIcon, WholeWord, ZapIcon } from "lucide-react";
 
-import { getModelDisplayName } from "@redux/shared/models";
+import { getModelDisplayName, isImageOutputModel } from "@redux/shared/models";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { MessageStats } from "./chat-types";
@@ -39,6 +39,14 @@ function getReasoningLevelDisplay(level: MessageStats["thinkingLevel"]) {
   }
 }
 
+function formatDuration(ms: number) {
+  if (ms < 1000) {
+    return `${Math.max(0, Math.round(ms))} ms`;
+  }
+
+  return `${(ms / 1000).toFixed(2)} sec`;
+}
+
 export const MessageStatsBar = memo(function MessageStatsBar({
   stats,
   actionsDisabled,
@@ -50,6 +58,7 @@ export const MessageStatsBar = memo(function MessageStatsBar({
   const generationStats = stats?.generationStats;
   const model = stats?.model;
   const reasoning = getReasoningLevelDisplay(stats?.thinkingLevel);
+  const isImageModel = model ? isImageOutputModel(model) : false;
   return (
     <div
       className={cn(
@@ -71,7 +80,18 @@ export const MessageStatsBar = memo(function MessageStatsBar({
           {reasoning.label}
         </span>
       )}
-      {generationStats && (
+      {generationStats && isImageModel ? (
+        <>
+          <span className="flex items-center gap-1">
+            <ClockIcon className="size-4" />
+            Generated in {formatDuration(generationStats.totalDurationMs)}
+          </span>
+
+          <span className="flex items-center gap-1">
+            <ImageIcon className="size-4" />1 image
+          </span>
+        </>
+      ) : generationStats ? (
         <>
           <span className="flex items-center gap-1">
             <ZapIcon className="size-4" />
@@ -90,7 +110,7 @@ export const MessageStatsBar = memo(function MessageStatsBar({
             </span>
           )}
         </>
-      )}
+      ) : null}
     </div>
   );
 });

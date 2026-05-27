@@ -6,6 +6,7 @@ export const MESSAGE_TOOL_NAMES = [
   "bashWorkspace",
   "analysisWorkspace",
   "mcpServers",
+  "imageGeneration",
 ] as const;
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
@@ -30,11 +31,20 @@ export interface McpServersToolSettingsInput {
   serverIds: string[];
 }
 
+export interface ImageGenerationToolSettings {
+  modelId: string;
+}
+
+export interface ImageGenerationToolSettingsInput {
+  modelId: string;
+}
+
 export interface MessageToolSettings {
   search?: SearchToolSettings;
   bashWorkspace?: BashWorkspaceToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettings;
   mcpServers?: McpServersToolSettings;
+  imageGeneration?: ImageGenerationToolSettings;
 }
 
 export interface MessageToolSettingsInput {
@@ -42,6 +52,7 @@ export interface MessageToolSettingsInput {
   bashWorkspace?: BashWorkspaceToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettingsInput;
   mcpServers?: McpServersToolSettingsInput;
+  imageGeneration?: ImageGenerationToolSettingsInput;
 }
 
 /** Lines shown before collapsing user messages in chat. Use `0` to disable collapsing. */
@@ -206,6 +217,21 @@ function normalizeTools(
 
     if (serverIds.length > 0) {
       normalizedTools.mcpServers = { serverIds };
+    }
+  }
+
+  if (
+    tools?.imageGeneration &&
+    typeof tools.imageGeneration === "object" &&
+    !Array.isArray(tools.imageGeneration)
+  ) {
+    const modelId =
+      typeof tools.imageGeneration.modelId === "string"
+        ? normalizeModelId(tools.imageGeneration.modelId)
+        : undefined;
+
+    if (modelId) {
+      normalizedTools.imageGeneration = { modelId };
     }
   }
 

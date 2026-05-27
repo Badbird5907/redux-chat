@@ -96,6 +96,8 @@ export interface ModelModalities {
 
 export interface ModelSupports {
   attachments: boolean;
+  imageGenerationTool: boolean;
+  imageOutput: boolean;
   reasoning: boolean;
   toolCalling: boolean;
   temperature: boolean;

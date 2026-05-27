@@ -15,6 +15,7 @@ import { api } from "@redux/backend/convex/_generated/api";
 import {
   classifyChatAttachment,
   getChatModelConfig,
+  getImageGenerationToolModels,
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "@redux/shared/models";
@@ -249,13 +250,24 @@ export function ChatInput({
 
   const selectedModel = settings.model;
   const isSearchEnabled = isToolEnabled(settings.tools, "search");
-  const isBashWorkspaceEnabled = isToolEnabled(
-    settings.tools,
-    "bashWorkspace",
-  );
+  const isBashWorkspaceEnabled = isToolEnabled(settings.tools, "bashWorkspace");
   const isAnalysisWorkspaceEnabled = isToolEnabled(
     settings.tools,
     "analysisWorkspace",
+  );
+  const imageGenerationModels = useMemo(
+    () =>
+      getImageGenerationToolModels().map((model) => ({
+        id: model.id,
+        name: model.name,
+      })),
+    [],
+  );
+  const selectedImageGenerationModelId =
+    settings.tools.imageGeneration?.modelId ?? imageGenerationModels[0]?.id;
+  const isImageGenerationEnabled = isToolEnabled(
+    settings.tools,
+    "imageGeneration",
   );
   const enabledMcpServerIds = useMemo(
     () => settings.tools.mcpServers?.serverIds ?? [],
@@ -373,6 +385,31 @@ export function ChatInput({
       void onSettingsChange({
         tools: {
           analysisWorkspace: enabled ? { syncUploads: true } : undefined,
+        },
+      });
+    },
+    [onSettingsChange],
+  );
+
+  const handleImageGenerationEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void onSettingsChange({
+        tools: {
+          imageGeneration:
+            enabled && selectedImageGenerationModelId
+              ? { modelId: selectedImageGenerationModelId }
+              : undefined,
+        },
+      });
+    },
+    [onSettingsChange, selectedImageGenerationModelId],
+  );
+
+  const handleImageGenerationModelChange = useCallback(
+    (modelId: string) => {
+      void onSettingsChange({
+        tools: {
+          imageGeneration: { modelId },
         },
       });
     },
@@ -1058,11 +1095,18 @@ export function ChatInput({
               instructionsReady={instructionsReady}
               canUploadFiles={canUploadFiles}
               isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
+              isImageGenerationEnabled={isImageGenerationEnabled}
               isBashWorkspaceEnabled={isBashWorkspaceEnabled}
               isSearchEnabled={isSearchEnabled}
+              imageGenerationModels={imageGenerationModels}
+              selectedImageGenerationModelId={selectedImageGenerationModelId}
               onAnalysisWorkspaceEnabledChange={
                 handleAnalysisWorkspaceEnabledChange
               }
+              onImageGenerationEnabledChange={
+                handleImageGenerationEnabledChange
+              }
+              onImageGenerationModelChange={handleImageGenerationModelChange}
               onBashWorkspaceEnabledChange={handleBashWorkspaceEnabledChange}
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}

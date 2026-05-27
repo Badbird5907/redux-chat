@@ -18,6 +18,7 @@ export interface AssistantTimelineStep {
   description?: string;
   id: string;
   kind: "reasoning" | "source" | "tool";
+  origin?: "image-model";
   label: string;
   rawPartIds: string[];
   searchResults?: AssistantTimelineSearchResult[];
@@ -68,6 +69,9 @@ export function normalizeAssistantMessage(
       isToolUIPart(part) ||
       part.type === "source-document" ||
       part.type === "source-url",
+  );
+  const completedGeneratedImageKeys = getCompletedGeneratedImageKeys(
+    message.parts,
   );
   const steps: AssistantTimelineStep[] = [];
   let attachableStepIndex = -1;
@@ -124,6 +128,34 @@ export function normalizeAssistantMessage(
       };
 
       steps.push(toolStep);
+      attachableStepIndex = steps.length - 1;
+      continue;
+    }
+
+    const generatedImage = normalizeGeneratedImagePart(part);
+    if (generatedImage) {
+      const isGenerating = generatedImage.status === "generating";
+      if (
+        isGenerating &&
+        completedGeneratedImageKeys.has(getGeneratedImageKey(generatedImage))
+      ) {
+        continue;
+      }
+
+      steps.push({
+        description: getGeneratedImageDescription(
+          generatedImage.prompt,
+          isGenerating,
+        ),
+        id: `${message.id}:generated-image:${id}`,
+        kind: "tool",
+        label: "Generate Image",
+        origin: "image-model",
+        rawPartIds: [id],
+        status: isGenerating ? "active" : "complete",
+        summary: isGenerating ? "Generating Image" : "Generated Image",
+        toolName: "generate_image",
+      });
       attachableStepIndex = steps.length - 1;
       continue;
     }
@@ -232,6 +264,8 @@ function humanizeToolName(toolName: string) {
 
 function getToolLabel(toolName: string, title: string | undefined) {
   switch (toolName.toLowerCase()) {
+    case "generate_image":
+      return "Generate Image";
     case "analysis_workspace":
       return "Analysis";
     case "bash":
@@ -300,6 +334,14 @@ function getToolDescription(
     }
   }
 
+  if (normalizedToolName === "generate_image") {
+    const prompt = getToolPrompt(part);
+    return getGeneratedImageDescription(
+      prompt,
+      part.state !== "output-available",
+    );
+  }
+
   if (normalizedToolName === "bash") {
     return getBashToolDescription(part);
   }
@@ -348,6 +390,17 @@ function getToolSummary(
     }
   }
 
+  if (normalizedToolName === "generate_image") {
+    const prompt = getToolPrompt(part);
+    const action =
+      part.state === "output-available"
+        ? "Generated image"
+        : "Generating image";
+    return prompt
+      ? `${action} with prompt ${formatInlineQuery(prompt)}`
+      : action;
+  }
+
   if (normalizedToolName === "bash") {
     return part.state === "output-available"
       ? "Ran Bash command"
@@ -388,7 +441,9 @@ function getBashToolDescription(
     isRecord(input) && typeof input.command === "string"
       ? input.command
       : undefined;
-  const commandText = command ? `\`${summarizeText(command, 96) ?? command}\`` : "command";
+  const commandText = command
+    ? `\`${summarizeText(command, 96) ?? command}\``
+    : "command";
 
   if (part.state !== "output-available") {
     return `Running ${commandText}`;
@@ -466,6 +521,15 @@ function getToolQuery(
   const input = getToolInput(part);
   return isRecord(input) && typeof input.query === "string"
     ? input.query
+    : undefined;
+}
+
+function getToolPrompt(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const input = getToolInput(part);
+  return isRecord(input) && typeof input.prompt === "string"
+    ? input.prompt
     : undefined;
 }
 
@@ -625,7 +689,14 @@ function summarizeUnknown(value: unknown): string | undefined {
   }
 
   if (isRecord(value)) {
-    const preferredKeys = ["query", "summary", "title", "text", "message"];
+    const preferredKeys = [
+      "query",
+      "prompt",
+      "summary",
+      "title",
+      "text",
+      "message",
+    ];
     for (const key of preferredKeys) {
       const candidate = value[key];
       if (typeof candidate === "string" && candidate.trim()) {
@@ -671,6 +742,61 @@ function formatSourceUrlLabel(url: string) {
 
 function formatInlineQuery(query: string) {
   return `"${summarizeText(query, 80) ?? query}"`;
+}
+
+function getGeneratedImageDescription(
+  prompt: string | undefined,
+  isGenerating: boolean,
+) {
+  const action = isGenerating ? "Generating image" : "Generated image";
+  return prompt
+    ? `${action} with prompt ${formatInlineQuery(prompt)}.`
+    : `${action}.`;
+}
+
+interface GeneratedImageTimelinePart {
+  type: "data-generated-image";
+  modelId?: string;
+  prompt?: string;
+  status?: "generating" | "generated";
+}
+
+function normalizeGeneratedImagePart(
+  part: unknown,
+): GeneratedImageTimelinePart | null {
+  if (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "data-generated-image"
+  ) {
+    if ("data" in part) {
+      return normalizeGeneratedImagePart(part.data);
+    }
+
+    return part as GeneratedImageTimelinePart;
+  }
+
+  return null;
+}
+
+function getCompletedGeneratedImageKeys(
+  parts: UIMessagePart<UIDataTypes, UITools>[],
+) {
+  const keys = new Set<string>();
+
+  for (const part of parts) {
+    const generatedImage = normalizeGeneratedImagePart(part);
+    if (generatedImage && generatedImage.status !== "generating") {
+      keys.add(getGeneratedImageKey(generatedImage));
+    }
+  }
+
+  return keys;
+}
+
+function getGeneratedImageKey(image: GeneratedImageTimelinePart) {
+  return `${image.modelId ?? ""}:${image.prompt ?? ""}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

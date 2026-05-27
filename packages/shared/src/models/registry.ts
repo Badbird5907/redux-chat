@@ -169,6 +169,12 @@ export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.flatMap(
         supports: {
           ...defaultRoute.supports,
           attachments: allowedMimeTypes.length > 0,
+          imageGenerationTool:
+            model.capabilities?.imageGenerationTool ??
+            defaultRoute.supports.imageGenerationTool,
+          imageOutput:
+            model.capabilities?.imageOutput ??
+            defaultRoute.supports.imageOutput,
         },
         costs: defaultRoute.pricing,
         pricingMetadata: defaultRoute.pricingMetadata,
@@ -280,6 +286,22 @@ export function getModelAttachmentExpects(modelId: string) {
       maxFileCount: config.maxFiles,
     },
   ];
+}
+
+export function getImageOutputModels(): ChatModelConfig[] {
+  return CHAT_MODELS.filter((model) => model.supports.imageOutput);
+}
+
+export function getImageGenerationToolModels(): ChatModelConfig[] {
+  return CHAT_MODELS.filter((model) => model.supports.imageGenerationTool);
+}
+
+export function isImageOutputModel(modelId: string): boolean {
+  return getChatModelConfig(modelId)?.supports.imageOutput === true;
+}
+
+export function isImageGenerationToolModel(modelId: string): boolean {
+  return getChatModelConfig(modelId)?.supports.imageGenerationTool === true;
 }
 
 export function isFileAllowedForModel(

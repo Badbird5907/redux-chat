@@ -1,13 +1,13 @@
+import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
+import type { BashUploadManifestEntry } from "@/server/chat-attachments/bash-uploads";
 import { createBashTool } from "bash-tool";
 import { Bash, InMemoryFs } from "just-bash";
 
-import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import {
   BASH_UPLOADS_DIR,
   BASH_UPLOADS_MANIFEST_PATH,
   buildBashUploadManifest,
 } from "@/server/chat-attachments/bash-uploads";
-import type { BashUploadManifestEntry } from "@/server/chat-attachments/bash-uploads";
 
 const BASH_WORKSPACE_DIR = "/workspace";
 

@@ -9,6 +9,27 @@ export const openaiModels = {
   doc: "https://platform.openai.com/docs/models",
   env: ["OPENAI_API_KEY"],
   models: {
+    "gpt-image-2": {
+      id: "gpt-image-2",
+      name: "GPT Image 2",
+      family: "gpt-image",
+      attachment: false,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: false,
+      release_date: "2026-05-01",
+      last_updated: "2026-05-01",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["image"],
+      },
+      cost: {
+        input: 5,
+        output: 40,
+      },
+    },
     "chatgpt-image-latest": {
       id: "chatgpt-image-latest",
       name: "chatgpt-image-latest",

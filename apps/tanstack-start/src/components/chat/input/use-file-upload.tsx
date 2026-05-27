@@ -22,7 +22,9 @@ const uploadedChatAttachmentSchema = z.object({
 
 type UploadedChatAttachment = z.infer<typeof uploadedChatAttachmentSchema>;
 
-function isUploadedChatAttachment(value: unknown): value is UploadedChatAttachment {
+function isUploadedChatAttachment(
+  value: unknown,
+): value is UploadedChatAttachment {
   return uploadedChatAttachmentSchema.safeParse(value).success;
 }
 
@@ -49,7 +51,9 @@ async function awaitRouteCompletion(fileKeyId: string) {
     Array.isArray(payload.completion) ||
     !("onUploadCompleteResult" in payload.completion)
   ) {
-    throw new Error("Upload completed, but the attachment record was not ready.");
+    throw new Error(
+      "Upload completed, but the attachment record was not ready.",
+    );
   }
 
   return payload.completion.onUploadCompleteResult;

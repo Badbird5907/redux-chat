@@ -132,7 +132,7 @@ export function ModelSelector({
         onKeyDownCapture={handleMenuKeyDownCapture}
         className={cn(
           pickerSurfaceClassName,
-          "max-h-[min(42rem,78vh)] min-h-[min(30rem,58vh)] w-[min(440px,calc(100vw-1.5rem))] gap-0",
+          "h-[min(30rem,58vh)] w-[min(440px,calc(100vw-1.5rem))] gap-0",
           "data-[side=top]:slide-in-from-bottom-2",
         )}
       >

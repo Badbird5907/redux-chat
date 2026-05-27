@@ -6,6 +6,7 @@ import {
   BookText,
   FlaskConical,
   Hammer,
+  ImageIcon,
   Loader2,
   Maximize2,
   Minimize2,
@@ -61,10 +62,18 @@ interface ChatInputToolbarProps {
   instructionsReady: boolean;
   canUploadFiles: boolean;
   isAnalysisWorkspaceEnabled: boolean;
+  isImageGenerationEnabled: boolean;
   isBashWorkspaceEnabled: boolean;
   isSearchEnabled: boolean;
+  imageGenerationModels: {
+    id: string;
+    name: string;
+  }[];
+  selectedImageGenerationModelId?: string;
   project?: string;
   onAnalysisWorkspaceEnabledChange: (enabled: boolean) => void;
+  onImageGenerationEnabledChange: (enabled: boolean) => void;
+  onImageGenerationModelChange: (modelId: string) => void;
   onBashWorkspaceEnabledChange: (enabled: boolean) => void;
   onToggleSearch: () => void;
   settingsReady: boolean;
@@ -111,9 +120,14 @@ export function ChatInputToolbar({
   instructionsReady,
   canUploadFiles,
   isAnalysisWorkspaceEnabled,
+  isImageGenerationEnabled,
   isBashWorkspaceEnabled,
   isSearchEnabled,
+  imageGenerationModels,
+  selectedImageGenerationModelId,
   onAnalysisWorkspaceEnabledChange,
+  onImageGenerationEnabledChange,
+  onImageGenerationModelChange,
   onBashWorkspaceEnabledChange,
   onToggleSearch,
   settingsReady,
@@ -254,6 +268,32 @@ export function ChatInputToolbar({
                       Analysis
                     </span>
                   </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={isImageGenerationEnabled}
+                    disabled={
+                      !settingsReady || imageGenerationModels.length === 0
+                    }
+                    onCheckedChange={onImageGenerationEnabledChange}
+                  >
+                    <ImageIcon className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      Image Generation
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                  {isImageGenerationEnabled ? (
+                    <DropdownMenuRadioGroup
+                      value={selectedImageGenerationModelId}
+                      onValueChange={onImageGenerationModelChange}
+                    >
+                      {imageGenerationModels.map((model) => (
+                        <DropdownMenuRadioItem key={model.id} value={model.id}>
+                          <span className="min-w-0 grow whitespace-nowrap">
+                            {model.name}
+                          </span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  ) : null}
                 </DropdownMenuGroup>
               </DropdownMenuSubContent>
             </DropdownMenuSub>

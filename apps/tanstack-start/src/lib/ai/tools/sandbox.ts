@@ -184,7 +184,10 @@ function buildSandboxUploadCode(
     url: string;
   })[],
 ) {
-  const lines = ["set -euo pipefail", `mkdir -p ${shellQuote(SANDBOX_UPLOADS_DIR)}`];
+  const lines = [
+    "set -euo pipefail",
+    `mkdir -p ${shellQuote(SANDBOX_UPLOADS_DIR)}`,
+  ];
 
   for (const download of downloads) {
     if (!isSafeSandboxUploadPath(download.path)) {
@@ -217,8 +220,7 @@ function buildSandboxUploadCode(
 
 function isSafeSandboxUploadPath(path: string) {
   return (
-    path === SANDBOX_UPLOADS_DIR ||
-    path.startsWith(`${SANDBOX_UPLOADS_DIR}/`)
+    path === SANDBOX_UPLOADS_DIR || path.startsWith(`${SANDBOX_UPLOADS_DIR}/`)
   );
 }
 
