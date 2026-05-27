@@ -7,6 +7,7 @@ export interface ChatToolAttachment {
   fileName: string;
   mimeType: string;
   size: number;
+  getDownloadUrl: () => Promise<string>;
   download: () => Promise<Uint8Array>;
 }
 
@@ -76,9 +77,7 @@ export function createSandboxRuntime(options: {
 
           return {
             ...attachment,
-            contentBase64: Buffer.from(await source.download()).toString(
-              "base64",
-            ),
+            url: await source.getDownloadUrl(),
           };
         }),
     );
@@ -86,6 +85,7 @@ export function createSandboxRuntime(options: {
     if (downloads.length > 0) {
       const sandbox = await getSandbox();
       const result = await sandbox.runCode(buildSandboxUploadCode(downloads), {
+        language: "bash",
         timeoutMs: Math.max(60_000, downloads.length * 60_000),
       });
 
@@ -181,32 +181,54 @@ function buildSandboxFilePath(
 
 function buildSandboxUploadCode(
   downloads: (SyncedAttachment & {
-    contentBase64: string;
+    url: string;
   })[],
 ) {
-  const manifest = Buffer.from(JSON.stringify(downloads), "utf8").toString(
-    "base64",
+  const lines = ["set -euo pipefail", `mkdir -p ${shellQuote(SANDBOX_UPLOADS_DIR)}`];
+
+  for (const download of downloads) {
+    if (!isSafeSandboxUploadPath(download.path)) {
+      throw new Error(`Unsafe upload target path for ${download.fileName}`);
+    }
+
+    lines.push(
+      `mkdir -p ${shellQuote(getPosixDirName(download.path))}`,
+      [
+        "curl",
+        "--fail",
+        "--location",
+        "--silent",
+        "--show-error",
+        "--retry",
+        "2",
+        "--connect-timeout",
+        "15",
+        "--max-time",
+        "60",
+        "--output",
+        shellQuote(download.path),
+        shellQuote(download.url),
+      ].join(" "),
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function isSafeSandboxUploadPath(path: string) {
+  return (
+    path === SANDBOX_UPLOADS_DIR ||
+    path.startsWith(`${SANDBOX_UPLOADS_DIR}/`)
   );
+}
 
-  return `import base64
-import json
-import os
+function getPosixDirName(path: string) {
+  const slashIndex = path.lastIndexOf("/");
+  return slashIndex > 0 ? path.slice(0, slashIndex) : ".";
+}
 
-UPLOADS_DIR = ${JSON.stringify(SANDBOX_UPLOADS_DIR)}
-MANIFEST = ${JSON.stringify(manifest)}
-
-downloads = json.loads(base64.b64decode(MANIFEST).decode("utf-8"))
-os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-for item in downloads:
-    target_path = os.path.normpath(item["path"])
-    if not target_path.startswith(UPLOADS_DIR + os.sep):
-        raise RuntimeError(f"Unsafe upload target path for {item['fileName']!r}")
-
-    os.makedirs(os.path.dirname(target_path), exist_ok=True)
-    with open(target_path, "wb") as output:
-        output.write(base64.b64decode(item["contentBase64"]))
-`;
+function shellQuote(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 function sanitizeFileName(fileName: string) {
