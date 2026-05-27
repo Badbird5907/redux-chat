@@ -109,6 +109,11 @@ const messageTools = v.object({
       serverIds: v.array(v.string()),
     }),
   ),
+  imageGeneration: v.optional(
+    v.object({
+      modelId: v.string(),
+    }),
+  ),
 });
 
 export const messageSettings = v.object({
@@ -321,6 +326,32 @@ export default defineSchema({
     .index("by_messageId", ["messageId"])
     .index("by_chatProjectId", ["chatProjectId"])
     .index("by_accessKey", ["accessKey"])
+    .index("by_fileKeyId", ["fileKeyId"]),
+
+  generatedImages: defineTable({
+    generatedImageId: v.string(),
+    userId: v.string(),
+    threadId: v.string(),
+    messageId: v.string(),
+    modelId: v.string(),
+    provider: v.string(),
+    source: v.literal("image_generation"),
+    toolCallId: v.optional(v.string()),
+    prompt: v.optional(v.string()),
+    mimeType: v.string(),
+    size: v.number(),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    projectId: v.string(),
+    environmentId: v.string(),
+    accessKey: v.string(),
+    fileKeyId: v.string(),
+    fileName: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_generatedImageId", ["generatedImageId"])
+    .index("by_threadId", ["threadId"])
+    .index("by_messageId", ["messageId"])
     .index("by_fileKeyId", ["fileKeyId"]),
 
   // Vector embeddings of project file chunks. Separate from `attachments` so

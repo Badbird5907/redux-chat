@@ -31,5 +31,33 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
       ],
       defaultProviderId: "vertex:gemini-3.1-pro-preview",
     },
+    {
+      id: "nano-banana-2",
+      name: "Nano Banana 2",
+      providerIds: [
+        "openrouter:google/gemini-3.1-flash-image-preview",
+        "vertex:gemini-3.1-flash-image-preview",
+      ],
+      defaultProviderId: "vertex:gemini-3.1-flash-image-preview",
+      thinkingLevels: [],
+      capabilities: {
+        imageGenerationTool: true,
+        imageOutput: true,
+      },
+    },
+    {
+      id: "nano-banana-pro",
+      name: "Nano Banana Pro",
+      providerIds: [
+        "openrouter:google/gemini-3-pro-image-preview",
+        "vertex:gemini-3-pro-image-preview",
+      ],
+      defaultProviderId: "vertex:gemini-3-pro-image-preview",
+      thinkingLevels: [],
+      capabilities: {
+        imageGenerationTool: true,
+        imageOutput: true,
+      },
+    },
   ],
 };

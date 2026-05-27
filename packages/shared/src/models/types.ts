@@ -41,6 +41,8 @@ export interface ModelPricing {
 
 export interface ModelSupports {
   attachments: boolean;
+  imageGenerationTool: boolean;
+  imageOutput: boolean;
   reasoning: boolean;
   toolCalling: boolean;
   temperature: boolean;
@@ -122,6 +124,10 @@ export interface CuratedModelDefinition {
   benchmarks?: ChatModelBenchmarks;
   attachments?: CuratedAttachmentOverride;
   routeBehavior?: Partial<Record<ModelProviderRouteId, ModelRouteBehavior>>;
+  capabilities?: {
+    imageGenerationTool?: boolean;
+    imageOutput?: boolean;
+  };
   custom?: Record<string, unknown>;
 }
 

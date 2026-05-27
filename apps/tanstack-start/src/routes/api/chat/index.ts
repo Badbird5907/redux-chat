@@ -6,7 +6,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   generateId,
+  generateImage,
   smoothStream,
   stepCountIs,
   streamText,
@@ -16,6 +19,7 @@ import { z } from "zod";
 
 import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
+import { getChatModelConfig } from "@redux/shared/models";
 import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
 
 import { env } from "@/env";
@@ -35,7 +39,11 @@ import {
 } from "@/lib/silo/core.server";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
-import { resolveAiSdkModel } from "@/server/ai/model-runtime";
+import { storeGeneratedImage } from "@/server/ai/generated-images";
+import {
+  resolveAiSdkImageModel,
+  resolveAiSdkModel,
+} from "@/server/ai/model-runtime";
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
@@ -65,6 +73,11 @@ const requestBody = z.object({
       mcpServers: z
         .object({
           serverIds: z.array(z.string()),
+        })
+        .optional(),
+      imageGeneration: z
+        .object({
+          modelId: z.string(),
         })
         .optional(),
     }),
@@ -620,6 +633,11 @@ export const Route = createFileRoute("/api/chat/")({
                     userId: threadUserId,
                   }
                 : undefined,
+            generationContext: {
+              userId: requestUserId,
+              threadId,
+              messageId: assistantMessageId,
+            },
           });
           let didCleanupTools = false;
           cleanupTools = async () => {
@@ -631,6 +649,146 @@ export const Route = createFileRoute("/api/chat/")({
             await toolRuntime.cleanup();
           };
 
+          const selectedModelConfig = getChatModelConfig(settings.model);
+          if (selectedModelConfig?.supports.imageOutput) {
+            await fetchAuthQuery(
+              api.functions.threads.internal_validateGenerationMessage,
+              {
+                secret: env.INTERNAL_CONVEX_SECRET,
+                userId: requestUserId,
+                messageId: assistantMessageId,
+                threadId,
+              },
+            );
+            const queryText = extractTextFromMessage(
+              getLastUserMessage(messages),
+            );
+            if (!queryText) {
+              throw new Error("Image generation requires a text prompt.");
+            }
+            const imageModel = resolveAiSdkImageModel(settings.model);
+            const imageAbortController = new AbortController();
+            const stream = createUIMessageStream({
+              originalMessages: messages as never,
+              generateId: () => assistantMessageId,
+              onError: (error) => {
+                const errorMessage = getErrorMessage(error).slice(0, 1000);
+                streamFailureMessage = errorMessage;
+                void reportStreamFailure(error);
+                return errorMessage;
+              },
+              execute: async ({ writer }) => {
+                const startedAt = Date.now();
+                try {
+                  writer.write({
+                    type: "start",
+                    messageId: assistantMessageId,
+                    messageMetadata: { createdAt: startedAt },
+                  } as never);
+                  writer.write({
+                    type: "text-start",
+                    id: `${assistantMessageId}-text`,
+                  } as never);
+                  writer.write({
+                    type: "text-delta",
+                    id: `${assistantMessageId}-text`,
+                    delta: "Generated image:",
+                  } as never);
+                  writer.write({
+                    type: "text-end",
+                    id: `${assistantMessageId}-text`,
+                  } as never);
+
+                  const result = await generateImage({
+                    model: imageModel.model,
+                    prompt: queryText,
+                    abortSignal: imageAbortController.signal,
+                  });
+                  const imagePart = await storeGeneratedImage({
+                    userId: requestUserId,
+                    threadId,
+                    messageId: assistantMessageId,
+                    modelId: settings.model,
+                    route: imageModel.route,
+                    prompt: queryText,
+                    image: result.image,
+                  });
+                  writer.write({
+                    type: "data-generated-image",
+                    data: imagePart,
+                  } as never);
+                  writer.write({
+                    type: "finish",
+                  } as never);
+
+                  const parts = [
+                    { type: "text", text: "Generated image:" },
+                    imagePart,
+                  ] as UIMessagePart<UIDataTypes, UITools>[];
+
+                  await fetchAuthMutation(
+                    api.functions.threads.internal_updateMessageUsage,
+                    {
+                      secret: env.INTERNAL_CONVEX_SECRET,
+                      userId: requestUserId,
+                      threadId,
+                      messageId: assistantMessageId,
+                      usage: {
+                        promptTokens: 0,
+                        responseTokens: 0,
+                        totalTokens: 0,
+                      },
+                      generationStats: {
+                        timeToFirstTokenMs: 0,
+                        totalDurationMs: Date.now() - startedAt,
+                        tokensPerSecond: 0,
+                      },
+                    },
+                  );
+                  await fetchAuthMutation(
+                    api.functions.threads.internal_completeStream,
+                    {
+                      secret: env.INTERNAL_CONVEX_SECRET,
+                      userId: requestUserId,
+                      threadId,
+                      assistantMessageId,
+                      parts,
+                    },
+                  );
+                } finally {
+                  await cleanupTools?.();
+                }
+              },
+            });
+
+            return createUIMessageStreamResponse({
+              stream,
+              consumeSseStream: async ({ stream }) => {
+                const streamId = generateId();
+                const { publisher, subscriber } = createUpstashPubSub();
+                const streamContext = createResumableStreamContext({
+                  waitUntil,
+                  publisher,
+                  subscriber,
+                });
+                await streamContext.createNewResumableStream(
+                  streamId,
+                  () => stream,
+                );
+                await fetchAuthMutation(
+                  api.functions.threads.internal_setActiveStreamId,
+                  {
+                    secret: env.INTERNAL_CONVEX_SECRET,
+                    userId: requestUserId,
+                    threadId,
+                    streamId,
+                    messageId: assistantMessageId,
+                    clientId,
+                  },
+                );
+              },
+            });
+          }
           const resolvedModel = resolveAiSdkModel(settings.model);
           const reasoning = resolveReasoningParam(
             resolvedModel.route.supports.reasoning,

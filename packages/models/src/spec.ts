@@ -70,8 +70,12 @@ export function toModalities(model: ModelsDevModelRecord): ModelModalities {
 }
 
 export function toSupports(model: ModelsDevModelRecord): ModelSupports {
+  const outputModalities = model.modalities?.output ?? [];
+
   return {
     attachments: model.attachment === true,
+    imageGenerationTool: false,
+    imageOutput: outputModalities.includes("image"),
     reasoning: model.reasoning === true,
     toolCalling: model.tool_call === true,
     temperature: model.temperature === true,

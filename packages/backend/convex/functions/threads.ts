@@ -71,6 +71,11 @@ const messageSettingsValidator = v.object({
         serverIds: v.array(v.string()),
       }),
     ),
+    imageGeneration: v.optional(
+      v.object({
+        modelId: v.string(),
+      }),
+    ),
   }),
 });
 
@@ -1269,6 +1274,11 @@ export const updateThreadSettings = mutation({
               serverIds: v.array(v.string()),
             }),
           ),
+          imageGeneration: v.optional(
+            v.object({
+              modelId: v.string(),
+            }),
+          ),
         }),
       ),
     }),
@@ -1426,6 +1436,10 @@ export const deleteThread = mutation({
       .query("attachments")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
+    const generatedImages = await ctx.db
+      .query("generatedImages")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
     const uniqueFiles = new Map<
       string,
       {
@@ -1456,12 +1470,27 @@ export const deleteThread = mutation({
       await ctx.db.delete(attachment._id);
     }
 
+    for (const generatedImage of generatedImages) {
+      uniqueFiles.set(generatedImage.fileKeyId, {
+        projectId: generatedImage.projectId,
+        environmentId: generatedImage.environmentId,
+        fileKeyId: generatedImage.fileKeyId,
+        accessKey: generatedImage.accessKey,
+        size: generatedImage.size,
+      });
+      await ctx.db.delete(generatedImage._id);
+    }
+
     for (const file of uniqueFiles.values()) {
       const remainingRefs = await ctx.db
         .query("attachments")
         .withIndex("by_fileKeyId", (q) => q.eq("fileKeyId", file.fileKeyId))
         .first();
-      if (remainingRefs) {
+      const remainingGeneratedImageRefs = await ctx.db
+        .query("generatedImages")
+        .withIndex("by_fileKeyId", (q) => q.eq("fileKeyId", file.fileKeyId))
+        .first();
+      if (remainingRefs || remainingGeneratedImageRefs) {
         continue;
       }
 

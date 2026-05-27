@@ -7,11 +7,12 @@ import type { ToolSet } from "ai";
 import type { Value } from "convex/values";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { webSearch } from "@exalabs/ai-sdk";
-import { tool } from "ai";
+import { generateImage, tool } from "ai";
 import { z } from "zod";
 
 import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
 import type { MessageSettings } from "@redux/types";
+import { isImageGenerationToolModel } from "@redux/shared/models";
 import { getEnabledMessageTools } from "@redux/types";
 
 import {
@@ -19,6 +20,8 @@ import {
   SANDBOX_UPLOADS_DIR,
 } from "@/lib/ai/tools/sandbox";
 import { searchProjectKnowledgeTool } from "@/lib/ai/tools/search-project";
+import { storeGeneratedImage } from "@/server/ai/generated-images";
+import { resolveAiSdkImageModel } from "@/server/ai/model-runtime";
 
 export type { ChatToolAttachment };
 
@@ -36,6 +39,11 @@ interface ToolRuntimeOptions {
   projectContext?: {
     chatProjectId: string;
     userId: string;
+  };
+  generationContext?: {
+    userId: string;
+    threadId: string;
+    messageId: string;
   };
 }
 
@@ -261,6 +269,7 @@ export async function createToolRuntime(
     attachments = [],
     mcpServers = [],
     projectContext,
+    generationContext,
   }: ToolRuntimeOptions = {},
 ): Promise<ToolRuntime> {
   const enabledTools = getEnabledMessageTools(settings.tools);
@@ -368,6 +377,49 @@ export async function createToolRuntime(
       "search_project_knowledge",
       toolUsageCounts,
     );
+  }
+
+  if (enabledTools.includes("imageGeneration")) {
+    const modelId = settings.tools.imageGeneration?.modelId;
+    if (modelId && generationContext && isImageGenerationToolModel(modelId)) {
+      tools.generate_image = instrumentTool(
+        tool({
+          description:
+            "Generate an image from a detailed prompt. Use this when the user asks to create, draw, render, or design an image.",
+          inputSchema: z.object({
+            prompt: z
+              .string()
+              .min(1)
+              .describe("A detailed prompt describing the image to generate."),
+          }),
+          execute: async ({ prompt }, options) => {
+            const resolved = resolveAiSdkImageModel(modelId);
+            const result = await generateImage({
+              model: resolved.model,
+              prompt,
+            });
+            const toolCallId =
+              typeof options === "object" &&
+              options !== null &&
+              "toolCallId" in options &&
+              typeof options.toolCallId === "string"
+                ? options.toolCallId
+                : undefined;
+
+            return await storeGeneratedImage({
+              ...generationContext,
+              modelId,
+              route: resolved.route,
+              prompt,
+              image: result.image,
+              toolCallId,
+            });
+          },
+        }),
+        "image_generation",
+        toolUsageCounts,
+      );
+    }
   }
 
   return {

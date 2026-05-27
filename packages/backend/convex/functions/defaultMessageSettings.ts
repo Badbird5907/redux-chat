@@ -73,6 +73,11 @@ export const update = mutation({
               serverIds: v.array(v.string()),
             }),
           ),
+          imageGeneration: v.optional(
+            v.object({
+              modelId: v.string(),
+            }),
+          ),
         }),
       ),
     }),

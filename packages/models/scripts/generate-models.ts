@@ -113,6 +113,78 @@ const OPENROUTER_MODEL_OVERRIDES = {
   },
 } satisfies Record<string, ModelsDevModelRecord>;
 
+const PROVIDER_MODEL_OVERRIDES = {
+  openai: {
+    "gpt-image-2": {
+      id: "gpt-image-2",
+      name: "GPT Image 2",
+      family: "gpt-image",
+      attachment: false,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: false,
+      release_date: "2026-05-01",
+      last_updated: "2026-05-01",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["image"],
+      },
+      cost: {
+        input: 5,
+        output: 40,
+      },
+    },
+  },
+  vertex: {
+    "gemini-3.1-flash-image-preview": {
+      id: "gemini-3.1-flash-image-preview",
+      name: "Gemini 3.1 Flash Image Preview",
+      family: "gemini",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: true,
+      release_date: "2026-05-01",
+      last_updated: "2026-05-01",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["text", "image"],
+      },
+      cost: {
+        input: 0.3,
+        output: 2.5,
+      },
+    },
+    "gemini-3-pro-image-preview": {
+      id: "gemini-3-pro-image-preview",
+      name: "Gemini 3 Pro Image Preview",
+      family: "gemini",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: true,
+      release_date: "2026-05-01",
+      last_updated: "2026-05-01",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["text", "image"],
+      },
+      cost: {
+        input: 2,
+        output: 12,
+      },
+    },
+  },
+} as const satisfies Partial<
+  Record<ProviderId, Record<string, ModelsDevModelRecord>>
+>;
+
 async function main() {
   const response = await fetch("https://models.dev/api.json");
   if (!response.ok) {
@@ -179,7 +251,14 @@ function normalizeProviderCatalog(
   const models =
     providerId === "openrouter"
       ? { ...catalog.models, ...OPENROUTER_MODEL_OVERRIDES }
-      : catalog.models;
+      : {
+          ...catalog.models,
+          ...((
+            PROVIDER_MODEL_OVERRIDES as Partial<
+              Record<ProviderId, Record<string, ModelsDevModelRecord>>
+            >
+          )[providerId] ?? {}),
+        };
   const sortedModelEntries: [string, ModelsDevModelRecord][] = Object.entries(
     models,
   )

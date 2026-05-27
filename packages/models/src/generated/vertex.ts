@@ -13,6 +13,48 @@ export const vertexModels = {
     "GOOGLE_VERTEX_PROJECT",
   ],
   models: {
+    "gemini-3-pro-image-preview": {
+      id: "gemini-3-pro-image-preview",
+      name: "Gemini 3 Pro Image Preview",
+      family: "gemini",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: true,
+      release_date: "2026-05-01",
+      last_updated: "2026-05-01",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["text", "image"],
+      },
+      cost: {
+        input: 2,
+        output: 12,
+      },
+    },
+    "gemini-3.1-flash-image-preview": {
+      id: "gemini-3.1-flash-image-preview",
+      name: "Gemini 3.1 Flash Image Preview",
+      family: "gemini",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: true,
+      release_date: "2026-05-01",
+      last_updated: "2026-05-01",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["text", "image"],
+      },
+      cost: {
+        input: 0.3,
+        output: 2.5,
+      },
+    },
     "claude-3-5-haiku@20241022": {
       id: "claude-3-5-haiku@20241022",
       name: "Claude Haiku 3.5",

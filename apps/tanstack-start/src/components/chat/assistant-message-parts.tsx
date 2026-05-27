@@ -1,7 +1,8 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { isReasoningUIPart, isToolUIPart } from "ai";
+import { isReasoningUIPart, isTextUIPart, isToolUIPart } from "ai";
+import { CopyIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react";
 
 import type { MessageStats } from "./chat-types";
 import {
@@ -164,11 +165,118 @@ export function AssistantMessageParts({
         </ChainOfThought>
       ) : null}
 
-      {textContent ? (
-        <StreamingMarkdown content={textContent} isStreaming={isStreaming} />
-      ) : null}
+      <div className="space-y-3">
+        {message.parts.map((part, index) => {
+          if (isTextUIPart(part) && part.text) {
+            return (
+              <StreamingMarkdown
+                content={part.text}
+                isStreaming={isStreaming}
+                key={`${message.id}:text:${index}`}
+              />
+            );
+          }
+
+          if (isGeneratedImagePart(part)) {
+            return (
+              <GeneratedImageBlock
+                image={part}
+                key={`${message.id}:generated-image:${index}`}
+              />
+            );
+          }
+
+          const toolOutput = isToolUIPart(part)
+            ? getToolOutput(part)
+            : undefined;
+          if (isGeneratedImagePart(toolOutput)) {
+            return (
+              <GeneratedImageBlock
+                image={toolOutput}
+                key={`${message.id}:tool-generated-image:${index}`}
+              />
+            );
+          }
+
+          return null;
+        })}
+      </div>
     </>
   );
 }
 
+function getToolOutput(part: unknown): unknown {
+  return typeof part === "object" && part !== null && "output" in part
+    ? part.output
+    : undefined;
+}
+
 export { getAssistantStepIcon } from "./assistant-message-helpers";
+
+interface GeneratedImagePart {
+  type: "data-generated-image";
+  url: string;
+  downloadUrl: string;
+  mimeType: string;
+  prompt: string;
+  modelId: string;
+  provider: string;
+  createdAt: number;
+}
+
+function isGeneratedImagePart(part: unknown): part is GeneratedImagePart {
+  return (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "data-generated-image" &&
+    "url" in part &&
+    typeof part.url === "string"
+  );
+}
+
+function GeneratedImageBlock({ image }: { image: GeneratedImagePart }) {
+  return (
+    <figure className="border-border bg-card overflow-hidden rounded-lg border">
+      <a href={image.url} target="_blank" rel="noreferrer">
+        <img
+          src={image.url}
+          alt={image.prompt}
+          className="max-h-[640px] w-full object-contain"
+          loading="lazy"
+        />
+      </a>
+      <figcaption className="border-border bg-muted/40 flex items-center justify-between gap-3 border-t px-3 py-2">
+        <span className="text-muted-foreground min-w-0 truncate text-xs">
+          {image.modelId}
+        </span>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            className="hover:bg-muted rounded-md p-1.5"
+            title="Copy image URL"
+            onClick={() => void navigator.clipboard.writeText(image.url)}
+          >
+            <CopyIcon className="size-4" />
+          </button>
+          <a
+            className="hover:bg-muted rounded-md p-1.5"
+            href={image.downloadUrl}
+            title="Download image"
+          >
+            <DownloadIcon className="size-4" />
+          </a>
+          <a
+            className="hover:bg-muted rounded-md p-1.5"
+            href={image.url}
+            target="_blank"
+            rel="noreferrer"
+            title="Open image"
+          >
+            <ExternalLinkIcon className="size-4" />
+          </a>
+        </div>
+      </figcaption>
+    </figure>
+  );
+}
