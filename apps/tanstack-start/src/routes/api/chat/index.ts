@@ -377,7 +377,10 @@ function getToolAttachments(
     new Map(
       Array.from(attachmentsByMessageId.values())
         .flat()
-        .map((attachment) => [getAttachmentDedupeKey(attachment), attachment] as const),
+        .map(
+          (attachment) =>
+            [getAttachmentDedupeKey(attachment), attachment] as const,
+        ),
     ).values(),
   );
 
@@ -707,17 +710,15 @@ export const Route = createFileRoute("/api/chat/")({
                     messageMetadata: { createdAt: startedAt },
                   } as never);
                   writer.write({
-                    type: "text-start",
-                    id: `${assistantMessageId}-text`,
-                  } as never);
-                  writer.write({
-                    type: "text-delta",
-                    id: `${assistantMessageId}-text`,
-                    delta: "Generated image:",
-                  } as never);
-                  writer.write({
-                    type: "text-end",
-                    id: `${assistantMessageId}-text`,
+                    type: "data-generated-image",
+                    data: {
+                      type: "data-generated-image",
+                      status: "generating",
+                      prompt: queryText,
+                      modelId: settings.model,
+                      provider: imageModel.route.provider,
+                      createdAt: startedAt,
+                    },
                   } as never);
 
                   const result = await generateImage({
@@ -742,10 +743,10 @@ export const Route = createFileRoute("/api/chat/")({
                     type: "finish",
                   } as never);
 
-                  const parts = [
-                    { type: "text", text: "Generated image:" },
-                    imagePart,
-                  ] as UIMessagePart<UIDataTypes, UITools>[];
+                  const parts = [imagePart] as unknown as UIMessagePart<
+                    UIDataTypes,
+                    UITools
+                  >[];
 
                   await fetchAuthMutation(
                     api.functions.threads.internal_updateMessageUsage,

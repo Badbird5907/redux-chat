@@ -23,6 +23,7 @@ export interface GeneratedImagePart {
   modelId: string;
   provider: string;
   createdAt: number;
+  status?: "generating" | "generated";
   storage: {
     projectId: string;
     environmentId: string;
@@ -65,10 +66,12 @@ async function uploadToSilo(input: {
       metadata: input.metadata,
     },
     uploadStrategy: "server",
+    uploadMethod: "put",
   });
 
   const uploadResponse = await fetch(prepared.file.uploadUrl, {
-    method: prepared.file.uploadMethod,
+    method:
+      prepared.file.uploadMethod === "put" ? "PUT" : prepared.file.uploadMethod,
     headers: {
       "Content-Type": input.mimeType,
     },
@@ -79,7 +82,12 @@ async function uploadToSilo(input: {
   });
 
   if (!uploadResponse.ok) {
-    throw new Error(`Silo upload failed: ${uploadResponse.status}`);
+    const errorText = await uploadResponse.text().catch(() => "");
+    throw new Error(
+      `Silo upload failed: ${uploadResponse.status}${
+        errorText ? ` ${errorText.slice(0, 300)}` : ""
+      }`,
+    );
   }
 
   const files = await siloCore.listFiles({});
@@ -172,6 +180,7 @@ export async function storeGeneratedImage(
     modelId: input.modelId,
     provider: input.route.provider,
     createdAt: Date.now(),
+    status: "generated",
     storage,
   };
 }
