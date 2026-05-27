@@ -47,6 +47,13 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
 
       return provider(route.vendorId);
     },
+    createImageModel: (route) => {
+      const provider = createOpenAI({
+        apiKey: env.OPENAI_API_KEY,
+      });
+
+      return provider.image(route.vendorId);
+    },
   },
   openrouter: {
     key: "openrouter",
