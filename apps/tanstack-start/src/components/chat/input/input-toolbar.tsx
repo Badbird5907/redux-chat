@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Square,
+  Terminal,
   Trash2,
 } from "lucide-react";
 
@@ -60,9 +61,11 @@ interface ChatInputToolbarProps {
   instructionsReady: boolean;
   canUploadFiles: boolean;
   isAnalysisWorkspaceEnabled: boolean;
+  isBashWorkspaceEnabled: boolean;
   isSearchEnabled: boolean;
   project?: string;
   onAnalysisWorkspaceEnabledChange: (enabled: boolean) => void;
+  onBashWorkspaceEnabledChange: (enabled: boolean) => void;
   onToggleSearch: () => void;
   settingsReady: boolean;
   mcpServers: {
@@ -108,8 +111,10 @@ export function ChatInputToolbar({
   instructionsReady,
   canUploadFiles,
   isAnalysisWorkspaceEnabled,
+  isBashWorkspaceEnabled,
   isSearchEnabled,
   onAnalysisWorkspaceEnabledChange,
+  onBashWorkspaceEnabledChange,
   onToggleSearch,
   settingsReady,
   mcpServers,
@@ -230,6 +235,14 @@ export function ChatInputToolbar({
                     <span className="min-w-0 grow whitespace-nowrap">
                       Search
                     </span>
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={isBashWorkspaceEnabled}
+                    disabled={!settingsReady}
+                    onCheckedChange={onBashWorkspaceEnabledChange}
+                  >
+                    <Terminal className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">Bash</span>
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={isAnalysisWorkspaceEnabled}

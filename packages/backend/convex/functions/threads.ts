@@ -61,6 +61,7 @@ const messageSettingsValidator = v.object({
   userMessagePreviewMaxLines: v.optional(v.number()),
   tools: v.object({
     search: v.optional(v.object({})),
+    bashWorkspace: v.optional(v.object({})),
     analysisWorkspace: v.optional(
       v.object({
         syncUploads: v.optional(v.boolean()),
@@ -1259,6 +1260,7 @@ export const updateThreadSettings = mutation({
       tools: v.optional(
         v.object({
           search: v.optional(v.object({})),
+          bashWorkspace: v.optional(v.object({})),
           analysisWorkspace: v.optional(
             v.object({
               syncUploads: v.optional(v.boolean()),
