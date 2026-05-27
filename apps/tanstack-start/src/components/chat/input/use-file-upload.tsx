@@ -4,41 +4,26 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import type { ChatModelConfig } from "@redux/shared/models";
 import { isFileAllowedForModel } from "@redux/shared/models";
 
 import { useUpload } from "@/lib/silo/react";
 
-interface UploadedChatAttachment {
-  attachmentId: string;
-  fileName: string;
-  mimeType: string;
-  size: number;
-  url: string;
-  expiresAt?: number;
-}
+const uploadedChatAttachmentSchema = z.object({
+  attachmentId: z.string().min(1),
+  fileName: z.string(),
+  mimeType: z.string(),
+  size: z.number(),
+  url: z.string(),
+  expiresAt: z.number().optional(),
+});
+
+type UploadedChatAttachment = z.infer<typeof uploadedChatAttachmentSchema>;
 
 function isUploadedChatAttachment(value: unknown): value is UploadedChatAttachment {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    "attachmentId" in value &&
-    typeof value.attachmentId === "string" &&
-    value.attachmentId.length > 0 &&
-    "fileName" in value &&
-    typeof value.fileName === "string" &&
-    "mimeType" in value &&
-    typeof value.mimeType === "string" &&
-    "size" in value &&
-    typeof value.size === "number" &&
-    "url" in value &&
-    typeof value.url === "string" &&
-    (!("expiresAt" in value) ||
-      value.expiresAt === undefined ||
-      typeof value.expiresAt === "number")
-  );
+  return uploadedChatAttachmentSchema.safeParse(value).success;
 }
 
 async function awaitRouteCompletion(fileKeyId: string) {
