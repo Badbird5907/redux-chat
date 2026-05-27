@@ -452,6 +452,8 @@ export const deleteUnexpiredAttachments = mutation({
   handler: async (ctx, args) => {
     const attachmentIds = [...new Set(args.attachmentIds)].slice(0, 100);
     const now = Date.now();
+    let deletedCount = 0;
+    let deletedStorageBytes = 0;
 
     for (const attachmentId of attachmentIds) {
       const attachment = await ctx.db
@@ -479,9 +481,19 @@ export const deleteUnexpiredAttachments = mutation({
       );
       await deleteAttachmentEmbeddings(ctx, attachment.attachmentId);
       await ctx.db.delete(attachment._id);
+      deletedCount += 1;
+      deletedStorageBytes += attachment.size;
     }
 
-    return { success: true, deletedCount: attachmentIds.length };
+    if (deletedCount > 0) {
+      await updateUserUsageStats(ctx, ctx.userId, {
+        attachmentsDelta: -deletedCount,
+        storageBytesDelta: -deletedStorageBytes,
+        lastActiveAt: Date.now(),
+      });
+    }
+
+    return { success: true, deletedCount };
   },
 });
 

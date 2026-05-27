@@ -148,11 +148,13 @@ export const deleteSettingsAttachments = createServerFn({ method: "POST" })
       throw new Error("Expired attachments cannot be deleted");
     }
 
-    await Promise.all(attachments.map(deleteStoredDerivativeFiles));
-
-    return fetchAuthMutation(api.functions.attachments.deleteUnexpiredAttachments, {
+    const result = await fetchAuthMutation(api.functions.attachments.deleteUnexpiredAttachments, {
       attachmentIds,
     });
+
+    await Promise.all(attachments.map(deleteStoredDerivativeFiles));
+
+    return result;
   });
 
 export const resolvePublicShareAttachments = createServerFn({ method: "POST" })

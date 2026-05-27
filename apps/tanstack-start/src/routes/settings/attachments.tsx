@@ -186,14 +186,20 @@ function AttachmentsRouteComponent() {
   };
 
   const handleDeleteSelected = async () => {
-    const attachmentIds = selectedIds.slice(0, MAX_DELETE_COUNT);
-    if (attachmentIds.length === 0) {
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    if (selectedIds.length > MAX_DELETE_COUNT) {
+      toast.error(
+        `Select ${MAX_DELETE_COUNT} or fewer attachments before deleting.`,
+      );
       return;
     }
 
     if (
       !window.confirm(
-        `Delete ${attachmentIds.length} attachment${attachmentIds.length === 1 ? "" : "s"}? This also removes cached derivatives.`,
+        `Delete ${selectedIds.length} attachment${selectedIds.length === 1 ? "" : "s"}? This also removes cached derivatives.`,
       )
     ) {
       return;
@@ -202,7 +208,7 @@ function AttachmentsRouteComponent() {
     setDeleting(true);
     try {
       const result = await deleteAttachments({
-        data: { attachmentIds },
+        data: { attachmentIds: selectedIds },
       });
       setRowSelection({});
       toast.success(
