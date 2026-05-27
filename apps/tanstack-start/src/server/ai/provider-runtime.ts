@@ -16,10 +16,6 @@ export interface RuntimeProviderDefinition {
   createImageModel?: (route: ModelRouteInfo) => ImageModel;
 }
 
-function isOpenRouterKimiModel(vendorId: string): boolean {
-  return vendorId.startsWith("moonshotai/kimi-");
-}
-
 // when adding providers also add it to packages/models/scripts/generate-models.ts
 // and packages/backend/convex/billing.ts
 export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
@@ -56,7 +52,7 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
     key: "openrouter",
     requiredEnv: ["OPENROUTER_API_KEY"],
     createModel: (route) => {
-      if (isOpenRouterKimiModel(route.vendorId)) {
+      if (route.behavior.useOpenAICompatible) {
         const provider = createOpenAICompatible({
           name: "openrouter",
           apiKey: env.OPENROUTER_API_KEY,
