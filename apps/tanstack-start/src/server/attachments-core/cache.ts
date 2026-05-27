@@ -4,7 +4,9 @@ import type {
 } from "./types";
 import { buildAttachmentUrl } from "@/lib/silo/core.server";
 import {
+  deleteCachedAttachmentDerivatives,
   getCachedDerivative,
+  getCachedPdfDerivativeRecords,
   getCachedTextChunks,
   hydrateCachedPdfDerivative,
   hydrateCachedTextDerivative,
@@ -25,6 +27,19 @@ export async function getReadyDerivativeRecord(
   }
 
   return derivative;
+}
+
+export async function getReadyPdfDerivativeRecords(
+  source: AttachmentDerivativeRequest["source"],
+) {
+  const derivatives = await getCachedPdfDerivativeRecords(source);
+  return derivatives.filter((derivative) => !isExpired(derivative.expiresAt));
+}
+
+export async function deleteAttachmentDerivativeCache(
+  source: AttachmentDerivativeRequest["source"],
+) {
+  await deleteCachedAttachmentDerivatives(source);
 }
 
 export async function hydrateReadyDerivative(

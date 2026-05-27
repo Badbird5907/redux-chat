@@ -266,6 +266,7 @@ type DataTableProps<TData, TValue> = {
   ) => void;
   pagination?: DataTablePaginationProps | null;
   multiselect?: boolean;
+  enableRowSelection?: boolean | ((row: TData) => boolean);
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   getRowId?: (originalRow: TData, index: number, parent?: Row<TData>) => string;
@@ -307,6 +308,7 @@ function DataTable<TData, TValue>({
   onRowMiddleClick,
   pagination,
   multiselect = false,
+  enableRowSelection = true,
   rowSelection,
   onRowSelectionChange,
   getRowId,
@@ -326,6 +328,13 @@ function DataTable<TData, TValue>({
     : onRowSelectionChange;
 
   const selectionEnabled = multiselect || effectiveOnRowSelectionChange != null;
+  const tableEnableRowSelection = React.useMemo(() => {
+    if (typeof enableRowSelection !== "function") {
+      return enableRowSelection;
+    }
+
+    return (row: Row<TData>) => enableRowSelection(row.original);
+  }, [enableRowSelection]);
 
   const selectionColumn = React.useMemo(
     (): ColumnDef<TData, unknown> => ({
@@ -343,10 +352,14 @@ function DataTable<TData, TValue>({
       ),
       cell: (context) => {
         const { row } = context;
+        const canSelect = row.getCanSelect();
         const handleSelectionCellClick = (
           event: React.MouseEvent<HTMLDivElement>,
         ) => {
           event.stopPropagation();
+          if (!canSelect) {
+            return;
+          }
           if (event.shiftKey) {
             event.preventDefault();
             skipNextCheckboxChangeRef.current = true;
@@ -365,7 +378,10 @@ function DataTable<TData, TValue>({
         return (
           // -m-2 p-2: extend hit target over TableCell padding so row onClick does not fire on near-misses.
           <div
-            className="-m-2 flex min-h-10 cursor-pointer items-center justify-center p-2"
+            className={cn(
+              "-m-2 flex min-h-10 items-center justify-center p-2",
+              canSelect ? "cursor-pointer" : "cursor-not-allowed",
+            )}
             onMouseDown={(e) => {
               if (e.shiftKey) e.preventDefault();
             }}
@@ -373,8 +389,12 @@ function DataTable<TData, TValue>({
           >
             <Checkbox
               checked={row.getIsSelected()}
+              disabled={!canSelect}
               onClick={(event) => {
                 event.stopPropagation();
+                if (!canSelect) {
+                  return;
+                }
                 if (event.shiftKey) {
                   event.preventDefault();
                   skipNextCheckboxChangeRef.current = true;
@@ -387,6 +407,9 @@ function DataTable<TData, TValue>({
                 previousSelectedRowIdRef.current = context.row.id;
               }}
               onCheckedChange={(value) => {
+                if (!canSelect) {
+                  return;
+                }
                 if (skipNextCheckboxChangeRef.current) {
                   skipNextCheckboxChangeRef.current = false;
                   return;
@@ -421,7 +444,7 @@ function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     ...(selectionEnabled
       ? {
-          enableRowSelection: true,
+          enableRowSelection: tableEnableRowSelection,
           ...(getRowId ? { getRowId } : {}),
           onRowSelectionChange: effectiveOnRowSelectionChange,
           state: { rowSelection: effectiveRowSelection },

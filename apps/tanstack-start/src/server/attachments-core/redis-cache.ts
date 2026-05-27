@@ -45,6 +45,13 @@ export interface CachedPdfDerivative extends CachedDerivativeBase {
 
 export type CachedDerivative = CachedTextDerivative | CachedPdfDerivative;
 
+const DERIVATIVE_KINDS: AttachmentDerivativeRequest["kind"][] = [
+  "converted_pdf",
+  "normalized_text",
+  "pdf_text",
+  "spreadsheet_text",
+];
+
 function getRedis() {
   return redis();
 }
@@ -82,6 +89,15 @@ function getDerivativeTextKey(request: AttachmentDerivativeRequest) {
   const hash = getDerivativeSignatureHash(sourceSignature);
 
   return `derivatives:${ATTACHMENT_DERIVATIVE_VERSION}:text:${request.source.attachmentId}:${request.kind}:${hash}`;
+}
+
+function getDerivativeKeyCandidates(
+  source: AttachmentDerivativeRequest["source"],
+) {
+  return DERIVATIVE_KINDS.flatMap((kind) => {
+    const request = { source, kind } satisfies AttachmentDerivativeRequest;
+    return [getDerivativeMetadataKey(request), getDerivativeTextKey(request)];
+  });
 }
 
 function getDerivativeTtlSeconds() {
@@ -142,6 +158,32 @@ export async function getCachedDerivative(
   }
 
   return isCachedTextDerivative(metadata) ? metadata : null;
+}
+
+export async function getCachedPdfDerivativeRecords(
+  source: AttachmentDerivativeRequest["source"],
+) {
+  const records = await Promise.all(
+    DERIVATIVE_KINDS.map((kind) =>
+      getCachedDerivative({
+        source,
+        kind,
+      } satisfies AttachmentDerivativeRequest),
+    ),
+  );
+
+  return records.filter((record) => record?.kind === "converted_pdf");
+}
+
+export async function deleteCachedAttachmentDerivatives(
+  source: AttachmentDerivativeRequest["source"],
+) {
+  const keys = getDerivativeKeyCandidates(source);
+  if (keys.length === 0) {
+    return;
+  }
+
+  await getRedis().del(...keys);
 }
 
 export async function getCachedTextChunks(
