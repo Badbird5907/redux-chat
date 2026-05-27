@@ -25,7 +25,16 @@ interface ModelsDevModelCost {
   cache_write?: number;
   input_audio?: number;
   output_audio?: number;
-  [key: string]: number | Record<string, number> | undefined;
+  tiers?: readonly ModelsDevCostTier[];
+  [key: string]:
+    | number
+    | ModelsDevCostTier
+    | readonly ModelsDevCostTier[]
+    | undefined;
+}
+
+interface ModelsDevCostTier {
+  [key: string]: number | string | undefined | ModelsDevCostTier;
 }
 
 interface ModelsDevModelRecord {

@@ -48,7 +48,7 @@ export const openaiModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 1.25,
+        cache_read: 0,
         input: 0.5,
         output: 1.5,
       },
@@ -181,7 +181,7 @@ export const openaiModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.03,
+        cache_read: 0.025,
         input: 0.1,
         output: 0.4,
       },
@@ -315,7 +315,7 @@ export const openaiModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.08,
+        cache_read: 0.075,
         input: 0.15,
         output: 0.6,
       },
@@ -370,6 +370,7 @@ export const openaiModels = {
         output: ["text"],
       },
       cost: {
+        cache_read: 0.125,
         input: 1.25,
         output: 10,
       },
@@ -508,7 +509,7 @@ export const openaiModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.13,
+        cache_read: 0.125,
         input: 1.25,
         output: 10,
       },
@@ -848,6 +849,17 @@ export const openaiModels = {
         },
         input: 2.5,
         output: 15,
+        tiers: [
+          {
+            input: 5,
+            output: 22.5,
+            cache_read: 0.5,
+            tier: {
+              type: "context",
+              size: 272000,
+            },
+          },
+        ],
       },
       limit: {
         context: 1050000,
@@ -935,6 +947,16 @@ export const openaiModels = {
         },
         input: 30,
         output: 180,
+        tiers: [
+          {
+            input: 60,
+            output: 270,
+            tier: {
+              type: "context",
+              size: 272000,
+            },
+          },
+        ],
       },
       limit: {
         context: 1050000,
@@ -968,6 +990,17 @@ export const openaiModels = {
         },
         input: 5,
         output: 30,
+        tiers: [
+          {
+            input: 10,
+            output: 45,
+            cache_read: 1,
+            tier: {
+              type: "context",
+              size: 272000,
+            },
+          },
+        ],
       },
       limit: {
         context: 1050000,
@@ -999,6 +1032,16 @@ export const openaiModels = {
         },
         input: 30,
         output: 180,
+        tiers: [
+          {
+            input: 60,
+            output: 270,
+            tier: {
+              type: "context",
+              size: 272000,
+            },
+          },
+        ],
       },
       limit: {
         context: 1050000,
@@ -1299,7 +1342,7 @@ export const openaiModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.28,
+        cache_read: 0.275,
         input: 1.1,
         output: 4.4,
       },

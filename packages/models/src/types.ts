@@ -10,10 +10,17 @@ export interface ModelsDevModelCost {
   cache_write?: number;
   input_audio?: number;
   output_audio?: number;
-  [key: string]: number | undefined | ModelsDevCostTier;
+  tiers?: readonly ModelsDevCostTier[];
+  [key: string]:
+    | number
+    | undefined
+    | ModelsDevCostTier
+    | readonly ModelsDevCostTier[];
 }
 
-export type ModelsDevCostTier = Record<string, number | undefined>;
+export interface ModelsDevCostTier {
+  [key: string]: number | string | undefined | ModelsDevCostTier;
+}
 
 export interface ModelsDevModelLimit {
   context?: number;
