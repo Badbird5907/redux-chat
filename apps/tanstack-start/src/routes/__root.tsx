@@ -2,6 +2,7 @@ import type { ConvexQueryClient } from "@convex-dev/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { lazy, Suspense, useEffect, useRef } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import {
   ClientOnly,
@@ -189,6 +190,7 @@ function RootDocument({ children }: { children: ReactNode }) {
             <Toaster />
           </HotkeySettingsProvider>
         </ThemeProvider>
+        <Analytics />
         <SpeedInsights />
         <Scripts />
       </body>
