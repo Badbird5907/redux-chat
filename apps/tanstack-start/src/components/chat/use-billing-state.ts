@@ -1,16 +1,49 @@
-import { api } from "@redux/backend/convex/_generated/api";
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 
-import { useQuery } from "@/lib/hooks/convex";
+import { getCurrentBillingState } from "@/server/billing/get-current-billing-state";
 
 export function useBillingState() {
-  const billingState = useQuery(api.functions.billing.getCurrentBillingState, {});
-  const isOutOfCredits =
-    billingState?.availableCredits !== undefined &&
-    billingState.availableCredits <= 0 &&
-    !billingState.overageAllowed;
+  const fetchBillingState = useServerFn(getCurrentBillingState);
+  const [billingState, setBillingState] = useState<
+    Awaited<ReturnType<typeof fetchBillingState>> | undefined
+  >(undefined);
 
-  return {
-    billingState,
-    isOutOfCredits,
-  };
+  useEffect(() => {
+    let cancelled = false;
+    const sync = () => {
+      void fetchBillingState()
+        .then((state) => {
+          if (!cancelled) {
+            setBillingState(state);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to fetch billing state", error);
+        });
+    };
+    sync();
+    const interval = window.setInterval(sync, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [fetchBillingState]);
+
+  // Prefer the ledger-aware aggregate `spendableCredits` when available.
+  // `availableCredits` is still returned as an aggregate alias for older
+  // callers during the UI migration.
+  const spendable =
+    billingState?.spendableCredits ?? billingState?.availableCredits;
+  const isOutOfCredits =
+    spendable !== undefined && spendable <= 0 && !billingState?.overageAllowed;
+
+  return useMemo(
+    () => ({
+      billingState,
+      isOutOfCredits,
+    }),
+    [billingState, isOutOfCredits],
+  );
 }

@@ -6,13 +6,16 @@ export interface ChatToolAttachment {
   attachmentId: string;
   fileName: string;
   mimeType: string;
-  url: string;
+  size: number;
+  getDownloadUrl: () => Promise<string>;
+  download: () => Promise<Uint8Array>;
 }
 
 interface SyncedAttachment {
   attachmentId: string;
   fileName: string;
   mimeType: string;
+  size: number;
   path: string;
 }
 
@@ -21,48 +24,91 @@ export function createSandboxRuntime(options: {
   syncUploads: boolean;
 }) {
   let sandboxPromise: Promise<Sandbox> | undefined;
-  let syncedAttachmentsPromise: Promise<SyncedAttachment[]> | undefined;
+  const syncedAttachmentIds = new Set<string>();
 
   const getSandbox = () => {
     sandboxPromise ??= Sandbox.create();
     return sandboxPromise;
   };
 
-  const syncUploadsToSandbox = async (): Promise<SyncedAttachment[]> => {
-    if (!options.syncUploads || options.attachments.length === 0) {
+  const getUploadManifest = (): SyncedAttachment[] => {
+    const pathCounts = new Map<string, number>();
+
+    return options.attachments.map((attachment) => ({
+      attachmentId: attachment.attachmentId,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      path: buildSandboxFilePath(attachment.fileName, pathCounts),
+    }));
+  };
+
+  const syncUploadsToSandbox = async (
+    attachmentIds?: string[],
+  ): Promise<SyncedAttachment[]> => {
+    if (
+      !options.syncUploads ||
+      options.attachments.length === 0 ||
+      !attachmentIds ||
+      attachmentIds.length === 0
+    ) {
       return [];
     }
 
-    syncedAttachmentsPromise ??= (async () => {
+    const requestedIds = new Set(attachmentIds);
+    const attachmentsById = new Map(
+      options.attachments.map((attachment) => [
+        attachment.attachmentId,
+        attachment,
+      ]),
+    );
+    const downloads = await Promise.all(
+      getUploadManifest()
+        .filter(
+          (attachment) =>
+            requestedIds.has(attachment.attachmentId) &&
+            !syncedAttachmentIds.has(attachment.attachmentId),
+        )
+        .map(async (attachment) => {
+          const source = attachmentsById.get(attachment.attachmentId);
+          if (!source) {
+            throw new Error(`Unknown attachmentId: ${attachment.attachmentId}`);
+          }
+
+          return {
+            ...attachment,
+            url: await source.getDownloadUrl(),
+          };
+        }),
+    );
+
+    if (downloads.length > 0) {
       const sandbox = await getSandbox();
-      const pathCounts = new Map<string, number>();
-      const syncedAttachments: SyncedAttachment[] = [];
+      const result = await sandbox.runCode(buildSandboxUploadCode(downloads), {
+        language: "bash",
+        timeoutMs: Math.max(60_000, downloads.length * 60_000),
+      });
 
-      for (const attachment of options.attachments) {
-        const response = await fetch(attachment.url);
-        if (!response.ok) {
-          throw new Error(
-            `Failed to download uploaded file "${attachment.fileName}" (${response.status})`,
-          );
-        }
-
-        const filePath = buildSandboxFilePath(attachment.fileName, pathCounts);
-        const content = await response.arrayBuffer();
-
-        await sandbox.files.write(filePath, content);
-        // TODO: maybe download these files on the sandbox rather than thru vercel
-        syncedAttachments.push({
-          attachmentId: attachment.attachmentId,
-          fileName: attachment.fileName,
-          mimeType: attachment.mimeType,
-          path: filePath,
-        });
+      const stdout = result.logs.stdout.join("\n").trim();
+      const stderr = result.logs.stderr.join("\n").trim();
+      if (result.error) {
+        throw new Error(
+          formatSandboxSyncError(result.error.value, stderr, stdout),
+        );
       }
 
-      return syncedAttachments;
-    })();
+      if (stderr.length > 0) {
+        throw new Error(formatSandboxSyncError(undefined, stderr, stdout));
+      }
 
-    return syncedAttachmentsPromise;
+      for (const download of downloads) {
+        syncedAttachmentIds.add(download.attachmentId);
+      }
+    }
+
+    return getUploadManifest().filter((attachment) =>
+      requestedIds.has(attachment.attachmentId),
+    );
   };
 
   const cleanup = async () => {
@@ -74,7 +120,45 @@ export function createSandboxRuntime(options: {
     await sandbox.kill();
   };
 
-  return { getSandbox, syncUploadsToSandbox, cleanup };
+  return { getSandbox, getUploadManifest, syncUploadsToSandbox, cleanup };
+}
+
+function formatSandboxSyncError(
+  exitValue: unknown,
+  stderr: string,
+  stdout: string,
+) {
+  const details = [stderr, stdout && `stdout: ${stdout}`]
+    .filter(Boolean)
+    .join("\n");
+
+  return `Failed to sync uploaded files to sandbox: ${
+    details || formatUnknownErrorValue(exitValue)
+  }`;
+}
+
+function formatUnknownErrorValue(value: unknown) {
+  if (value === undefined || value === null) {
+    return "unknown error";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return value.toString();
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "unknown error";
+  }
 }
 
 function buildSandboxFilePath(
@@ -93,6 +177,60 @@ function buildSandboxFilePath(
     currentCount === 0 ? safeName : `${baseName}-${nextCount}${extension}`;
 
   return `${SANDBOX_UPLOADS_DIR}/${uniqueName}`;
+}
+
+function buildSandboxUploadCode(
+  downloads: (SyncedAttachment & {
+    url: string;
+  })[],
+) {
+  const lines = [
+    "set -euo pipefail",
+    `mkdir -p ${shellQuote(SANDBOX_UPLOADS_DIR)}`,
+  ];
+
+  for (const download of downloads) {
+    if (!isSafeSandboxUploadPath(download.path)) {
+      throw new Error(`Unsafe upload target path for ${download.fileName}`);
+    }
+
+    lines.push(
+      `mkdir -p ${shellQuote(getPosixDirName(download.path))}`,
+      [
+        "curl",
+        "--fail",
+        "--location",
+        "--silent",
+        "--show-error",
+        "--retry",
+        "2",
+        "--connect-timeout",
+        "15",
+        "--max-time",
+        "60",
+        "--output",
+        shellQuote(download.path),
+        shellQuote(download.url),
+      ].join(" "),
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function isSafeSandboxUploadPath(path: string) {
+  return (
+    path === SANDBOX_UPLOADS_DIR || path.startsWith(`${SANDBOX_UPLOADS_DIR}/`)
+  );
+}
+
+function getPosixDirName(path: string) {
+  const slashIndex = path.lastIndexOf("/");
+  return slashIndex > 0 ? path.slice(0, slashIndex) : ".";
+}
+
+function shellQuote(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 function sanitizeFileName(fileName: string) {

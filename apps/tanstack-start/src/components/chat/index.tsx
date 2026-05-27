@@ -50,8 +50,6 @@ export function Chat({
     shouldInitializeInitialThreadScroll,
     handleInitialThreadScrollReady,
     messageStatsMap,
-    hoveredMessageId,
-    setHoveredMessageId,
     previewFile,
     setPreviewFile,
     resolvedMessageAttachments,
@@ -88,7 +86,6 @@ export function Chat({
             emptyContent={emptyContent}
             finalMessages={finalMessages}
             handleThreadIdChange={handleThreadIdChange}
-            hoveredMessageId={hoveredMessageId}
             messageAttachmentsByMessageId={messageAttachmentsByMessageId}
             messageStatsMap={messageStatsMap}
             resolvedMessageAttachments={resolvedMessageAttachments}
@@ -96,7 +93,6 @@ export function Chat({
             sendMessageWithTracking={sendMessageWithTracking}
             onSelectBranch={selectBranch}
             onStartEditMessage={startEditMessage}
-            setHoveredMessageId={setHoveredMessageId}
             setOptimisticMessage={setOptimisticMessage}
             setPreviewFile={setPreviewFile}
             settings={settings}

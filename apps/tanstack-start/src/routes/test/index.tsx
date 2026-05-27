@@ -1,5 +1,9 @@
-import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
+
+import { Button } from "@redux/ui/components/button";
+
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 
 export const Route = createFileRoute("/test/")({
   component: RouteComponent,
@@ -57,6 +61,19 @@ function RouteComponent() {
     <div className="bg-background flex min-h-dvh items-center justify-center px-4 py-12">
       <div className="border-border bg-card w-full max-w-3xl rounded-2xl border p-8 shadow-sm">
         <MarkdownRenderer content={MARKDOWN_FIXTURE} mode="static" />
+      </div>
+
+      <div className="fixed bottom-8 left-1/2 flex -translate-x-1/2 gap-2">
+        <Button onClick={() => toast.success("Hello")}>Click me</Button>
+        <Button
+          variant="destructive"
+          type="button"
+          onClick={() => {
+            throw new Error("Sentry Test Error");
+          }}
+        >
+          Sentry test error
+        </Button>
       </div>
     </div>
   );

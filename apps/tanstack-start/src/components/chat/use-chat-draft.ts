@@ -1,5 +1,6 @@
 "use client";
 
+import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -80,6 +81,47 @@ function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
 }
 
+function isDraftAttachment(value: unknown): value is DraftAttachment {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const attachment = value as Partial<DraftAttachment>;
+  return (
+    typeof attachment.attachmentId === "string" &&
+    attachment.attachmentId.length > 0 &&
+    typeof attachment.fileName === "string" &&
+    typeof attachment.mimeType === "string" &&
+    typeof attachment.size === "number" &&
+    typeof attachment.uploading === "boolean"
+  );
+}
+
+function sanitizeDraftAttachments(
+  attachments: readonly unknown[],
+): DraftAttachment[] {
+  return attachments.filter(isDraftAttachment);
+}
+
+function isStoredAttachment(
+  value: unknown,
+): value is NonNullable<StoredDraft["attachments"]>[number] {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const attachment = value as Partial<
+    NonNullable<StoredDraft["attachments"]>[number]
+  >;
+  return (
+    typeof attachment.attachmentId === "string" &&
+    attachment.attachmentId.length > 0 &&
+    typeof attachment.fileName === "string" &&
+    typeof attachment.mimeType === "string" &&
+    typeof attachment.size === "number"
+  );
+}
+
 interface UseChatDraftOptions {
   threadId?: string;
   settingsReady: boolean;
@@ -96,10 +138,23 @@ export function useChatDraft({
   const scopeKey = useMemo(() => getChatDraftStorageKey(threadId), [threadId]);
 
   const [text, setText] = useState("");
-  const [attachments, setAttachments] = useState<DraftAttachment[]>([]);
+  const [attachments, setAttachmentsState] = useState<DraftAttachment[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
   const previousAttachmentsRef = useRef<DraftAttachment[]>([]);
+
+  const setAttachments = useCallback<
+    Dispatch<SetStateAction<DraftAttachment[]>>
+  >((value) => {
+    setAttachmentsState((previous) => {
+      const next =
+        typeof value === "function"
+          ? value(sanitizeDraftAttachments(previous))
+          : value;
+
+      return sanitizeDraftAttachments(next);
+    });
+  }, []);
 
   useEffect(() => {
     const previousAttachments = previousAttachmentsRef.current;
@@ -156,14 +211,21 @@ export function useChatDraft({
 
       try {
         const parsed = JSON.parse(raw) as StoredDraft;
-        const savedAttachments =
-          parsed.version >= 1
-            ? (parsed.attachments ?? []).filter(
-                (attachment) => !isAttachmentExpired(attachment.expiresAt),
-              )
+        const rawSavedAttachments =
+          parsed.version >= 1 && Array.isArray(parsed.attachments)
+            ? parsed.attachments
             : [];
+        const savedAttachments = rawSavedAttachments.filter(isStoredAttachment);
 
-        if (savedAttachments.length === 0) {
+        if (savedAttachments.length !== rawSavedAttachments.length) {
+          console.warn("Ignored invalid attachment entries in chat draft");
+        }
+
+        const currentSavedAttachments = savedAttachments.filter(
+          (attachment) => !isAttachmentExpired(attachment.expiresAt),
+        );
+
+        if (currentSavedAttachments.length === 0) {
           if (!(parsed.text ?? "").trim()) {
             window.localStorage.removeItem(scopeKey);
           }
@@ -178,7 +240,7 @@ export function useChatDraft({
 
         const resolvedAttachments = await resolveAttachmentsFn({
           data: {
-            attachmentIds: savedAttachments.map(
+            attachmentIds: currentSavedAttachments.map(
               (attachment) => attachment.attachmentId,
             ),
           },
@@ -190,7 +252,7 @@ export function useChatDraft({
           ),
         );
 
-        const hydratedAttachments = savedAttachments.flatMap(
+        const hydratedAttachments = currentSavedAttachments.flatMap(
           (savedAttachment) => {
             const resolvedAttachment = resolvedById.get(
               savedAttachment.attachmentId,

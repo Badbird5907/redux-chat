@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
 import { Textarea } from "@redux/ui/components/textarea";
 
+import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useInstructions } from "@/lib/hooks/use-instructions";
 
 interface InstructionDraft {
@@ -209,13 +210,16 @@ export function InstructionsManager() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Instructions</h1>
+        <div className="flex items-start gap-2">
+          <SettingsMobileSidebarTrigger className="mt-1" />
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+            Instructions
+          </h1>
+        </div>
         <p className="text-muted-foreground max-w-3xl text-sm">
-          Create reusable behavior presets for chats. Built-in instructions can
-          be edited, reset, and removed. Custom instructions can be created and
-          deleted.
+          Tailor the model's behavior with custom instructions.
         </p>
       </div>
 
@@ -292,7 +296,7 @@ export function InstructionsManager() {
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  {instruction.isBuiltin && instruction.isDefault ? (
+                  {instruction.isBuiltin ? (
                     <Button
                       variant="ghost"
                       size="sm"

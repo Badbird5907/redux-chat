@@ -4,7 +4,8 @@ import { useChat } from "@ai-sdk/react";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { DefaultChatTransport } from "ai";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
@@ -17,6 +18,10 @@ import type {
 import type { ChatPreload } from "./preload";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
+import {
+  JUMP_TO_THREAD_BRANCH_EVENT,
+  UPDATE_SHARE_TO_CURRENT_BRANCH_EVENT,
+} from "./branch-events";
 import {
   getDeepestLeafForBranch,
   getVisibleBranchMessages,
@@ -67,6 +72,7 @@ export function useChatSession({
   const [pendingAssistantMessageId, setPendingAssistantMessageId] = useState<
     string | undefined
   >(undefined);
+  const pendingAssistantMessageIdRef = useRef<string | undefined>(undefined);
   const [initialThreadScrollReady, setInitialThreadScrollReady] = useState(
     () => !initialThreadId,
   );
@@ -119,10 +125,21 @@ export function useChatSession({
   const regenerateAssistantMessageBranch = useMutation(
     api.functions.threads.regenerateAssistantMessageBranch,
   );
+  const updateShareSelectedBranchToLeaf = useMutation(
+    api.functions.threadShares.updateSelectedBranchToLeaf,
+  );
   const abortStreamMutation = useMutation(api.functions.threads.abortStream);
   const { allocate: allocateSignedIds } = useSignedCid();
   const [editingMessageId, setEditingMessageId] = useState<string | undefined>(
     undefined,
+  );
+
+  const setTrackedPendingAssistantMessageId = useCallback(
+    (messageId: string | undefined) => {
+      pendingAssistantMessageIdRef.current = messageId;
+      setPendingAssistantMessageId(messageId);
+    },
+    [],
   );
 
   const [initialMessages] = useState<ChatMessageWithThreadMetadata[]>(() =>
@@ -160,6 +177,10 @@ export function useChatSession({
     [currentThreadId],
   );
 
+  const refreshBillingState = useAction(
+    api.functions.billing.refreshCurrentUserBillingState,
+  );
+
   const {
     messages,
     status,
@@ -168,6 +189,7 @@ export function useChatSession({
     setMessages,
     resumeStream,
     stop,
+    clearError,
   } = useChat<ChatMessageWithThreadMetadata>({
     id: chatInstanceId,
     messages: initialMessages,
@@ -176,6 +198,53 @@ export function useChatSession({
     onError: (error) => {
       locallyStartedStreamRef.current = false;
       console.error("Chat error:", error);
+
+      // Detect a backend 402 "out of credits" rejection and surface a clear
+      // toast + force a refresh of cached billing state so the input gates
+      // disable on the next render. The /api/chat handler returns a JSON body
+      // shaped { error: "out_of_credits", tier, availableCredits }; the AI SDK
+      // surfaces it in the Error message.
+      const message = error instanceof Error ? error.message : String(error);
+      const assistantMessageId = pendingAssistantMessageIdRef.current;
+      if (assistantMessageId) {
+        setMessages((currentMessages) => {
+          const failedMessage = {
+            id: assistantMessageId,
+            role: "assistant" as const,
+            parts: [],
+            status: "failed" as const,
+            error: message,
+          };
+
+          if (
+            !currentMessages.some(
+              (currentMessage) => currentMessage.id === assistantMessageId,
+            )
+          ) {
+            return [...currentMessages, failedMessage];
+          }
+
+          return currentMessages.map((currentMessage) =>
+            currentMessage.id === assistantMessageId &&
+            currentMessage.role === "assistant"
+              ? {
+                  ...currentMessage,
+                  status: "failed" as const,
+                  error: message,
+                }
+              : currentMessage,
+          );
+        });
+        setTrackedPendingAssistantMessageId(undefined);
+      }
+
+      if (message.includes("out_of_credits")) {
+        toast.error("You are out of credits.");
+        void refreshBillingState({}).catch(() => {
+          // Best-effort — the reactive billing query will still pick up the
+          // backend's last-written cache value on its own.
+        });
+      }
     },
     onFinish: (message) => {
       console.log("Finish:", message);
@@ -231,12 +300,12 @@ export function useChatSession({
           : undefined;
 
       if (assistantMessageId) {
-        setPendingAssistantMessageId(assistantMessageId);
+        setTrackedPendingAssistantMessageId(assistantMessageId);
       }
 
       void sendMessage(message, options);
     },
-    [sendMessage, setMessages],
+    [sendMessage, setMessages, setTrackedPendingAssistantMessageId],
   );
 
   useEffect(() => {
@@ -262,7 +331,7 @@ export function useChatSession({
       locallyStoppedStreamRef.current = undefined;
       setCurrentThreadId(initialThreadId);
       setOptimisticMessage(undefined);
-      setPendingAssistantMessageId(undefined);
+      setTrackedPendingAssistantMessageId(undefined);
       lastMessageCount.current = 0;
       lastSyncedMessagesRef.current = [];
 
@@ -274,7 +343,13 @@ export function useChatSession({
     return () => {
       cancelled = true;
     };
-  }, [currentThreadId, initialThreadId, setMessages, status]);
+  }, [
+    currentThreadId,
+    initialThreadId,
+    setMessages,
+    setTrackedPendingAssistantMessageId,
+    status,
+  ]);
 
   useEffect(() => {
     if (initialThreadId || currentThreadId || status !== "ready") {
@@ -292,7 +367,7 @@ export function useChatSession({
       locallyCompletedStreamRef.current = false;
       locallyStoppedStreamRef.current = undefined;
       setOptimisticMessage(undefined);
-      setPendingAssistantMessageId(undefined);
+      setTrackedPendingAssistantMessageId(undefined);
       lastMessageCount.current = 0;
       lastSyncedMessagesRef.current = [];
       setMessages([]);
@@ -301,7 +376,13 @@ export function useChatSession({
     return () => {
       cancelled = true;
     };
-  }, [currentThreadId, initialThreadId, setMessages, status]);
+  }, [
+    currentThreadId,
+    initialThreadId,
+    setMessages,
+    setTrackedPendingAssistantMessageId,
+    status,
+  ]);
 
   const activeStreamInfo = useQuery(
     api.functions.threads.getThreadStreamId,
@@ -327,7 +408,7 @@ export function useChatSession({
       messageId,
       streamId: activeStreamId,
     };
-    setPendingAssistantMessageId(undefined);
+    setTrackedPendingAssistantMessageId(undefined);
     void stop();
     if (!currentThreadId || !messageId) {
       return;
@@ -346,6 +427,7 @@ export function useChatSession({
     activeStreamMessageId,
     currentThreadId,
     pendingAssistantMessageId,
+    setTrackedPendingAssistantMessageId,
     stop,
   ]);
 
@@ -465,21 +547,32 @@ export function useChatSession({
 
     queueMicrotask(() => {
       if (!cancelled) {
-        setPendingAssistantMessageId(undefined);
+        setTrackedPendingAssistantMessageId(undefined);
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [messages, pendingAssistantMessageId, status]);
+  }, [
+    messages,
+    pendingAssistantMessageId,
+    setTrackedPendingAssistantMessageId,
+    status,
+  ]);
 
   useEffect(() => {
+    const hasFailedConvexMessage = convexUIMessages.some(
+      (message) => message.status === "failed",
+    );
+    const canSyncConvexMessages =
+      status === "ready" || (status === "error" && hasFailedConvexMessage);
+
     if (
-      status !== "ready" ||
+      !canSyncConvexMessages ||
       activeStreamInfo?.streamId ||
       convexUIMessages.length === 0 ||
-      locallyStartedStreamRef.current ||
+      (locallyStartedStreamRef.current && !hasFailedConvexMessage) ||
       locallyCompletedStreamRef.current
     ) {
       return;
@@ -514,22 +607,53 @@ export function useChatSession({
     setMessages,
   ]);
 
+  useEffect(() => {
+    if (status !== "error") {
+      return;
+    }
+
+    const hasFailedMessage =
+      messages.some(
+        (message) =>
+          message.role === "assistant" && message.status === "failed",
+      ) ||
+      convexUIMessages.some(
+        (message) =>
+          message.role === "assistant" && message.status === "failed",
+      );
+
+    if (!hasFailedMessage) {
+      return;
+    }
+
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        clearError();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clearError, convexUIMessages, messages, status]);
+
   const messageStatsMap = useMemo(() => {
     const map = new Map<string, MessageStats>();
     convexMessages?.forEach((m) => {
       if (m.role === "assistant") {
         map.set(m.messageId, {
-          creditsConsumed: m.creditsConsumed,
           usage: m.usage,
           generationStats: m.generationStats,
           model: m.model,
+          thinkingLevel: m.thinkingLevel,
         });
       }
     });
     return map;
   }, [convexMessages]);
 
-  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{
     generatingDerivative?: boolean;
     id: string;
@@ -645,7 +769,7 @@ export function useChatSession({
       locallyStartedStreamRef.current = false;
       locallyCompletedStreamRef.current = false;
       setOptimisticMessage(undefined);
-      setPendingAssistantMessageId(undefined);
+      setTrackedPendingAssistantMessageId(undefined);
       lastMessageCount.current = nextVisibleMessages.length;
       lastSyncedMessagesRef.current = nextVisibleMessages;
       setMessages(nextVisibleMessages);
@@ -655,9 +779,85 @@ export function useChatSession({
       currentThreadId,
       selectThreadBranchMutation,
       setMessages,
+      setTrackedPendingAssistantMessageId,
       status,
     ],
   );
+
+  useEffect(() => {
+    const handleJumpToBranch = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        leafMessageId?: string;
+        threadId?: string;
+      }>;
+      const { leafMessageId, threadId } = customEvent.detail;
+      if (
+        !leafMessageId ||
+        !threadId ||
+        threadId !== currentThreadId ||
+        status !== "ready"
+      ) {
+        return;
+      }
+
+      void selectBranch(leafMessageId);
+    };
+
+    window.addEventListener(JUMP_TO_THREAD_BRANCH_EVENT, handleJumpToBranch);
+
+    return () => {
+      window.removeEventListener(
+        JUMP_TO_THREAD_BRANCH_EVENT,
+        handleJumpToBranch,
+      );
+    };
+  }, [currentThreadId, selectBranch, status]);
+
+  useEffect(() => {
+    const handleUpdateShareBranch = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        onError?: (error: unknown) => void;
+        onSuccess?: () => void;
+        shareId?: string;
+        threadId?: string;
+      }>;
+      const { onError, onSuccess, shareId, threadId } = customEvent.detail;
+      if (!shareId || !threadId || threadId !== currentThreadId) {
+        return;
+      }
+
+      const leafMessageId =
+        finalMessages.at(-1)?.id ?? thread?.selectedLeafMessageId;
+      if (!leafMessageId) {
+        onError?.(new Error("No selected branch to share"));
+        return;
+      }
+
+      void updateShareSelectedBranchToLeaf({
+        shareId,
+        leafMessageId,
+      })
+        .then(() => onSuccess?.())
+        .catch((error: unknown) => onError?.(error));
+    };
+
+    window.addEventListener(
+      UPDATE_SHARE_TO_CURRENT_BRANCH_EVENT,
+      handleUpdateShareBranch,
+    );
+
+    return () => {
+      window.removeEventListener(
+        UPDATE_SHARE_TO_CURRENT_BRANCH_EVENT,
+        handleUpdateShareBranch,
+      );
+    };
+  }, [
+    currentThreadId,
+    finalMessages,
+    thread?.selectedLeafMessageId,
+    updateShareSelectedBranchToLeaf,
+  ]);
 
   const startEditMessage = useCallback(
     (messageId: string) => {
@@ -754,7 +954,7 @@ export function useChatSession({
       locallyCompletedStreamRef.current = false;
       locallyStoppedStreamRef.current = undefined;
       setOptimisticMessage(undefined);
-      setPendingAssistantMessageId(branchInfo.assistantMessageId);
+      setTrackedPendingAssistantMessageId(branchInfo.assistantMessageId);
       lastMessageCount.current = localMessages.length;
       lastSyncedMessagesRef.current = localMessages;
       setMessages(localMessages);
@@ -789,6 +989,7 @@ export function useChatSession({
       editUserMessageBranch,
       regenerate,
       setMessages,
+      setTrackedPendingAssistantMessageId,
       settings,
       status,
       visibleBranchMessages,
@@ -841,7 +1042,7 @@ export function useChatSession({
           parts: candidate.parts,
         }));
 
-      setPendingAssistantMessageId(branchInfo.assistantMessageId);
+      setTrackedPendingAssistantMessageId(branchInfo.assistantMessageId);
       locallyStartedStreamRef.current = true;
       locallyCompletedStreamRef.current = false;
       locallyStoppedStreamRef.current = undefined;
@@ -876,6 +1077,7 @@ export function useChatSession({
       currentThreadId,
       regenerate,
       regenerateAssistantMessageBranch,
+      setTrackedPendingAssistantMessageId,
       settings,
       status,
       visibleBranchMessages,
@@ -948,8 +1150,6 @@ export function useChatSession({
     shouldInitializeInitialThreadScroll,
     handleInitialThreadScrollReady,
     messageStatsMap,
-    hoveredMessageId,
-    setHoveredMessageId,
     previewFile,
     setPreviewFile,
     resolvedMessageAttachments,

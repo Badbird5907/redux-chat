@@ -2,18 +2,18 @@ import type { DragEvent } from "react";
 import { Sparkles, Star } from "lucide-react";
 import { LayoutGroup, motion } from "motion/react";
 
+import type { PlanTier } from "@redux/shared";
 import type { ChatModelConfig } from "@redux/shared/models";
 import {
   getModelDisplayName,
   isModelNewlyReleased,
   NEW_MODEL_RECENCY_DAYS,
 } from "@redux/shared/models";
-import type { PlanTier } from "@redux/shared";
 import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
-import { useBillingState } from "@/components/chat/use-billing-state";
 import type { ModelSelectorState } from "./use-model-selector-state";
+import { useBillingState } from "@/components/chat/use-billing-state";
 import { Capabilities } from "./capabilities";
 import { panelSpring } from "./constants";
 import { ModelRowSubtitle } from "./model-row-subtitle";
@@ -38,16 +38,14 @@ type ModelListProps = Pick<
   | "favoriteDragId"
   | "favoriteDropInsertIndex"
   | "isFavoritesListView"
+  | "pickModelAt"
   | "onFavoriteDragStart"
   | "onFavoriteDragEnd"
   | "handleFavoriteRowDragOver"
   | "handleFavoriteRowDrop"
   | "toggleFavorite"
-  | "onModelChange"
-  | "setOpen"
   | "setListNavIndex"
   | "setNavColumn"
-  | "resetPickerDismissState"
 >;
 
 export function ModelSelectorModelList(props: ModelListProps) {
@@ -162,9 +160,7 @@ function ModelRow({
       onClick={() => {
         listProps.setListNavIndex(rowIndex);
         listProps.setNavColumn("list");
-        listProps.onModelChange(model.id);
-        listProps.setOpen(false);
-        listProps.resetPickerDismissState();
+        listProps.pickModelAt(rowIndex);
       }}
       onDragStart={
         listProps.canReorderFavorites

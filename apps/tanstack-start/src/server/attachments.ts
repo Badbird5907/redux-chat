@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { ConvexHttpClient } from "convex/browser";
 import { z } from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
+import { env } from "@/env";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { buildAttachmentUrl, getSiloCore } from "@/lib/silo/core.server";
 import {
@@ -151,4 +153,58 @@ export const deleteSettingsAttachments = createServerFn({ method: "POST" })
     return fetchAuthMutation(api.functions.attachments.deleteUnexpiredAttachments, {
       attachmentIds,
     });
+  });
+
+export const resolvePublicShareAttachments = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      shareId: z.string(),
+      attachmentIds: z.array(z.string()).max(100),
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (data.attachmentIds.length === 0) {
+      return [];
+    }
+
+    const client = new ConvexHttpClient(env.VITE_CONVEX_URL);
+    const attachments = await client.query(
+      api.functions.threadShares.listPublicShareAttachments,
+      {
+        shareId: data.shareId,
+        attachmentIds: data.attachmentIds,
+      },
+    );
+
+    const servingAttachments = await Promise.all(
+      attachments.map((attachment) => resolveServingAttachment(attachment)),
+    );
+
+    return Promise.all(
+      servingAttachments.map(async (attachment) => {
+        const url = attachment.expired
+          ? undefined
+          : await buildAttachmentUrl({
+              accessKey: attachment.accessKey,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              isPublic: attachment.isPublic,
+              serveImage: attachment.serveImage,
+            });
+
+        return {
+          attachmentId: attachment.attachmentId,
+          fileName: attachment.fileName,
+          originalFileName: attachment.originalFileName,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          expiresAt: attachment.expiresAt,
+          expired: attachment.expired,
+          status: attachment.status,
+          threadId: attachment.threadId,
+          messageId: attachment.messageId,
+          url,
+        };
+      }),
+    );
   });

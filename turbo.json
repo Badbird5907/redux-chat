@@ -26,6 +26,10 @@
         "dependsOn": ["^topo", "^build"],
         "outputs": [".cache/tsbuildinfo.json"]
       },
+      "test": {
+        "dependsOn": ["^topo", "^build"],
+        "outputs": ["coverage/**"]
+      },
       "clean": {
         "cache": false
       },
@@ -52,8 +56,19 @@
       "SITE_URL",
       "AUTH_GITHUB_ID",
       "AUTH_GITHUB_SECRET",
+      "AUTH_GOOGLE_ID",
+      "AUTH_GOOGLE_SECRET",
       "PORT",
-      "OPENAI_API_KEY"
+      "OPENAI_API_KEY",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "STRIPE_PLUS_PRICE_ID",
+      "STRIPE_PRO_PRICE_ID",
+      "STRIPE_CREDIT_TOP_UP_PRODUCT_ID",
+      "VITE_CONVEX_URL",
+      "VITE_CONVEX_SITE_URL",
+      "VITE_SENTRY_DSN",
+      "SENTRY_AUTH_TOKEN"
     ],
     "globalPassThroughEnv": [
       "NODE_ENV",

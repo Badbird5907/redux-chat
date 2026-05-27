@@ -119,7 +119,7 @@ export function NewProjectDialog({
               id="new-project-instructions"
               value={instructions}
               rows={4}
-              placeholder="Tailor Claude's responses for this project."
+              placeholder="Tailor responses for this project."
               onChange={(event) => setInstructions(event.target.value)}
             />
           </div>

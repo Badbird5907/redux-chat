@@ -4,7 +4,7 @@ import {
   BookText,
   FileText,
   Keyboard,
-  PlugZap,
+  Palette,
   Shield,
   SlidersHorizontal,
 } from "lucide-react";
@@ -15,6 +15,7 @@ import {
   SidebarMenuItem,
 } from "@redux/ui/components/sidebar";
 
+import McpLogo from "@/components/logos/mcp";
 import AppSidebar from "@/components/sidebar";
 
 export function SettingsSidebarPanel() {
@@ -23,6 +24,7 @@ export function SettingsSidebarPanel() {
   });
 
   const isGeneralActive = pathname === "/settings" || pathname === "/settings/";
+  const isAppearanceActive = pathname.startsWith("/settings/appearance");
   const isSecurityActive = pathname.startsWith("/settings/security");
   const isInstructionsActive = pathname.startsWith("/settings/instructions");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
@@ -64,6 +66,16 @@ export function SettingsSidebarPanel() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
+              isActive={isAppearanceActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/appearance" />}
+            >
+              <Palette />
+              <span>Appearance</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
               isActive={isSecurityActive}
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
               render={<Link to="/settings/security" />}
@@ -78,11 +90,11 @@ export function SettingsSidebarPanel() {
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
               render={<Link to="/settings/mcp" />}
             >
-              <PlugZap />
+              <McpLogo className="h-6 w-6 flex-shrink-0" />
               <span>MCP Servers</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="max-md:hidden">
             <SidebarMenuButton
               isActive={isHotkeysActive}
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"

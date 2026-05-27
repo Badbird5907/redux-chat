@@ -1,0 +1,21 @@
+export const modules: Record<string, () => Promise<unknown>> = {
+  "./functions/index.ts": () => import("./functions/index"),
+  "./functions/defaultMessageSettings.ts": () =>
+    import("./functions/defaultMessageSettings"),
+  "./functions/instructions.ts": () => import("./functions/instructions"),
+  "./functions/mcpServers.ts": () => import("./functions/mcpServers"),
+  "./functions/migrations.ts": () => import("./functions/migrations"),
+  "./functions/modelFavorites.ts": () => import("./functions/modelFavorites"),
+  "./functions/projects.ts": () => import("./functions/projects"),
+  "./functions/billing.ts": () => import("./functions/billing"),
+  "./functions/credits.ts": () => import("./functions/credits"),
+  "./functions/promotions.ts": () => import("./functions/promotions"),
+  "./functions/threadShares.ts": () => import("./functions/threadShares"),
+  "./functions/internal.ts": () => import("./functions/internal"),
+  "./functions/threads.ts": () => import("./functions/threads"),
+  "./credits.ts": () => import("./credits"),
+  "./promotions.ts": () => import("./promotions"),
+  "./usageStats.ts": () => import("./usageStats"),
+  "./_generated/api.js": () => import("./_generated/api.js"),
+  "./_generated/server.js": () => import("./_generated/server.js"),
+};

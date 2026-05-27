@@ -1,3 +1,4 @@
+import type { ModelSelectorRequestDetail } from "@/components/chat/open-model-selector";
 import type { DragEvent, MouseEvent } from "react";
 import {
   useCallback,
@@ -22,6 +23,7 @@ import type {
   MinKnowledgeCutoff,
   ModelFeatureFilterId,
 } from "./feature-filters";
+import { requestFocusComposer } from "@/components/chat/focus-composer";
 import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
 import { useQuery } from "@/lib/hooks/convex";
 import {
@@ -324,16 +326,57 @@ export function useModelSelectorState({
     [activeSidebar, sidebarProviders, resetPickerDismissState],
   );
 
+  const handleUserOpenChange = useCallback(
+    (next: boolean) => {
+      handleOpenChange(next);
+
+      if (!next) {
+        requestFocusComposer();
+      }
+    },
+    [handleOpenChange],
+  );
+
+  const handleToggleOpen = useCallback(() => {
+    setOpen((current) => {
+      const next = !current;
+
+      if (next) {
+        setNavColumn("search");
+        setListNavIndex(-1);
+        if (activeSidebar === "favorites") setSidebarNavIndex(0);
+        else {
+          const i = sidebarProviders.findIndex((p) => p.slug === activeSidebar);
+          setSidebarNavIndex(i >= 0 ? i + 1 : 0);
+        }
+      } else {
+        resetPickerDismissState();
+        requestFocusComposer();
+      }
+
+      return next;
+    });
+  }, [activeSidebar, resetPickerDismissState, sidebarProviders]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onOpenRequest = () => {
-      handleOpenChange(true);
+    const onOpenRequest = (event: Event) => {
+      const detail = (
+        event as CustomEvent<ModelSelectorRequestDetail | undefined>
+      ).detail;
+
+      if (detail?.toggle) {
+        handleToggleOpen();
+        return;
+      }
+
+      handleOpenChange(detail?.open ?? true);
     };
     window.addEventListener(OPEN_MODEL_SELECTOR_EVENT, onOpenRequest);
     return () => {
       window.removeEventListener(OPEN_MODEL_SELECTOR_EVENT, onOpenRequest);
     };
-  }, [handleOpenChange]);
+  }, [handleOpenChange, handleToggleOpen]);
 
   const pickModelAt = useCallback(
     (index: number) => {
@@ -342,6 +385,7 @@ export function useModelSelectorState({
       onModelChange(m.id);
       setOpen(false);
       resetPickerDismissState();
+      requestFocusComposer();
     },
     [filteredModels, onModelChange, resetPickerDismissState],
   );
@@ -457,6 +501,7 @@ export function useModelSelectorState({
     clearFilters,
     resetPickerDismissState,
     handleOpenChange,
+    handleUserOpenChange,
     pickModelAt,
     activateSidebarSlotByNavIndex,
     effectiveListNavIndex,

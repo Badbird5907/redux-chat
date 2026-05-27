@@ -109,74 +109,83 @@ function ProjectSurface({
   threadsStatus,
 }: ProjectSurfaceProps) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pt-8 pb-72">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col px-4 pt-8 pb-40">
       <Link
         to="/projects"
-        className="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1.5 text-sm"
+        className="text-muted-foreground hover:text-foreground mb-6 inline-flex shrink-0 items-center gap-1.5 text-sm"
       >
         <ArrowLeft className="size-4" />
         All projects
       </Link>
 
-      <div className="flex flex-col gap-6">
-        <div>
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
+        <div className="shrink-0">
           <h1 className="text-3xl font-semibold">{name}</h1>
           {description && (
             <p className="text-muted-foreground mt-2 text-sm">{description}</p>
           )}
         </div>
 
-        <Tabs defaultValue="chats" className="w-full gap-6">
-          <TabsList className="w-full max-w-full sm:w-fit">
+        <Tabs
+          defaultValue="chats"
+          className="flex min-h-0 w-full flex-1 flex-col gap-6"
+        >
+          <TabsList className="w-full max-w-full shrink-0 sm:w-fit">
             <TabsTrigger value="chats">Chats</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          {/* Project chat input renders fixed at the bottom; we leave space here
-              so content isn't hidden behind it. */}
-          <TabsContent value="chats" className="flex flex-col gap-2">
-            <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          <TabsContent
+            value="chats"
+            className="flex min-h-0 flex-col gap-2 overflow-hidden"
+          >
+            <h2 className="text-muted-foreground shrink-0 text-xs font-semibold tracking-wide uppercase">
               Chats in this project
             </h2>
-            {threadsStatus === "LoadingFirstPage" ? (
-              <div className="flex flex-col gap-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
-                ))}
-              </div>
-            ) : threads.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Type a message below to start the first chat in this project.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-1">
-                {threads.map((thread) => (
-                  <li key={thread.threadId}>
-                    <Link
-                      to="/chat/$id"
-                      params={{ id: thread.threadId }}
-                      preload="intent"
-                      className="border-border bg-card/40 hover:bg-card flex flex-col gap-0.5 rounded-lg border px-3 py-2 transition-colors"
-                    >
-                      <span className="truncate text-sm font-medium">
-                        {thread.name}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        Last message {formatRelative(thread.timestamp)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+              {threadsStatus === "LoadingFirstPage" ? (
+                <div className="flex flex-col gap-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : threads.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Type a message below to start the first chat in this project.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {threads.map((thread) => (
+                    <li key={thread.threadId}>
+                      <Link
+                        to="/chat/$id"
+                        params={{ id: thread.threadId }}
+                        preload="intent"
+                        className="border-border bg-card/40 hover:bg-card flex flex-col gap-0.5 rounded-lg border px-3 py-2 transition-colors"
+                      >
+                        <span className="truncate text-sm font-medium">
+                          {thread.name}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          Last message {formatRelative(thread.timestamp)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </TabsContent>
 
-          <TabsContent value="files">
+          <TabsContent value="files" className="min-h-0 overflow-y-auto pr-1">
             <ProjectFiles projectId={projectId} />
           </TabsContent>
 
-          <TabsContent value="settings" className="flex flex-col gap-4">
+          <TabsContent
+            value="settings"
+            className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1"
+          >
             <ProjectDescription
               projectId={projectId}
               description={description}

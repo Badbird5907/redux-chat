@@ -33,6 +33,7 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
+.env.prod
 
 # vercel
 .vercel
@@ -49,3 +50,4 @@ docker/*/data
 
 .react-email/
 .tanstack/
+.deepsec/

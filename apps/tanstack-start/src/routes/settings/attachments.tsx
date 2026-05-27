@@ -20,6 +20,7 @@ import { DataTable } from "@redux/ui/components/data-table";
 import { deleteSettingsAttachments } from "@/server/attachments";
 
 const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const MAX_DELETE_COUNT = 100;
 
 export const Route = createFileRoute("/settings/attachments")({
@@ -75,12 +76,14 @@ function getAttachmentId(attachment: AttachmentRow) {
 
 function AttachmentsRouteComponent() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [deleting, setDeleting] = useState(false);
   const deleteAttachments = useServerFn(deleteSettingsAttachments);
   const attachments = usePaginatedQuery(
     api.functions.attachments.listForSettings,
     {},
-    { initialNumItems: PAGE_SIZE },
+    { initialNumItems: pageSize },
   );
 
   const enableRowSelection = (row: AttachmentRow) => !row.expired && !deleting;
@@ -151,6 +154,17 @@ function AttachmentsRouteComponent() {
     [rowSelection],
   );
   const selectedCount = selectedIds.length;
+  const loadedPages = Math.max(
+    1,
+    Math.ceil(attachments.results.length / pageSize),
+  );
+  const hasNextPage =
+    page < loadedPages ||
+    (page === loadedPages && attachments.status === "CanLoadMore");
+  const pagedAttachments = attachments.results.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  );
   const loadedSelectedCount = useMemo(
     () =>
       attachments.results.filter((attachment) =>
@@ -158,6 +172,18 @@ function AttachmentsRouteComponent() {
       ).length,
     [attachments.results, selectedIds],
   );
+
+  const handlePageChange = (nextPage: number) => {
+    let safeNextPage = Math.max(1, nextPage);
+    if (safeNextPage > loadedPages) {
+      if (attachments.status === "CanLoadMore") {
+        attachments.loadMore(pageSize);
+      } else {
+        safeNextPage = loadedPages;
+      }
+    }
+    setPage(safeNextPage);
+  };
 
   const handleDeleteSelected = async () => {
     const attachmentIds = selectedIds.slice(0, MAX_DELETE_COUNT);
@@ -226,8 +252,12 @@ function AttachmentsRouteComponent() {
 
           <DataTable
             columns={columns}
-            data={attachments.results}
-            loading={attachments.status === "LoadingFirstPage"}
+            data={pagedAttachments}
+            loading={
+              attachments.status === "LoadingFirstPage" ||
+              (attachments.status === "LoadingMore" &&
+                pagedAttachments.length === 0)
+            }
             emptyMessage="No attachments found."
             emptyIcon={FileText}
             multiselect
@@ -235,33 +265,30 @@ function AttachmentsRouteComponent() {
             onRowSelectionChange={setRowSelection}
             getRowId={getAttachmentId}
             enableRowSelection={enableRowSelection}
+            pagination={{
+              page,
+              pageSize,
+              totalCount: attachments.results.length,
+              totalPages: loadedPages,
+              hasNextPage,
+              hasPreviousPage: page > 1,
+              onPageChange: handlePageChange,
+              onPageSizeChange: (next) => {
+                setPage(1);
+                setPageSize(next);
+              },
+              pageSizeOptions: PAGE_SIZE_OPTIONS,
+              unknownTotal: true,
+            }}
           />
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-muted-foreground text-xs">
-              Showing {attachments.results.length} loaded attachment
-              {attachments.results.length === 1 ? "" : "s"}
-              {selectedCount > loadedSelectedCount
-                ? ` (${selectedCount - loadedSelectedCount} selected on other loaded pages)`
-                : ""}
-              .
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={attachments.status !== "CanLoadMore"}
-              onClick={() => attachments.loadMore(PAGE_SIZE)}
-            >
-              {attachments.status === "LoadingMore" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              {attachments.status === "CanLoadMore"
-                ? "Load more"
-                : attachments.status === "LoadingMore"
-                  ? "Loading..."
-                  : "All loaded"}
-            </Button>
-          </div>
+          {selectedCount > loadedSelectedCount ? (
+            <p className="text-muted-foreground text-xs">
+              {selectedCount - loadedSelectedCount} selected attachment
+              {selectedCount - loadedSelectedCount === 1 ? "" : "s"} are on
+              other loaded pages.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </div>

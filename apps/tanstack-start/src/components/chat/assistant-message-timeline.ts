@@ -18,6 +18,7 @@ export interface AssistantTimelineStep {
   description?: string;
   id: string;
   kind: "reasoning" | "source" | "tool";
+  origin?: "image-model";
   label: string;
   rawPartIds: string[];
   searchResults?: AssistantTimelineSearchResult[];
@@ -69,25 +70,47 @@ export function normalizeAssistantMessage(
       part.type === "source-document" ||
       part.type === "source-url",
   );
+  const completedGeneratedImageKeys = getCompletedGeneratedImageKeys(
+    message.parts,
+  );
   const steps: AssistantTimelineStep[] = [];
   let attachableStepIndex = -1;
 
-  if (reasoningText && hasToolOrSourceActivity) {
-    steps.push({
-      content: reasoningText,
-      id: `${message.id}:reasoning`,
-      kind: "reasoning",
-      label: "Thinking",
-      rawPartIds: reasoningParts.map(({ id }) => id),
-      status: isLastReasoningPartStreaming(message.parts)
-        ? "active"
-        : "complete",
-      summary: "Thinking through the response",
-    });
-    attachableStepIndex = 0;
-  }
-
   for (const { id, part } of indexedParts) {
+    if (isReasoningUIPart(part) && hasToolOrSourceActivity) {
+      const content = part.text.trim();
+
+      if (!content) {
+        continue;
+      }
+
+      const previousStep = steps.at(-1);
+
+      if (previousStep?.kind === "reasoning") {
+        previousStep.content = joinReasoningParts([
+          previousStep.content ?? "",
+          content,
+        ]);
+        previousStep.rawPartIds.push(id);
+        previousStep.status =
+          part.state === "streaming" ? "active" : previousStep.status;
+        attachableStepIndex = steps.length - 1;
+        continue;
+      }
+
+      steps.push({
+        content,
+        id: `${message.id}:reasoning:${id}`,
+        kind: "reasoning",
+        label: "Thinking",
+        rawPartIds: [id],
+        status: part.state === "streaming" ? "active" : "complete",
+        summary: "Thinking through the response",
+      });
+      attachableStepIndex = steps.length - 1;
+      continue;
+    }
+
     if (isToolUIPart(part)) {
       const toolName = getToolName(part);
       const label = getToolLabel(toolName, part.title);
@@ -105,6 +128,34 @@ export function normalizeAssistantMessage(
       };
 
       steps.push(toolStep);
+      attachableStepIndex = steps.length - 1;
+      continue;
+    }
+
+    const generatedImage = normalizeGeneratedImagePart(part);
+    if (generatedImage) {
+      const isGenerating = generatedImage.status === "generating";
+      if (
+        isGenerating &&
+        completedGeneratedImageKeys.has(getGeneratedImageKey(generatedImage))
+      ) {
+        continue;
+      }
+
+      steps.push({
+        description: getGeneratedImageDescription(
+          generatedImage.prompt,
+          isGenerating,
+        ),
+        id: `${message.id}:generated-image:${id}`,
+        kind: "tool",
+        label: "Generate Image",
+        origin: "image-model",
+        rawPartIds: [id],
+        status: isGenerating ? "active" : "complete",
+        summary: isGenerating ? "Generating Image" : "Generated Image",
+        toolName: "generate_image",
+      });
       attachableStepIndex = steps.length - 1;
       continue;
     }
@@ -178,11 +229,6 @@ export function normalizeAssistantMessage(
   };
 }
 
-function isLastReasoningPartStreaming(parts: UIMessage["parts"]) {
-  const lastReasoningPart = [...parts].reverse().find(isReasoningUIPart);
-  return lastReasoningPart?.state === "streaming";
-}
-
 function joinReasoningParts(parts: string[]) {
   const joined = parts
     .map((part) => part.trim())
@@ -217,11 +263,20 @@ function humanizeToolName(toolName: string) {
 }
 
 function getToolLabel(toolName: string, title: string | undefined) {
-  if (toolName.toLowerCase() === "analysis_workspace") {
-    return "Analysis";
+  switch (toolName.toLowerCase()) {
+    case "generate_image":
+      return "Generate Image";
+    case "analysis_workspace":
+      return "Analysis";
+    case "bash":
+      return "Bash";
+    case "readfile":
+      return "Read File";
+    case "writefile":
+      return "Write File";
+    default:
+      return title ?? humanizeToolName(toolName);
   }
-
-  return title ?? humanizeToolName(toolName);
 }
 
 function getToolDescription(
@@ -279,6 +334,26 @@ function getToolDescription(
     }
   }
 
+  if (normalizedToolName === "generate_image") {
+    const prompt = getToolPrompt(part);
+    return getGeneratedImageDescription(
+      prompt,
+      part.state !== "output-available",
+    );
+  }
+
+  if (normalizedToolName === "bash") {
+    return getBashToolDescription(part);
+  }
+
+  if (normalizedToolName === "readfile") {
+    return getReadFileToolDescription(part);
+  }
+
+  if (normalizedToolName === "writefile") {
+    return getWriteFileToolDescription(part);
+  }
+
   if (part.state === "output-available") {
     const outputText = summarizeUnknown(part.output);
     if (outputText) {
@@ -315,6 +390,31 @@ function getToolSummary(
     }
   }
 
+  if (normalizedToolName === "generate_image") {
+    const prompt = getToolPrompt(part);
+    const action =
+      part.state === "output-available"
+        ? "Generated image"
+        : "Generating image";
+    return prompt
+      ? `${action} with prompt ${formatInlineQuery(prompt)}`
+      : action;
+  }
+
+  if (normalizedToolName === "bash") {
+    return part.state === "output-available"
+      ? "Ran Bash command"
+      : "Running Bash command";
+  }
+
+  if (normalizedToolName === "readfile") {
+    return part.state === "output-available" ? "Read file" : "Reading file";
+  }
+
+  if (normalizedToolName === "writefile") {
+    return part.state === "output-available" ? "Wrote file" : "Writing file";
+  }
+
   switch (part.state) {
     case "output-error":
       return `${label} failed`;
@@ -333,6 +433,78 @@ function getToolSummary(
   }
 }
 
+function getBashToolDescription(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const input = getToolInput(part);
+  const command =
+    isRecord(input) && typeof input.command === "string"
+      ? input.command
+      : undefined;
+  const commandText = command
+    ? `\`${summarizeText(command, 96) ?? command}\``
+    : "command";
+
+  if (part.state !== "output-available") {
+    return `Running ${commandText}`;
+  }
+
+  const output = part.output;
+  const exitCode =
+    isRecord(output) && typeof output.exitCode === "number"
+      ? output.exitCode
+      : undefined;
+  const stdout =
+    isRecord(output) && typeof output.stdout === "string"
+      ? summarizeText(output.stdout, 120)
+      : undefined;
+  const stderr =
+    isRecord(output) && typeof output.stderr === "string"
+      ? summarizeText(output.stderr, 120)
+      : undefined;
+  const statusText =
+    exitCode === undefined ? "finished" : `exited with code ${exitCode}`;
+  const outputText = stderr
+    ? ` stderr: ${stderr}`
+    : stdout
+      ? ` output: ${stdout}`
+      : "";
+
+  return `Ran ${commandText}; ${statusText}.${outputText}`;
+}
+
+function getReadFileToolDescription(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const path = getToolPath(part);
+  const pathText = path ? `\`${path}\`` : "file";
+
+  if (part.state !== "output-available") {
+    return `Reading ${pathText}`;
+  }
+
+  const output = part.output;
+  const contentLength =
+    isRecord(output) && typeof output.content === "string"
+      ? output.content.length
+      : undefined;
+
+  return contentLength === undefined
+    ? `Read ${pathText}.`
+    : `Read ${pathText} (${contentLength.toLocaleString()} characters).`;
+}
+
+function getWriteFileToolDescription(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const path = getToolPath(part);
+  const pathText = path ? `\`${path}\`` : "file";
+
+  return part.state === "output-available"
+    ? `Wrote ${pathText}.`
+    : `Writing ${pathText}`;
+}
+
 function getToolInput(
   part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
 ) {
@@ -349,6 +521,24 @@ function getToolQuery(
   const input = getToolInput(part);
   return isRecord(input) && typeof input.query === "string"
     ? input.query
+    : undefined;
+}
+
+function getToolPrompt(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const input = getToolInput(part);
+  return isRecord(input) && typeof input.prompt === "string"
+    ? input.prompt
+    : undefined;
+}
+
+function getToolPath(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const input = getToolInput(part);
+  return isRecord(input) && typeof input.path === "string"
+    ? input.path
     : undefined;
 }
 
@@ -499,7 +689,14 @@ function summarizeUnknown(value: unknown): string | undefined {
   }
 
   if (isRecord(value)) {
-    const preferredKeys = ["query", "summary", "title", "text", "message"];
+    const preferredKeys = [
+      "query",
+      "prompt",
+      "summary",
+      "title",
+      "text",
+      "message",
+    ];
     for (const key of preferredKeys) {
       const candidate = value[key];
       if (typeof candidate === "string" && candidate.trim()) {
@@ -545,6 +742,61 @@ function formatSourceUrlLabel(url: string) {
 
 function formatInlineQuery(query: string) {
   return `"${summarizeText(query, 80) ?? query}"`;
+}
+
+function getGeneratedImageDescription(
+  prompt: string | undefined,
+  isGenerating: boolean,
+) {
+  const action = isGenerating ? "Generating image" : "Generated image";
+  return prompt
+    ? `${action} with prompt ${formatInlineQuery(prompt)}.`
+    : `${action}.`;
+}
+
+interface GeneratedImageTimelinePart {
+  type: "data-generated-image";
+  modelId?: string;
+  prompt?: string;
+  status?: "generating" | "generated";
+}
+
+function normalizeGeneratedImagePart(
+  part: unknown,
+): GeneratedImageTimelinePart | null {
+  if (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "data-generated-image"
+  ) {
+    if ("data" in part) {
+      return normalizeGeneratedImagePart(part.data);
+    }
+
+    return part as GeneratedImageTimelinePart;
+  }
+
+  return null;
+}
+
+function getCompletedGeneratedImageKeys(
+  parts: UIMessagePart<UIDataTypes, UITools>[],
+) {
+  const keys = new Set<string>();
+
+  for (const part of parts) {
+    const generatedImage = normalizeGeneratedImagePart(part);
+    if (generatedImage && generatedImage.status !== "generating") {
+      keys.add(getGeneratedImageKey(generatedImage));
+    }
+  }
+
+  return keys;
+}
+
+function getGeneratedImageKey(image: GeneratedImageTimelinePart) {
+  return `${image.modelId ?? ""}:${image.prompt ?? ""}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

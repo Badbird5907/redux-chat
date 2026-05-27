@@ -1,7 +1,8 @@
 import type { ConvexQueryClient } from "@convex-dev/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import {
   ClientOnly,
@@ -12,7 +13,10 @@ import {
   useRouteContext,
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { useAction, useConvexAuth } from "convex/react";
 
+import { api } from "@redux/backend/convex/_generated/api";
 import { Toaster } from "@redux/ui/components/sonner";
 import { ThemeProvider } from "@redux/ui/components/theme";
 import { cn } from "@redux/ui/lib/utils";
@@ -49,8 +53,7 @@ export const Route = createRootRouteWithContext<{
       },
       {
         name: "description",
-        content:
-          "Opinionated full-stack template for quickly bootstrapping a TanStack Start and turborepo app with Convex, Shadcn/ui, Better Auth, and more.",
+        content: "A chat app to rule them all",
       },
     ],
     links: [
@@ -117,10 +120,42 @@ function RootComponent() {
       initialToken={context.token}
     >
       <RootDocument>
+        <EnsureStripeCustomerOnAuth />
         <Outlet />
       </RootDocument>
     </ConvexBetterAuthProvider>
   );
+}
+
+function EnsureStripeCustomerOnAuth() {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const ensureStripeCustomer = useAction(
+    api.functions.billing.ensureCurrentUserStripeCustomer,
+  );
+  const didRequest = useRef(false);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      didRequest.current = false;
+      return;
+    }
+
+    if (didRequest.current) {
+      return;
+    }
+
+    didRequest.current = true;
+    void ensureStripeCustomer({}).catch((error: unknown) => {
+      didRequest.current = false;
+      console.error("Failed to ensure Stripe customer", error);
+    });
+  }, [ensureStripeCustomer, isAuthenticated, isLoading]);
+
+  return null;
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
@@ -155,6 +190,8 @@ function RootDocument({ children }: { children: ReactNode }) {
             <Toaster />
           </HotkeySettingsProvider>
         </ThemeProvider>
+        <Analytics />
+        <SpeedInsights />
         <Scripts />
       </body>
     </html>

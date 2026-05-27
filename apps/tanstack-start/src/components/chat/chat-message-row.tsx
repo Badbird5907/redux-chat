@@ -26,7 +26,6 @@ import type {
   ResolvedAttachment,
 } from "./chat-types";
 import { AssistantMessageParts } from "@/components/chat/assistant-message-parts";
-import { StaticMarkdown } from "@/components/markdown/static-markdown";
 import { normalizeAssistantMessage } from "./assistant-message-timeline";
 import { BranchSwitcher } from "./branch-switcher";
 import { getSiblingBranchGroup } from "./chat-branching";
@@ -39,7 +38,7 @@ import {
 } from "./chat-message-utils";
 import { MessageStatsBar } from "./message-stats-bar";
 
-function CollapsibleUserMessageMarkdown({
+function CollapsibleUserMessageText({
   textContent,
   previewMaxLines,
 }: {
@@ -56,8 +55,8 @@ function CollapsibleUserMessageMarkdown({
     : textContent;
 
   return (
-    <div className="max-w-full min-w-0">
-      <StaticMarkdown content={displayContent} />
+    <div className="max-w-full min-w-0 wrap-break-word whitespace-pre-wrap">
+      {displayContent}
       {shouldOfferCollapse ? (
         <button
           type="button"
@@ -114,8 +113,6 @@ export interface ChatMessageRowProps {
   totalCount: number;
   status: string;
   messageStats?: MessageStats;
-  isHovered: boolean;
-  onHoverChange: (messageId: string | null) => void;
   resolvedMessageAttachments: Record<string, ResolvedAttachment>;
   messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
   assistantModelByParentMessageId: Map<string, string>;
@@ -123,6 +120,7 @@ export interface ChatMessageRowProps {
   onRegenerateMessage: (message: ChatMessageWithThreadMetadata) => void;
   onSelectBranch: (messageId: string) => void;
   onStartEditMessage: (messageId: string) => void;
+  readOnly?: boolean;
   onAttachmentPreview: (
     file: {
       generatingDerivative?: boolean;
@@ -143,8 +141,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   totalCount,
   status,
   messageStats,
-  isHovered,
-  onHoverChange,
   resolvedMessageAttachments,
   messageAttachmentsByMessageId,
   assistantModelByParentMessageId,
@@ -152,6 +148,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRegenerateMessage,
   onSelectBranch,
   onStartEditMessage,
+  readOnly = false,
   onAttachmentPreview,
   userMessagePreviewMaxLines,
 }: ChatMessageRowProps) {
@@ -265,11 +262,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   return (
     <div
       className={cn(
-        "flex w-full",
+        "group flex w-full",
         message.role === "user" ? "justify-end" : "justify-start",
       )}
-      onMouseEnter={() => onHoverChange(message.id)}
-      onMouseLeave={() => onHoverChange(null)}
     >
       <div
         className={cn(
@@ -311,6 +306,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 isLastMessage={isLastMessage}
                 isStreaming={isStreamingAssistant}
                 message={message}
+                messageStats={messageStats}
               />
               {isStoppedMessage && (
                 <Card
@@ -325,7 +321,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               )}
             </>
           ) : (
-            <CollapsibleUserMessageMarkdown
+            <CollapsibleUserMessageText
               previewMaxLines={userMessagePreviewMaxLines}
               textContent={textContent}
             />
@@ -405,72 +401,69 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           </div>
         )}
         {message.role === "user" && (
-          <div
-            className={cn(
-              "text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs transition-opacity duration-200",
-              isHovered ? "opacity-100" : "opacity-0",
-            )}
-          >
+          <div className="text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
             <BranchSwitcher
               branchGroup={branchGroup}
               disabled={controlsDisabled}
               onSelectBranch={onSelectBranch}
             />
             <MessageCopyButton text={textContent} />
-            <button
-              className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
-              title="Regenerate"
-              type="button"
-              disabled={controlsDisabled}
-              onClick={() => onRegenerateMessage(message)}
-            >
-              <RefreshCwIcon className="size-4" />
-            </button>
-            <button
-              className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
-              title="Edit"
-              type="button"
-              disabled={controlsDisabled}
-              onClick={() => onStartEditMessage(message.id)}
-            >
-              <PencilIcon className="size-4" />
-            </button>
+            {!readOnly && (
+              <>
+                <button
+                  className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
+                  title="Regenerate"
+                  type="button"
+                  disabled={controlsDisabled}
+                  onClick={() => onRegenerateMessage(message)}
+                >
+                  <RefreshCwIcon className="size-4" />
+                </button>
+                <button
+                  className="hover:bg-muted rounded p-2 transition-colors disabled:opacity-50"
+                  title="Edit"
+                  type="button"
+                  disabled={controlsDisabled}
+                  onClick={() => onStartEditMessage(message.id)}
+                >
+                  <PencilIcon className="size-4" />
+                </button>
+              </>
+            )}
           </div>
         )}
         {message.role === "assistant" && (
           <div
             className={cn(
-              "text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs",
-              isStreamingAssistant && "opacity-0",
+              "text-muted-foreground mt-2 flex min-h-8 items-center justify-between gap-1 text-xs transition-opacity duration-200",
+              isStreamingAssistant
+                ? "opacity-0"
+                : "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
             )}
           >
-            <div
-              className={cn(
-                "flex items-center gap-1 transition-opacity duration-200",
-                isHovered ? "opacity-100" : "opacity-0",
-              )}
-            >
+            <div className="flex items-center gap-1">
               <BranchSwitcher
                 branchGroup={branchGroup}
                 disabled={controlsDisabled}
                 onSelectBranch={onSelectBranch}
               />
               <MessageCopyButton text={textContent} />
-              <button
-                className={cn(
-                  "hover:bg-muted rounded p-2 transition-colors disabled:opacity-50",
-                )}
-                title="Regenerate"
-                type="button"
-                disabled={controlsDisabled}
-                onClick={() => onRegenerateMessage(message)}
-              >
-                <RefreshCwIcon className="size-4" />
-              </button>
+              {!readOnly && (
+                <button
+                  className={cn(
+                    "hover:bg-muted rounded p-2 transition-colors disabled:opacity-50",
+                  )}
+                  title="Regenerate"
+                  type="button"
+                  disabled={controlsDisabled}
+                  onClick={() => onRegenerateMessage(message)}
+                >
+                  <RefreshCwIcon className="size-4" />
+                </button>
+              )}
             </div>
             <MessageStatsBar
               stats={messageStats}
-              isVisible={isHovered}
               actionsDisabled={controlsDisabled}
             />
           </div>

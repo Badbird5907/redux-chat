@@ -1,42 +1,68 @@
 "use client";
 
 import { memo } from "react";
-import {
-  CircleDollarSign,
-  ClockIcon,
-  WholeWord,
-  ZapIcon,
-} from "lucide-react";
+import { ClockIcon, ImageIcon, WholeWord, ZapIcon } from "lucide-react";
 
-import { getModelDisplayName } from "@redux/shared/models";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@redux/ui/components/tooltip";
+import { getModelDisplayName, isImageOutputModel } from "@redux/shared/models";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { MessageStats } from "./chat-types";
+import {
+  THINKING_LEVEL_ICONS,
+  THINKING_LEVEL_LABELS,
+} from "./thinking-level-display";
+
+function getReasoningLevelDisplay(level: MessageStats["thinkingLevel"]) {
+  switch (level) {
+    case "instant":
+      return {
+        Icon: THINKING_LEVEL_ICONS.instant,
+        label: THINKING_LEVEL_LABELS.instant,
+      };
+    case "low":
+      return {
+        Icon: THINKING_LEVEL_ICONS.low,
+        label: THINKING_LEVEL_LABELS.low,
+      };
+    case "medium":
+      return {
+        Icon: THINKING_LEVEL_ICONS.medium,
+        label: THINKING_LEVEL_LABELS.medium,
+      };
+    case "high":
+      return {
+        Icon: THINKING_LEVEL_ICONS.high,
+        label: THINKING_LEVEL_LABELS.high,
+      };
+    default:
+      return null;
+  }
+}
+
+function formatDuration(ms: number) {
+  if (ms < 1000) {
+    return `${Math.max(0, Math.round(ms))} ms`;
+  }
+
+  return `${(ms / 1000).toFixed(2)} sec`;
+}
 
 export const MessageStatsBar = memo(function MessageStatsBar({
   stats,
-  isVisible,
   actionsDisabled,
 }: {
   stats: MessageStats | undefined;
-  isVisible: boolean;
   actionsDisabled: boolean;
 }) {
   const usage = stats?.usage;
   const generationStats = stats?.generationStats;
   const model = stats?.model;
-  const creditsConsumed = stats?.creditsConsumed;
-
+  const reasoning = getReasoningLevelDisplay(stats?.thinkingLevel);
+  const isImageModel = model ? isImageOutputModel(model) : false;
   return (
     <div
       className={cn(
-        "text-muted-foreground flex min-h-8 items-center gap-4 text-xs transition-opacity duration-200",
-        isVisible ? "opacity-100" : "opacity-0",
+        "text-muted-foreground flex min-h-8 items-center gap-4 text-xs",
       )}
     >
       {model && (
@@ -46,12 +72,32 @@ export const MessageStatsBar = memo(function MessageStatsBar({
           {getModelDisplayName(model)}
         </span>
       )}
-      {generationStats && (
+      {reasoning && (
+        <span
+          className={cn("flex items-center gap-1", actionsDisabled && "hidden")}
+        >
+          <reasoning.Icon className="size-4" />
+          {reasoning.label}
+        </span>
+      )}
+      {generationStats && isImageModel ? (
+        <>
+          <span className="flex items-center gap-1">
+            <ClockIcon className="size-4" />
+            Generated in {formatDuration(generationStats.totalDurationMs)}
+          </span>
+
+          <span className="flex items-center gap-1">
+            <ImageIcon className="size-4" />1 image
+          </span>
+        </>
+      ) : generationStats ? (
         <>
           <span className="flex items-center gap-1">
             <ZapIcon className="size-4" />
-            {generationStats.tokensPerSecond.toFixed(2)} tok/sec
+            {Math.round(generationStats.tokensPerSecond)} tok/sec
           </span>
+
           <span className="flex items-center gap-1">
             <ClockIcon className="size-4" />
             TTFT: {(generationStats.timeToFirstTokenMs / 1000).toFixed(2)} sec
@@ -64,25 +110,7 @@ export const MessageStatsBar = memo(function MessageStatsBar({
             </span>
           )}
         </>
-      )}
-      {typeof creditsConsumed === "number" && (
-        <Tooltip delay={150}>
-          <TooltipTrigger
-            render={
-              <button
-                type="button"
-                className="flex items-center gap-1 rounded-sm"
-                aria-label={`${creditsConsumed.toLocaleString()} credits consumed`}
-              />
-            }
-          >
-            <CircleDollarSign className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
-            {creditsConsumed.toLocaleString()} credits consumed
-          </TooltipContent>
-        </Tooltip>
-      )}
+      ) : null}
     </div>
   );
 });

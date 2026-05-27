@@ -161,6 +161,11 @@ interface DataTablePaginationProps extends DataTablePaginationState {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   pageSizeOptions?: number[];
+  /**
+   * Cursor / partial loading: omit total pages and row count in the footer and
+   * hide jump-to-last-page. Prev/next still use `hasNextPage` / `hasPreviousPage`.
+   */
+  unknownTotal?: boolean;
 }
 
 function DataTablePagination({
@@ -173,37 +178,42 @@ function DataTablePagination({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+  unknownTotal = false,
 }: DataTablePaginationProps) {
-  if (totalCount <= 0) {
+  if (!unknownTotal && totalCount <= 0) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:contents">
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <span>Rows:</span>
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => onPageSizeChange(Number(value))}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {pageSizeOptions.map((size) => (
-                <SelectItem key={size} value={size.toString()}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="text-muted-foreground text-sm tabular-nums">
-          {page} / {totalPages} ({totalCount.toLocaleString()})
-        </div>
+    <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs sm:text-sm">
+        <span className="shrink-0">Rows:</span>
+        <Select
+          value={pageSize.toString()}
+          onValueChange={(value) => onPageSizeChange(Number(value))}
+        >
+          <SelectTrigger className="h-7 w-[4.25rem] text-xs sm:h-8 sm:text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {pageSizeOptions.map((size) => (
+              <SelectItem key={size} value={size.toString()}>
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      <div className="flex items-center justify-center gap-2 sm:justify-end sm:gap-1">
+      <div className="text-muted-foreground text-xs tabular-nums sm:text-sm">
+        {unknownTotal ? (
+          <span>Page {page}</span>
+        ) : (
+          <span>
+            {page} / {totalPages} ({totalCount.toLocaleString()})
+          </span>
+        )}
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-0.5">
         <Button
           variant="outline"
           size="icon-sm"
@@ -228,14 +238,16 @@ function DataTablePagination({
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={() => onPageChange(totalPages)}
-          disabled={!hasNextPage}
-        >
-          <ChevronsRight className="h-4 w-4" />
-        </Button>
+        {unknownTotal ? null : (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => onPageChange(totalPages)}
+            disabled={!hasNextPage}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -543,7 +555,7 @@ function DataTable<TData, TValue>({
         </TableBody>
       </Table>
       {pagination != null && pagination.totalCount > 0 ? (
-        <div className="bg-background border-t px-4 py-4">
+        <div className="bg-background border-t px-3 py-2 sm:px-4">
           <DataTablePagination {...pagination} />
         </div>
       ) : null}

@@ -87,7 +87,7 @@ async function embedRequest(items: EmbedItem[]): Promise<number[][]> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": env.GEMINI_API_KEY,
+          "x-goog-api-key": env.GOOGLE_VERTEX_API_KEY,
         },
         body: JSON.stringify(body),
       });

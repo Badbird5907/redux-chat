@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import {
   BookText,
+  FolderKanban,
   Keyboard,
   MessageSquare,
   Plus,
@@ -71,10 +72,36 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
     },
   );
 
+  const recentProjects = useQuery(
+    api.functions.projects.searchProjects,
+    {
+      search: "",
+      limit: COMMAND_THREAD_RESULT_LIMIT,
+    },
+    {
+      skip: !open || normalizedSearch.length > 0,
+    },
+  );
+
+  const matchingProjects = useQuery(
+    api.functions.projects.searchProjects,
+    {
+      search: normalizedSearch,
+      limit: COMMAND_THREAD_RESULT_LIMIT,
+    },
+    {
+      skip: !open || normalizedSearch.length === 0,
+    },
+  );
+
   const visibleThreads =
     normalizedSearch.length > 0
       ? (matchingThreads ?? [])
       : (recentThreads ?? []);
+  const visibleProjects =
+    normalizedSearch.length > 0
+      ? (matchingProjects ?? [])
+      : (recentProjects ?? []);
 
   const visibleSettingsNav = SETTINGS_NAV_ITEMS.filter((item) =>
     settingsNavMatches(normalizedSearch, item.searchBlob),
@@ -85,8 +112,12 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
     normalizedSearch.length > 0 && visibleSettingsNav.length > 0;
 
   const showThreadsGroup = hasSession && visibleThreads.length > 0;
-  const showNoMatchingThreads =
-    hasSession && normalizedSearch.length > 0 && matchingThreads?.length === 0;
+  const showProjectsGroup = hasSession && visibleProjects.length > 0;
+  const showNoMatchingResults =
+    hasSession &&
+    normalizedSearch.length > 0 &&
+    matchingProjects?.length === 0 &&
+    matchingThreads?.length === 0;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -113,6 +144,14 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
     await router.navigate({
       to: "/chat/$id",
       params: { id: threadId },
+    });
+  };
+
+  const handleOpenProject = async (projectId: string) => {
+    onOpenChange(false);
+    await router.navigate({
+      to: "/projects/$id",
+      params: { id: projectId },
     });
   };
 
@@ -159,7 +198,7 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
         <CommandInput
           value={search}
           onValueChange={setSearch}
-          placeholder="Search threads, settings, or commands…"
+          placeholder="Search threads, projects, settings, and more..."
         />
         <CommandList>
           {settingsFirst ? (
@@ -214,9 +253,39 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
             </>
           ) : null}
 
-          {(showThreadsGroup ||
-            showNoMatchingThreads ||
+          {(showProjectsGroup ||
+            showThreadsGroup ||
+            showNoMatchingResults ||
             (!hasSession && !isPending)) && <CommandSeparator />}
+
+          {showProjectsGroup && (
+            <CommandGroup
+              heading={
+                normalizedSearch.length > 0 ? "Matching Projects" : "Projects"
+              }
+            >
+              {visibleProjects.map((project) => (
+                <CommandItem
+                  className="min-h-13"
+                  key={project.projectId}
+                  value={`project-${project.projectId}`}
+                  onSelect={() => void handleOpenProject(project.projectId)}
+                >
+                  <div className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
+                    <FolderKanban className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{project.name}</div>
+                    <div className="text-muted-foreground truncate text-xs font-normal">
+                      {project.description ?? "Open project"}
+                    </div>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {showProjectsGroup && showThreadsGroup && <CommandSeparator />}
 
           {showThreadsGroup && (
             <CommandGroup
@@ -247,9 +316,9 @@ export function CommandPanel({ open, onOpenChange }: CommandPanelProps) {
             </CommandGroup>
           )}
 
-          {showNoMatchingThreads && (
+          {showNoMatchingResults && (
             <div className="text-muted-foreground px-5 py-6 text-sm">
-              No thread names match &quot;{normalizedSearch}&quot;.
+              No projects or thread names match &quot;{normalizedSearch}&quot;.
             </div>
           )}
 

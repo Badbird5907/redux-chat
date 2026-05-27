@@ -4,11 +4,60 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import type { ChatModelConfig } from "@redux/shared/models";
 import { isFileAllowedForModel } from "@redux/shared/models";
 
 import { useUpload } from "@/lib/silo/react";
+
+const uploadedChatAttachmentSchema = z.object({
+  attachmentId: z.string().min(1),
+  fileName: z.string(),
+  mimeType: z.string(),
+  size: z.number(),
+  url: z.string(),
+  expiresAt: z.number().optional(),
+});
+
+type UploadedChatAttachment = z.infer<typeof uploadedChatAttachmentSchema>;
+
+function isUploadedChatAttachment(
+  value: unknown,
+): value is UploadedChatAttachment {
+  return uploadedChatAttachmentSchema.safeParse(value).success;
+}
+
+async function awaitRouteCompletion(fileKeyId: string) {
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "await-completion",
+      fileKeyId,
+      timeoutMs: 60_000,
+    }),
+  });
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (
+    !response.ok ||
+    !payload ||
+    typeof payload !== "object" ||
+    Array.isArray(payload) ||
+    !("completion" in payload) ||
+    !payload.completion ||
+    typeof payload.completion !== "object" ||
+    Array.isArray(payload.completion) ||
+    !("onUploadCompleteResult" in payload.completion)
+  ) {
+    throw new Error(
+      "Upload completed, but the attachment record was not ready.",
+    );
+  }
+
+  return payload.completion.onUploadCompleteResult;
+}
 
 function extractPastedFiles(data: DataTransfer | null): File[] {
   if (!data) {
@@ -66,6 +115,8 @@ export interface UseFileUploadParams {
   ) => void;
   setAttachments: Dispatch<SetStateAction<DraftAttachment[]>>;
   beforeOpenFilePicker?: () => void;
+  attachmentLimits?: { maxPerMessage: number; maxFileSizeBytes: number } | null;
+  currentAttachmentCount?: number;
 }
 
 export function useFileUpload({
@@ -77,6 +128,8 @@ export function useFileUpload({
   updateAttachment,
   setAttachments,
   beforeOpenFilePicker,
+  attachmentLimits,
+  currentAttachmentCount,
 }: UseFileUploadParams) {
   const [fileDragHighlight, setFileDragHighlight] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +147,30 @@ export function useFileUpload({
         return;
       }
 
+      const remainingSlots = attachmentLimits
+        ? Math.max(
+            0,
+            attachmentLimits.maxPerMessage - (currentAttachmentCount ?? 0),
+          )
+        : Infinity;
+      let addedInBatch = 0;
+
       for (const file of fileList) {
+        if (attachmentLimits && addedInBatch >= remainingSlots) {
+          toast.error(
+            `Free plan allows only ${attachmentLimits.maxPerMessage} attachment per message. Upgrade for more.`,
+          );
+          break;
+        }
+
+        if (attachmentLimits && file.size > attachmentLimits.maxFileSizeBytes) {
+          const maxMB = attachmentLimits.maxFileSizeBytes / (1024 * 1024);
+          toast.error(
+            `"${file.name}" exceeds the ${maxMB} MB limit on the free plan. Upgrade to attach larger files.`,
+          );
+          continue;
+        }
+
         if (!isFileAllowedForModel(selectedModel, file)) {
           toast.error(
             `File type not supported by ${currentModelConfig.name} (${file.type})`,
@@ -111,6 +187,7 @@ export function useFileUpload({
             ? URL.createObjectURL(file)
             : undefined;
 
+        addedInBatch++;
         appendAttachment({
           attachmentId: tempId,
           fileName: file.name,
@@ -122,12 +199,20 @@ export function useFileUpload({
         });
 
         try {
+          console.log("uploading file", file);
           const completion = await upload.uploadFile(file, {
             input: {
               modelId: selectedModel,
               threadId,
             },
           });
+          const result = isUploadedChatAttachment(completion.result)
+            ? completion.result
+            : await awaitRouteCompletion(completion.fileKeyId);
+
+          if (!isUploadedChatAttachment(result)) {
+            throw new Error(`Upload failed for ${file.name}`);
+          }
 
           updateAttachment(tempId, (attachment) => {
             if (attachment.objectUrl) {
@@ -135,13 +220,13 @@ export function useFileUpload({
             }
 
             return {
-              attachmentId: completion.result.attachmentId,
-              fileName: completion.result.fileName,
-              mimeType: completion.result.mimeType,
-              size: completion.result.size,
-              url: completion.result.url,
+              attachmentId: result.attachmentId,
+              fileName: result.fileName,
+              mimeType: result.mimeType,
+              size: result.size,
+              url: result.url,
               uploading: false,
-              expiresAt: completion.result.expiresAt,
+              expiresAt: result.expiresAt,
             };
           });
         } catch (error) {
@@ -167,6 +252,8 @@ export function useFileUpload({
     },
     [
       appendAttachment,
+      attachmentLimits,
+      currentAttachmentCount,
       currentModelConfig,
       selectedModel,
       setAttachments,

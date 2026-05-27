@@ -3,6 +3,9 @@ import type { CuratedProviderDefinition } from "../types";
 export const MOONSHOT_PROVIDER: CuratedProviderDefinition = {
   slug: "moonshot",
   name: "Moonshot",
+  routeBehavior: {
+    openrouter: { useOpenAICompatible: true },
+  },
   models: [
     {
       id: "kimi-k2.6",

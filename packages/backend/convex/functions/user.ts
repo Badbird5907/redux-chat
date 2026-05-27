@@ -1,9 +1,10 @@
 import { Buffer } from "buffer/";
 import { v } from "convex/values";
 
-import { authComponent } from "../auth";
+import { authComponent, initAuth } from "../auth";
 import { backendEnv } from "../env";
-import { query } from "./index";
+import { createBackendSiloCore } from "./attachments";
+import { mutation, query } from "./index";
 
 export const getUserImage = query({
   args: {
@@ -20,10 +21,15 @@ export const getUserImage = query({
       if (target.image.startsWith("http")) {
         return { image: target.image };
       }
-      const env = backendEnv();
-      return {
-        image: `${env.VITE_S3_AVATARS_URL}/${target._id}/avatar/${target.image}`,
-      };
+      // target is a silo image
+      const siloCore = createBackendSiloCore(); // TODO make sure this actually works in a query
+      const imageUrl = await siloCore.generateImageUrl({
+        accessKey: target.image,
+        fileName: target.image,
+        isPublic: true,
+        serveImage: true,
+      });
+      return { image: imageUrl };
     }
     return { image: null };
   },
@@ -58,7 +64,28 @@ export const getCurrentUserId = query({
   },
 });
 
-export const getCurrentUserPolarInfo = query({
+function rolesFromAuthRoleField(role: string | null | undefined): string[] {
+  if (role == null || role === "") {
+    return ["user"];
+  }
+  return role
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+}
+
+/** Better Auth admin plugin stores multiple roles as a comma-separated string. */
+export const getAdminDashboardAccess = query({
+  handler: async (ctx) => {
+    const user = await authComponent.getAuthUser(ctx);
+    const roleField = (user as { role?: string | null }).role;
+    const roles = rolesFromAuthRoleField(roleField);
+    const isAdmin = roles.includes("admin");
+    return { isAdmin, roles };
+  },
+});
+
+export const getCurrentUserBillingInfo = query({
   handler: async (ctx) => {
     const user = await authComponent.getAnyUserById(ctx, ctx.userId);
     if (!user?.email) {
@@ -68,6 +95,21 @@ export const getCurrentUserPolarInfo = query({
     return {
       userId: ctx.userId,
       email: user.email,
+      name: typeof user.name === "string" ? user.name : undefined,
     };
+  },
+});
+
+export const setPassword = mutation({
+  args: {
+    newPassword: v.string(),
+  },
+  handler: async (ctx, { newPassword }) => {
+    const { auth, headers } = await authComponent.getAuth(initAuth, ctx);
+
+    return await auth.api.setPassword({
+      body: { newPassword },
+      headers,
+    });
   },
 });

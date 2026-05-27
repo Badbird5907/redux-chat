@@ -2,7 +2,7 @@
 
 import type { UIMessage } from "ai";
 import type { ComponentProps, ReactNode } from "react";
-import { memo, useCallback } from "react";
+import { memo } from "react";
 
 import { DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES } from "@redux/types";
 
@@ -29,8 +29,6 @@ interface ChatMessageListProps {
   settings: ComponentProps<typeof EmptyChat>["settings"];
   status: string;
   messageStatsMap: Map<string, MessageStats>;
-  hoveredMessageId: string | null;
-  setHoveredMessageId: (id: string | null) => void;
   resolvedMessageAttachments: Record<string, ResolvedAttachment>;
   messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
   assistantModelByParentMessageId: Map<string, string>;
@@ -38,6 +36,7 @@ interface ChatMessageListProps {
   onRegenerateMessage: (message: ChatMessageWithThreadMetadata) => void;
   onSelectBranch: (messageId: string) => void;
   onStartEditMessage: (messageId: string) => void;
+  readOnly?: boolean;
   setPreviewFile: ChatMessageRowProps["onAttachmentPreview"];
 }
 
@@ -54,8 +53,6 @@ export const ChatMessageList = memo(function ChatMessageList({
   settings,
   status,
   messageStatsMap,
-  hoveredMessageId,
-  setHoveredMessageId,
   resolvedMessageAttachments,
   messageAttachmentsByMessageId,
   assistantModelByParentMessageId,
@@ -63,15 +60,9 @@ export const ChatMessageList = memo(function ChatMessageList({
   onRegenerateMessage,
   onSelectBranch,
   onStartEditMessage,
+  readOnly = false,
   setPreviewFile,
 }: ChatMessageListProps) {
-  const handleHoverChange = useCallback(
-    (id: string | null) => {
-      setHoveredMessageId(id);
-    },
-    [setHoveredMessageId],
-  );
-
   const totalCount = finalMessages.length;
 
   return (
@@ -97,15 +88,14 @@ export const ChatMessageList = memo(function ChatMessageList({
               assistantModelByParentMessageId={assistantModelByParentMessageId}
               allBranchMessages={allBranchMessages}
               index={index}
-              isHovered={hoveredMessageId === message.id}
               message={message}
               messageAttachmentsByMessageId={messageAttachmentsByMessageId}
               messageStats={messageStatsMap.get(message.id)}
               onAttachmentPreview={setPreviewFile}
-              onHoverChange={handleHoverChange}
               onRegenerateMessage={onRegenerateMessage}
               onSelectBranch={onSelectBranch}
               onStartEditMessage={onStartEditMessage}
+              readOnly={readOnly}
               resolvedMessageAttachments={resolvedMessageAttachments}
               status={status}
               totalCount={totalCount}

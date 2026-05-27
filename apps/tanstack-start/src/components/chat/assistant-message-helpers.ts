@@ -1,9 +1,12 @@
 import {
   BrainIcon,
   CheckIcon,
+  FileTextIcon,
   FlaskConicalIcon,
   GlobeIcon,
+  ImageIcon,
   SearchIcon,
+  TerminalIcon,
   WrenchIcon,
 } from "lucide-react";
 
@@ -24,6 +27,21 @@ export function getAssistantStepIcon(step: AssistantTimelineStep) {
 
   if (step.toolName?.toLowerCase() === "analysis_workspace") {
     return FlaskConicalIcon;
+  }
+
+  if (step.toolName?.toLowerCase() === "generate_image") {
+    return ImageIcon;
+  }
+
+  if (step.toolName?.toLowerCase() === "bash") {
+    return TerminalIcon;
+  }
+
+  if (
+    step.toolName?.toLowerCase() === "readfile" ||
+    step.toolName?.toLowerCase() === "writefile"
+  ) {
+    return FileTextIcon;
   }
 
   return WrenchIcon;
@@ -47,12 +65,21 @@ export function getChainOfThoughtHeaderState(steps: AssistantTimelineStep[]) {
     (step) => step.status === "complete",
   ).length;
   const totalCount = steps.length;
+  const onlyStep = totalCount === 1 ? steps[0] : undefined;
 
   if (errorCount > 0) {
     return {
       icon: WrenchIcon,
       label: `Completed ${completeCount} of ${totalCount} steps`,
       status: "error",
+    } as const;
+  }
+
+  if (onlyStep?.summary) {
+    return {
+      icon: getAssistantStepIcon(onlyStep),
+      label: onlyStep.summary,
+      status: "complete",
     } as const;
   }
 

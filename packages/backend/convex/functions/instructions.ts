@@ -142,23 +142,13 @@ export async function ensureInstructionsForUser(
       continue;
     }
 
-    const patch: Partial<Doc<"instructions">> = {};
+    const wasHidden = current.hidden === true;
     if (current.hidden === true) {
-      if (current.name !== builtin.name) {
-        patch.name = builtin.name;
-      }
-      if (current.description !== builtin.description) {
-        patch.description = builtin.description;
-      }
-      if (current.defaultPrompt !== builtin.prompt) {
-        patch.defaultPrompt = builtin.prompt;
-      }
-      if (Object.keys(patch).length > 0) {
-        patch.updatedAt = now;
-        await ctx.db.patch(current._id, patch);
-        Object.assign(current, patch);
-      }
-      continue;
+      const patch: Partial<Doc<"instructions">> = {};
+      patch.hidden = undefined;
+      patch.updatedAt = now;
+      await ctx.db.patch(current._id, patch);
+      Object.assign(current, patch);
     }
 
     const inheritedPrompt = current.defaultPrompt ?? builtin.prompt;
@@ -167,6 +157,7 @@ export async function ensureInstructionsForUser(
         ? current.prompt === undefined || current.prompt === inheritedPrompt
         : current.userEdited === false;
 
+    const patch: Partial<Doc<"instructions">> = {};
     if (current.name !== builtin.name) {
       patch.name = builtin.name;
     }
@@ -190,6 +181,9 @@ export async function ensureInstructionsForUser(
       patch.updatedAt = now;
       await ctx.db.patch(current._id, patch);
       Object.assign(current, patch);
+    }
+    if (wasHidden) {
+      instructions.push(current);
     }
   }
 
@@ -431,8 +425,8 @@ export const deleteInstruction = mutation({
       throw new ConvexError("Instruction not found");
     }
 
-    if (instruction.builtinKey === DEFAULT_INSTRUCTION_KEY) {
-      throw new ConvexError("The default instruction cannot be deleted");
+    if (instruction.builtinKey) {
+      throw new ConvexError("Built-in instructions cannot be deleted");
     }
 
     const defaultInstructionId = await normalizeInstructionIdForUser(
@@ -473,14 +467,6 @@ export const deleteInstruction = mutation({
         },
         updatedAt: Date.now(),
       });
-    }
-
-    if (instruction.builtinKey) {
-      await ctx.db.patch(instruction._id, {
-        hidden: true,
-        updatedAt: Date.now(),
-      });
-      return { success: true as const };
     }
 
     await ctx.db.delete(instruction._id);

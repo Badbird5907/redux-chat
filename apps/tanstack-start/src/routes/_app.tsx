@@ -1,32 +1,23 @@
 import type { ChatPreload } from "@/components/chat/preload";
 import {
   createFileRoute,
-  Link,
   Outlet,
   useMatch,
   useRouterState,
 } from "@tanstack/react-router";
-import { ArrowLeft, FolderKanban } from "lucide-react";
 
-import {
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@redux/ui/components/sidebar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@redux/ui/components/tooltip";
+import { SidebarProvider } from "@redux/ui/components/sidebar";
 
 import { AppChatRoute } from "@/components/chat/app-chat-route";
 import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
 // import { getToken } from "@/lib/auth/server";
+import { TopLeftActions } from "@/components/layout/top-left-actions";
+import { TopRightActions } from "@/components/layout/top-right-actions";
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
-import { useCurrentProject } from "@/lib/hooks/use-current-project";
 import {
   ModelSwitcherHotkeyRegistration,
   NewChatHotkeyRegistration,
+  ReasoningLevelSelectorHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
 import { getSidebarConfig } from "@/server/cookie";
@@ -59,46 +50,6 @@ function getChatThreadIdFromPathname(pathname: string) {
   return threadId.length > 0 ? decodeURIComponent(threadId) : undefined;
 }
 
-function TopLeftActions() {
-  const { open: sidebarOpen, openMobile, isMobile } = useSidebar();
-  const { project, isChatRoute } = useCurrentProject();
-
-  const projectBack =
-    project && isChatRoute
-      ? { id: project.projectId, name: project.name }
-      : null;
-  const showSidebarTrigger = isMobile ? !openMobile : !sidebarOpen;
-  const showProjectBack = projectBack !== null;
-
-  if (!showSidebarTrigger && !showProjectBack) {
-    return null;
-  }
-
-  return (
-    <div className="bg-card/80 absolute top-4 left-4 z-10 flex w-fit items-center justify-between gap-1 rounded-md p-1">
-      {showSidebarTrigger && <SidebarTrigger />}
-      {projectBack && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Link
-                to="/projects/$id"
-                params={{ id: projectBack.id }}
-                aria-label={`Back to ${projectBack.name}`}
-                className="group/project-link hover:bg-muted text-muted-foreground hover:text-foreground relative inline-flex size-8 items-center justify-center rounded-md transition-colors"
-              />
-            }
-          >
-            <FolderKanban className="absolute size-4 transition-all duration-200 group-hover/project-link:-translate-x-1 group-hover/project-link:scale-90 group-hover/project-link:opacity-0" />
-            <ArrowLeft className="absolute size-4 translate-x-1 scale-90 opacity-0 transition-all duration-200 group-hover/project-link:translate-x-0 group-hover/project-link:scale-100 group-hover/project-link:opacity-100" />
-          </TooltipTrigger>
-          <TooltipContent side="right">{projectBack.name}</TooltipContent>
-        </Tooltip>
-      )}
-    </div>
-  );
-}
-
 function AppLayout() {
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
   const pathname = useRouterState({
@@ -117,19 +68,19 @@ function AppLayout() {
     pathname === "/" || desiredChatThreadId !== undefined;
   const chatMatchThreadId = chatMatch?.params.id;
   const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
+  const homeLoaderData = homeMatch?.loaderData as
+    | {
+        settingsJson?: ChatPreload["settingsJson"];
+      }
+    | undefined;
+  const shouldRenderChatSurface =
+    chatThreadId !== undefined || homeLoaderData !== undefined;
   const chatPreload: ChatPreload | undefined =
     chatMatchThreadId === chatThreadId
       ? chatMatch?.loaderData
       : chatThreadId === undefined
         ? {
-            settingsJson:
-              (
-                homeMatch?.loaderData as
-                  | {
-                      settingsJson?: ChatPreload["settingsJson"];
-                    }
-                  | undefined
-              )?.settingsJson ?? null,
+            settingsJson: homeLoaderData?.settingsJson ?? null,
           }
         : undefined;
 
@@ -138,17 +89,21 @@ function AppLayout() {
       <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
         <NewChatHotkeyRegistration />
         <ModelSwitcherHotkeyRegistration />
+        <ReasoningLevelSelectorHotkeyRegistration />
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
-        <main className="flex h-screen w-screen flex-col p-2">
-          <div className="bg-card/80 relative w-full flex-1 overflow-hidden rounded-4xl p-4">
+        <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">
+          <div className="bg-card/80 border-border/60 relative w-full flex-1 overflow-hidden rounded-4xl border p-4">
             <TopLeftActions />
+            <TopRightActions />
             <div className="h-full overflow-hidden">
               {isChatSurfaceRoute ? (
-                <AppChatRoute
-                  initialThreadId={chatThreadId}
-                  preload={chatPreload}
-                />
+                shouldRenderChatSurface ? (
+                  <AppChatRoute
+                    initialThreadId={chatThreadId}
+                    preload={chatPreload}
+                  />
+                ) : null
               ) : (
                 <Outlet />
               )}

@@ -8,19 +8,23 @@ export const OPENAI_PROVIDER: CuratedProviderDefinition = {
   },
   models: [
     {
+      id: "gpt-5.5-pro",
+      providerIds: ["openrouter:openai/gpt-5.5-pro", "openai:gpt-5.5-pro"],
+      defaultProviderId: "openai:gpt-5.5-pro",
+    },
+    {
+      id: "gpt-5.5",
+      providerIds: ["openrouter:openai/gpt-5.5", "openai:gpt-5.5"],
+      defaultProviderId: "openai:gpt-5.5",
+    },
+    {
       id: "gpt-5.4-mini",
-      providerIds: [
-        "openrouter:openai/gpt-5.4-mini",
-        "openai:gpt-5.4-mini",
-      ],
+      providerIds: ["openrouter:openai/gpt-5.4-mini", "openai:gpt-5.4-mini"],
       defaultProviderId: "openai:gpt-5.4-mini",
     },
     {
       id: "gpt-5.4-nano",
-      providerIds: [
-        "openrouter:openai/gpt-5.4-nano",
-        "openai:gpt-5.4-nano",
-      ],
+      providerIds: ["openrouter:openai/gpt-5.4-nano", "openai:gpt-5.4-nano"],
       defaultProviderId: "openai:gpt-5.4-nano",
     },
     {
@@ -44,6 +48,17 @@ export const OPENAI_PROVIDER: CuratedProviderDefinition = {
       name: "GPT OSS 120B",
       providerIds: ["openrouter:openai/gpt-oss-120b"],
       defaultProviderId: "openrouter:openai/gpt-oss-120b",
+    },
+    {
+      id: "gpt-image-2",
+      name: "GPT Image 2",
+      providerIds: ["openai:gpt-image-2"],
+      defaultProviderId: "openai:gpt-image-2",
+      thinkingLevels: [],
+      capabilities: {
+        imageGenerationTool: true,
+        imageOutput: true,
+      },
     },
   ],
 };

@@ -1,56 +1,42 @@
-import { Polar as PolarSdkClient } from "@polar-sh/sdk";
-
+import type { BillableToolCall, PlanTier } from "@redux/shared";
 import {
-  DEFAULT_BILLING_CONFIG,
   aggregateBillableToolCalls,
-  getPlanConfig
+  DEFAULT_BILLING_CONFIG,
+  getPlanConfig,
 } from "@redux/shared";
-import type { BillableToolCall, PlanTier, UsageChargeComputationResult } from "@redux/shared";
 
 import { backendEnv } from "./env";
 
 type BillingSubscriptionSnapshot = {
-  productId?: string;
-  productKey?: string;
+  priceId?: string;
   status?: string;
   currentPeriodStart?: number;
   currentPeriodEnd?: number;
   customerId?: string;
   subscriptionId?: string;
+  cancelAtPeriodEnd?: boolean;
 };
 
-export type BillingGrantReason =
-  | "subscription_created"
-  | "subscription_renewed"
-  | "free_monthly_reset"
-  | "admin_adjustment";
+export type BillingSubscriptionSchedule = {
+  cancelAtPeriodEnd: boolean;
+  pendingPriceId: string | undefined;
+  pendingAppliesAtMs: number | undefined;
+};
 
-export type BillingGrantSource =
-  | "subscription_renewal"
-  | "free_monthly_reset"
-  | "admin_adjustment";
+export const BILLING_DEBUG_LOGGING = false;
 
-export const POLAR_CREDITS_EVENT_NAME = "credits";
-
-export function getBillingConfig() {
-  const env = backendEnv();
-  return {
-    ...DEFAULT_BILLING_CONFIG,
-    meterName:
-      env.POLAR_CREDITS_METER_NAME ?? DEFAULT_BILLING_CONFIG.meterName,
-  };
+export function billingDebugWarn(
+  ...args: Parameters<typeof console.warn>
+): void {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- debug gate
+  if (BILLING_DEBUG_LOGGING) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- delegated to console
+    console.warn(...args);
+  }
 }
 
-export function getPolarSdkClient() {
-  const env = backendEnv();
-  if (!env.POLAR_ACCESS_TOKEN) {
-    throw new Error("POLAR_ACCESS_TOKEN is not set");
-  }
-
-  return new PolarSdkClient({
-    accessToken: env.POLAR_ACCESS_TOKEN,
-    server: env.POLAR_SERVER ?? "sandbox",
-  });
+export function getBillingConfig() {
+  return DEFAULT_BILLING_CONFIG;
 }
 
 export function getBillingPeriodKey(timestamp = Date.now()) {
@@ -62,7 +48,15 @@ export function getBillingPeriodKey(timestamp = Date.now()) {
 
 export function getUtcMonthBounds(timestamp = Date.now()) {
   const date = new Date(timestamp);
-  const start = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 0, 0, 0, 0);
+  const start = Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    1,
+    0,
+    0,
+    0,
+    0,
+  );
   const end = Date.UTC(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1,
@@ -73,41 +67,31 @@ export function getUtcMonthBounds(timestamp = Date.now()) {
     999,
   );
 
-  return {
-    start,
-    end,
-  };
+  return { start, end };
 }
 
 export function resolveTierFromSubscription(
   subscription: BillingSubscriptionSnapshot | null | undefined,
 ) {
-  if (!subscription) {
+  if (!subscription || !isPaidSubscriptionStatus(subscription.status)) {
     return "free" satisfies PlanTier;
   }
 
   const env = backendEnv();
 
-  if (subscription.productKey === "pro") {
+  if (subscription.priceId === env.STRIPE_PRO_PRICE_ID) {
     return "pro" satisfies PlanTier;
   }
 
-  if (subscription.productKey === "plus") {
-    return "plus" satisfies PlanTier;
-  }
-
-  if (subscription.productId && subscription.productId === env.POLAR_PRO_PRODUCT_ID) {
-    return "pro" satisfies PlanTier;
-  }
-
-  if (
-    subscription.productId &&
-    subscription.productId === env.POLAR_PLUS_PRODUCT_ID
-  ) {
+  if (subscription.priceId === env.STRIPE_PLUS_PRICE_ID) {
     return "plus" satisfies PlanTier;
   }
 
   return "free" satisfies PlanTier;
+}
+
+export function isPaidSubscriptionStatus(status: string | undefined) {
+  return status === "active" || status === "trialing";
 }
 
 export function toSubscriptionSnapshot(
@@ -118,28 +102,76 @@ export function toSubscriptionSnapshot(
   }
 
   const value = subscription as Record<string, unknown>;
+  const firstItem = getFirstSubscriptionItem(value);
+  const price = firstItem?.price as Record<string, unknown> | undefined;
+
+  const cancelAtPeriodEnd =
+    typeof value.cancelAtPeriodEnd === "boolean"
+      ? value.cancelAtPeriodEnd
+      : typeof value.cancel_at_period_end === "boolean"
+        ? value.cancel_at_period_end
+        : undefined;
 
   return {
-    productId:
-      typeof value.productId === "string"
-        ? value.productId
-        : typeof value.product_id === "string"
-          ? value.product_id
-          : undefined,
-    productKey:
-      typeof value.productKey === "string" ? value.productKey : undefined,
-    status: typeof value.status === "string" ? value.status : undefined,
-    currentPeriodStart: toTimestamp(value.currentPeriodStart),
-    currentPeriodEnd: toTimestamp(value.currentPeriodEnd),
+    priceId: pickString(value.priceId) ?? pickString(price?.id),
+    status: pickString(value.status),
+    currentPeriodStart:
+      toTimestamp(value.currentPeriodStart) ??
+      toTimestamp(firstItem?.current_period_start) ??
+      toTimestamp(value.current_period_start),
+    currentPeriodEnd:
+      toTimestamp(value.currentPeriodEnd) ??
+      toTimestamp(firstItem?.current_period_end) ??
+      toTimestamp(value.current_period_end),
     customerId:
-      typeof value.customerId === "string" ? value.customerId : undefined,
+      pickString(value.stripeCustomerId) ??
+      pickString(value.customerId) ??
+      pickString(value.customer),
     subscriptionId:
-      typeof value.id === "string"
-        ? value.id
-        : typeof value.subscriptionId === "string"
-          ? value.subscriptionId
-          : undefined,
+      pickString(value.stripeSubscriptionId) ??
+      pickString(value.subscriptionId) ??
+      pickString(value.id),
+    cancelAtPeriodEnd,
   };
+}
+
+export function subscriptionScheduleFromStripeSubscription(
+  subscription: unknown,
+): BillingSubscriptionSchedule {
+  const snapshot = toSubscriptionSnapshot(subscription);
+  let pendingPriceId: string | undefined;
+  let pendingAppliesAtMs: number | undefined;
+
+  if (subscription && typeof subscription === "object") {
+    const value = subscription as Record<string, unknown>;
+    const scheduleMetadata =
+      value.metadata && typeof value.metadata === "object"
+        ? (value.metadata as Record<string, unknown>)
+        : {};
+    pendingPriceId = pickString(
+      value.pendingPriceId ??
+        value.pending_price_id ??
+        scheduleMetadata.pendingPriceId ??
+        scheduleMetadata.pending_price_id,
+    );
+    pendingAppliesAtMs =
+      toTimestamp(value.pendingAppliesAtMs) ??
+      toTimestamp(value.pending_applies_at_ms) ??
+      toTimestamp(scheduleMetadata.pendingAppliesAtMs) ??
+      toTimestamp(scheduleMetadata.pending_applies_at_ms);
+  }
+
+  return {
+    cancelAtPeriodEnd: snapshot?.cancelAtPeriodEnd === true,
+    pendingPriceId,
+    pendingAppliesAtMs,
+  };
+}
+
+export function stripeLiveSubscriptionPriceId(
+  subscription: unknown,
+): string | undefined {
+  return toSubscriptionSnapshot(subscription)?.priceId;
 }
 
 export function buildBillingAccountRecord(
@@ -149,8 +181,8 @@ export function buildBillingAccountRecord(
   userId: string;
   tier: PlanTier;
   status: string;
-  polarCustomerId: string | undefined;
-  polarSubscriptionId: string | undefined;
+  stripeCustomerId: string | undefined;
+  stripeSubscriptionId: string | undefined;
   currentPeriodStart: number | undefined;
   currentPeriodEnd: number | undefined;
   markupMultiplier: number;
@@ -165,8 +197,8 @@ export function buildBillingAccountRecord(
     userId,
     tier,
     status: subscription?.status ?? "inactive",
-    polarCustomerId: subscription?.customerId,
-    polarSubscriptionId: subscription?.subscriptionId,
+    stripeCustomerId: subscription?.customerId,
+    stripeSubscriptionId: subscription?.subscriptionId,
     currentPeriodStart: subscription?.currentPeriodStart,
     currentPeriodEnd: subscription?.currentPeriodEnd,
     markupMultiplier: plan.markupMultiplier,
@@ -182,193 +214,39 @@ export function buildToolSummaryRecord(
   return Object.fromEntries(aggregateBillableToolCalls(toolCalls).entries());
 }
 
-export function buildPolarCreditUsageEvent(args: {
-  userId: string;
-  requestId: string;
-  messageId: string;
-  threadId: string;
-  routeId: string;
-  tier: PlanTier;
-  charge: UsageChargeComputationResult;
-  toolCalls?: BillableToolCall[];
-}) {
-  const toolSummary = buildToolSummaryRecord(args.toolCalls);
-
-  return {
-    name: POLAR_CREDITS_EVENT_NAME,
-    externalCustomerId: args.userId,
-    metadata: {
-      units: args.charge.credits,
-      requestId: args.requestId,
-      messageId: args.messageId,
-      threadId: args.threadId,
-      routeId: args.routeId,
-      tier: args.tier,
-      modelUsdCost: args.charge.modelUsdCost,
-      toolUsdCost: args.charge.toolUsdCost,
-      rawUsdCost: args.charge.rawUsdCost,
-      markupMultiplier: args.charge.markupMultiplier,
-      effectiveUsdCost: args.charge.effectiveUsdCost,
-      displayMultiplier: args.charge.displayMultiplier,
-      usedPricingFallback: args.charge.usedPricingFallback,
-      toolSummaryJson: JSON.stringify(toolSummary),
-      _cost: {
-        amount: args.charge.rawUsdCost,
-        currency: "usd",
-      },
-    },
-  };
-}
-
-export function buildPolarCreditGrantEvent(args: {
-  userId: string;
-  credits: number;
-  tier: PlanTier;
-  periodKey: string;
-  reason: BillingGrantReason;
-  source: BillingGrantSource;
-}) {
-  return {
-    name: POLAR_CREDITS_EVENT_NAME,
-    externalCustomerId: args.userId,
-    metadata: {
-      units: -Math.abs(args.credits),
-      reason: args.reason,
-      tier: args.tier,
-      periodKey: args.periodKey,
-      source: args.source,
-    },
-  };
-}
-
-export function extractMeterBalance(
-  state: unknown,
-  meterName: string,
-): number | undefined {
-  return extractMeterCreditSummary(state, meterName).availableCredits;
-}
-
-export function extractMeterCreditSummary(
-  state: unknown,
-  meterName: string,
-) {
-  if (!state || typeof state !== "object") {
-    return { availableCredits: undefined, overageCredits: undefined };
+function getFirstSubscriptionItem(value: Record<string, unknown>) {
+  const items = value.items;
+  if (!items || typeof items !== "object") {
+    return undefined;
   }
-
-  const activeMeters = (state as { activeMeters?: unknown }).activeMeters;
-  if (!Array.isArray(activeMeters)) {
-    return { availableCredits: undefined, overageCredits: undefined };
+  const data = (items as Record<string, unknown>).data;
+  if (!Array.isArray(data)) {
+    return undefined;
   }
+  const first: unknown = data[0];
+  return first && typeof first === "object"
+    ? (first as Record<string, unknown>)
+    : undefined;
+}
 
-  const normalizedMeters = activeMeters.flatMap((meter) => {
-    if (!meter || typeof meter !== "object") {
-      return [];
+function pickString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function toTimestamp(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 10_000_000_000 ? value * 1000 : value;
+  }
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric < 10_000_000_000 ? numeric * 1000 : numeric;
     }
-
-    const candidate = meter as Record<string, unknown>;
-    const candidateName =
-      typeof candidate.name === "string"
-        ? candidate.name
-        : candidate.meter &&
-            typeof candidate.meter === "object" &&
-            "name" in candidate.meter &&
-            typeof (candidate.meter as { name?: unknown }).name === "string"
-          ? (candidate.meter as { name: string }).name
-          : undefined;
-    const balance =
-      typeof candidate.balance === "number" ? candidate.balance : undefined;
-    const consumedUnits =
-      typeof candidate.consumedUnits === "number"
-        ? candidate.consumedUnits
-        : undefined;
-
-    return [
-      {
-        candidateName,
-        balance,
-        consumedUnits,
-      },
-    ];
-  });
-
-  const matchingMeter =
-    normalizedMeters.find((meter) => meter.candidateName === meterName) ??
-    (normalizedMeters.length === 1 ? normalizedMeters[0] : undefined);
-
-  if (matchingMeter) {
-    const { availableCredits, overageCredits } =
-      deriveMeterCreditSummary(matchingMeter);
-
-    console.log("billing_extract_meter_balance_match", {
-      meterName,
-      candidateName: matchingMeter.candidateName,
-      balance: matchingMeter.balance,
-      consumedUnits: matchingMeter.consumedUnits,
-      availableCredits,
-      overageCredits,
-      usedSingleMeterFallback:
-        matchingMeter.candidateName === undefined && normalizedMeters.length === 1,
-    });
-
-    return { availableCredits, overageCredits };
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
   }
-
-  console.warn("billing_extract_meter_balance_missing_meter", {
-    meterName,
-    activeMeters: normalizedMeters,
-  });
-
-  return { availableCredits: undefined, overageCredits: undefined };
-}
-
-function deriveMeterCreditSummary(meter: {
-  balance?: number;
-  consumedUnits?: number;
-}) {
-  if (typeof meter.consumedUnits === "number" && meter.consumedUnits > 0) {
-    return {
-      availableCredits: 0,
-      overageCredits:
-        typeof meter.balance === "number" && meter.balance > 0
-          ? Math.max(meter.balance, meter.consumedUnits)
-          : meter.consumedUnits,
-    };
-  }
-
-  if (typeof meter.consumedUnits === "number" && meter.consumedUnits <= 0) {
-    return {
-      availableCredits: Math.abs(meter.consumedUnits),
-      overageCredits: 0,
-    };
-  }
-
-  if (typeof meter.balance === "number" && meter.balance >= 0) {
-    return {
-      availableCredits: meter.balance,
-      overageCredits: 0,
-    };
-  }
-
-  if (typeof meter.balance === "number") {
-    return {
-      availableCredits: Math.max(0, -meter.balance),
-      overageCredits: meter.balance > 0 ? meter.balance : 0,
-    };
-  }
-
-  return { availableCredits: undefined, overageCredits: undefined };
-}
-
-function toTimestamp(value: unknown) {
-  if (typeof value === "number") {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    const timestamp = Date.parse(value);
-    return Number.isNaN(timestamp) ? undefined : timestamp;
-  }
-
   return undefined;
 }

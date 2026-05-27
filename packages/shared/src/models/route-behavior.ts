@@ -161,27 +161,49 @@ export const ROUTE_PROVIDER_DEFAULTS: Record<string, RouteProviderDefaults> = {
       },
     },
   },
+  vertex: {
+    runtimeProviderKey: "vertex",
+    attachmentPolicy: {
+      defaults: {
+        image: "native",
+        pdf: "native",
+        plain_text: "native",
+        office_document: "convert_to_pdf",
+        spreadsheet: "convert_to_pdf",
+        presentation: "convert_to_pdf",
+      },
+    },
+  },
 };
 
 export function mergeModelRouteBehavior(
   providerId: string,
-  override?: ModelRouteBehavior,
+  curatedProviderOverride?: ModelRouteBehavior,
+  modelOverride?: ModelRouteBehavior,
 ): ModelRouteBehavior {
   const providerDefaults = ROUTE_PROVIDER_DEFAULTS[providerId];
 
   return {
     runtimeProviderKey:
-      override?.runtimeProviderKey ?? providerDefaults?.runtimeProviderKey,
+      modelOverride?.runtimeProviderKey ??
+      curatedProviderOverride?.runtimeProviderKey ??
+      providerDefaults?.runtimeProviderKey,
     attachmentPolicy: {
       defaults: {
         ...providerDefaults?.attachmentPolicy.defaults,
-        ...override?.attachmentPolicy?.defaults,
+        ...curatedProviderOverride?.attachmentPolicy?.defaults,
+        ...modelOverride?.attachmentPolicy?.defaults,
       },
       overrides: {
         ...providerDefaults?.attachmentPolicy.overrides,
-        ...override?.attachmentPolicy?.overrides,
+        ...curatedProviderOverride?.attachmentPolicy?.overrides,
+        ...modelOverride?.attachmentPolicy?.overrides,
       },
     },
+    useOpenAICompatible:
+      modelOverride?.useOpenAICompatible ??
+      curatedProviderOverride?.useOpenAICompatible ??
+      false,
   };
 }
 

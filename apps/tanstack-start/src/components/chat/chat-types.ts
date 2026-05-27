@@ -1,20 +1,22 @@
 import type { UIMessage } from "ai";
 
 import type { api } from "@redux/backend/convex/_generated/api";
+import type { ThinkingLevel } from "@redux/shared/models";
 
 export interface MessageStats {
-  creditsConsumed?: number;
   usage?: {
     promptTokens: number;
     responseTokens: number;
     totalTokens: number;
   };
   generationStats?: {
+    reasoningDurationMs?: number;
     timeToFirstTokenMs: number;
     totalDurationMs: number;
     tokensPerSecond: number;
   };
   model?: string;
+  thinkingLevel?: ThinkingLevel;
   content?: string;
 }
 
@@ -52,11 +54,11 @@ export type PersistedChatMessage =
 export type ChatMessageWithThreadMetadata = UIMessage & {
   attachments?: MessageAttachmentSummary[];
   canceledAt?: number;
-  creditsConsumed?: number;
   createdAt?: number;
   depth?: number;
   error?: string;
   model?: string;
+  thinkingLevel?: ThinkingLevel;
   mutation?: PersistedChatMessage["mutation"];
   parentId?: string;
   siblingIndex?: number;

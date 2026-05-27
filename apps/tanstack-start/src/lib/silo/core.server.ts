@@ -44,6 +44,39 @@ export async function buildAttachmentUrl(input: {
   });
 }
 
+export async function buildAttachmentDownloadUrl(input: {
+  accessKey: string;
+  fileKeyId?: string;
+  fileName: string;
+  isPublic: boolean;
+}) {
+  const siloCore = getSiloCore();
+
+  return siloCore.generateDownloadUrl({
+    accessKey: input.accessKey,
+    fileKeyId: input.fileKeyId,
+    fileName: input.fileName,
+    isPublic: input.isPublic,
+  });
+}
+
+export async function makeAttachmentPublic(input: {
+  projectId: string;
+  environmentId: string;
+  fileKeyId: string;
+  serveImage: boolean;
+}) {
+  const siloCore = getSiloCore();
+
+  await siloCore.updateFileAccess({
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    fileKeyId: input.fileKeyId,
+    isPublic: true,
+    serveImage: input.serveImage,
+  });
+}
+
 export async function createUploadedAttachmentRecord(input: {
   attachmentId: string;
   userId: string;
@@ -60,6 +93,7 @@ export async function createUploadedAttachmentRecord(input: {
   isPublic: boolean;
   serveImage: boolean;
   expiresAt?: number;
+  maxUserDraftAttachments?: number;
 }) {
   const client = getInternalConvexClient();
   return client.mutation(

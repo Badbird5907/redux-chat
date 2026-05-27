@@ -1,19 +1,23 @@
 import type React from "react";
 import type { RefObject } from "react";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
 import {
   ArrowUp,
   BookText,
+  FlaskConical,
   Hammer,
+  ImageIcon,
   Loader2,
   Maximize2,
   Minimize2,
-  PlugZap,
   Plus,
   Search,
   Square,
+  Terminal,
   Trash2,
 } from "lucide-react";
 
+import type { ThinkingLevel } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import {
   DropdownMenu,
@@ -34,6 +38,9 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import { ModelSelector } from "@/components/chat/model-selector";
+import McpLogo from "@/components/logos/mcp";
+import { useResolvedHotkey } from "@/lib/hotkeys";
+import { ReasoningLevelSelector } from "./reasoning-level-selector";
 
 interface ChatInputToolbarProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -42,7 +49,6 @@ interface ChatInputToolbarProps {
   dropdownOpen: boolean;
   onDropdownOpenChange: (open: boolean) => void;
   onOpenFilePicker: () => void;
-  onOpenToolsDialog: () => void;
   onOpenMcpSettings: () => void;
   instructions: {
     instructionId: string;
@@ -55,8 +61,20 @@ interface ChatInputToolbarProps {
   onInstructionChange: (instructionId: string) => void;
   instructionsReady: boolean;
   canUploadFiles: boolean;
+  isAnalysisWorkspaceEnabled: boolean;
+  isImageGenerationEnabled: boolean;
+  isBashWorkspaceEnabled: boolean;
   isSearchEnabled: boolean;
+  imageGenerationModels: {
+    id: string;
+    name: string;
+  }[];
+  selectedImageGenerationModelId?: string;
   project?: string;
+  onAnalysisWorkspaceEnabledChange: (enabled: boolean) => void;
+  onImageGenerationEnabledChange: (enabled: boolean) => void;
+  onImageGenerationModelChange: (modelId: string) => void;
+  onBashWorkspaceEnabledChange: (enabled: boolean) => void;
   onToggleSearch: () => void;
   settingsReady: boolean;
   mcpServers: {
@@ -73,6 +91,10 @@ interface ChatInputToolbarProps {
   onTokenCountClick: () => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
+  thinkingLevel: ThinkingLevel;
+  thinkingLevels: readonly ThinkingLevel[];
+  canConfigureReasoning: boolean;
+  onThinkingLevelChange: (level: ThinkingLevel) => void;
   input: string;
   hasUsableAttachments: boolean;
   isSubmitting: boolean;
@@ -90,7 +112,6 @@ export function ChatInputToolbar({
   dropdownOpen,
   onDropdownOpenChange,
   onOpenFilePicker,
-  onOpenToolsDialog,
   onOpenMcpSettings,
   instructions,
   selectedInstructionId,
@@ -98,7 +119,16 @@ export function ChatInputToolbar({
   onInstructionChange,
   instructionsReady,
   canUploadFiles,
+  isAnalysisWorkspaceEnabled,
+  isImageGenerationEnabled,
+  isBashWorkspaceEnabled,
   isSearchEnabled,
+  imageGenerationModels,
+  selectedImageGenerationModelId,
+  onAnalysisWorkspaceEnabledChange,
+  onImageGenerationEnabledChange,
+  onImageGenerationModelChange,
+  onBashWorkspaceEnabledChange,
   onToggleSearch,
   settingsReady,
   mcpServers,
@@ -113,6 +143,10 @@ export function ChatInputToolbar({
   // project,
   selectedModel,
   onModelChange,
+  thinkingLevel,
+  thinkingLevels,
+  canConfigureReasoning,
+  onThinkingLevelChange,
   input,
   hasUsableAttachments,
   isSubmitting,
@@ -122,6 +156,7 @@ export function ChatInputToolbar({
   onSubmit,
   onStopGeneration,
 }: ChatInputToolbarProps) {
+  const uploadFileHotkey = useResolvedHotkey("chat.uploadFile");
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
     <div className="flex items-center justify-between px-2 pb-2">
@@ -157,7 +192,7 @@ export function ChatInputToolbar({
                 Upload file
               </span>
               <DropdownMenuShortcut className="shrink-0">
-                Ctrl+U
+                {formatForDisplay(uploadFileHotkey)}
               </DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -197,17 +232,74 @@ export function ChatInputToolbar({
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={onOpenToolsDialog}
-              disabled={!settingsReady}
-            >
-              <Hammer className="size-4 shrink-0" />
-              <span className="min-w-0 grow whitespace-nowrap">Tools</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={!settingsReady}>
-                <PlugZap className="size-4 shrink-0" />
+                <Hammer className="size-4 shrink-0" />
+                <span className="min-w-0 grow whitespace-nowrap">Tools</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-64">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Tools</DropdownMenuLabel>
+                  <DropdownMenuCheckboxItem
+                    checked={isSearchEnabled}
+                    disabled={!settingsReady}
+                    onCheckedChange={onToggleSearch}
+                  >
+                    <Search className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      Search
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={isBashWorkspaceEnabled}
+                    disabled={!settingsReady}
+                    onCheckedChange={onBashWorkspaceEnabledChange}
+                  >
+                    <Terminal className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">Bash</span>
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={isAnalysisWorkspaceEnabled}
+                    disabled={!settingsReady}
+                    onCheckedChange={onAnalysisWorkspaceEnabledChange}
+                  >
+                    <FlaskConical className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      Analysis
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={isImageGenerationEnabled}
+                    disabled={
+                      !settingsReady || imageGenerationModels.length === 0
+                    }
+                    onCheckedChange={onImageGenerationEnabledChange}
+                  >
+                    <ImageIcon className="size-4 shrink-0" />
+                    <span className="min-w-0 grow whitespace-nowrap">
+                      Image Generation
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                  {isImageGenerationEnabled ? (
+                    <DropdownMenuRadioGroup
+                      value={selectedImageGenerationModelId}
+                      onValueChange={onImageGenerationModelChange}
+                    >
+                      {imageGenerationModels.map((model) => (
+                        <DropdownMenuRadioItem key={model.id} value={model.id}>
+                          <span className="min-w-0 grow whitespace-nowrap">
+                            {model.name}
+                          </span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  ) : null}
+                </DropdownMenuGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger disabled={!settingsReady}>
+                <McpLogo className="size-4 shrink-0" />
                 <span className="min-w-0 grow whitespace-nowrap">
                   MCP Servers
                 </span>
@@ -240,7 +332,7 @@ export function ChatInputToolbar({
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={onOpenMcpSettings}>
-                    <PlugZap className="size-4 shrink-0" />
+                    <McpLogo className="size-4 shrink-0" />
                     <span className="min-w-0 grow whitespace-nowrap">
                       Manage MCP Servers
                     </span>
@@ -323,6 +415,13 @@ export function ChatInputToolbar({
             {tokenCount.toLocaleString()} tokens
           </button>
         )}
+        {canConfigureReasoning ? (
+          <ReasoningLevelSelector
+            thinkingLevel={thinkingLevel}
+            thinkingLevels={thinkingLevels}
+            onThinkingLevelChange={onThinkingLevelChange}
+          />
+        ) : null}
         <ModelSelector
           selectedModel={selectedModel}
           onModelChange={onModelChange}

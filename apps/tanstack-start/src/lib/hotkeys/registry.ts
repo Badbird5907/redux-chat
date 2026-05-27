@@ -50,18 +50,40 @@ export const appHotkeyRegistry = defineAppHotkeys({
     category: "Chat",
     defaultHotkey: "Mod+/",
   },
+  "reasoning.level.open": {
+    label: "Open reasoning level chooser",
+    description:
+      "Open the reasoning level menu when the current model supports it.",
+    category: "Chat",
+    defaultHotkey: "Mod+.",
+  },
+  "chat.uploadFile": {
+    label: "Upload file",
+    description: "Open the file picker to attach files to the active chat.",
+    category: "Chat",
+    defaultHotkey: "Control+U",
+    options: {
+      ignoreInputs: false,
+      requireReset: true,
+    },
+  },
 });
 
 export type AppHotkeyId = keyof typeof appHotkeyRegistry;
 
 export const appHotkeyIds = Object.keys(appHotkeyRegistry) as AppHotkeyId[];
 
-export const appHotkeyDefinitions = appHotkeyIds.map(
-  (id) => appHotkeyRegistry[id],
-);
+export const appHotkeyDefinitions = Object.values(appHotkeyRegistry);
+
+export function getAppHotkeyDefinition(id: AppHotkeyId) {
+  return appHotkeyRegistry[id];
+}
 
 export function getDefaultHotkeyBindings() {
   return Object.fromEntries(
-    appHotkeyIds.map((id) => [id, appHotkeyRegistry[id].defaultHotkey]),
+    appHotkeyDefinitions.map((definition) => [
+      definition.id,
+      definition.defaultHotkey,
+    ]),
   ) as Record<AppHotkeyId, AppHotkeyBinding>;
 }

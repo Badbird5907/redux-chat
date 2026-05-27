@@ -6,15 +6,19 @@ export const generatedProviderManifest = {
     doc: "https://docs.anthropic.com/en/docs/about-claude/models",
   },
   google: {
-    modelCount: 37,
-    doc: "https://ai.google.dev/gemini-api/docs/pricing",
+    modelCount: 21,
+    doc: "https://ai.google.dev/gemini-api/docs/models",
   },
   openai: {
     modelCount: 52,
     doc: "https://platform.openai.com/docs/models",
   },
   openrouter: {
-    modelCount: 181,
+    modelCount: 355,
     doc: "https://openrouter.ai/models",
+  },
+  vertex: {
+    modelCount: 39,
+    doc: "https://cloud.google.com/vertex-ai/generative-ai/docs/models",
   },
 } as const;

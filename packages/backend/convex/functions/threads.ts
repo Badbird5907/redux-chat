@@ -1,6 +1,6 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createVertex } from "@ai-sdk/google-vertex/edge";
 import { generateText } from "ai";
 import { Buffer } from "buffer/";
 import { paginationOptsValidator } from "convex/server";
@@ -11,10 +11,17 @@ import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { backendEnv } from "../env";
+import {
+  incrementDailyAssistantApiCalls,
+  updateUserUsageStats,
+} from "../usageStats";
 import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
 import { normalizeInstructionIdForUser } from "./instructions";
 import { internalAction, internalMutation } from "./internal";
+
+const THREAD_TITLE_GENERATION_COOLDOWN_MS = 60_000;
+const THREAD_TITLE_PROMPT_MAX_LENGTH = 2_000;
 
 async function cleanupInactiveStreamThread(
   ctx: GenericMutationCtx<DataModel>,
@@ -40,12 +47,21 @@ type AuthenticatedMutationCtx = GenericMutationCtx<DataModel> & {
 
 type ThreadReadCtx = GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>;
 
+const thinkingLevelValidator = v.union(
+  v.literal("instant"),
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
 const messageSettingsValidator = v.object({
   model: v.string(),
+  thinkingLevel: v.optional(thinkingLevelValidator),
   instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
   tools: v.object({
     search: v.optional(v.object({})),
+    bashWorkspace: v.optional(v.object({})),
     analysisWorkspace: v.optional(
       v.object({
         syncUploads: v.optional(v.boolean()),
@@ -54,6 +70,11 @@ const messageSettingsValidator = v.object({
     mcpServers: v.optional(
       v.object({
         serverIds: v.array(v.string()),
+      }),
+    ),
+    imageGeneration: v.optional(
+      v.object({
+        modelId: v.string(),
       }),
     ),
   }),
@@ -144,6 +165,52 @@ async function verifySignedId(signedId: string, label: string) {
   return id;
 }
 
+async function assertThreadIdAvailable(
+  ctx: AuthenticatedMutationCtx,
+  threadId: string,
+) {
+  const existing = await ctx.db
+    .query("threads")
+    .withIndex("by_threadId", (q) => q.eq("threadId", threadId))
+    .first();
+  if (existing) {
+    throw new ConvexError("Thread ID has already been used");
+  }
+}
+
+async function assertMessageIdsAvailable(
+  ctx: AuthenticatedMutationCtx,
+  threadId: string,
+  messageIds: string[],
+) {
+  for (const messageId of messageIds) {
+    const existing = await ctx.db
+      .query("messages")
+      .withIndex("by_threadId_messageId", (q) =>
+        q.eq("threadId", threadId).eq("messageId", messageId),
+      )
+      .first();
+
+    if (existing) {
+      throw new ConvexError("Message ID has already been used");
+    }
+  }
+}
+
+async function deleteAttachmentEmbeddings(
+  ctx: GenericMutationCtx<DataModel>,
+  attachmentId: string,
+) {
+  const rows = await ctx.db
+    .query("attachmentEmbeddings")
+    .withIndex("by_attachmentId", (q) => q.eq("attachmentId", attachmentId))
+    .collect();
+
+  for (const row of rows) {
+    await ctx.db.delete(row._id);
+  }
+}
+
 async function cloneAttachedAttachmentsToMessage(
   ctx: AuthenticatedMutationCtx,
   args: {
@@ -207,6 +274,10 @@ async function attachMixedAttachmentsToMessage(
     targetMessageId: string;
   },
 ) {
+  if (args.retainedAttachmentIds.length + args.draftAttachmentIds.length > 10) {
+    throw new ConvexError("Too many attachments for one message");
+  }
+
   if (args.retainedAttachmentIds.length > 0) {
     await cloneAttachedAttachmentsToMessage(ctx, {
       sourceMessageId: args.sourceMessageId,
@@ -360,10 +431,6 @@ export const getThreadMessages = query({
       .query("attachments")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
-    const billingUsageEvents = await ctx.db
-      .query("billingUsageEvents")
-      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-      .collect();
 
     const attachmentsByMessageId = new Map<
       string,
@@ -378,7 +445,6 @@ export const getThreadMessages = query({
         expiresAt: number | undefined;
       }[]
     >();
-    const creditsByMessageId = new Map<string, number>();
 
     for (const attachment of allAttachments) {
       if (!attachment.messageId) {
@@ -398,15 +464,10 @@ export const getThreadMessages = query({
       attachmentsByMessageId.set(attachment.messageId, existing);
     }
 
-    for (const event of billingUsageEvents) {
-      creditsByMessageId.set(event.messageId, event.credits);
-    }
-
     return allMessages.map((m) => ({
       ...m,
       id: m.messageId,
       attachments: attachmentsByMessageId.get(m.messageId) ?? [],
-      creditsConsumed: creditsByMessageId.get(m.messageId),
     }));
   },
 });
@@ -492,6 +553,7 @@ export const internal_updateMessageUsage = backendMutation({
     }),
     generationStats: v.optional(
       v.object({
+        reasoningDurationMs: v.optional(v.number()),
         timeToFirstTokenMs: v.number(),
         totalDurationMs: v.number(),
         tokensPerSecond: v.number(),
@@ -507,6 +569,12 @@ export const internal_updateMessageUsage = backendMutation({
     );
     if (message.role !== "assistant") {
       throw new ConvexError("Assistant message not found");
+    }
+    if (message.usage === undefined) {
+      await incrementDailyAssistantApiCalls(ctx, args.userId);
+      await updateUserUsageStats(ctx, args.userId, {
+        lastActiveAt: Date.now(),
+      });
     }
     await ctx.db.patch(message._id, {
       usage: args.usage,
@@ -559,6 +627,22 @@ export const internal_checkMessageAbort = backendQuery({
       throw new ConvexError("Message not found");
     }
     return message.canceledAt;
+  },
+});
+
+export const internal_validateGenerationMessage = backendQuery({
+  args: { userId: v.string(), messageId: v.string(), threadId: v.string() },
+  handler: async (ctx, args) => {
+    await getThreadForOwner(ctx, args.threadId, args.userId);
+    const message = await getMessageForThreadId(
+      ctx,
+      args.threadId,
+      args.messageId,
+    );
+    if (message.role !== "assistant" || message.status !== "generating") {
+      throw new ConvexError("Assistant message is not ready for generation");
+    }
+    return { ok: true as const };
   },
 });
 
@@ -658,6 +742,7 @@ export const sendMessage = mutation({
     if (threadId.includes(":")) {
       // is a new thread
       threadId = await verifySignedId(threadId, "threadId");
+      await assertThreadIdAvailable(ctx, threadId);
 
       // If creating a project-scoped thread, verify the project belongs to this user.
       if (args.chatProjectId) {
@@ -678,6 +763,7 @@ export const sendMessage = mutation({
         name: "New Thread",
         status: "generating",
         updatedAt: Date.now(),
+        titleGenerationRequestedAt: Date.now(),
         settings: normalizedSettings,
         chatProjectId: args.chatProjectId,
       });
@@ -723,6 +809,7 @@ export const sendMessage = mutation({
         deadMessageCheckSchedulerId: undefined,
       });
     }
+    await assertMessageIdsAvailable(ctx, threadId, [userMsgId, assistantMsgId]);
 
     // 4. Insert user message
     await ctx.db.insert("messages", {
@@ -735,6 +822,11 @@ export const sendMessage = mutation({
       depth,
       siblingIndex,
       mutation: { type: "original" },
+    });
+    await updateUserUsageStats(ctx, ctx.userId, {
+      userMessagesDelta: 1,
+      threadsDelta: createdNewThread ? 1 : 0,
+      lastActiveAt: Date.now(),
     });
 
     if (args.attachmentIds?.length) {
@@ -757,6 +849,7 @@ export const sendMessage = mutation({
       siblingIndex: 0,
       mutation: { type: "original" },
       model: args.model,
+      thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
@@ -783,7 +876,7 @@ export const sendMessage = mutation({
         internal.functions.threads.internal_generateThreadTitle,
         {
           threadId,
-          prompt: userPrompt,
+          prompt: userPrompt.slice(0, THREAD_TITLE_PROMPT_MAX_LENGTH),
         },
       );
     }
@@ -820,11 +913,17 @@ export const editUserMessageBranch = mutation({
       throw new ConvexError("Only user messages can be edited");
     }
 
+    const normalizedSettings = normalizeMessageSettings(args.settings);
+
     const userMsgId = await verifySignedId(args.userMessageId, "userMessageId");
     const assistantMsgId = await verifySignedId(
       args.assistantMessageId,
       "assistantMessageId",
     );
+    await assertMessageIdsAvailable(ctx, args.threadId, [
+      userMsgId,
+      assistantMsgId,
+    ]);
 
     if (thread.deadMessageCheckSchedulerId) {
       await ctx.scheduler.cancel(thread.deadMessageCheckSchedulerId);
@@ -848,6 +947,10 @@ export const editUserMessageBranch = mutation({
       siblingIndex: userSiblingIndex,
       mutation: { type: "edit", fromMessageId: sourceMessage.messageId },
     });
+    await updateUserUsageStats(ctx, ctx.userId, {
+      userMessagesDelta: 1,
+      lastActiveAt: Date.now(),
+    });
 
     await attachMixedAttachmentsToMessage(ctx, {
       sourceMessageId: sourceMessage.messageId,
@@ -868,6 +971,7 @@ export const editUserMessageBranch = mutation({
       siblingIndex: 0,
       mutation: { type: "original" },
       model: args.model,
+      thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
@@ -917,10 +1021,13 @@ export const regenerateAssistantMessageBranch = mutation({
       throw new ConvexError("Only assistant messages can be regenerated");
     }
 
+    const normalizedSettings = normalizeMessageSettings(args.settings);
+
     const assistantMsgId = await verifySignedId(
       args.assistantMessageId,
       "assistantMessageId",
     );
+    await assertMessageIdsAvailable(ctx, args.threadId, [assistantMsgId]);
 
     if (thread.deadMessageCheckSchedulerId) {
       await ctx.scheduler.cancel(thread.deadMessageCheckSchedulerId);
@@ -947,6 +1054,7 @@ export const regenerateAssistantMessageBranch = mutation({
         fromMessageId: sourceMessage.messageId,
       },
       model: args.model,
+      thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
@@ -1097,6 +1205,7 @@ export const internal_setThreadTitle = internalMutation({
       // updatedAt: now,
       titleSource: "generated",
       titleGeneratedAt: now,
+      titleGenerationRequestedAt: undefined,
     });
   },
 });
@@ -1110,13 +1219,13 @@ export const internal_generateThreadTitle = internalAction({
   handler: async (ctx, args) => {
     const env = backendEnv();
 
-    const openrouter = createOpenRouter({
-      apiKey: env.OPENROUTER_API_KEY,
+    const vertex = createVertex({
+      apiKey: env.GOOGLE_VERTEX_API_KEY,
     });
 
     try {
       const { text } = await generateText({
-        model: openrouter.chat("google/gemini-3.1-flash-lite-preview"),
+        model: vertex("gemini-3-flash-preview"),
         prompt: [
           "Generate a short chat thread title for the user's first message.",
           "Return only the title with no quotes, prefix, or punctuation decoration.",
@@ -1152,9 +1261,11 @@ export const updateThreadSettings = mutation({
       instructionId: v.optional(v.string()),
       clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
+      thinkingLevel: v.optional(thinkingLevelValidator),
       tools: v.optional(
         v.object({
           search: v.optional(v.object({})),
+          bashWorkspace: v.optional(v.object({})),
           analysisWorkspace: v.optional(
             v.object({
               syncUploads: v.optional(v.boolean()),
@@ -1163,6 +1274,11 @@ export const updateThreadSettings = mutation({
           mcpServers: v.optional(
             v.object({
               serverIds: v.array(v.string()),
+            }),
+          ),
+          imageGeneration: v.optional(
+            v.object({
+              modelId: v.string(),
             }),
           ),
         }),
@@ -1207,6 +1323,20 @@ export const regenerateThreadTitle = mutation({
     if (thread?.userId !== ctx.userId) {
       throw new ConvexError("Thread not found");
     }
+    const now = Date.now();
+    if (
+      thread.titleGenerationRequestedAt !== undefined &&
+      now - thread.titleGenerationRequestedAt <
+        THREAD_TITLE_GENERATION_COOLDOWN_MS
+    ) {
+      throw new ConvexError("Thread title generation is already in progress");
+    }
+    if (
+      thread.titleGeneratedAt !== undefined &&
+      now - thread.titleGeneratedAt < THREAD_TITLE_GENERATION_COOLDOWN_MS
+    ) {
+      throw new ConvexError("Thread title was regenerated recently");
+    }
 
     const messages = await ctx.db
       .query("messages")
@@ -1231,12 +1361,16 @@ export const regenerateThreadTitle = mutation({
       throw new ConvexError("No message text found to generate a title from");
     }
 
+    await ctx.db.patch(thread._id, {
+      titleGenerationRequestedAt: now,
+    });
+
     await ctx.scheduler.runAfter(
       0,
       internal.functions.threads.internal_generateThreadTitle,
       {
         threadId: args.threadId,
-        prompt,
+        prompt: prompt.slice(0, THREAD_TITLE_PROMPT_MAX_LENGTH),
         forceOverwrite: true,
       },
     );
@@ -1297,8 +1431,96 @@ export const deleteThread = mutation({
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
 
+    const userMessageCount = messages.filter(
+      (message) => message.role === "user",
+    ).length;
+    const attachments = await ctx.db
+      .query("attachments")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
+    const generatedImages = await ctx.db
+      .query("generatedImages")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
+    const uniqueFiles = new Map<
+      string,
+      {
+        projectId: string;
+        environmentId: string;
+        fileKeyId: string;
+        accessKey: string;
+        size: number;
+      }
+    >();
+    const unreferencedFiles: {
+      projectId: string;
+      environmentId: string;
+      fileKeyId: string;
+      accessKey: string;
+      size: number;
+    }[] = [];
+
+    for (const attachment of attachments) {
+      uniqueFiles.set(attachment.fileKeyId, {
+        projectId: attachment.projectId,
+        environmentId: attachment.environmentId,
+        fileKeyId: attachment.fileKeyId,
+        accessKey: attachment.accessKey,
+        size: attachment.size,
+      });
+      await deleteAttachmentEmbeddings(ctx, attachment.attachmentId);
+      await ctx.db.delete(attachment._id);
+    }
+
+    for (const generatedImage of generatedImages) {
+      uniqueFiles.set(generatedImage.fileKeyId, {
+        projectId: generatedImage.projectId,
+        environmentId: generatedImage.environmentId,
+        fileKeyId: generatedImage.fileKeyId,
+        accessKey: generatedImage.accessKey,
+        size: generatedImage.size,
+      });
+      await ctx.db.delete(generatedImage._id);
+    }
+
+    for (const file of uniqueFiles.values()) {
+      const remainingRefs = await ctx.db
+        .query("attachments")
+        .withIndex("by_fileKeyId", (q) => q.eq("fileKeyId", file.fileKeyId))
+        .first();
+      const remainingGeneratedImageRefs = await ctx.db
+        .query("generatedImages")
+        .withIndex("by_fileKeyId", (q) => q.eq("fileKeyId", file.fileKeyId))
+        .first();
+      if (remainingRefs || remainingGeneratedImageRefs) {
+        continue;
+      }
+
+      unreferencedFiles.push(file);
+      await ctx.scheduler.runAfter(
+        0,
+        internal.functions.attachments.internal_deleteFileFromSilo,
+        {
+          projectId: file.projectId,
+          environmentId: file.environmentId,
+          fileKeyId: file.fileKeyId,
+          accessKey: file.accessKey,
+        },
+      );
+    }
+
     await Promise.all(messages.map((message) => ctx.db.delete(message._id)));
     await ctx.db.delete(thread._id);
+    await updateUserUsageStats(ctx, ctx.userId, {
+      threadsDelta: -1,
+      userMessagesDelta: -userMessageCount,
+      attachmentsDelta: -unreferencedFiles.length,
+      storageBytesDelta: -unreferencedFiles.reduce(
+        (total, file) => total + file.size,
+        0,
+      ),
+      lastActiveAt: Date.now(),
+    });
 
     return { success: true };
   },

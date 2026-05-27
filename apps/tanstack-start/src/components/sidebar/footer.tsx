@@ -1,23 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
-import { LogIn, LogOut, Settings } from "lucide-react";
+import { LogIn, LogOut, Settings, Shield, UserRoundX } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@redux/ui/components/button";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@redux/ui/components/drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@redux/ui/components/sheet";
 import { Skeleton } from "@redux/ui/components/skeleton";
 import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import { cn } from "@redux/ui/lib/utils";
@@ -44,6 +46,22 @@ export const AppSidebarFooter = () => {
         },
       },
     });
+  };
+
+  const handleStopImpersonating = async () => {
+    const res = await authClient.admin.stopImpersonating();
+    if (res.error) {
+      toast.error(res.error.message ?? "Failed to stop impersonating");
+      return;
+    }
+    // The admin plugin switches the session cookie back to the admin's, but
+    // does NOT refresh the convex_jwt cookie. Hitting /get-session while
+    // authenticated triggers the after-hook that re-issues the JWT for the
+    // restored session, so the reload authenticates as the admin again
+    // instead of replaying the stale impersonated-user JWT.
+    await authClient.getSession({ fetchOptions: { cache: "no-store" } });
+    toast.success("Stopped impersonating");
+    window.location.assign("/admin");
   };
 
   const handleOpenSettings = () => {
@@ -77,31 +95,68 @@ export const AppSidebarFooter = () => {
       </div>
     );
   }
+  const isImpersonating = Boolean(
+    (session.session as { impersonatedBy?: string | null }).impersonatedBy,
+  );
+  const roles = ((session.user as { role?: string | null }).role ?? "user")
+    .split(",")
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0);
+  const isAdmin = roles.includes("admin");
+
   if (isMobile) {
     return (
-      <Drawer>
-        <DrawerTrigger className="w-full text-left">
+      <Sheet>
+        <SheetTrigger
+          render={<button type="button" className="w-full text-left" />}
+        >
           <UserInfo
             userId={session.session.userId}
             name={session.user.name}
             email={session.user.email}
           />
-        </DrawerTrigger>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Settings</DrawerTitle>
-          </DrawerHeader>
+        </SheetTrigger>
+        <SheetContent side="bottom">
+          <SheetHeader>
+            <SheetTitle>Settings</SheetTitle>
+          </SheetHeader>
           <div className="flex flex-col gap-2 px-4">
-            <DrawerClose asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={handleOpenSettings}
+            <SheetClose
+              render={
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={handleOpenSettings}
+                />
+              }
+            >
+              <Settings className="size-4" />
+              <span>Settings</span>
+            </SheetClose>
+            {isAdmin ? (
+              <SheetClose
+                render={
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    render={<Link to="/admin" />}
+                  />
+                }
               >
-                <Settings className="size-4" />
-                <span>Settings</span>
+                <Shield className="size-4" />
+                <span>Admin</span>
+              </SheetClose>
+            ) : null}
+            {isImpersonating ? (
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={handleStopImpersonating}
+              >
+                <UserRoundX className="size-4" />
+                <span>Stop impersonating</span>
               </Button>
-            </DrawerClose>
+            ) : null}
             <Button
               variant="destructive"
               className="w-full justify-start"
@@ -111,9 +166,9 @@ export const AppSidebarFooter = () => {
               <span>Logout</span>
             </Button>
           </div>
-          <DrawerFooter />
-        </DrawerContent>
-      </Drawer>
+          <SheetFooter />
+        </SheetContent>
+      </Sheet>
     );
   }
   return (
@@ -130,6 +185,21 @@ export const AppSidebarFooter = () => {
           <Settings className="size-4" />
           <span>Settings</span>
         </DropdownMenuItem>
+        {isAdmin ? (
+          <DropdownMenuItem render={<Link to="/admin" />}>
+            <Shield className="size-4" />
+            <span>Admin</span>
+          </DropdownMenuItem>
+        ) : null}
+        {isImpersonating ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleStopImpersonating}>
+              <UserRoundX className="size-4" />
+              <span>Stop impersonating</span>
+            </DropdownMenuItem>
+          </>
+        ) : null}
         <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
           <LogOut className="size-4" />
           <span>Logout</span>
