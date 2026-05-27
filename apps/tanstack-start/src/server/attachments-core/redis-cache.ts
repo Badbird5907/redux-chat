@@ -91,7 +91,9 @@ function getDerivativeTextKey(request: AttachmentDerivativeRequest) {
   return `derivatives:${ATTACHMENT_DERIVATIVE_VERSION}:text:${request.source.attachmentId}:${request.kind}:${hash}`;
 }
 
-function getDerivativeKeyCandidates(source: AttachmentDerivativeRequest["source"]) {
+function getDerivativeKeyCandidates(
+  source: AttachmentDerivativeRequest["source"],
+) {
   return DERIVATIVE_KINDS.flatMap((kind) => {
     const request = { source, kind } satisfies AttachmentDerivativeRequest;
     return [getDerivativeMetadataKey(request), getDerivativeTextKey(request)];
@@ -163,7 +165,10 @@ export async function getCachedPdfDerivativeRecords(
 ) {
   const records = await Promise.all(
     DERIVATIVE_KINDS.map((kind) =>
-      getCachedDerivative({ source, kind } satisfies AttachmentDerivativeRequest),
+      getCachedDerivative({
+        source,
+        kind,
+      } satisfies AttachmentDerivativeRequest),
     ),
   );
 

@@ -1,20 +1,20 @@
 "use no memo";
 
 import { useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { usePaginatedQuery } from "convex/react";
 import { FileText, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { api } from "@redux/backend/convex/_generated/api";
-import { Badge } from "@redux/ui/components/badge";
-import { Button } from "@redux/ui/components/button";
-import { Card, CardContent } from "@redux/ui/components/card";
 import type {
   ColumnDef,
   RowSelectionState,
 } from "@redux/ui/components/data-table";
+import { api } from "@redux/backend/convex/_generated/api";
+import { Badge } from "@redux/ui/components/badge";
+import { Button } from "@redux/ui/components/button";
+import { Card, CardContent } from "@redux/ui/components/card";
 import { DataTable } from "@redux/ui/components/data-table";
 
 import { deleteSettingsAttachments } from "@/server/attachments";
@@ -31,7 +31,8 @@ export const Route = createFileRoute("/settings/attachments")({
   }),
 });
 
-type AttachmentRow = (typeof api.functions.attachments.listForSettings)["_returnType"]["page"][number];
+type AttachmentRow =
+  (typeof api.functions.attachments.listForSettings)["_returnType"]["page"][number];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

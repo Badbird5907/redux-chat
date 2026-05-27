@@ -1,6 +1,6 @@
 import type { GenericMutationCtx } from "convex/server";
-import { paginationOptsValidator } from "convex/server";
 import { createSiloCoreFromToken } from "@silo-storage/sdk-core";
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import type { DataModel } from "../_generated/dataModel";

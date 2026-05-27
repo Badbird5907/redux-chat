@@ -148,9 +148,12 @@ export const deleteSettingsAttachments = createServerFn({ method: "POST" })
       throw new Error("Expired attachments cannot be deleted");
     }
 
-    const result = await fetchAuthMutation(api.functions.attachments.deleteUnexpiredAttachments, {
-      attachmentIds,
-    });
+    const result = await fetchAuthMutation(
+      api.functions.attachments.deleteUnexpiredAttachments,
+      {
+        attachmentIds,
+      },
+    );
 
     await Promise.all(attachments.map(deleteStoredDerivativeFiles));
 

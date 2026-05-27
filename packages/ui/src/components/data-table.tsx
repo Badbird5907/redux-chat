@@ -327,8 +327,7 @@ function DataTable<TData, TValue>({
     ? setUncontrolledSelection
     : onRowSelectionChange;
 
-  const selectionEnabled =
-    multiselect || effectiveOnRowSelectionChange != null;
+  const selectionEnabled = multiselect || effectiveOnRowSelectionChange != null;
   const tableEnableRowSelection = React.useMemo(() => {
     if (typeof enableRowSelection !== "function") {
       return enableRowSelection;
