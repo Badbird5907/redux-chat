@@ -16,7 +16,6 @@ export interface RuntimeProviderDefinition {
   createImageModel?: (route: ModelRouteInfo) => ImageModel;
 }
 
-
 // when adding providers also add it to packages/models/scripts/generate-models.ts
 // and packages/backend/convex/billing.ts
 export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
