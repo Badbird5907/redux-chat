@@ -169,6 +169,26 @@ export function ChatInput({
   }, [editMessage]);
 
   useEffect(() => {
+    if (!draftReady || typeof document === "undefined") {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    const canTakeInitialFocus =
+      activeElement === null ||
+      activeElement === document.body ||
+      activeElement === document.documentElement;
+
+    if (!canTakeInitialFocus) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, [draftReady]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const onFocusComposer = () => {
