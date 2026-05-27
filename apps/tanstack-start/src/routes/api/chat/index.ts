@@ -390,22 +390,10 @@ function getToolAttachments(
       fileName: attachment.fileName,
       mimeType: attachment.mimeType,
       size: attachment.size,
+      getDownloadUrl: () => ensureAttachmentDownloadUrl(attachment),
       download: async () => {
-        if (!attachment.isPublic) {
-          await makeAttachmentPublic({
-            projectId: attachment.projectId,
-            environmentId: attachment.environmentId,
-            fileKeyId: attachment.fileKeyId,
-            serveImage: attachment.serveImage,
-          });
-        }
-
         const response = await fetch(
-          await buildAttachmentDownloadUrl({
-            accessKey: attachment.accessKey,
-            fileName: attachment.fileName,
-            isPublic: true,
-          }),
+          await ensureAttachmentDownloadUrl(attachment),
         );
         if (!response.ok) {
           throw new Error(
@@ -416,6 +404,23 @@ function getToolAttachments(
         return new Uint8Array(await response.arrayBuffer());
       },
     };
+  });
+}
+
+async function ensureAttachmentDownloadUrl(attachment: ModelAttachment) {
+  if (!attachment.isPublic) {
+    await makeAttachmentPublic({
+      projectId: attachment.projectId,
+      environmentId: attachment.environmentId,
+      fileKeyId: attachment.fileKeyId,
+      serveImage: attachment.serveImage,
+    });
+  }
+
+  return buildAttachmentDownloadUrl({
+    accessKey: attachment.accessKey,
+    fileName: attachment.fileName,
+    isPublic: true,
   });
 }
 

@@ -46,7 +46,7 @@ export default defineConfig({
     // cleanly on its own; it only breaks when fed through esbuild's interop
     // from a CJS caller, which we've already eliminated by externalizing the
     // CJS callers above.
-    external: ["xlsx", "mammoth", "pdf-lib", "unpdf"],
+    external: ["xlsx", "mammoth", "pdf-lib", "unpdf", "just-bash"],
   },
   plugins: [
     tsConfigPaths({
