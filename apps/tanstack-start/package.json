@@ -61,6 +61,7 @@
     "@tanstack/react-start": "1.167.43",
     "@tanstack/react-virtual": "^3.13.24",
     "@vercel/functions": "^3.4.4",
+    "@vercel/speed-insights": "^2.0.0",
     "ai": "7.0.0-beta.116",
     "bash-tool": "^1.3.16",
     "better-auth": "catalog:",

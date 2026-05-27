@@ -12,6 +12,7 @@ import {
   useRouteContext,
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useAction, useConvexAuth } from "convex/react";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -188,6 +189,7 @@ function RootDocument({ children }: { children: ReactNode }) {
             <Toaster />
           </HotkeySettingsProvider>
         </ThemeProvider>
+        <SpeedInsights />
         <Scripts />
       </body>
     </html>
