@@ -432,7 +432,6 @@ export async function createToolRuntime(
             });
             const toolCallId =
               typeof options === "object" &&
-              options !== null &&
               "toolCallId" in options &&
               typeof options.toolCallId === "string"
                 ? options.toolCallId

@@ -14,8 +14,8 @@ npm install @convex-dev/migrations
 
 ```typescript
 // convex/convex.config.ts
-import { defineApp } from "convex/server";
 import migrations from "@convex-dev/migrations/convex.config.js";
+import { defineApp } from "convex/server";
 
 const app = defineApp();
 app.use(migrations);
@@ -25,6 +25,7 @@ export default app;
 ```typescript
 // convex/migrations.ts
 import { Migrations } from "@convex-dev/migrations";
+
 import { components } from "./_generated/api.js";
 import { DataModel } from "./_generated/dataModel.js";
 

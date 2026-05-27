@@ -250,10 +250,7 @@ export function ChatInput({
 
   const selectedModel = settings.model;
   const isSearchEnabled = isToolEnabled(settings.tools, "search");
-  const isBashWorkspaceEnabled = isToolEnabled(
-    settings.tools,
-    "bashWorkspace",
-  );
+  const isBashWorkspaceEnabled = isToolEnabled(settings.tools, "bashWorkspace");
   const isAnalysisWorkspaceEnabled = isToolEnabled(
     settings.tools,
     "analysisWorkspace",

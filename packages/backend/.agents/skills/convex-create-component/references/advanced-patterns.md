@@ -25,8 +25,9 @@ export const startJob = mutation({
 
 ```ts
 // Component side: accept and invoke the handle
-import { v } from "convex/values";
 import type { FunctionHandle } from "convex/server";
+import { v } from "convex/values";
+
 import { mutation } from "./_generated/server.js";
 
 export const enqueue = mutation({
@@ -45,6 +46,7 @@ schema validator:
 
 ```ts
 import { v } from "convex/values";
+
 import schema from "./schema.js";
 
 const notificationDoc = schema.tables.notifications.validator.extend({
@@ -101,7 +103,8 @@ client provides a cleaner API. This pattern is common in published components.
 
 ```ts
 // src/client/index.ts
-import type { GenericMutationCtx, GenericDataModel } from "convex/server";
+import type { GenericDataModel, GenericMutationCtx } from "convex/server";
+
 import type { ComponentApi } from "../component/_generated/component.js";
 
 type MutationCtx = Pick<GenericMutationCtx<GenericDataModel>, "runMutation">;
@@ -124,6 +127,7 @@ export class Notifications {
 ```ts
 // App usage
 import { Notifications } from "@convex-dev/notifications";
+
 import { components } from "./_generated/api";
 
 const notifications = new Notifications(components.notifications, {

@@ -19,7 +19,9 @@ interface UploadedChatAttachment {
   expiresAt?: number;
 }
 
-function isUploadedChatAttachment(value: unknown): value is UploadedChatAttachment {
+function isUploadedChatAttachment(
+  value: unknown,
+): value is UploadedChatAttachment {
   return (
     !!value &&
     typeof value === "object" &&
@@ -64,7 +66,9 @@ async function awaitRouteCompletion(fileKeyId: string) {
     Array.isArray(payload.completion) ||
     !("onUploadCompleteResult" in payload.completion)
   ) {
-    throw new Error("Upload completed, but the attachment record was not ready.");
+    throw new Error(
+      "Upload completed, but the attachment record was not ready.",
+    );
   }
 
   return payload.completion.onUploadCompleteResult;

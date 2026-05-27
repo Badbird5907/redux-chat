@@ -12,8 +12,8 @@ import {
 
 import { Skeleton } from "@redux/ui/components/skeleton";
 
-import type { MessageStats } from "./chat-types";
 import type { AssistantTimelineStep } from "./assistant-message-timeline";
+import type { MessageStats } from "./chat-types";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -424,11 +424,12 @@ function getGeneratedImageKey(image: GeneratedImagePart) {
 }
 
 function getGeneratedImageFilename(image: GeneratedImagePart) {
-  const slug = image.prompt
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60) || "image";
+  const slug =
+    image.prompt
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "image";
   const ext =
     image.mimeType === "image/jpeg"
       ? "jpg"
@@ -506,9 +507,7 @@ function GeneratedImageBlock({ image }: { image: GeneratedImagePart }) {
             className="hover:bg-muted disabled:text-muted-foreground/40 rounded-md p-1.5 disabled:pointer-events-none"
             title="Download image"
             disabled={!image.downloadUrl && !image.url}
-            onClick={() =>
-              void downloadGeneratedImage(image)
-            }
+            onClick={() => void downloadGeneratedImage(image)}
           >
             <DownloadIcon className="size-4" />
           </button>

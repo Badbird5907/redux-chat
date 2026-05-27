@@ -693,7 +693,7 @@ export const Route = createFileRoute("/api/chat/")({
             const imageModel = resolveAiSdkImageModel(settings.model);
             const imageAbortController = new AbortController();
             const stream = createUIMessageStream({
-              originalMessages: messages as never,
+              originalMessages: messages,
               generateId: () => assistantMessageId,
               onError: (error) => {
                 const errorMessage = getErrorMessage(error).slice(0, 1000);

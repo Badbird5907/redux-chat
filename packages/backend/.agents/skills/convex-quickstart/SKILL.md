@@ -240,8 +240,9 @@ function App() {
 ```tsx
 // src/main.tsx
 import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { createRoot } from "react-dom/client";
+
 import App from "./App";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
@@ -261,8 +262,8 @@ createRoot(document.getElementById("root")!).render(
 // app/ConvexClientProvider.tsx
 "use client";
 
-import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ReactNode } from "react";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -371,8 +372,9 @@ export default defineSchema({
 `convex/tasks.ts`:
 
 ```ts
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+
+import { mutation, query } from "./_generated/server";
 
 export const list = query({
   args: {},
@@ -393,7 +395,8 @@ Use in a React component (adjust the import path based on your file location
 relative to `convex/`):
 
 ```tsx
-import { useQuery, useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+
 import { api } from "../convex/_generated/api";
 
 function Tasks() {
