@@ -1,14 +1,19 @@
+import type { ThinkingLevel } from "@redux/shared/models";
 import { DEFAULT_CHAT_MODEL_ID, normalizeModelId } from "@redux/shared/models";
 
 export const MESSAGE_TOOL_NAMES = [
   "search",
+  "bashWorkspace",
   "analysisWorkspace",
   "mcpServers",
+  "imageGeneration",
 ] as const;
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
 
 export type SearchToolSettings = object;
+
+export type BashWorkspaceToolSettings = object;
 
 export interface AnalysisWorkspaceToolSettings {
   syncUploads: boolean;
@@ -26,16 +31,28 @@ export interface McpServersToolSettingsInput {
   serverIds: string[];
 }
 
+export interface ImageGenerationToolSettings {
+  modelId: string;
+}
+
+export interface ImageGenerationToolSettingsInput {
+  modelId: string;
+}
+
 export interface MessageToolSettings {
   search?: SearchToolSettings;
+  bashWorkspace?: BashWorkspaceToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettings;
   mcpServers?: McpServersToolSettings;
+  imageGeneration?: ImageGenerationToolSettings;
 }
 
 export interface MessageToolSettingsInput {
   search?: SearchToolSettings;
+  bashWorkspace?: BashWorkspaceToolSettings;
   analysisWorkspace?: AnalysisWorkspaceToolSettingsInput;
   mcpServers?: McpServersToolSettingsInput;
+  imageGeneration?: ImageGenerationToolSettingsInput;
 }
 
 /** Lines shown before collapsing user messages in chat. Use `0` to disable collapsing. */
@@ -44,6 +61,7 @@ export const DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES = 100;
 export interface MessageSettings {
   model: string;
   tools: MessageToolSettings;
+  thinkingLevel?: ThinkingLevel;
   instructionId?: string;
   /** Max newline-separated lines before showing "Show more". `0` disables collapsing. */
   userMessagePreviewMaxLines?: number;
@@ -65,6 +83,7 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
   tools: {
     search: {},
+    bashWorkspace: {},
     analysisWorkspace: { syncUploads: true },
   },
   instructionId: undefined,
@@ -93,6 +112,7 @@ export function normalizeMessageSettings(
     ...DEFAULT_MESSAGE_SETTINGS,
     ...rest,
     model: normalizedModel,
+    thinkingLevel: normalizeThinkingLevel(rest.thinkingLevel),
     tools: normalizeTools(toolsInputForNormalization(input)),
     userMessagePreviewMaxLines: normalizeUserMessagePreviewMaxLines(
       rest.userMessagePreviewMaxLines,
@@ -123,6 +143,19 @@ export function mergeMessageSettings(
   });
 }
 
+function normalizeThinkingLevel(value: unknown): ThinkingLevel | undefined {
+  if (
+    value === "instant" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high"
+  ) {
+    return value;
+  }
+
+  return undefined;
+}
+
 function normalizeUserMessagePreviewMaxLines(value: unknown): number {
   if (value === undefined || value === null) {
     return DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES;
@@ -151,6 +184,14 @@ function normalizeTools(
   }
 
   if (
+    tools?.bashWorkspace &&
+    typeof tools.bashWorkspace === "object" &&
+    !Array.isArray(tools.bashWorkspace)
+  ) {
+    normalizedTools.bashWorkspace = {};
+  }
+
+  if (
     tools?.analysisWorkspace &&
     typeof tools.analysisWorkspace === "object" &&
     !Array.isArray(tools.analysisWorkspace)
@@ -176,6 +217,21 @@ function normalizeTools(
 
     if (serverIds.length > 0) {
       normalizedTools.mcpServers = { serverIds };
+    }
+  }
+
+  if (
+    tools?.imageGeneration &&
+    typeof tools.imageGeneration === "object" &&
+    !Array.isArray(tools.imageGeneration)
+  ) {
+    const modelId =
+      typeof tools.imageGeneration.modelId === "string"
+        ? normalizeModelId(tools.imageGeneration.modelId)
+        : undefined;
+
+    if (modelId) {
+      normalizedTools.imageGeneration = { modelId };
     }
   }
 

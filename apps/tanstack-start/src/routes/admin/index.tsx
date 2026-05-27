@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users } from "lucide-react";
+import { Gift, Users } from "lucide-react";
 
 import { Button } from "@redux/ui/components/button";
 import {
@@ -8,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@redux/ui/components/card";
+
+import { AdminPageNav } from "@/components/admin/admin-page-nav";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -19,13 +21,16 @@ export const Route = createFileRoute("/admin/")({
 function AdminOverviewPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
-      <div>
-        <h1 className="text-foreground text-3xl font-semibold tracking-tight">
-          Admin
-        </h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Internal tools for user management.
-        </p>
+      <div className="flex flex-col gap-3">
+        <AdminPageNav items={[{ label: "Admin" }]} />
+        <div className="min-w-0">
+          <h1 className="text-foreground text-3xl font-semibold tracking-tight">
+            Admin
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Internal tools for user management.
+          </p>
+        </div>
       </div>
       <Card className="border-border/80">
         <CardHeader className="flex flex-row items-center justify-between gap-4">
@@ -39,6 +44,20 @@ function AdminOverviewPage() {
             </CardDescription>
           </div>
           <Button render={<Link to="/admin/users" />}>Open</Button>
+        </CardHeader>
+      </Card>
+      <Card className="border-border/80">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Gift className="size-5" />
+              Promotions
+            </CardTitle>
+            <CardDescription>
+              Create redeemable codes and review every usage
+            </CardDescription>
+          </div>
+          <Button render={<Link to="/admin/promotions" />}>Open</Button>
         </CardHeader>
       </Card>
     </div>

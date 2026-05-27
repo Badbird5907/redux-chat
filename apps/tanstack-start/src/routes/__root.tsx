@@ -13,6 +13,7 @@ import {
   useRouteContext,
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useAction, useConvexAuth } from "convex/react";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -119,17 +120,17 @@ function RootComponent() {
       initialToken={context.token}
     >
       <RootDocument>
-        <EnsurePolarCustomerOnAuth />
+        <EnsureStripeCustomerOnAuth />
         <Outlet />
       </RootDocument>
     </ConvexBetterAuthProvider>
   );
 }
 
-function EnsurePolarCustomerOnAuth() {
+function EnsureStripeCustomerOnAuth() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const ensurePolarCustomer = useAction(
-    api.functions.billing.ensureCurrentUserPolarCustomer,
+  const ensureStripeCustomer = useAction(
+    api.functions.billing.ensureCurrentUserStripeCustomer,
   );
   const didRequest = useRef(false);
 
@@ -148,11 +149,11 @@ function EnsurePolarCustomerOnAuth() {
     }
 
     didRequest.current = true;
-    void ensurePolarCustomer({}).catch((error: unknown) => {
+    void ensureStripeCustomer({}).catch((error: unknown) => {
       didRequest.current = false;
-      console.error("Failed to ensure Polar customer", error);
+      console.error("Failed to ensure Stripe customer", error);
     });
-  }, [ensurePolarCustomer, isAuthenticated, isLoading]);
+  }, [ensureStripeCustomer, isAuthenticated, isLoading]);
 
   return null;
 }
@@ -190,6 +191,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           </HotkeySettingsProvider>
         </ThemeProvider>
         <Analytics />
+        <SpeedInsights />
         <Scripts />
       </body>
     </html>

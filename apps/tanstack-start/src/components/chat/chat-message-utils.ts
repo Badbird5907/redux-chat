@@ -39,6 +39,8 @@ export function toChatUIMessage(
     metadata,
     error: "error" in message ? message.error : undefined,
     model: "model" in message ? message.model : undefined,
+    thinkingLevel:
+      "thinkingLevel" in message ? message.thinkingLevel : undefined,
     mutation: "mutation" in message ? message.mutation : undefined,
     parentId: "parentId" in message ? message.parentId : undefined,
     siblingIndex: "siblingIndex" in message ? message.siblingIndex : undefined,
@@ -65,25 +67,41 @@ export function haveEquivalentMessageStructure(
       return false;
     }
 
-    if (message.parts.length !== other.parts.length) {
-      return false;
-    }
+    return (
+      getRenderableMessageSignature(message) ===
+      getRenderableMessageSignature(other)
+    );
+  });
+}
 
-    return message.parts.every((part, partIndex) => {
-      const otherPart = other.parts[partIndex];
+function getRenderableMessageSignature(message: UIMessage) {
+  const renderFields = message as UIMessage & {
+    attachments?: unknown;
+    canceledAt?: unknown;
+    depth?: unknown;
+    error?: unknown;
+    metadata?: unknown;
+    model?: unknown;
+    mutation?: unknown;
+    parentId?: unknown;
+    siblingIndex?: unknown;
+    status?: unknown;
+    thinkingLevel?: unknown;
+  };
 
-      if (part.type !== otherPart?.type) {
-        return false;
-      }
-
-      if ("text" in part || "text" in otherPart) {
-        return (
-          "text" in part && "text" in otherPart && part.text === otherPart.text
-        );
-      }
-
-      return true;
-    });
+  return JSON.stringify({
+    parts: message.parts,
+    attachments: renderFields.attachments,
+    canceledAt: renderFields.canceledAt,
+    depth: renderFields.depth,
+    error: renderFields.error,
+    metadata: renderFields.metadata,
+    model: renderFields.model,
+    mutation: renderFields.mutation,
+    parentId: renderFields.parentId,
+    siblingIndex: renderFields.siblingIndex,
+    status: renderFields.status,
+    thinkingLevel: renderFields.thinkingLevel,
   });
 }
 

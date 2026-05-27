@@ -85,7 +85,7 @@ export const getAdminDashboardAccess = query({
   },
 });
 
-export const getCurrentUserPolarInfo = query({
+export const getCurrentUserBillingInfo = query({
   handler: async (ctx) => {
     const user = await authComponent.getAnyUserById(ctx, ctx.userId);
     if (!user?.email) {
@@ -95,6 +95,7 @@ export const getCurrentUserPolarInfo = query({
     return {
       userId: ctx.userId,
       email: user.email,
+      name: typeof user.name === "string" ? user.name : undefined,
     };
   },
 });

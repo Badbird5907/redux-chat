@@ -11,6 +11,7 @@ import GoogleIcon from "@redux/ui/icons/google";
 import { authClient } from "@/lib/auth/client";
 
 type SocialOAuthSectionProps = {
+  callbackURL: string;
   githubButtonLabel: string;
   googleButtonLabel: string;
   showDivider?: boolean;
@@ -19,6 +20,7 @@ type SocialOAuthSectionProps = {
 type ProviderId = "github" | "google";
 
 export function SocialOAuthSection({
+  callbackURL,
   githubButtonLabel,
   googleButtonLabel,
   showDivider = true,
@@ -35,7 +37,7 @@ export function SocialOAuthSection({
     setLoadingProvider(provider);
     await authClient.signIn.social({
       provider,
-      callbackURL: "/",
+      callbackURL,
       fetchOptions: {
         onSuccess: () => {
           localStorage.setItem("last-used-provider", provider);

@@ -16,6 +16,7 @@ type AttachmentMutationCtx = GenericMutationCtx<DataModel> & {
 const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
 const ATTACHED_ATTACHMENT_TTL_MS =
   ATTACHED_ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
+const MAX_ATTACHMENTS_PER_MESSAGE = 15;
 
 export function createBackendSiloCore() {
   const env = backendEnv();
@@ -54,6 +55,25 @@ export async function attachDraftAttachmentsToMessage(
     .first();
   if (!message) {
     throw new ConvexError("Message not found");
+  }
+
+  const alreadyAttached = await ctx.db
+    .query("attachments")
+    .withIndex("by_messageId", (q) => q.eq("messageId", args.messageId))
+    .collect();
+  const alreadyAttachedIds = new Set(
+    alreadyAttached.map((attachment) => attachment.attachmentId),
+  );
+  const incomingUnique = new Set(
+    args.attachmentIds.filter(
+      (attachmentId) => !alreadyAttachedIds.has(attachmentId),
+    ),
+  );
+  if (
+    alreadyAttached.length + incomingUnique.size >
+    MAX_ATTACHMENTS_PER_MESSAGE
+  ) {
+    throw new ConvexError("Too many attachments for one message");
   }
 
   for (const attachmentId of args.attachmentIds) {
@@ -113,6 +133,7 @@ export const internal_createUploadedAttachment = backendMutation({
     isPublic: v.boolean(),
     serveImage: v.boolean(),
     expiresAt: v.optional(v.number()),
+    maxUserDraftAttachments: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -185,6 +206,22 @@ export const internal_createUploadedAttachment = backendMutation({
         lastActiveAt: now,
       });
       return { attachmentId: existing.attachmentId };
+    }
+
+    if (
+      args.maxUserDraftAttachments !== undefined &&
+      !isProjectFile &&
+      status === "draft"
+    ) {
+      const existingDrafts = await ctx.db
+        .query("attachments")
+        .withIndex("by_userId_status", (q) =>
+          q.eq("userId", args.userId).eq("status", "draft"),
+        )
+        .collect();
+      if (existingDrafts.length >= args.maxUserDraftAttachments) {
+        throw new ConvexError("Attachment limit reached");
+      }
     }
 
     await ctx.db.insert("attachments", {

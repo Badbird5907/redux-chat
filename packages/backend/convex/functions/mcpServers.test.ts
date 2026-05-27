@@ -90,7 +90,7 @@ describe("functions/mcpServers", () => {
 
     const { mcpServerId } = await t.mutation(api.functions.mcpServers.create, {
       name: "MCP",
-      url: "http://localhost:3000/mcp",
+      url: "https://example.com/mcp",
     });
 
     await t.mutation(api.functions.mcpServers.setEnabled, {

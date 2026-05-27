@@ -24,6 +24,7 @@ import { Input } from "@redux/ui/components/input";
 import { ReduxChatBrand } from "@/components/auth/redux-chat-brand";
 import { SocialOAuthSection } from "@/components/auth/social-oauth-section";
 import { authClient } from "@/lib/auth/client";
+import { sanitizeAuthRedirect } from "@/lib/auth/redirect";
 
 const signInSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -31,10 +32,16 @@ const signInSchema = z.object({
 });
 
 export const Route = createFileRoute("/auth/sign-in")({
-  beforeLoad: ({ context }) => {
+  validateSearch: (search): { next?: string } => {
+    if (typeof search.next !== "string") {
+      return {};
+    }
+    return { next: sanitizeAuthRedirect(search.next) };
+  },
+  beforeLoad: ({ context, search }) => {
     if (context.isAuthenticated) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: "/" });
+      throw redirect({ to: sanitizeAuthRedirect(search.next) });
     }
   },
   component: SignInPage,
@@ -42,6 +49,8 @@ export const Route = createFileRoute("/auth/sign-in")({
 
 function SignInPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const redirectTo = sanitizeAuthRedirect(next);
 
   const form = useForm({
     defaultValues: {
@@ -58,7 +67,7 @@ function SignInPage() {
         fetchOptions: {
           onSuccess: () => {
             localStorage.setItem("last-used-provider", "email");
-            void navigate({ to: "/" });
+            void navigate({ to: redirectTo });
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);
@@ -82,6 +91,7 @@ function SignInPage() {
           <SocialOAuthSection
             googleButtonLabel="Sign in with Google"
             githubButtonLabel="Sign in with GitHub"
+            callbackURL={redirectTo}
           />
 
           <form
@@ -152,7 +162,11 @@ function SignInPage() {
         <CardFooter className="justify-center">
           <div className="text-muted-foreground text-sm">
             Don&apos;t have an account?{" "}
-            <Link to="/auth/sign-up" className="text-primary hover:underline">
+            <Link
+              to="/auth/sign-up"
+              search={{ next: redirectTo }}
+              className="text-primary hover:underline"
+            >
               Sign up
             </Link>
           </div>

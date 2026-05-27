@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReasoningRouteImport } from './routes/reasoning'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -24,19 +25,23 @@ import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as RedeemCodeRouteImport } from './routes/redeem.$code'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminPromotionsIndexRouteImport } from './routes/admin/promotions/index'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
-import { Route as ApiWebhookPolarRouteImport } from './routes/api/webhook/polar'
-import { Route as ApiPolarCheckoutRouteImport } from './routes/api/polar/checkout'
+import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook/stripe'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
+import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/promotions.$promotionId'
+import { Route as AppShareShareIdRouteImport } from './routes/_app/share.$shareId'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
 import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
@@ -44,6 +49,11 @@ import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReasoningRoute = ReasoningRouteImport.update({
+  id: '/reasoning',
+  path: '/reasoning',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ComponentsRoute = ComponentsRouteImport.update({
@@ -115,6 +125,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
 } as any)
+const RedeemCodeRoute = RedeemCodeRouteImport.update({
+  id: '/redeem/$code',
+  path: '/redeem/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
@@ -145,6 +160,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPromotionsRoute = AdminPromotionsRouteImport.update({
+  id: '/promotions',
+  path: '/promotions',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
   id: '/api/chat/',
   path: '/api/chat/',
@@ -155,19 +175,19 @@ const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminUsersRoute,
 } as any)
+const AdminPromotionsIndexRoute = AdminPromotionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminPromotionsRoute,
+} as any)
 const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
   getParentRoute: () => AppRoute,
 } as any)
-const ApiWebhookPolarRoute = ApiWebhookPolarRouteImport.update({
-  id: '/api/webhook/polar',
-  path: '/api/webhook/polar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPolarCheckoutRoute = ApiPolarCheckoutRouteImport.update({
-  id: '/api/polar/checkout',
-  path: '/api/polar/checkout',
+const ApiWebhookStripeRoute = ApiWebhookStripeRouteImport.update({
+  id: '/api/webhook/stripe',
+  path: '/api/webhook/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -179,6 +199,17 @@ const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
   getParentRoute: () => AdminUsersRoute,
+} as any)
+const AdminPromotionsPromotionIdRoute =
+  AdminPromotionsPromotionIdRouteImport.update({
+    id: '/$promotionId',
+    path: '/$promotionId',
+    getParentRoute: () => AdminPromotionsRoute,
+  } as any)
+const AppShareShareIdRoute = AppShareShareIdRouteImport.update({
+  id: '/share/$shareId',
+  path: '/share/$shareId',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppProjectsIdRoute = AppProjectsIdRouteImport.update({
   id: '/projects/$id',
@@ -201,13 +232,16 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
@@ -219,11 +253,13 @@ export interface FileRoutesByFullPath {
   '/test/': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/share/$shareId': typeof AppShareShareIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
-  '/api/webhook/polar': typeof ApiWebhookPolarRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects/': typeof AppProjectsIndexRoute
+  '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -231,11 +267,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
@@ -248,11 +286,13 @@ export interface FileRoutesByTo {
   '/test': typeof TestIndexRoute
   '/chat/$id': typeof AppChatIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/share/$shareId': typeof AppShareShareIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
-  '/api/webhook/polar': typeof ApiWebhookPolarRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects': typeof AppProjectsIndexRoute
+  '/admin/promotions': typeof AdminPromotionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
@@ -263,13 +303,16 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
@@ -282,11 +325,13 @@ export interface FileRoutesById {
   '/test/': typeof TestIndexRoute
   '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
+  '/_app/share/$shareId': typeof AppShareShareIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/polar/checkout': typeof ApiPolarCheckoutRoute
-  '/api/webhook/polar': typeof ApiWebhookPolarRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/_app/projects/': typeof AppProjectsIndexRoute
+  '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -298,13 +343,16 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/components'
+    | '/reasoning'
     | '/settings'
+    | '/admin/promotions'
     | '/admin/users'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/hotkeys'
     | '/settings/instructions'
@@ -316,11 +364,13 @@ export interface FileRouteTypes {
     | '/test/'
     | '/chat/$id'
     | '/projects/$id'
+    | '/share/$shareId'
+    | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
-    | '/api/polar/checkout'
-    | '/api/webhook/polar'
+    | '/api/webhook/stripe'
     | '/projects/'
+    | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
     | '/api/chat/$id/stream/'
@@ -328,11 +378,13 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/components'
+    | '/reasoning'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/hotkeys'
     | '/settings/instructions'
@@ -345,11 +397,13 @@ export interface FileRouteTypes {
     | '/test'
     | '/chat/$id'
     | '/projects/$id'
+    | '/share/$shareId'
+    | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
-    | '/api/polar/checkout'
-    | '/api/webhook/polar'
+    | '/api/webhook/stripe'
     | '/projects'
+    | '/admin/promotions'
     | '/admin/users'
     | '/api/chat'
     | '/api/chat/$id/stream'
@@ -359,13 +413,16 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/components'
+    | '/reasoning'
     | '/settings'
+    | '/admin/promotions'
     | '/admin/users'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/hotkeys'
     | '/settings/instructions'
@@ -378,11 +435,13 @@ export interface FileRouteTypes {
     | '/test/'
     | '/_app/chat/$id'
     | '/_app/projects/$id'
+    | '/_app/share/$shareId'
+    | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
-    | '/api/polar/checkout'
-    | '/api/webhook/polar'
+    | '/api/webhook/stripe'
     | '/_app/projects/'
+    | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
     | '/api/chat/$id/stream/'
@@ -393,13 +452,14 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
+  ReasoningRoute: typeof ReasoningRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiUploadRoute: typeof ApiUploadRoute
+  RedeemCodeRoute: typeof RedeemCodeRoute
   LogosIndexRoute: typeof LogosIndexRoute
   TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiPolarCheckoutRoute: typeof ApiPolarCheckoutRoute
-  ApiWebhookPolarRoute: typeof ApiWebhookPolarRoute
+  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
@@ -411,6 +471,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reasoning': {
+      id: '/reasoning'
+      path: '/reasoning'
+      fullPath: '/reasoning'
+      preLoaderRoute: typeof ReasoningRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/components': {
@@ -511,6 +578,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/redeem/$code': {
+      id: '/redeem/$code'
+      path: '/redeem/$code'
+      fullPath: '/redeem/$code'
+      preLoaderRoute: typeof RedeemCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/sign-up': {
       id: '/auth/sign-up'
       path: '/sign-up'
@@ -553,6 +627,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/promotions': {
+      id: '/admin/promotions'
+      path: '/promotions'
+      fullPath: '/admin/promotions'
+      preLoaderRoute: typeof AdminPromotionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/chat/': {
       id: '/api/chat/'
       path: '/api/chat'
@@ -567,6 +648,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminUsersRoute
     }
+    '/admin/promotions/': {
+      id: '/admin/promotions/'
+      path: '/'
+      fullPath: '/admin/promotions/'
+      preLoaderRoute: typeof AdminPromotionsIndexRouteImport
+      parentRoute: typeof AdminPromotionsRoute
+    }
     '/_app/projects/': {
       id: '/_app/projects/'
       path: '/projects'
@@ -574,18 +662,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/api/webhook/polar': {
-      id: '/api/webhook/polar'
-      path: '/api/webhook/polar'
-      fullPath: '/api/webhook/polar'
-      preLoaderRoute: typeof ApiWebhookPolarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/polar/checkout': {
-      id: '/api/polar/checkout'
-      path: '/api/polar/checkout'
-      fullPath: '/api/polar/checkout'
-      preLoaderRoute: typeof ApiPolarCheckoutRouteImport
+    '/api/webhook/stripe': {
+      id: '/api/webhook/stripe'
+      path: '/api/webhook/stripe'
+      fullPath: '/api/webhook/stripe'
+      preLoaderRoute: typeof ApiWebhookStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -601,6 +682,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/users/$userId'
       preLoaderRoute: typeof AdminUsersUserIdRouteImport
       parentRoute: typeof AdminUsersRoute
+    }
+    '/admin/promotions/$promotionId': {
+      id: '/admin/promotions/$promotionId'
+      path: '/$promotionId'
+      fullPath: '/admin/promotions/$promotionId'
+      preLoaderRoute: typeof AdminPromotionsPromotionIdRouteImport
+      parentRoute: typeof AdminPromotionsRoute
+    }
+    '/_app/share/$shareId': {
+      id: '/_app/share/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof AppShareShareIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/projects/$id': {
       id: '/_app/projects/$id'
@@ -630,6 +725,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppChatIdRoute: typeof AppChatIdRoute
   AppProjectsIdRoute: typeof AppProjectsIdRoute
+  AppShareShareIdRoute: typeof AppShareShareIdRoute
   AppProjectsIndexRoute: typeof AppProjectsIndexRoute
 }
 
@@ -637,10 +733,25 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppChatIdRoute: AppChatIdRoute,
   AppProjectsIdRoute: AppProjectsIdRoute,
+  AppShareShareIdRoute: AppShareShareIdRoute,
   AppProjectsIndexRoute: AppProjectsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+interface AdminPromotionsRouteChildren {
+  AdminPromotionsPromotionIdRoute: typeof AdminPromotionsPromotionIdRoute
+  AdminPromotionsIndexRoute: typeof AdminPromotionsIndexRoute
+}
+
+const AdminPromotionsRouteChildren: AdminPromotionsRouteChildren = {
+  AdminPromotionsPromotionIdRoute: AdminPromotionsPromotionIdRoute,
+  AdminPromotionsIndexRoute: AdminPromotionsIndexRoute,
+}
+
+const AdminPromotionsRouteWithChildren = AdminPromotionsRoute._addFileChildren(
+  AdminPromotionsRouteChildren,
+)
 
 interface AdminUsersRouteChildren {
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
@@ -657,11 +768,13 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminPromotionsRoute: typeof AdminPromotionsRouteWithChildren
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminPromotionsRoute: AdminPromotionsRouteWithChildren,
   AdminUsersRoute: AdminUsersRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -711,13 +824,14 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
+  ReasoningRoute: ReasoningRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ApiUploadRoute: ApiUploadRoute,
+  RedeemCodeRoute: RedeemCodeRoute,
   LogosIndexRoute: LogosIndexRoute,
   TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiPolarCheckoutRoute: ApiPolarCheckoutRoute,
-  ApiWebhookPolarRoute: ApiWebhookPolarRoute,
+  ApiWebhookStripeRoute: ApiWebhookStripeRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }

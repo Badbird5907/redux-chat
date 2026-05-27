@@ -1,0 +1,75 @@
+import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
+import type { BashUploadManifestEntry } from "@/server/chat-attachments/bash-uploads";
+import { createBashTool } from "bash-tool";
+import { Bash, InMemoryFs } from "just-bash";
+
+import {
+  BASH_UPLOADS_DIR,
+  BASH_UPLOADS_MANIFEST_PATH,
+  buildBashUploadManifest,
+} from "@/server/chat-attachments/bash-uploads";
+
+const BASH_WORKSPACE_DIR = "/workspace";
+
+interface BashWorkspaceRuntimeOptions {
+  attachments: ChatToolAttachment[];
+}
+
+export async function createBashWorkspaceRuntime({
+  attachments,
+}: BashWorkspaceRuntimeOptions) {
+  const manifest = buildBashUploadManifest(attachments);
+  const fs = new InMemoryFs({
+    [BASH_UPLOADS_MANIFEST_PATH]: JSON.stringify(manifest, null, 2),
+  });
+  await fs.mkdir(BASH_WORKSPACE_DIR, { recursive: true });
+  await fs.mkdir(BASH_UPLOADS_DIR, { recursive: true });
+  await writeUploadsToFilesystem(fs, manifest, attachments);
+
+  const bash = new Bash({
+    cwd: BASH_WORKSPACE_DIR,
+    fs,
+    network: undefined,
+    python: false,
+  });
+
+  const toolkit = await createBashTool({
+    sandbox: bash,
+    destination: BASH_WORKSPACE_DIR,
+    extraInstructions: [
+      "Use this lightweight Bash workspace for shell commands and filesystem tasks.",
+      `Uploaded file metadata is available at ${BASH_UPLOADS_MANIFEST_PATH}.`,
+      `Uploaded files are already available at their listed path and idPath under ${BASH_UPLOADS_DIR}.`,
+      "Network access is disabled; use other available tools only when the user explicitly needs that capability.",
+    ].join(" "),
+    maxFiles: 0,
+  });
+
+  return {
+    tools: toolkit.tools,
+    cleanup: () => Promise.resolve(),
+  };
+}
+
+async function writeUploadsToFilesystem(
+  fs: InMemoryFs,
+  manifest: BashUploadManifestEntry[],
+  attachments: ChatToolAttachment[],
+) {
+  const attachmentById = new Map(
+    attachments.map((attachment) => [attachment.attachmentId, attachment]),
+  );
+
+  for (const item of manifest) {
+    const attachment = attachmentById.get(item.attachmentId);
+    if (!attachment) {
+      continue;
+    }
+
+    const content = await attachment.download();
+    await fs.writeFile(item.path, content);
+    if (item.idPath !== item.path) {
+      await fs.writeFile(item.idPath, content);
+    }
+  }
+}

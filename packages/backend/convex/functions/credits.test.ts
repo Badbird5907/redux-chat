@@ -3,12 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   debitCreditsTx,
+  ensureFreeMonthlyCreditsAfterPaidCancellationTx,
   getCreditBalanceForUser,
   grantCreditsTx,
+  paginateSortedCreditGrantHistory,
   revokeCreditGrantForUserTx,
   revokeFreeMonthlyCreditsTx,
   revokeSubscriptionMonthlyCreditsTx,
+  sortCreditGrantHistory,
   sweepExpiredGrantsTx,
+  upsertSubscriptionMonthlyCreditsTx,
 } from "../credits";
 import schema from "../schema";
 import { modules } from "../test.setup";
@@ -32,6 +36,33 @@ describe("credit ledger helpers", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.useRealTimers();
+  });
+
+  it("orders grant history with active grants first, newest grants first", () => {
+    const sorted = sortCreditGrantHistory([
+      { grantId: "revoked-new", grantedAt: NOW + 3000, status: "revoked" },
+      { grantId: "active-old", grantedAt: NOW + 1000, status: "active" },
+      { grantId: "exhausted", grantedAt: NOW + 4000, status: "exhausted" },
+      { grantId: "active-new", grantedAt: NOW + 2000, status: "active" },
+    ]);
+
+    expect(sorted.map((grant) => grant.grantId)).toEqual([
+      "active-new",
+      "active-old",
+      "exhausted",
+      "revoked-new",
+    ]);
+
+    expect(
+      paginateSortedCreditGrantHistory(sorted, {
+        cursor: "1",
+        numItems: 2,
+      }),
+    ).toMatchObject({
+      page: [{ grantId: "active-old" }, { grantId: "exhausted" }],
+      isDone: false,
+      continueCursor: "3",
+    });
   });
 
   it("grants are idempotent on (source, sourceId)", async () => {
@@ -62,6 +93,50 @@ describe("credit ledger helpers", () => {
     expect(second.grantId).toBe(first.grantId);
   });
 
+  it("adjusts same-period subscription allowance when a paid plan upgrades", async () => {
+    const t = convexTest(schema, modules);
+    const sourceId = "sub-1:1700000000000";
+
+    await t.run(async (ctx) => {
+      await upsertSubscriptionMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 1_000_000,
+        sourceId,
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+        metadata: { subscriptionId: "sub-1", tier: "plus" },
+      });
+      await debitCreditsTx(ctx, {
+        userId: USER_ID,
+        requestKey: "msg-uses-plus",
+        amount: 250_000,
+        overageAllowed: false,
+      });
+    });
+
+    const adjusted = await t.run(async (ctx) =>
+      upsertSubscriptionMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 3_500_000,
+        sourceId,
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+        metadata: { subscriptionId: "sub-1", tier: "pro" },
+      }),
+    );
+
+    expect(adjusted.created).toBe(false);
+    expect(adjusted.adjusted).toBe(true);
+    expect(adjusted.previousAmount).toBe(1_000_000);
+    expect(adjusted.previousRemaining).toBe(750_000);
+
+    const balance = await t.run(async (ctx) =>
+      getCreditBalanceForUser(ctx, USER_ID),
+    );
+    expect(balance.bucketBalances.monthly).toBe(3_250_000);
+    expect(balance.spendableCredits).toBe(3_250_000);
+  });
+
   it("debits allocate gifted → monthly → paid", async () => {
     const t = convexTest(schema, modules);
 
@@ -70,14 +145,14 @@ describe("credit ledger helpers", () => {
         userId: USER_ID,
         bucket: "paid",
         amount: 100,
-        source: "polar_one_time_purchase",
+        source: "stripe_one_time_purchase",
         sourceId: "order-1",
       });
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "monthly",
         amount: 200,
-        source: "polar_subscription_renewal",
+        source: "stripe_subscription_renewal",
         sourceId: "sub-1:0",
       });
       await grantCreditsTx(ctx, {
@@ -195,7 +270,7 @@ describe("credit ledger helpers", () => {
         userId: USER_ID,
         bucket: "monthly",
         amount: 50,
-        source: "polar_subscription_renewal",
+        source: "stripe_subscription_renewal",
         sourceId: "sub-1:0",
       });
     });
@@ -226,7 +301,7 @@ describe("credit ledger helpers", () => {
         userId: USER_ID,
         bucket: "monthly",
         amount: 100,
-        source: "polar_subscription_renewal",
+        source: "stripe_subscription_renewal",
         sourceId: "sub-1:0",
         expiresAt: NOW - 1,
       });
@@ -258,14 +333,14 @@ describe("credit ledger helpers", () => {
         userId: USER_ID,
         bucket: "monthly",
         amount: 1_000_000,
-        source: "polar_subscription_renewal",
+        source: "stripe_subscription_renewal",
         sourceId: "sub_paid_1:1700000000000",
         metadata: { subscriptionId: "sub_paid_1" },
       });
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "monthly",
-        amount: 25_000,
+        amount: 100_000,
         source: "free_monthly_reset",
         sourceId: `${USER_ID}:2024-01`,
       });
@@ -292,10 +367,10 @@ describe("credit ledger helpers", () => {
     );
     expect(balance.bucketBalances).toEqual({
       gifted: 500,
-      monthly: 25_000,
+      monthly: 100_000,
       paid: 0,
     });
-    expect(balance.spendableCredits).toBe(25_500);
+    expect(balance.spendableCredits).toBe(100_500);
   });
 
   it("paid upgrade revokes free-monthly grants only", async () => {
@@ -305,22 +380,22 @@ describe("credit ledger helpers", () => {
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "monthly",
-        amount: 25_000,
+        amount: 100_000,
         source: "free_monthly_reset",
         sourceId: `${USER_ID}:2024-01`,
       });
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "monthly",
-        amount: 250_000,
-        source: "polar_subscription_renewal",
+        amount: 1_000_000,
+        source: "stripe_subscription_renewal",
         sourceId: "sub_plus_1:1700000000000",
       });
       await grantCreditsTx(ctx, {
         userId: USER_ID,
         bucket: "paid",
         amount: 1_000,
-        source: "polar_one_time_purchase",
+        source: "stripe_one_time_purchase",
         sourceId: "order-keep",
       });
     });
@@ -338,10 +413,73 @@ describe("credit ledger helpers", () => {
     );
     expect(balance.bucketBalances).toEqual({
       gifted: 0,
-      monthly: 250_000,
+      monthly: 1_000_000,
       paid: 1_000,
     });
-    expect(balance.spendableCredits).toBe(251_000);
+    expect(balance.spendableCredits).toBe(1_001_000);
+  });
+
+  it("paid cancellation reactivates a revoked free monthly grant for the current month", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await grantCreditsTx(ctx, {
+        userId: USER_ID,
+        bucket: "monthly",
+        amount: 100_000,
+        source: "free_monthly_reset",
+        sourceId: `${USER_ID}:2023-11`,
+        periodKey: "2023-11",
+      });
+      await revokeFreeMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        reason: "upgraded_to_paid",
+      });
+    });
+
+    const restored = await t.run(async (ctx) =>
+      ensureFreeMonthlyCreditsAfterPaidCancellationTx(ctx, {
+        userId: USER_ID,
+        reason: "customer.subscription.deleted",
+      }),
+    );
+
+    expect(restored).toMatchObject({
+      created: false,
+      reactivated: true,
+      amount: 100_000,
+      bucket: "monthly",
+    });
+
+    const balance = await t.run(async (ctx) =>
+      getCreditBalanceForUser(ctx, USER_ID),
+    );
+    expect(balance.bucketBalances.monthly).toBe(100_000);
+    expect(balance.spendableCredits).toBe(100_000);
+  });
+
+  it("paid cancellation creates a current free monthly grant when none exists", async () => {
+    const t = convexTest(schema, modules);
+
+    const created = await t.run(async (ctx) =>
+      ensureFreeMonthlyCreditsAfterPaidCancellationTx(ctx, {
+        userId: USER_ID,
+        reason: "customer.subscription.deleted",
+      }),
+    );
+
+    expect(created).toMatchObject({
+      created: true,
+      reactivated: false,
+      amount: 100_000,
+      bucket: "monthly",
+    });
+
+    const balance = await t.run(async (ctx) =>
+      getCreditBalanceForUser(ctx, USER_ID),
+    );
+    expect(balance.bucketBalances.monthly).toBe(100_000);
+    expect(balance.spendableCredits).toBe(100_000);
   });
 
   it("admin single-grant revoke removes remaining balance", async () => {

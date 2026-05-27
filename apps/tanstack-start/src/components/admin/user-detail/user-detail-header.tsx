@@ -149,9 +149,9 @@ export function AdminUserDetailHeader({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground/80 hover:text-foreground inline-flex max-w-full items-center gap-1 text-xs underline-offset-4 hover:underline"
-                aria-label="Open Polar customer (opens in a new tab)"
+                aria-label="Open Stripe customer (opens in a new tab)"
               >
-                <span className="truncate">Polar customer</span>
+                <span className="truncate">Stripe customer</span>
                 <ExternalLink className="size-3 shrink-0" aria-hidden />
               </a>
             </>

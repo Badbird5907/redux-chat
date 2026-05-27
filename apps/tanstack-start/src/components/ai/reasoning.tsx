@@ -156,10 +156,26 @@ function getDefaultReasoningLabel(isStreaming: boolean, duration?: number) {
     return "Thinking...";
   }
 
-  if (duration && duration >= 1000) {
-    const seconds = Math.max(1, Math.round(duration / 1000));
+  if (duration === undefined) {
+    return "Thought";
+  }
+
+  const seconds = Math.max(0, Math.round(duration / 1000));
+
+  if (seconds < 1) {
+    return "Thought for less than a second";
+  }
+
+  if (seconds < 60) {
     return `Thought for ${seconds} second${seconds === 1 ? "" : "s"}`;
   }
-  return "Thought for a second";
-  // return "Thought process";
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (remainingSeconds === 0) {
+    return `Thought for ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  }
+
+  return `Thought for ${minutes} minute${minutes === 1 ? "" : "s"} ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"}`;
 }

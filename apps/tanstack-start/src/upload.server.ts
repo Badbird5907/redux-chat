@@ -125,6 +125,8 @@ export const fileRouter = {
         expiresAt: metadata.expiresAt
           ? new Date(metadata.expiresAt).getTime()
           : undefined,
+        maxUserDraftAttachments:
+          metadata.tier === "free" ? FREE_PLAN_MAX_ATTACHMENTS : undefined,
       });
 
       return {
@@ -191,6 +193,7 @@ export const fileRouter = {
         chatProjectId: metadata.chatProjectId,
         fileName: file.fileName,
         mimeType: file.mimeType,
+        size: file.size,
         accessKey: file.accessKey,
         isPublic: true,
         serveImage,

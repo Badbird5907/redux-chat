@@ -330,12 +330,7 @@ export function AdminUserActivityTab({
               }}
             >
               <SelectTrigger id="activity-status" className="w-full">
-                <SelectValue>
-                  {(value: string) =>
-                    STATUS_OPTIONS.find((o) => o.value === value)?.label ??
-                    value
-                  }
-                </SelectValue>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((option) => (
@@ -357,12 +352,7 @@ export function AdminUserActivityTab({
               }}
             >
               <SelectTrigger id="activity-severity" className="w-full">
-                <SelectValue>
-                  {(value: string) =>
-                    SEVERITY_OPTIONS.find((o) => o.value === value)?.label ??
-                    value
-                  }
-                </SelectValue>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {SEVERITY_OPTIONS.map((option) => (

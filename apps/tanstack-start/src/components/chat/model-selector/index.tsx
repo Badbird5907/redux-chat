@@ -74,7 +74,7 @@ export function ModelSelector({
 
   if (isMobile) {
     return (
-      <Sheet open={state.open} onOpenChange={state.handleOpenChange}>
+      <Sheet open={state.open} onOpenChange={state.handleUserOpenChange}>
         <SheetTrigger
           render={
             <Button
@@ -110,7 +110,7 @@ export function ModelSelector({
   }
 
   return (
-    <Popover open={state.open} onOpenChange={state.handleOpenChange}>
+    <Popover open={state.open} onOpenChange={state.handleUserOpenChange}>
       <PopoverTrigger
         render={
           <Button
@@ -132,7 +132,7 @@ export function ModelSelector({
         onKeyDownCapture={handleMenuKeyDownCapture}
         className={cn(
           pickerSurfaceClassName,
-          "max-h-[min(42rem,78vh)] min-h-[min(30rem,58vh)] w-[min(440px,calc(100vw-1.5rem))] gap-0",
+          "h-[min(30rem,58vh)] w-[min(440px,calc(100vw-1.5rem))] gap-0",
           "data-[side=top]:slide-in-from-bottom-2",
         )}
       >

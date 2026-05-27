@@ -10,6 +10,8 @@ import type {
 import {
   allocateDebit,
   CREDIT_BUCKETS,
+  DEFAULT_BILLING_CONFIG,
+  getPlanConfig,
   summarizeBalances,
 } from "@redux/shared";
 
@@ -122,6 +124,34 @@ export async function getCreditBalanceForUser(
   };
 }
 
+export function sortCreditGrantHistory<
+  T extends { grantId: string; grantedAt: number; status: string },
+>(grants: T[]): T[] {
+  return [...grants].sort((a, b) => {
+    const aActive = a.status === "active";
+    const bActive = b.status === "active";
+    if (aActive !== bActive) return aActive ? -1 : 1;
+    if (a.grantedAt !== b.grantedAt) return b.grantedAt - a.grantedAt;
+    return a.grantId.localeCompare(b.grantId);
+  });
+}
+
+export function paginateSortedCreditGrantHistory<T>(
+  grants: T[],
+  paginationOpts: { cursor: string | null; numItems: number },
+) {
+  const start = paginationOpts.cursor ? Number(paginationOpts.cursor) : 0;
+  const safeStart = Number.isInteger(start) && start >= 0 ? start : 0;
+  const page = grants.slice(safeStart, safeStart + paginationOpts.numItems);
+  const next = safeStart + page.length;
+
+  return {
+    page,
+    isDone: next >= grants.length,
+    continueCursor: String(next),
+  };
+}
+
 export interface GrantCreditsArgs {
   userId: string;
   bucket: CreditBucket;
@@ -139,6 +169,21 @@ export interface GrantCreditsResult {
   amount: number;
   bucket: CreditBucket;
 }
+
+export interface UpsertSubscriptionMonthlyCreditsArgs {
+  userId: string;
+  amount: number;
+  sourceId: string;
+  periodKey?: string;
+  expiresAt?: number;
+  metadata?: unknown;
+}
+
+export type UpsertSubscriptionMonthlyCreditsResult = GrantCreditsResult & {
+  adjusted: boolean;
+  previousAmount?: number;
+  previousRemaining?: number;
+};
 
 /**
  * Idempotent grant insertion. If a row with the same `(source, sourceId)`
@@ -189,6 +234,108 @@ export async function grantCreditsTx(
   });
 
   return { grantId, created: true, amount: args.amount, bucket: args.bucket };
+}
+
+/**
+ * Subscription allowances are idempotent by subscription period, but the plan
+ * amount can change inside the same period (Plus -> Pro). In that case, keep
+ * the consumed credits consumed and adjust the active lot to the new allowance.
+ */
+export async function upsertSubscriptionMonthlyCreditsTx(
+  ctx: LedgerMutationCtx,
+  args: UpsertSubscriptionMonthlyCreditsArgs,
+): Promise<UpsertSubscriptionMonthlyCreditsResult> {
+  if (args.amount <= 0) {
+    throw new Error("Grant amount must be positive");
+  }
+
+  const existing = await ctx.db
+    .query("creditGrants")
+    .withIndex("by_source_sourceId", (q) =>
+      q
+        .eq("source", "stripe_subscription_renewal")
+        .eq("sourceId", args.sourceId),
+    )
+    .first();
+
+  if (!existing) {
+    const created = await grantCreditsTx(ctx, {
+      userId: args.userId,
+      bucket: "monthly",
+      amount: args.amount,
+      source: "stripe_subscription_renewal",
+      sourceId: args.sourceId,
+      periodKey: args.periodKey,
+      expiresAt: args.expiresAt,
+      metadata: args.metadata,
+    });
+    return { ...created, adjusted: false };
+  }
+
+  const existingBucket = normalizeGrantBucket(existing.bucket) ?? "monthly";
+  if (existing.userId !== args.userId || existingBucket !== "monthly") {
+    return {
+      grantId: existing.grantId,
+      created: false,
+      adjusted: false,
+      amount: existing.amount,
+      bucket: existingBucket,
+    };
+  }
+
+  const consumed = Math.max(0, existing.amount - existing.remaining);
+  const nextRemaining = Math.max(0, args.amount - consumed);
+  const shouldAdjust =
+    existing.amount !== args.amount ||
+    existing.remaining !== nextRemaining ||
+    existing.status !== "active" ||
+    existing.bucket !== "monthly" ||
+    existing.periodKey !== args.periodKey ||
+    existing.expiresAt !== args.expiresAt;
+
+  if (!shouldAdjust) {
+    return {
+      grantId: existing.grantId,
+      created: false,
+      adjusted: false,
+      amount: existing.amount,
+      bucket: existingBucket,
+    };
+  }
+
+  const metadata =
+    existing.metadata && typeof existing.metadata === "object"
+      ? (existing.metadata as Record<string, unknown>)
+      : {};
+
+  await ctx.db.patch(existing._id, {
+    amount: args.amount,
+    remaining: nextRemaining,
+    status: nextRemaining > 0 ? "active" : "exhausted",
+    bucket: "monthly",
+    periodKey: args.periodKey,
+    expiresAt: args.expiresAt,
+    updatedAt: Date.now(),
+    metadata: {
+      ...metadata,
+      ...(args.metadata && typeof args.metadata === "object"
+        ? (args.metadata as Record<string, unknown>)
+        : {}),
+      adjustedFromAmount: existing.amount,
+      adjustedFromRemaining: existing.remaining,
+      adjustedAt: Date.now(),
+    },
+  });
+
+  return {
+    grantId: existing.grantId,
+    created: false,
+    adjusted: true,
+    amount: args.amount,
+    bucket: "monthly",
+    previousAmount: existing.amount,
+    previousRemaining: existing.remaining,
+  };
 }
 
 export interface DebitCreditsArgs {
@@ -434,7 +581,7 @@ function extractSubscriptionIdFromGrantRow(row: {
 /**
  * Revoke active recurring subscription grants, used when a paid subscription
  * is force-canceled immediately. By default it targets all active grants with
- * source `polar_subscription_renewal` for the user; when `subscriptionId` is
+ * source `stripe_subscription_renewal` for the user; when `subscriptionId` is
  * provided it narrows revocation to that subscription only.
  */
 export async function revokeSubscriptionMonthlyCreditsTx(
@@ -452,7 +599,7 @@ export async function revokeSubscriptionMonthlyCreditsTx(
   let revoked = 0;
 
   for (const row of rows) {
-    if (row.source !== "polar_subscription_renewal") {
+    if (row.source !== "stripe_subscription_renewal") {
       continue;
     }
     if (row.bucket !== "monthly" && row.bucket !== "free") {
@@ -499,6 +646,14 @@ export interface RevokeFreeMonthlyCreditsArgs {
   reason?: string;
 }
 
+export type EnsureFreeMonthlyCreditsAfterPaidCancellationResult = {
+  grantId: string;
+  created: boolean;
+  reactivated: boolean;
+  amount: number;
+  bucket: CreditBucket;
+};
+
 /**
  * Revoke active grants created by the free-tier monthly reset source. This is
  * used when a user upgrades to a paid plan so free monthly allowance does not
@@ -533,10 +688,12 @@ export async function revokeFreeMonthlyCreditsTx(
       row.metadata && typeof row.metadata === "object"
         ? {
             ...(row.metadata as Record<string, unknown>),
+            remainingAtRevocation: row.remaining,
             revokedReason: args.reason ?? "upgraded_to_paid",
             revokedAt: nowMs,
           }
         : {
+            remainingAtRevocation: row.remaining,
             revokedReason: args.reason ?? "upgraded_to_paid",
             revokedAt: nowMs,
           };
@@ -551,6 +708,105 @@ export async function revokeFreeMonthlyCreditsTx(
   }
 
   return { revoked };
+}
+
+export async function ensureFreeMonthlyCreditsAfterPaidCancellationTx(
+  ctx: LedgerMutationCtx,
+  args: { userId: string; reason?: string },
+): Promise<EnsureFreeMonthlyCreditsAfterPaidCancellationResult> {
+  const nowMs = Date.now();
+  const periodKey = getMonthlyPeriodKey(nowMs);
+  const sourceId = `${args.userId}:${periodKey}`;
+  const expiresAt = getMonthlyExpiresAt(nowMs);
+  const plan = getPlanConfig("free", DEFAULT_BILLING_CONFIG);
+
+  const existingRows = await ctx.db
+    .query("creditGrants")
+    .withIndex("by_source_sourceId", (q) =>
+      q.eq("source", "free_monthly_reset").eq("sourceId", sourceId),
+    )
+    .collect();
+
+  const active = existingRows.find(
+    (row) =>
+      row.userId === args.userId &&
+      row.status === "active" &&
+      row.remaining > 0 &&
+      (row.expiresAt === undefined || row.expiresAt > nowMs),
+  );
+  if (active) {
+    return {
+      grantId: active.grantId,
+      created: false,
+      reactivated: false,
+      amount: active.amount,
+      bucket: normalizeGrantBucket(active.bucket) ?? "monthly",
+    };
+  }
+
+  const revoked = existingRows.find(
+    (row) =>
+      row.userId === args.userId &&
+      row.status === "revoked" &&
+      (row.bucket === "monthly" || row.bucket === "free"),
+  );
+  if (revoked) {
+    const metadata =
+      revoked.metadata && typeof revoked.metadata === "object"
+        ? (revoked.metadata as Record<string, unknown>)
+        : {};
+    const remainingAtRevocation = metadata.remainingAtRevocation;
+    const restoredRemaining =
+      typeof remainingAtRevocation === "number" &&
+      Number.isFinite(remainingAtRevocation) &&
+      remainingAtRevocation > 0
+        ? remainingAtRevocation
+        : revoked.amount;
+
+    const currentIncludedMonthlyCredits = plan.includedMonthlyCredits;
+    const restoredAmount = Math.min(
+      currentIncludedMonthlyCredits,
+      restoredRemaining,
+    );
+
+    await ctx.db.patch(revoked._id, {
+      status: "active",
+      amount: currentIncludedMonthlyCredits,
+      remaining: restoredAmount,
+      bucket: "monthly",
+      periodKey,
+      expiresAt,
+      updatedAt: nowMs,
+      metadata: {
+        ...metadata,
+        reactivatedReason: args.reason ?? "paid_subscription_canceled",
+        reactivatedAt: nowMs,
+      },
+    });
+
+    return {
+      grantId: revoked.grantId,
+      created: false,
+      reactivated: true,
+      amount: currentIncludedMonthlyCredits,
+      bucket: "monthly",
+    };
+  }
+
+  const created = await grantCreditsTx(ctx, {
+    userId: args.userId,
+    bucket: "monthly",
+    amount: plan.includedMonthlyCredits,
+    source: "free_monthly_reset",
+    sourceId,
+    periodKey,
+    expiresAt,
+    metadata: {
+      reason: args.reason ?? "paid_subscription_canceled",
+    },
+  });
+
+  return { ...created, reactivated: false };
 }
 
 export interface RevokeCreditGrantForUserArgs {

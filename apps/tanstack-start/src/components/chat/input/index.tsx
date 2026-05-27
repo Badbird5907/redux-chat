@@ -10,10 +10,12 @@ import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
+import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   classifyChatAttachment,
   getChatModelConfig,
+  getImageGenerationToolModels,
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "@redux/shared/models";
@@ -22,8 +24,10 @@ import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { ChatInputProps, PreviewableFile } from "./types";
+import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import { FOCUS_COMPOSER_EVENT } from "@/components/chat/focus-composer";
 import { useChatDraft } from "@/components/chat/use-chat-draft";
 import {
   snapshotAttachmentsForQueue,
@@ -85,6 +89,7 @@ export function ChatInput({
   const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [addCreditsOpen, setAddCreditsOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -100,6 +105,8 @@ export function ChatInput({
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
+  const isPaidPlan =
+    billingState?.tier === "plus" || billingState?.tier === "pro";
   const attachmentLimits =
     billingState?.tier === "free"
       ? {
@@ -163,6 +170,41 @@ export function ChatInput({
   }, [editMessage]);
 
   useEffect(() => {
+    if (!draftReady || typeof document === "undefined") {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    const canTakeInitialFocus =
+      activeElement === null ||
+      activeElement === document.body ||
+      activeElement === document.documentElement;
+
+    if (!canTakeInitialFocus) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, [draftReady]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onFocusComposer = () => {
+      window.requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
+    };
+
+    window.addEventListener(FOCUS_COMPOSER_EVENT, onFocusComposer);
+    return () => {
+      window.removeEventListener(FOCUS_COMPOSER_EVENT, onFocusComposer);
+    };
+  }, []);
+
+  useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       if (isExpanded) {
@@ -208,9 +250,24 @@ export function ChatInput({
 
   const selectedModel = settings.model;
   const isSearchEnabled = isToolEnabled(settings.tools, "search");
+  const isBashWorkspaceEnabled = isToolEnabled(settings.tools, "bashWorkspace");
   const isAnalysisWorkspaceEnabled = isToolEnabled(
     settings.tools,
     "analysisWorkspace",
+  );
+  const imageGenerationModels = useMemo(
+    () =>
+      getImageGenerationToolModels().map((model) => ({
+        id: model.id,
+        name: model.name,
+      })),
+    [],
+  );
+  const selectedImageGenerationModelId =
+    settings.tools.imageGeneration?.modelId ?? imageGenerationModels[0]?.id;
+  const isImageGenerationEnabled = isToolEnabled(
+    settings.tools,
+    "imageGeneration",
   );
   const enabledMcpServerIds = useMemo(
     () => settings.tools.mcpServers?.serverIds ?? [],
@@ -223,6 +280,15 @@ export function ChatInput({
       : undefined) ?? defaultInstruction;
   const currentModelConfig = getChatModelConfig(selectedModel);
   const currentModelRoute = resolveModelRoute(selectedModel);
+  const availableThinkingLevels = currentModelConfig?.thinkingLevels ?? [];
+  const effectiveThinkingLevel: ThinkingLevel =
+    settings.thinkingLevel &&
+    availableThinkingLevels.includes(settings.thinkingLevel)
+      ? settings.thinkingLevel
+      : (currentModelConfig?.defaultThinkingLevel ?? "low");
+  const canConfigureReasoning =
+    !!currentModelConfig?.supports.reasoning &&
+    availableThinkingLevels.length > 0;
   const acceptedFileTypes = currentModelConfig?.accept.join(",") ?? "";
   const isSubmitting = status === "streaming" || status === "submitted";
   const canUploadFiles =
@@ -325,6 +391,42 @@ export function ChatInput({
     [onSettingsChange],
   );
 
+  const handleImageGenerationEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void onSettingsChange({
+        tools: {
+          imageGeneration:
+            enabled && selectedImageGenerationModelId
+              ? { modelId: selectedImageGenerationModelId }
+              : undefined,
+        },
+      });
+    },
+    [onSettingsChange, selectedImageGenerationModelId],
+  );
+
+  const handleImageGenerationModelChange = useCallback(
+    (modelId: string) => {
+      void onSettingsChange({
+        tools: {
+          imageGeneration: { modelId },
+        },
+      });
+    },
+    [onSettingsChange],
+  );
+
+  const handleBashWorkspaceEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void onSettingsChange({
+        tools: {
+          bashWorkspace: enabled ? {} : undefined,
+        },
+      });
+    },
+    [onSettingsChange],
+  );
+
   const handleInstructionChange = useCallback(
     (instructionId: string) => {
       void onSettingsChange({
@@ -333,6 +435,47 @@ export function ChatInput({
       setDropdownOpen(false);
     },
     [onSettingsChange],
+  );
+
+  const handleThinkingLevelChange = useCallback(
+    (thinkingLevel: ThinkingLevel) => {
+      void onSettingsChange({ thinkingLevel });
+    },
+    [onSettingsChange],
+  );
+
+  const handleModelChange = useCallback(
+    async (modelId: string) => {
+      try {
+        const nextSettings = await onModelChange(modelId);
+        const nextModelConfig = getChatModelConfig(modelId);
+        const nextThinkingLevels = nextModelConfig?.thinkingLevels ?? [];
+
+        if (
+          !nextModelConfig?.supports.reasoning ||
+          nextThinkingLevels.length === 0
+        ) {
+          return;
+        }
+
+        if (
+          nextSettings.thinkingLevel &&
+          nextThinkingLevels.includes(nextSettings.thinkingLevel)
+        ) {
+          return;
+        }
+
+        void onSettingsChange({
+          thinkingLevel: nextModelConfig.defaultThinkingLevel ?? "low",
+        });
+      } catch (error) {
+        console.error("Failed to change model:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to change model",
+        );
+      }
+    },
+    [onModelChange, onSettingsChange],
   );
 
   const handleToggleMcpServer = useCallback(
@@ -854,10 +997,29 @@ export function ChatInput({
               className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
               role="alert"
             >
-              <p className="font-medium">You are out of credits.</p>
-              <p className="mt-1 text-xs opacity-90">
-                Add credits or enable overages to keep chatting.
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">You are out of credits.</p>
+                  <p className="mt-1 text-xs opacity-90">
+                    {isPaidPlan
+                      ? "Add credits to keep chatting."
+                      : "Upgrade to keep chatting."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="bg-background text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors"
+                  onClick={() => {
+                    if (isPaidPlan) {
+                      setAddCreditsOpen(true);
+                      return;
+                    }
+                    void navigate({ to: "/settings" });
+                  }}
+                >
+                  {isPaidPlan ? "Add credits" : "View plans"}
+                </button>
+              </div>
             </div>
           ) : null}
           <div
@@ -933,10 +1095,19 @@ export function ChatInput({
               instructionsReady={instructionsReady}
               canUploadFiles={canUploadFiles}
               isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
+              isImageGenerationEnabled={isImageGenerationEnabled}
+              isBashWorkspaceEnabled={isBashWorkspaceEnabled}
               isSearchEnabled={isSearchEnabled}
+              imageGenerationModels={imageGenerationModels}
+              selectedImageGenerationModelId={selectedImageGenerationModelId}
               onAnalysisWorkspaceEnabledChange={
                 handleAnalysisWorkspaceEnabledChange
               }
+              onImageGenerationEnabledChange={
+                handleImageGenerationEnabledChange
+              }
+              onImageGenerationModelChange={handleImageGenerationModelChange}
+              onBashWorkspaceEnabledChange={handleBashWorkspaceEnabledChange}
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}
               mcpServers={mcpServers.map((server) => ({
@@ -953,8 +1124,12 @@ export function ChatInput({
               onTokenCountClick={handleTokenCountClick}
               selectedModel={selectedModel}
               onModelChange={(modelId) => {
-                void onModelChange(modelId);
+                void handleModelChange(modelId);
               }}
+              thinkingLevel={effectiveThinkingLevel}
+              thinkingLevels={availableThinkingLevels}
+              canConfigureReasoning={canConfigureReasoning}
+              onThinkingLevelChange={handleThinkingLevelChange}
               input={input}
               hasUsableAttachments={hasUsableAttachments}
               isSubmitting={isSubmitting}
@@ -972,6 +1147,12 @@ export function ChatInput({
       <FilePreviewDialog
         file={previewFile}
         onClose={() => setPreviewFile(null)}
+      />
+      <AddCreditsDialog
+        open={addCreditsOpen}
+        onOpenChange={setAddCreditsOpen}
+        billingState={billingState}
+        triggerContext="out_of_credits"
       />
     </>
   );

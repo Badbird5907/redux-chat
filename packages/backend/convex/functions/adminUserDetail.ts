@@ -14,10 +14,10 @@ import {
 import {
   getCreditBalanceForUser,
   grantCreditsTx,
+  paginateSortedCreditGrantHistory,
   revokeCreditGrantForUserTx,
+  sortCreditGrantHistory,
 } from "../credits";
-import { backendEnv } from "../env";
-import { polar } from "../polar";
 import { getDenormalizedUsageStats } from "../usageStats";
 import { adminMutation, adminQuery } from "./index";
 
@@ -205,11 +205,15 @@ export const listGrantsForUser = adminQuery({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, { targetUserId, paginationOpts }) => {
-    return await ctx.db
+    const grants = await ctx.db
       .query("creditGrants")
       .withIndex("by_user_granted_at", (q) => q.eq("userId", targetUserId))
-      .order("desc")
-      .paginate(paginationOpts);
+      .collect();
+
+    return paginateSortedCreditGrantHistory(
+      sortCreditGrantHistory(grants),
+      paginationOpts,
+    );
   },
 });
 
@@ -218,20 +222,26 @@ export const getBillingStateForUser = adminQuery({
     targetUserId: v.string(),
   },
   handler: async (ctx, { targetUserId }) => {
-    const polarCustomer = await polar.getCustomerByUserId(ctx, targetUserId);
-    const subscription = toSubscriptionSnapshot(
-      await polar.getCurrentSubscription(ctx, { userId: targetUserId }),
+    const stripeCustomer = await ctx.runQuery(
+      components.stripe.public.getCustomerByUserId,
+      { userId: targetUserId },
     );
+    const subscriptions = await ctx.runQuery(
+      components.stripe.public.listSubscriptionsByUserId,
+      { userId: targetUserId },
+    );
+    const subscription = subscriptions
+      .map((candidate) => toSubscriptionSnapshot(candidate))
+      .reduce<ReturnType<typeof toSubscriptionSnapshot>>((best, candidate) => {
+        const bestTier = resolveTierFromSubscription(best);
+        const candidateTier = resolveTierFromSubscription(candidate);
+        const rank = { free: 0, plus: 1, pro: 2 } as const;
+        return rank[candidateTier] > rank[bestTier] ? candidate : best;
+      }, null);
     const tier = resolveTierFromSubscription(subscription);
     const plan = getPlanConfig(tier, getBillingConfig());
     const freePeriodBounds = tier === "free" ? getUtcMonthBounds() : undefined;
     const balance = await getCreditBalanceForUser(ctx, targetUserId);
-
-    const env = backendEnv();
-    const baseUrl =
-      env.POLAR_SERVER === "sandbox"
-        ? "https://sandbox.polar.sh"
-        : "https://polar.sh";
 
     return {
       tier,
@@ -244,8 +254,8 @@ export const getBillingStateForUser = adminQuery({
       currentPeriodStart:
         subscription?.currentPeriodStart ?? freePeriodBounds?.start,
       currentPeriodEnd: subscription?.currentPeriodEnd ?? freePeriodBounds?.end,
-      url: polarCustomer
-        ? `${baseUrl}/dashboard/redux/customers/${polarCustomer.id}`
+      url: stripeCustomer
+        ? `https://dashboard.stripe.com/customers/${stripeCustomer.stripeCustomerId}`
         : undefined,
     } satisfies UserBillingState;
   },

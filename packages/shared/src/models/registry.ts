@@ -16,6 +16,7 @@ import type {
   ModelProviderRouteId,
   ModelRouteBehavior,
   ModelRouteInfo,
+  ThinkingLevel,
 } from "./types";
 import { expandAllowedMimeTypes } from "./attachments";
 import { PROVIDERS } from "./curated";
@@ -26,6 +27,7 @@ import {
   mergeModelRouteBehavior,
   resolveAttachmentDeliveryMode,
 } from "./route-behavior";
+import { DEFAULT_THINKING_LEVELS } from "./types";
 
 export { PROVIDERS };
 
@@ -44,6 +46,7 @@ export const CURATED_MODELS: CanonicalCuratedModelDefinition[] =
       providerSlug: provider.slug,
       providerName: provider.name,
       providerBenchmarks: provider.benchmarks,
+      providerRouteBehavior: provider.routeBehavior,
     })),
   );
 
@@ -71,10 +74,16 @@ for (const model of CURATED_MODELS) {
     if (routeBehavior) {
       ROUTE_BEHAVIOR_OVERRIDES.set(providerId, routeBehavior);
     }
+    const curatedProviderRouteBehavior =
+      model.providerRouteBehavior?.[route.provider];
     resolvedRoutes.push({
       ...route,
       canonicalModelId: model.id,
-      behavior: mergeModelRouteBehavior(route.provider, routeBehavior),
+      behavior: mergeModelRouteBehavior(
+        route.provider,
+        curatedProviderRouteBehavior,
+        routeBehavior,
+      ),
     });
   }
 
@@ -90,6 +99,31 @@ export const MODEL_ROUTES: ModelRouteInfo[] = Array.from(
 const MODEL_ROUTE_BY_ID = new Map(
   MODEL_ROUTES.map((route) => [route.id, route] as const),
 );
+
+function uniqueThinkingLevels(
+  levels: readonly ThinkingLevel[] | undefined,
+): readonly ThinkingLevel[] {
+  return Array.from(new Set(levels ?? DEFAULT_THINKING_LEVELS));
+}
+
+function resolveDefaultThinkingLevel(
+  levels: readonly ThinkingLevel[],
+  requested: ThinkingLevel | undefined,
+): ThinkingLevel | undefined {
+  if (levels.length === 0) {
+    return undefined;
+  }
+
+  if (requested && levels.includes(requested)) {
+    return requested;
+  }
+
+  if (levels.includes("low")) {
+    return "low";
+  }
+
+  return levels.find((level) => level !== "instant") ?? "instant";
+}
 
 export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.flatMap(
   (model) => {
@@ -112,6 +146,9 @@ export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.flatMap(
       model.attachments,
     );
     const accept = getRouteAcceptedExtensions(defaultRoute, model.attachments);
+    const thinkingLevels = defaultRoute.supports.reasoning
+      ? uniqueThinkingLevels(model.thinkingLevels)
+      : [];
 
     return [
       {
@@ -130,10 +167,21 @@ export const CHAT_MODELS: ChatModelConfig[] = CURATED_MODELS.flatMap(
           allowedMimeTypes.length > 0
             ? (model.attachments?.maxFiles ?? 4)
             : undefined,
+        thinkingLevels,
+        defaultThinkingLevel: resolveDefaultThinkingLevel(
+          thinkingLevels,
+          model.defaultThinkingLevel,
+        ),
         knowledgeCutoff: defaultRoute.knowledgeCutoff,
         supports: {
           ...defaultRoute.supports,
           attachments: allowedMimeTypes.length > 0,
+          imageGenerationTool:
+            model.capabilities?.imageGenerationTool ??
+            defaultRoute.supports.imageGenerationTool,
+          imageOutput:
+            model.capabilities?.imageOutput ??
+            defaultRoute.supports.imageOutput,
         },
         costs: defaultRoute.pricing,
         pricingMetadata: defaultRoute.pricingMetadata,
@@ -245,6 +293,22 @@ export function getModelAttachmentExpects(modelId: string) {
       maxFileCount: config.maxFiles,
     },
   ];
+}
+
+export function getImageOutputModels(): ChatModelConfig[] {
+  return CHAT_MODELS.filter((model) => model.supports.imageOutput);
+}
+
+export function getImageGenerationToolModels(): ChatModelConfig[] {
+  return CHAT_MODELS.filter((model) => model.supports.imageGenerationTool);
+}
+
+export function isImageOutputModel(modelId: string): boolean {
+  return getChatModelConfig(modelId)?.supports.imageOutput === true;
+}
+
+export function isImageGenerationToolModel(modelId: string): boolean {
+  return getChatModelConfig(modelId)?.supports.imageGenerationTool === true;
 }
 
 export function isFileAllowedForModel(

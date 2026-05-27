@@ -9,6 +9,7 @@ import { DataTable } from "@redux/ui/components/data-table";
 import { Input } from "@redux/ui/components/input";
 import { cn } from "@redux/ui/lib/utils";
 
+import { AdminPageNav } from "@/components/admin/admin-page-nav";
 import { authClient } from "@/lib/auth/client";
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -132,13 +133,18 @@ function AdminUsersPage() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div>
-        <h1 className="text-foreground text-3xl font-semibold tracking-tight">
-          Users
-        </h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          List, search, and inspect accounts
-        </p>
+      <div className="flex flex-col gap-3">
+        <AdminPageNav
+          items={[{ label: "Admin", to: "/admin" }, { label: "Users" }]}
+        />
+        <div className="min-w-0">
+          <h1 className="text-foreground text-3xl font-semibold tracking-tight">
+            Users
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            List, search, and inspect accounts
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

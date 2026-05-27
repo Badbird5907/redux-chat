@@ -13,6 +13,7 @@ const mutationInfo = z.discriminatedUnion("type", [
 
 const messageToolsSchema = z.object({
   search: z.object({}).optional(),
+  bashWorkspace: z.object({}).optional(),
   analysisWorkspace: z
     .object({
       syncUploads: z.boolean().optional(),

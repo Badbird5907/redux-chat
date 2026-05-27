@@ -1,11 +1,15 @@
 import type { RetrievedChunk } from "@/server/rag/vector-store";
+import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
 import type { OpenAILanguageModelResponsesOptions } from "@ai-sdk/openai";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   generateId,
+  generateImage,
   smoothStream,
   stepCountIs,
   streamText,
@@ -13,7 +17,9 @@ import {
 import { createResumableStreamContext } from "resumable-stream";
 import { z } from "zod";
 
+import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
+import { getChatModelConfig } from "@redux/shared/models";
 import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
 
 import { env } from "@/env";
@@ -33,7 +39,11 @@ import {
 } from "@/lib/silo/core.server";
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
-import { resolveAiSdkModel } from "@/server/ai/model-runtime";
+import { storeGeneratedImage } from "@/server/ai/generated-images";
+import {
+  resolveAiSdkImageModel,
+  resolveAiSdkModel,
+} from "@/server/ai/model-runtime";
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
@@ -51,9 +61,11 @@ const requestBody = z.object({
   ),
   settings: z.object({
     model: z.string(),
+    thinkingLevel: z.enum(["instant", "low", "medium", "high"]).optional(),
     instructionId: z.string().optional(),
     tools: z.object({
       search: z.object({}).optional(),
+      bashWorkspace: z.object({}).optional(),
       analysisWorkspace: z
         .object({
           syncUploads: z.boolean().optional(),
@@ -62,6 +74,11 @@ const requestBody = z.object({
       mcpServers: z
         .object({
           serverIds: z.array(z.string()),
+        })
+        .optional(),
+      imageGeneration: z
+        .object({
+          modelId: z.string(),
         })
         .optional(),
     }),
@@ -73,13 +90,104 @@ const requestBody = z.object({
 });
 
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
+type AiSdkReasoning = "none" | "low" | "medium" | "high";
+type EnabledAiSdkReasoning = Exclude<AiSdkReasoning, "none">;
+const MIN_GENERATION_CREDIT_FLOOR = 10;
+type StreamTextProviderOptions = NonNullable<
+  Parameters<typeof streamText>[0]["providerOptions"]
+>;
+
+interface GoogleReasoningProviderOptions {
+  thinkingConfig: {
+    includeThoughts: true;
+  };
+}
+
+function isEnabledReasoning(
+  reasoning: AiSdkReasoning | undefined,
+): reasoning is EnabledAiSdkReasoning {
+  return reasoning !== undefined && reasoning !== "none";
+}
+
+function resolveProviderOptions(
+  runtimeProviderKey: string,
+  vendorId: string,
+  reasoning: AiSdkReasoning | undefined,
+): StreamTextProviderOptions | undefined {
+  if (!isEnabledReasoning(reasoning)) {
+    return undefined;
+  }
+
+  switch (runtimeProviderKey) {
+    case "openai":
+      return {
+        openai: {
+          reasoningSummary: "auto",
+        } satisfies OpenAILanguageModelResponsesOptions,
+      };
+    case "vertex":
+    case "google":
+      return {
+        [runtimeProviderKey]: {
+          thinkingConfig: {
+            includeThoughts: true,
+          },
+        } satisfies GoogleReasoningProviderOptions,
+      };
+    case "anthropic":
+      return supportsAdaptiveAnthropicThinking(vendorId)
+        ? {
+            anthropic: {
+              thinking: {
+                type: "adaptive",
+                display: "summarized",
+              },
+            } satisfies AnthropicLanguageModelOptions,
+          }
+        : undefined;
+    case "openrouter":
+      return undefined;
+    default:
+      return undefined;
+  }
+}
+
+function supportsAdaptiveAnthropicThinking(vendorId: string): boolean {
+  return (
+    vendorId.includes("claude-sonnet-4-6") ||
+    vendorId.includes("claude-opus-4-6") ||
+    vendorId.includes("claude-opus-4-7")
+  );
+}
+
+function resolveReasoningParam(
+  supportsReasoning: boolean,
+  allowed: readonly ThinkingLevel[],
+  requested: ThinkingLevel | undefined,
+  fallback: ThinkingLevel | undefined,
+): AiSdkReasoning | undefined {
+  if (!supportsReasoning || allowed.length === 0) {
+    return undefined;
+  }
+
+  const selected =
+    requested && allowed.includes(requested) ? requested : fallback;
+
+  if (!selected || !allowed.includes(selected)) {
+    return undefined;
+  }
+
+  return selected === "instant" ? "none" : selected;
+}
 
 const ENABLE_PROJECT_RAG_PREFETCH = true;
 
 const BASE_SYSTEM_PROMPT = `You are Redux.chat.
 
 You can use Markdown for clear formatting, including fenced code blocks for code.
-For math, use LaTeX with $...$ for inline math and $$...$$ for display math.`;
+For math, use LaTeX with $...$ for inline math and $$...$$ for display math.
+
+When available, use the Bash tools for lightweight shell and filesystem work. Uploaded file metadata is listed at /uploads/MANIFEST.json in Bash, and uploaded files are already available at their listed /uploads paths. If a user asks about an uploaded text, markdown, code, CSV, or document file, read it from /uploads rather than assuming it was pasted into the chat. Use analysis_workspace only when you explicitly need a heavier Python/system analysis environment; pass specific attachmentIds when you need uploaded files there.`;
 
 interface ModelAttachment {
   attachmentId: string;
@@ -247,51 +355,73 @@ function mergeAttachments(
 ) {
   const mergedById = new Map(
     existing?.map(
-      (attachment) => [attachment.attachmentId, attachment] as const,
+      (attachment) => [getAttachmentDedupeKey(attachment), attachment] as const,
     ),
   );
 
   for (const attachment of incoming) {
-    mergedById.set(attachment.attachmentId, attachment);
+    mergedById.set(getAttachmentDedupeKey(attachment), attachment);
   }
 
   return Array.from(mergedById.values());
 }
 
-async function getToolAttachments(
+function getAttachmentDedupeKey(attachment: ModelAttachment) {
+  return attachment.fileKeyId || attachment.attachmentId;
+}
+
+function getToolAttachments(
   attachmentsByMessageId: Map<string, ModelAttachment[]>,
 ) {
   const attachments = Array.from(
     new Map(
       Array.from(attachmentsByMessageId.values())
         .flat()
-        .map((attachment) => [attachment.attachmentId, attachment] as const),
+        .map(
+          (attachment) =>
+            [getAttachmentDedupeKey(attachment), attachment] as const,
+        ),
     ).values(),
   );
 
-  return Promise.all(
-    attachments.map(async (attachment) => {
-      if (!attachment.isPublic) {
-        await makeAttachmentPublic({
-          projectId: attachment.projectId,
-          environmentId: attachment.environmentId,
-          fileKeyId: attachment.fileKeyId,
-          serveImage: attachment.serveImage,
-        });
-      }
+  return attachments.map((attachment) => {
+    return {
+      attachmentId: attachment.attachmentId,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      getDownloadUrl: () => ensureAttachmentDownloadUrl(attachment),
+      download: async () => {
+        const response = await fetch(
+          await ensureAttachmentDownloadUrl(attachment),
+        );
+        if (!response.ok) {
+          throw new Error(
+            `Failed to download uploaded file ${attachment.fileName}: HTTP ${response.status}`,
+          );
+        }
 
-      return {
-        attachmentId: attachment.attachmentId,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        url: await buildAttachmentDownloadUrl({
-          accessKey: attachment.accessKey,
-          fileName: attachment.fileName,
-          isPublic: true,
-        }),
-      };
-    }),
-  );
+        return new Uint8Array(await response.arrayBuffer());
+      },
+    };
+  });
+}
+
+async function ensureAttachmentDownloadUrl(attachment: ModelAttachment) {
+  if (!attachment.isPublic) {
+    await makeAttachmentPublic({
+      projectId: attachment.projectId,
+      environmentId: attachment.environmentId,
+      fileKeyId: attachment.fileKeyId,
+      serveImage: attachment.serveImage,
+    });
+  }
+
+  return buildAttachmentDownloadUrl({
+    accessKey: attachment.accessKey,
+    fileName: attachment.fileName,
+    isPublic: true,
+  });
 }
 
 function getErrorMessage(error: unknown) {
@@ -333,6 +463,10 @@ export const Route = createFileRoute("/api/chat/")({
         } = parsedBody;
         const settings = normalizeMessageSettings(rawSettings);
         const isSearchEnabled = isToolEnabled(settings.tools, "search");
+        const isBashWorkspaceEnabled = isToolEnabled(
+          settings.tools,
+          "bashWorkspace",
+        );
         const enabledMcpServerIds = settings.tools.mcpServers?.serverIds ?? [];
         console.log("Received request:", {
           threadId,
@@ -355,13 +489,25 @@ export const Route = createFileRoute("/api/chat/")({
           ),
         ]);
         const spendableCredits = billingState.spendableCredits;
-        if (spendableCredits <= 0 && !billingState.overageAllowed) {
+        if (
+          spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
+          !billingState.overageAllowed
+        ) {
+          await fetchAuthMutation(api.functions.threads.internal_failStream, {
+            secret: env.INTERNAL_CONVEX_SECRET,
+            userId: requestUserId,
+            threadId,
+            assistantMessageId,
+            error: "Insufficient credits to start generation.",
+          });
+
           return new Response(
             JSON.stringify({
               error: "out_of_credits",
               tier: billingSnapshot.tier,
               spendableCredits,
               availableCredits: billingState.availableCredits,
+              minimumRequiredCredits: MIN_GENERATION_CREDIT_FLOOR,
             }),
             {
               status: 402,
@@ -507,7 +653,7 @@ export const Route = createFileRoute("/api/chat/")({
               : [];
 
           const toolRuntime = await createToolRuntime(settings, {
-            attachments: await getToolAttachments(attachmentsByMessageId),
+            attachments: getToolAttachments(attachmentsByMessageId),
             mcpServers: enabledMcpServers,
             projectContext:
               chatProjectId && threadUserId
@@ -516,6 +662,11 @@ export const Route = createFileRoute("/api/chat/")({
                     userId: threadUserId,
                   }
                 : undefined,
+            generationContext: {
+              userId: requestUserId,
+              threadId,
+              messageId: assistantMessageId,
+            },
           });
           let didCleanupTools = false;
           cleanupTools = async () => {
@@ -527,24 +678,166 @@ export const Route = createFileRoute("/api/chat/")({
             await toolRuntime.cleanup();
           };
 
+          const selectedModelConfig = getChatModelConfig(settings.model);
+          if (selectedModelConfig?.supports.imageOutput) {
+            await fetchAuthQuery(
+              api.functions.threads.internal_validateGenerationMessage,
+              {
+                secret: env.INTERNAL_CONVEX_SECRET,
+                userId: requestUserId,
+                messageId: assistantMessageId,
+                threadId,
+              },
+            );
+            const queryText = extractTextFromMessage(
+              getLastUserMessage(messages),
+            );
+            if (!queryText) {
+              throw new Error("Image generation requires a text prompt.");
+            }
+            const imageModel = resolveAiSdkImageModel(settings.model);
+            const imageAbortController = new AbortController();
+            const stream = createUIMessageStream({
+              originalMessages: messages,
+              generateId: () => assistantMessageId,
+              onError: (error) => {
+                const errorMessage = getErrorMessage(error).slice(0, 1000);
+                streamFailureMessage = errorMessage;
+                void reportStreamFailure(error);
+                return errorMessage;
+              },
+              execute: async ({ writer }) => {
+                const startedAt = Date.now();
+                try {
+                  writer.write({
+                    type: "start",
+                    messageId: assistantMessageId,
+                    messageMetadata: { createdAt: startedAt },
+                  } as never);
+                  writer.write({
+                    type: "data-generated-image",
+                    data: {
+                      type: "data-generated-image",
+                      status: "generating",
+                      prompt: queryText,
+                      modelId: settings.model,
+                      provider: imageModel.route.provider,
+                      createdAt: startedAt,
+                    },
+                  } as never);
+
+                  const result = await generateImage({
+                    model: imageModel.model,
+                    prompt: queryText,
+                    abortSignal: imageAbortController.signal,
+                  });
+                  const imagePart = await storeGeneratedImage({
+                    userId: requestUserId,
+                    threadId,
+                    messageId: assistantMessageId,
+                    modelId: settings.model,
+                    route: imageModel.route,
+                    prompt: queryText,
+                    image: result.image,
+                  });
+                  writer.write({
+                    type: "data-generated-image",
+                    data: imagePart,
+                  } as never);
+                  writer.write({
+                    type: "finish",
+                  } as never);
+
+                  const parts = [imagePart] as unknown as UIMessagePart<
+                    UIDataTypes,
+                    UITools
+                  >[];
+
+                  await fetchAuthMutation(
+                    api.functions.threads.internal_updateMessageUsage,
+                    {
+                      secret: env.INTERNAL_CONVEX_SECRET,
+                      userId: requestUserId,
+                      threadId,
+                      messageId: assistantMessageId,
+                      usage: {
+                        promptTokens: 0,
+                        responseTokens: 0,
+                        totalTokens: 0,
+                      },
+                      generationStats: {
+                        timeToFirstTokenMs: 0,
+                        totalDurationMs: Date.now() - startedAt,
+                        tokensPerSecond: 0,
+                      },
+                    },
+                  );
+                  await fetchAuthMutation(
+                    api.functions.threads.internal_completeStream,
+                    {
+                      secret: env.INTERNAL_CONVEX_SECRET,
+                      userId: requestUserId,
+                      threadId,
+                      assistantMessageId,
+                      parts,
+                    },
+                  );
+                } finally {
+                  await cleanupTools?.();
+                }
+              },
+            });
+
+            return createUIMessageStreamResponse({
+              stream,
+              consumeSseStream: async ({ stream }) => {
+                const streamId = generateId();
+                const { publisher, subscriber } = createUpstashPubSub();
+                const streamContext = createResumableStreamContext({
+                  waitUntil,
+                  publisher,
+                  subscriber,
+                });
+                await streamContext.createNewResumableStream(
+                  streamId,
+                  () => stream,
+                );
+                await fetchAuthMutation(
+                  api.functions.threads.internal_setActiveStreamId,
+                  {
+                    secret: env.INTERNAL_CONVEX_SECRET,
+                    userId: requestUserId,
+                    threadId,
+                    streamId,
+                    messageId: assistantMessageId,
+                    clientId,
+                  },
+                );
+              },
+            });
+          }
           const resolvedModel = resolveAiSdkModel(settings.model);
+          const reasoning = resolveReasoningParam(
+            resolvedModel.route.supports.reasoning,
+            resolvedModel.modelConfig.thinkingLevels,
+            settings.thinkingLevel,
+            resolvedModel.modelConfig.defaultThinkingLevel,
+          );
           const runtimeProviderKey =
             resolvedModel.route.behavior.runtimeProviderKey ??
             resolvedModel.route.provider;
-          const providerOptions =
-            runtimeProviderKey === "openai" &&
-            resolvedModel.route.supports.reasoning
-              ? {
-                  openai: {
-                    reasoningEffort: "medium", // TODO: we will set reasoning effort
-                    reasoningSummary: "auto", // we want reasoning!!
-                  } satisfies OpenAILanguageModelResponsesOptions,
-                }
-              : undefined;
+          const providerOptions = resolveProviderOptions(
+            runtimeProviderKey,
+            resolvedModel.route.vendorId,
+            reasoning,
+          );
           const messagesWithAttachments = await materializeAttachmentsForRoute(
             resolvedModel.route,
             messages,
             attachmentsByMessageId,
+            {
+              useBashUploadReferences: isBashWorkspaceEnabled,
+            },
           );
 
           // Convert to model messages format
@@ -552,49 +845,66 @@ export const Route = createFileRoute("/api/chat/")({
             messagesWithAttachments,
           );
 
-          // Prepend base, selected, project, tool, and retrieved RAG context as
-          // leading system messages. We do this on the model-message array
-          // (after conversion) so they never get persisted on the thread.
-          if (projectContextBlock) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectContextBlock,
-            });
-          }
-          if (projectToolInstruction) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectToolInstruction,
-            });
-          }
-          if (projectInstructions) {
-            modelMessages.unshift({
-              role: "system",
-              content: projectInstructions,
-            });
-          }
-          if (selectedInstructionPrompt) {
-            modelMessages.unshift({
-              role: "system",
-              content: selectedInstructionPrompt,
-            });
-          }
-          modelMessages.unshift({
-            role: "system",
-            content: BASE_SYSTEM_PROMPT,
-          });
+          const systemPrompt = [
+            BASE_SYSTEM_PROMPT,
+            selectedInstructionPrompt,
+            projectInstructions,
+            projectToolInstruction,
+            projectContextBlock,
+          ]
+            .filter((prompt): prompt is string => Boolean(prompt))
+            .join("\n\n");
 
           const abortController = new AbortController();
           console.log("abortController", abortController);
+          await fetchAuthQuery(
+            api.functions.threads.internal_validateGenerationMessage,
+            {
+              secret: env.INTERNAL_CONVEX_SECRET,
+              userId: requestUserId,
+              messageId: assistantMessageId,
+              threadId,
+            },
+          );
+          const checkMessageAbort = throttle(() => {
+            void fetchAuthQuery(
+              api.functions.threads.internal_checkMessageAbort,
+              {
+                secret: env.INTERNAL_CONVEX_SECRET,
+                userId: requestUserId,
+                messageId: assistantMessageId,
+                threadId: threadId,
+              },
+            )
+              .then((res) => {
+                if (res) {
+                  console.log("Stream aborted by user");
+                  abortController.abort();
+                }
+              })
+              .catch((error: unknown) => {
+                console.error("Failed to check chat stream abort state", {
+                  requestUserId,
+                  assistantMessageId,
+                  threadId,
+                  error,
+                });
+                abortController.abort();
+              });
+          }, 1000);
 
           // Track generation timing stats
           const streamStartTime = Date.now();
           let firstTokenTime: number | null = null;
+          let reasoningStartTime: number | null = null;
+          let reasoningEndTime: number | null = null;
 
           const result = streamText({
             model: resolvedModel.model,
+            system: systemPrompt,
             messages: modelMessages,
-            providerOptions,
+            ...(reasoning ? { reasoning } : {}),
+            ...(providerOptions ? { providerOptions } : {}),
             abortSignal: abortController.signal,
             tools: toolRuntime.tools,
             experimental_transform: smoothStream({
@@ -624,6 +934,10 @@ export const Route = createFileRoute("/api/chat/")({
                 const timeToFirstTokenMs = firstTokenTime
                   ? firstTokenTime - streamStartTime
                   : totalDurationMs;
+                const reasoningDurationMs =
+                  reasoningStartTime && reasoningEndTime
+                    ? Math.max(0, reasoningEndTime - reasoningStartTime)
+                    : undefined;
                 const outputTokens = usage.outputTokens ?? 0;
                 const tokensPerSecond =
                   totalDurationMs > 0
@@ -631,6 +945,9 @@ export const Route = createFileRoute("/api/chat/")({
                     : 0;
 
                 const generationStats = {
+                  ...(reasoningDurationMs !== undefined
+                    ? { reasoningDurationMs }
+                    : {}),
                   timeToFirstTokenMs,
                   totalDurationMs,
                   tokensPerSecond,
@@ -657,6 +974,7 @@ export const Route = createFileRoute("/api/chat/")({
                   await fetchAuthAction(
                     api.functions.billing.recordUsageEvent,
                     {
+                      secret: env.INTERNAL_CONVEX_SECRET,
                       requestId: assistantMessageId,
                       messageId: assistantMessageId,
                       threadId,
@@ -683,27 +1001,14 @@ export const Route = createFileRoute("/api/chat/")({
                 await cleanupTools?.();
               }
             },
-            onChunk: () => {
+            onChunk: ({ chunk }) => {
               // Track time to first token
               firstTokenTime ??= Date.now();
-              throttle(() => {
-                // we want to prevent the stream from freezing. It is extremely unlikely that this query will take more than 1 second.
-                void fetchAuthQuery(
-                  api.functions.threads.internal_checkMessageAbort,
-                  {
-                    secret: env.INTERNAL_CONVEX_SECRET,
-                    userId: requestUserId,
-                    messageId: assistantMessageId,
-                    threadId: threadId,
-                  },
-                ).then((res) => {
-                  if (res) {
-                    console.log("Stream aborted by user");
-                    abortController.abort();
-                    return;
-                  }
-                });
-              }, 1000);
+              if (chunk.type === "reasoning-delta") {
+                reasoningStartTime ??= firstTokenTime;
+                reasoningEndTime = Date.now();
+              }
+              checkMessageAbort();
             },
             onAbort: () => {
               console.log("Stream aborted");

@@ -16,6 +16,13 @@ const messageRole = v.union(
   v.literal("system"),
 );
 
+const thinkingLevel = v.union(
+  v.literal("instant"),
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
 const mutationInfo = v.union(
   v.object({ type: v.literal("original") }),
   v.object({ type: v.literal("edit"), fromMessageId: v.string() }),
@@ -53,8 +60,46 @@ const creditGrantStatus = v.union(
   v.literal("revoked"),
 );
 
+const creditTopUpIntentStatus = v.union(
+  v.literal("created"),
+  v.literal("checkout_created"),
+  v.literal("paid"),
+  v.literal("expired"),
+  v.literal("failed"),
+);
+
+const promotionKind = v.union(
+  v.literal("app_credits"),
+  v.literal("subscription_discount"),
+  v.literal("stripe_invoice_credit"),
+);
+
+const promotionStatus = v.union(
+  v.literal("draft"),
+  v.literal("active"),
+  v.literal("paused"),
+  v.literal("archived"),
+);
+
+const promotionRedemptionStatus = v.union(
+  v.literal("reserved"),
+  v.literal("pending_checkout"),
+  v.literal("applied"),
+  v.literal("failed"),
+  v.literal("revoked"),
+);
+
+const paidPlanTier = v.union(v.literal("plus"), v.literal("pro"));
+
+const threadShareSettings = v.object({
+  onlyCurrentBranch: v.boolean(),
+  includeAttachments: v.boolean(),
+  autoUpdate: v.boolean(),
+});
+
 const messageTools = v.object({
   search: v.optional(v.object({})),
+  bashWorkspace: v.optional(v.object({})),
   analysisWorkspace: v.optional(
     v.object({
       syncUploads: v.optional(v.boolean()),
@@ -65,11 +110,17 @@ const messageTools = v.object({
       serverIds: v.array(v.string()),
     }),
   ),
+  imageGeneration: v.optional(
+    v.object({
+      modelId: v.string(),
+    }),
+  ),
 });
 
 export const messageSettings = v.object({
   model: v.string(),
   tools: messageTools,
+  thinkingLevel: v.optional(thinkingLevel),
   instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
 });
@@ -174,6 +225,7 @@ export default defineSchema({
     name: v.string(),
     titleSource: v.optional(v.union(v.literal("user"), v.literal("generated"))),
     titleGeneratedAt: v.optional(v.number()),
+    titleGenerationRequestedAt: v.optional(v.number()),
     status: threadStatus,
     settings: messageSettings,
     selectedLeafMessageId: v.optional(v.string()),
@@ -188,6 +240,23 @@ export default defineSchema({
     .index("by_threadId", ["threadId"])
     .index("by_userId", ["userId", "updatedAt"])
     .index("by_userId_chatProjectId", ["userId", "chatProjectId", "updatedAt"]),
+
+  threadShares: defineTable({
+    shareId: v.string(),
+    threadId: v.string(),
+    userId: v.string(),
+    settings: threadShareSettings,
+    anchorLeafMessageId: v.optional(v.string()),
+    snapshotMessageIds: v.optional(v.array(v.string())),
+    snapshotSelectedLeafMessageId: v.optional(v.string()),
+    viewCount: v.number(),
+    forkCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_shareId", ["shareId"])
+    .index("by_threadId", ["threadId", "createdAt"])
+    .index("by_userId_threadId", ["userId", "threadId", "createdAt"]),
 
   messages: defineTable({
     threadId: v.string(),
@@ -210,12 +279,14 @@ export default defineSchema({
     ),
     generationStats: v.optional(
       v.object({
+        reasoningDurationMs: v.optional(v.number()),
         timeToFirstTokenMs: v.number(),
         totalDurationMs: v.number(),
         tokensPerSecond: v.number(),
       }),
     ),
     error: v.optional(v.string()),
+    thinkingLevel: v.optional(thinkingLevel),
   })
     .index("by_threadId", ["threadId"])
     .index("by_threadId_messageId", ["threadId", "messageId"])
@@ -258,6 +329,32 @@ export default defineSchema({
     .index("by_accessKey", ["accessKey"])
     .index("by_fileKeyId", ["fileKeyId"]),
 
+  generatedImages: defineTable({
+    generatedImageId: v.string(),
+    userId: v.string(),
+    threadId: v.string(),
+    messageId: v.string(),
+    modelId: v.string(),
+    provider: v.string(),
+    source: v.literal("image_generation"),
+    toolCallId: v.optional(v.string()),
+    prompt: v.optional(v.string()),
+    mimeType: v.string(),
+    size: v.number(),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    projectId: v.string(),
+    environmentId: v.string(),
+    accessKey: v.string(),
+    fileKeyId: v.string(),
+    fileName: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_generatedImageId", ["generatedImageId"])
+    .index("by_threadId", ["threadId"])
+    .index("by_messageId", ["messageId"])
+    .index("by_fileKeyId", ["fileKeyId"]),
+
   // Vector embeddings of project file chunks. Separate from `attachments` so
   // a vector index can have a fixed dim and so the table can be wiped/migrated
   // independently of the file metadata. Wrapped behind the VectorStore
@@ -289,7 +386,7 @@ export default defineSchema({
   // bucket with `remaining`. Allocation reads only `active` grants for a
   // given user and consumes from them in priority + earliest-expiry order.
   // `source + sourceId` is required for idempotency on grant ingestion
-  // (e.g. duplicate Polar webhook deliveries).
+  // (e.g. duplicate Stripe webhook deliveries).
   creditGrants: defineTable({
     grantId: v.string(),
     userId: v.string(),
@@ -297,8 +394,8 @@ export default defineSchema({
     amount: v.number(),
     remaining: v.number(),
     status: creditGrantStatus,
-    source: v.string(), // "polar_subscription_renewal", "polar_one_time_purchase", "free_monthly_reset", "admin_grant", "migration_backfill"
-    sourceId: v.string(), // id key for idempotency (e.g. polar order id, subscription period id, "userId:YYYY-MM")
+    source: v.string(), // "stripe_subscription_renewal", "stripe_one_time_purchase", "free_monthly_reset", "admin_grant", "migration_backfill"
+    sourceId: v.string(), // id key for idempotency (e.g. Stripe payment intent id, subscription period id, "userId:YYYY-MM")
     periodKey: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
     grantedAt: v.number(),
@@ -340,6 +437,84 @@ export default defineSchema({
     .index("by_debitId", ["debitId"])
     .index("by_user_requestKey", ["userId", "requestKey"])
     .index("by_user_createdAt", ["userId", "createdAt"]),
+
+  creditTopUpIntents: defineTable({
+    intentId: v.string(),
+    userId: v.string(),
+    amountCents: v.number(),
+    currency: v.literal("usd"),
+    credits: v.number(),
+    status: creditTopUpIntentStatus,
+    stripeCheckoutSessionId: v.optional(v.string()),
+    stripePaymentIntentId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_intentId", ["intentId"])
+    .index("by_checkoutId", ["stripeCheckoutSessionId"])
+    .index("by_user_status", ["userId", "status"]),
+
+  stripeCustomerOverrides: defineTable({
+    userId: v.string(),
+    stripeCustomerId: v.string(),
+    email: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  promotions: defineTable({
+    promotionId: v.string(),
+    code: v.string(),
+    codeNormalized: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    status: promotionStatus,
+    kind: promotionKind,
+    maxRedemptions: v.optional(v.number()),
+    perUserRedemptionLimit: v.optional(v.number()),
+    pauseOnRedemptionLimit: v.optional(v.boolean()),
+    autoStatusFromLimit: v.optional(v.boolean()),
+    redeemedCount: v.number(),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    createdByUserId: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_promotionId", ["promotionId"])
+    .index("by_codeNormalized", ["codeNormalized"])
+    .index("by_status_createdAt", ["status", "createdAt"])
+    .index("by_kind_createdAt", ["kind", "createdAt"]),
+
+  promotionRedemptions: defineTable({
+    redemptionId: v.string(),
+    promotionId: v.string(),
+    codeNormalized: v.string(),
+    userId: v.string(),
+    status: promotionRedemptionStatus,
+    kind: promotionKind,
+    reservedAt: v.number(),
+    appliedAt: v.optional(v.number()),
+    failedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+    targetTier: v.optional(paidPlanTier),
+    appCreditGrantId: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    stripeCouponId: v.optional(v.string()),
+    stripeCreditGrantId: v.optional(v.string()),
+    stripeCheckoutSessionId: v.optional(v.string()),
+    stripeCheckoutSessionExpiresAt: v.optional(v.number()),
+    stripeCustomerBalanceTransactionId: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_redemptionId", ["redemptionId"])
+    .index("by_promotion_reservedAt", ["promotionId", "reservedAt"])
+    .index("by_user_promotion", ["userId", "promotionId"])
+    .index("by_user_codeNormalized", ["userId", "codeNormalized"])
+    .index("by_status_reservedAt", ["status", "reservedAt"]),
 
   // Per-debit per-grant allocation rows. Preserved for audit so the
   // exact slice of each lot consumed by each request is recoverable.

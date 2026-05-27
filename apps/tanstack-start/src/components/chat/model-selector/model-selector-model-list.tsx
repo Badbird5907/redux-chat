@@ -38,16 +38,14 @@ type ModelListProps = Pick<
   | "favoriteDragId"
   | "favoriteDropInsertIndex"
   | "isFavoritesListView"
+  | "pickModelAt"
   | "onFavoriteDragStart"
   | "onFavoriteDragEnd"
   | "handleFavoriteRowDragOver"
   | "handleFavoriteRowDrop"
   | "toggleFavorite"
-  | "onModelChange"
-  | "setOpen"
   | "setListNavIndex"
   | "setNavColumn"
-  | "resetPickerDismissState"
 >;
 
 export function ModelSelectorModelList(props: ModelListProps) {
@@ -162,9 +160,7 @@ function ModelRow({
       onClick={() => {
         listProps.setListNavIndex(rowIndex);
         listProps.setNavColumn("list");
-        listProps.onModelChange(model.id);
-        listProps.setOpen(false);
-        listProps.resetPickerDismissState();
+        listProps.pickModelAt(rowIndex);
       }}
       onDragStart={
         listProps.canReorderFavorites

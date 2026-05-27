@@ -6,13 +6,16 @@ export interface ChatToolAttachment {
   attachmentId: string;
   fileName: string;
   mimeType: string;
-  url: string;
+  size: number;
+  getDownloadUrl: () => Promise<string>;
+  download: () => Promise<Uint8Array>;
 }
 
 interface SyncedAttachment {
   attachmentId: string;
   fileName: string;
   mimeType: string;
+  size: number;
   path: string;
 }
 
@@ -21,40 +24,70 @@ export function createSandboxRuntime(options: {
   syncUploads: boolean;
 }) {
   let sandboxPromise: Promise<Sandbox> | undefined;
-  let syncedAttachmentsPromise: Promise<SyncedAttachment[]> | undefined;
+  const syncedAttachmentIds = new Set<string>();
 
   const getSandbox = () => {
     sandboxPromise ??= Sandbox.create();
     return sandboxPromise;
   };
 
-  const syncUploadsToSandbox = async (): Promise<SyncedAttachment[]> => {
-    if (!options.syncUploads || options.attachments.length === 0) {
+  const getUploadManifest = (): SyncedAttachment[] => {
+    const pathCounts = new Map<string, number>();
+
+    return options.attachments.map((attachment) => ({
+      attachmentId: attachment.attachmentId,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      path: buildSandboxFilePath(attachment.fileName, pathCounts),
+    }));
+  };
+
+  const syncUploadsToSandbox = async (
+    attachmentIds?: string[],
+  ): Promise<SyncedAttachment[]> => {
+    if (
+      !options.syncUploads ||
+      options.attachments.length === 0 ||
+      !attachmentIds ||
+      attachmentIds.length === 0
+    ) {
       return [];
     }
 
-    syncedAttachmentsPromise ??= (async () => {
+    const requestedIds = new Set(attachmentIds);
+    const attachmentsById = new Map(
+      options.attachments.map((attachment) => [
+        attachment.attachmentId,
+        attachment,
+      ]),
+    );
+    const downloads = await Promise.all(
+      getUploadManifest()
+        .filter(
+          (attachment) =>
+            requestedIds.has(attachment.attachmentId) &&
+            !syncedAttachmentIds.has(attachment.attachmentId),
+        )
+        .map(async (attachment) => {
+          const source = attachmentsById.get(attachment.attachmentId);
+          if (!source) {
+            throw new Error(`Unknown attachmentId: ${attachment.attachmentId}`);
+          }
+
+          return {
+            ...attachment,
+            url: await source.getDownloadUrl(),
+          };
+        }),
+    );
+
+    if (downloads.length > 0) {
       const sandbox = await getSandbox();
-      const pathCounts = new Map<string, number>();
-
-      const downloads = options.attachments.map((attachment) => {
-        const path = buildSandboxFilePath(attachment.fileName, pathCounts);
-
-        return {
-          attachmentId: attachment.attachmentId,
-          fileName: attachment.fileName,
-          mimeType: attachment.mimeType,
-          path,
-          url: attachment.url,
-        };
+      const result = await sandbox.runCode(buildSandboxUploadCode(downloads), {
+        language: "bash",
+        timeoutMs: Math.max(60_000, downloads.length * 60_000),
       });
-
-      const result = await sandbox.runCode(
-        buildSandboxDownloadCode(downloads),
-        {
-          timeoutMs: Math.max(60_000, downloads.length * 60_000),
-        },
-      );
 
       const stdout = result.logs.stdout.join("\n").trim();
       const stderr = result.logs.stderr.join("\n").trim();
@@ -68,17 +101,14 @@ export function createSandboxRuntime(options: {
         throw new Error(formatSandboxSyncError(undefined, stderr, stdout));
       }
 
-      return downloads.map(
-        ({ attachmentId, fileName, mimeType, path }): SyncedAttachment => ({
-          attachmentId,
-          fileName,
-          mimeType,
-          path,
-        }),
-      );
-    })();
+      for (const download of downloads) {
+        syncedAttachmentIds.add(download.attachmentId);
+      }
+    }
 
-    return syncedAttachmentsPromise;
+    return getUploadManifest().filter((attachment) =>
+      requestedIds.has(attachment.attachmentId),
+    );
   };
 
   const cleanup = async () => {
@@ -90,7 +120,7 @@ export function createSandboxRuntime(options: {
     await sandbox.kill();
   };
 
-  return { getSandbox, syncUploadsToSandbox, cleanup };
+  return { getSandbox, getUploadManifest, syncUploadsToSandbox, cleanup };
 }
 
 function formatSandboxSyncError(
@@ -149,75 +179,58 @@ function buildSandboxFilePath(
   return `${SANDBOX_UPLOADS_DIR}/${uniqueName}`;
 }
 
-function buildSandboxDownloadCode(
+function buildSandboxUploadCode(
   downloads: (SyncedAttachment & {
     url: string;
   })[],
 ) {
-  const manifest = Buffer.from(JSON.stringify(downloads), "utf8").toString(
-    "base64",
+  const lines = [
+    "set -euo pipefail",
+    `mkdir -p ${shellQuote(SANDBOX_UPLOADS_DIR)}`,
+  ];
+
+  for (const download of downloads) {
+    if (!isSafeSandboxUploadPath(download.path)) {
+      throw new Error(`Unsafe upload target path for ${download.fileName}`);
+    }
+
+    lines.push(
+      `mkdir -p ${shellQuote(getPosixDirName(download.path))}`,
+      [
+        "curl",
+        "--fail",
+        "--location",
+        "--silent",
+        "--show-error",
+        "--retry",
+        "2",
+        "--connect-timeout",
+        "15",
+        "--max-time",
+        "60",
+        "--output",
+        shellQuote(download.path),
+        shellQuote(download.url),
+      ].join(" "),
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function isSafeSandboxUploadPath(path: string) {
+  return (
+    path === SANDBOX_UPLOADS_DIR || path.startsWith(`${SANDBOX_UPLOADS_DIR}/`)
   );
+}
 
-  return `import base64
-import json
-import os
-import shutil
-import tempfile
-import urllib.error
-import urllib.request
+function getPosixDirName(path: string) {
+  const slashIndex = path.lastIndexOf("/");
+  return slashIndex > 0 ? path.slice(0, slashIndex) : ".";
+}
 
-UPLOADS_DIR = ${JSON.stringify(SANDBOX_UPLOADS_DIR)}
-MANIFEST = ${JSON.stringify(manifest)}
-
-downloads = json.loads(base64.b64decode(MANIFEST).decode("utf-8"))
-os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-for item in downloads:
-    temp_path = None
-    target_path = os.path.normpath(item["path"])
-    if not target_path.startswith(UPLOADS_DIR + os.sep):
-        raise RuntimeError(f"Unsafe upload target path for {item['fileName']!r}")
-
-    os.makedirs(os.path.dirname(target_path), exist_ok=True)
-
-    try:
-        request = urllib.request.Request(
-            item["url"],
-            headers={
-                "User-Agent": "Mozilla/5.0 (compatible; ReduxChatSandbox/1.0)",
-                "Accept": "*/*",
-            },
-        )
-        with urllib.request.urlopen(request, timeout=60) as response:
-            status = getattr(response, "status", 200)
-            if status < 200 or status >= 300:
-                raise RuntimeError(f"HTTP {status}")
-
-            with tempfile.NamedTemporaryFile(
-                dir=os.path.dirname(target_path),
-                delete=False,
-            ) as tmp:
-                temp_path = tmp.name
-                shutil.copyfileobj(response, tmp)
-
-        os.replace(temp_path, target_path)
-    except urllib.error.HTTPError as exc:
-        if temp_path is not None and os.path.exists(temp_path):
-            os.unlink(temp_path)
-        body = exc.read(1000).decode("utf-8", errors="replace").strip()
-        details = f"HTTP {exc.code}"
-        if body:
-            details = f"{details}: {body}"
-        raise RuntimeError(
-            f"Failed to download uploaded file {item['fileName']!r}: {details}"
-        ) from exc
-    except Exception as exc:
-        if temp_path is not None and os.path.exists(temp_path):
-            os.unlink(temp_path)
-        raise RuntimeError(
-            f"Failed to download uploaded file {item['fileName']!r}: {exc}"
-        ) from exc
-`;
+function shellQuote(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 function sanitizeFileName(fileName: string) {

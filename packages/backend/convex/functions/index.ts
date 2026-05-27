@@ -70,6 +70,9 @@ export const query = customQuery(
   }),
 );
 
+export const publicQuery = rawQuery;
+export const publicMutation = rawMutation;
+
 // Custom mutation that requires auth and injects ctx.user
 export const mutation = customMutation(
   rawMutation,
