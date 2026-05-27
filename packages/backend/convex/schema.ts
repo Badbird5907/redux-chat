@@ -99,6 +99,7 @@ const threadShareSettings = v.object({
 
 const messageTools = v.object({
   search: v.optional(v.object({})),
+  bashWorkspace: v.optional(v.object({})),
   analysisWorkspace: v.optional(
     v.object({
       syncUploads: v.optional(v.boolean()),

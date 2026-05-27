@@ -1,9 +1,11 @@
 import {
   BrainIcon,
   CheckIcon,
+  FileTextIcon,
   FlaskConicalIcon,
   GlobeIcon,
   SearchIcon,
+  TerminalIcon,
   WrenchIcon,
 } from "lucide-react";
 
@@ -24,6 +26,17 @@ export function getAssistantStepIcon(step: AssistantTimelineStep) {
 
   if (step.toolName?.toLowerCase() === "analysis_workspace") {
     return FlaskConicalIcon;
+  }
+
+  if (step.toolName?.toLowerCase() === "bash") {
+    return TerminalIcon;
+  }
+
+  if (
+    step.toolName?.toLowerCase() === "readfile" ||
+    step.toolName?.toLowerCase() === "writefile"
+  ) {
+    return FileTextIcon;
   }
 
   return WrenchIcon;

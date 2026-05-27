@@ -57,6 +57,7 @@ const requestBody = z.object({
     instructionId: z.string().optional(),
     tools: z.object({
       search: z.object({}).optional(),
+      bashWorkspace: z.object({}).optional(),
       analysisWorkspace: z
         .object({
           syncUploads: z.boolean().optional(),
@@ -171,7 +172,9 @@ const ENABLE_PROJECT_RAG_PREFETCH = true;
 const BASE_SYSTEM_PROMPT = `You are Redux.chat.
 
 You can use Markdown for clear formatting, including fenced code blocks for code.
-For math, use LaTeX with $...$ for inline math and $$...$$ for display math.`;
+For math, use LaTeX with $...$ for inline math and $$...$$ for display math.
+
+When available, use the Bash tools for lightweight shell and filesystem work. Uploaded file metadata is listed at /uploads/MANIFEST.json in Bash, and uploaded files are already available at their listed /uploads paths. If a user asks about an uploaded text, markdown, code, CSV, or document file, read it from /uploads rather than assuming it was pasted into the chat. Use analysis_workspace only when you explicitly need a heavier Python/system analysis environment; pass specific attachmentIds when you need uploaded files there.`;
 
 interface ModelAttachment {
   attachmentId: string;
@@ -339,51 +342,65 @@ function mergeAttachments(
 ) {
   const mergedById = new Map(
     existing?.map(
-      (attachment) => [attachment.attachmentId, attachment] as const,
+      (attachment) => [getAttachmentDedupeKey(attachment), attachment] as const,
     ),
   );
 
   for (const attachment of incoming) {
-    mergedById.set(attachment.attachmentId, attachment);
+    mergedById.set(getAttachmentDedupeKey(attachment), attachment);
   }
 
   return Array.from(mergedById.values());
 }
 
-async function getToolAttachments(
+function getAttachmentDedupeKey(attachment: ModelAttachment) {
+  return attachment.fileKeyId || attachment.attachmentId;
+}
+
+function getToolAttachments(
   attachmentsByMessageId: Map<string, ModelAttachment[]>,
 ) {
   const attachments = Array.from(
     new Map(
       Array.from(attachmentsByMessageId.values())
         .flat()
-        .map((attachment) => [attachment.attachmentId, attachment] as const),
+        .map((attachment) => [getAttachmentDedupeKey(attachment), attachment] as const),
     ).values(),
   );
 
-  return Promise.all(
-    attachments.map(async (attachment) => {
-      if (!attachment.isPublic) {
-        await makeAttachmentPublic({
-          projectId: attachment.projectId,
-          environmentId: attachment.environmentId,
-          fileKeyId: attachment.fileKeyId,
-          serveImage: attachment.serveImage,
-        });
-      }
+  return attachments.map((attachment) => {
+    return {
+      attachmentId: attachment.attachmentId,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      download: async () => {
+        if (!attachment.isPublic) {
+          await makeAttachmentPublic({
+            projectId: attachment.projectId,
+            environmentId: attachment.environmentId,
+            fileKeyId: attachment.fileKeyId,
+            serveImage: attachment.serveImage,
+          });
+        }
 
-      return {
-        attachmentId: attachment.attachmentId,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        url: await buildAttachmentDownloadUrl({
-          accessKey: attachment.accessKey,
-          fileName: attachment.fileName,
-          isPublic: true,
-        }),
-      };
-    }),
-  );
+        const response = await fetch(
+          await buildAttachmentDownloadUrl({
+            accessKey: attachment.accessKey,
+            fileName: attachment.fileName,
+            isPublic: true,
+          }),
+        );
+        if (!response.ok) {
+          throw new Error(
+            `Failed to download uploaded file ${attachment.fileName}: HTTP ${response.status}`,
+          );
+        }
+
+        return new Uint8Array(await response.arrayBuffer());
+      },
+    };
+  });
 }
 
 function getErrorMessage(error: unknown) {
@@ -425,6 +442,10 @@ export const Route = createFileRoute("/api/chat/")({
         } = parsedBody;
         const settings = normalizeMessageSettings(rawSettings);
         const isSearchEnabled = isToolEnabled(settings.tools, "search");
+        const isBashWorkspaceEnabled = isToolEnabled(
+          settings.tools,
+          "bashWorkspace",
+        );
         const enabledMcpServerIds = settings.tools.mcpServers?.serverIds ?? [];
         console.log("Received request:", {
           threadId,
@@ -611,7 +632,7 @@ export const Route = createFileRoute("/api/chat/")({
               : [];
 
           const toolRuntime = await createToolRuntime(settings, {
-            attachments: await getToolAttachments(attachmentsByMessageId),
+            attachments: getToolAttachments(attachmentsByMessageId),
             mcpServers: enabledMcpServers,
             projectContext:
               chatProjectId && threadUserId
@@ -650,6 +671,9 @@ export const Route = createFileRoute("/api/chat/")({
             resolvedModel.route,
             messages,
             attachmentsByMessageId,
+            {
+              useBashUploadReferences: isBashWorkspaceEnabled,
+            },
           );
 
           // Convert to model messages format

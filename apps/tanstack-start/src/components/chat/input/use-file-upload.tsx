@@ -10,6 +10,66 @@ import { isFileAllowedForModel } from "@redux/shared/models";
 
 import { useUpload } from "@/lib/silo/react";
 
+interface UploadedChatAttachment {
+  attachmentId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  expiresAt?: number;
+}
+
+function isUploadedChatAttachment(value: unknown): value is UploadedChatAttachment {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "attachmentId" in value &&
+    typeof value.attachmentId === "string" &&
+    value.attachmentId.length > 0 &&
+    "fileName" in value &&
+    typeof value.fileName === "string" &&
+    "mimeType" in value &&
+    typeof value.mimeType === "string" &&
+    "size" in value &&
+    typeof value.size === "number" &&
+    "url" in value &&
+    typeof value.url === "string" &&
+    (!("expiresAt" in value) ||
+      value.expiresAt === undefined ||
+      typeof value.expiresAt === "number")
+  );
+}
+
+async function awaitRouteCompletion(fileKeyId: string) {
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "await-completion",
+      fileKeyId,
+      timeoutMs: 60_000,
+    }),
+  });
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (
+    !response.ok ||
+    !payload ||
+    typeof payload !== "object" ||
+    Array.isArray(payload) ||
+    !("completion" in payload) ||
+    !payload.completion ||
+    typeof payload.completion !== "object" ||
+    Array.isArray(payload.completion) ||
+    !("onUploadCompleteResult" in payload.completion)
+  ) {
+    throw new Error("Upload completed, but the attachment record was not ready.");
+  }
+
+  return payload.completion.onUploadCompleteResult;
+}
+
 function extractPastedFiles(data: DataTransfer | null): File[] {
   if (!data) {
     return [];
@@ -157,12 +217,11 @@ export function useFileUpload({
               threadId,
             },
           });
-          const result = completion.result;
+          const result = isUploadedChatAttachment(completion.result)
+            ? completion.result
+            : await awaitRouteCompletion(completion.fileKeyId);
 
-          if (
-            typeof result.attachmentId !== "string" ||
-            result.attachmentId.length === 0
-          ) {
+          if (!isUploadedChatAttachment(result)) {
             throw new Error(`Upload failed for ${file.name}`);
           }
 

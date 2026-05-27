@@ -174,6 +174,10 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
       rawUsdPerCall: 0.007,
       enabled: true,
     },
+    bash_workspace: {
+      rawUsdPerCall: 0,
+      enabled: true,
+    },
     analysis_workspace: {
       rawUsdPerCall: 0.02,
       enabled: true,

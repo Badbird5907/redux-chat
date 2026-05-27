@@ -249,6 +249,10 @@ export function ChatInput({
 
   const selectedModel = settings.model;
   const isSearchEnabled = isToolEnabled(settings.tools, "search");
+  const isBashWorkspaceEnabled = isToolEnabled(
+    settings.tools,
+    "bashWorkspace",
+  );
   const isAnalysisWorkspaceEnabled = isToolEnabled(
     settings.tools,
     "analysisWorkspace",
@@ -369,6 +373,17 @@ export function ChatInput({
       void onSettingsChange({
         tools: {
           analysisWorkspace: enabled ? { syncUploads: true } : undefined,
+        },
+      });
+    },
+    [onSettingsChange],
+  );
+
+  const handleBashWorkspaceEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void onSettingsChange({
+        tools: {
+          bashWorkspace: enabled ? {} : undefined,
         },
       });
     },
@@ -1043,10 +1058,12 @@ export function ChatInput({
               instructionsReady={instructionsReady}
               canUploadFiles={canUploadFiles}
               isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
+              isBashWorkspaceEnabled={isBashWorkspaceEnabled}
               isSearchEnabled={isSearchEnabled}
               onAnalysisWorkspaceEnabledChange={
                 handleAnalysisWorkspaceEnabledChange
               }
+              onBashWorkspaceEnabledChange={handleBashWorkspaceEnabledChange}
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
               settingsReady={settingsReady}
               mcpServers={mcpServers.map((server) => ({
