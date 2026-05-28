@@ -129,6 +129,7 @@ export function ChatInput({
   } = useMessageQueue({ threadId });
   const prevStatusRef = useRef(status);
   const flushInProgressRef = useRef(false);
+  const submitInProgressRef = useRef(false);
   const submitNewUserPayloadRef = useRef<
     (text: string, att: DraftAttachment[]) => Promise<boolean>
   >(() => Promise.resolve(false));
@@ -828,6 +829,12 @@ export function ChatInput({
       return;
     }
 
+    if (submitInProgressRef.current) {
+      return;
+    }
+
+    submitInProgressRef.current = true;
+
     if (isExpanded) {
       setIsExpanded(false);
     }
@@ -883,6 +890,8 @@ export function ChatInput({
         error instanceof Error ? error.message : "Failed to send message",
       );
       console.error("Failed to send message:", error);
+    } finally {
+      submitInProgressRef.current = false;
     }
   }, [
     attachments,
