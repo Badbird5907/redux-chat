@@ -8,11 +8,6 @@ export const OPENAI_PROVIDER: CuratedProviderDefinition = {
   },
   models: [
     {
-      id: "gpt-5.5-pro",
-      providerIds: ["openrouter:openai/gpt-5.5-pro", "openai:gpt-5.5-pro"],
-      defaultProviderId: "openai:gpt-5.5-pro",
-    },
-    {
       id: "gpt-5.5",
       providerIds: ["openrouter:openai/gpt-5.5", "openai:gpt-5.5"],
       defaultProviderId: "openai:gpt-5.5",
