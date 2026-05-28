@@ -6,6 +6,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -51,6 +52,7 @@ function SignInPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
   const redirectTo = sanitizeAuthRedirect(next);
+  const posthog = usePostHog();
 
   const form = useForm({
     defaultValues: {
@@ -66,6 +68,8 @@ function SignInPage() {
         password: value.password,
         fetchOptions: {
           onSuccess: () => {
+            posthog.identify(value.email, { email: value.email });
+            posthog.capture("user_signed_in", { method: "email" });
             localStorage.setItem("last-used-provider", "email");
             void navigate({ to: redirectTo });
           },

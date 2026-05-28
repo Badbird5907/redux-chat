@@ -10,6 +10,7 @@ import {
   Clock3,
   Gift,
 } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 
 import type { SubscriptionPromotionConfig } from "@redux/shared";
@@ -166,6 +167,7 @@ function RedeemPromotionPage() {
   const { code } = Route.useParams();
   const preloadedPromotion = Route.useLoaderData();
   const navigate = useNavigate();
+  const posthog = usePostHog();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const publicPromotion = useQuery(
     api.functions.promotions.getPublicPromotionByCode,
@@ -274,6 +276,11 @@ function RedeemPromotionPage() {
           "targetTier" in redeemed && typeof redeemed.targetTier === "string"
             ? redeemed.targetTier
             : undefined,
+      });
+      posthog.capture("promotion_redeemed", {
+        code,
+        promotion_kind: promotion?.kind,
+        target_tier: targetTier,
       });
       toast.success("Promotion redeemed");
     } catch (err) {

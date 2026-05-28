@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { isTextUIPart } from "ai";
 import { useConvexAuth, useMutation } from "convex/react";
 import { XIcon } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
@@ -91,6 +92,7 @@ export function ChatInput({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [addCreditsOpen, setAddCreditsOpen] = useState(false);
   const navigate = useNavigate();
+  const posthog = usePostHog();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
@@ -611,6 +613,13 @@ export function ChatInput({
           sendMessage,
           convexMessages,
           parentMessageId: _messages.at(-1)?.id,
+        });
+
+        posthog.capture("message_sent", {
+          model: settings.model,
+          is_new_thread: !threadId,
+          has_attachments: currentAttachments.length > 0,
+          attachment_count: currentAttachments.length,
         });
 
         return true;

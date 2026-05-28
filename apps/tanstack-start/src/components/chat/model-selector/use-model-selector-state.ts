@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useConvexAuth, useMutation } from "convex/react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 
 import type { ChatModelConfig } from "@redux/shared/models";
@@ -40,6 +41,7 @@ export function useModelSelectorState({
   selectedModel: string;
   onModelChange: (modelId: string) => void;
 }) {
+  const posthog = usePostHog();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -382,12 +384,24 @@ export function useModelSelectorState({
     (index: number) => {
       const m = filteredModels[index];
       if (!m) return;
+      posthog.capture("model_changed", {
+        model_id: m.id,
+        model_name: m.name,
+        maker: m.maker,
+        previous_model_id: selectedModel,
+      });
       onModelChange(m.id);
       setOpen(false);
       resetPickerDismissState();
       requestFocusComposer();
     },
-    [filteredModels, onModelChange, resetPickerDismissState],
+    [
+      filteredModels,
+      onModelChange,
+      posthog,
+      resetPickerDismissState,
+      selectedModel,
+    ],
   );
 
   const activateSidebarSlotByNavIndex = useCallback(

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAction } from "convex/react";
 import { CreditCard } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -69,6 +70,7 @@ export function AddCreditsDialog({
   billingState,
   triggerContext = "settings",
 }: AddCreditsDialogProps) {
+  const posthog = usePostHog();
   const createCheckout = useAction(
     api.functions.billing.createCurrentUserCreditTopUpCheckout,
   );
@@ -115,6 +117,12 @@ export function AddCreditsDialog({
     setIsSubmitting(true);
     setError(null);
     try {
+      posthog.capture("credits_checkout_started", {
+        amount_cents: amountCents,
+        credits,
+        trigger_context: triggerContext,
+        tier: billingState?.tier,
+      });
       const checkout = await createCheckout({ amountCents });
       window.location.href = checkout.url;
     } catch (checkoutError) {

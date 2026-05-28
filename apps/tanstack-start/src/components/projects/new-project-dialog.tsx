@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -28,6 +29,7 @@ export function NewProjectDialog({
   onOpenChange,
 }: NewProjectDialogProps) {
   const router = useRouter();
+  const posthog = usePostHog();
   const createProject = useMutation(api.functions.projects.createProject);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -57,6 +59,11 @@ export function NewProjectDialog({
         name: trimmedName,
         description: description.trim() || undefined,
         instructions: instructions.trim() || undefined,
+      });
+
+      posthog.capture("project_created", {
+        has_description: !!description.trim(),
+        has_instructions: !!instructions.trim(),
       });
 
       handleClose(false);

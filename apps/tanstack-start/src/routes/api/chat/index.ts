@@ -47,6 +47,7 @@ import {
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
+import { getPostHogClient } from "@/utils/posthog-server";
 
 const requestBody = z.object({
   fileIds: z.array(z.string()),
@@ -499,6 +500,16 @@ export const Route = createFileRoute("/api/chat/")({
             threadId,
             assistantMessageId,
             error: "Insufficient credits to start generation.",
+          });
+
+          getPostHogClient().capture({
+            distinctId: requestUserId,
+            event: "out_of_credits",
+            properties: {
+              tier: billingSnapshot.tier,
+              spendable_credits: spendableCredits,
+              model: settings.model,
+            },
           });
 
           return new Response(
@@ -969,6 +980,21 @@ export const Route = createFileRoute("/api/chat/")({
                     generationStats,
                   },
                 );
+
+                getPostHogClient().capture({
+                  distinctId: requestUserId,
+                  event: "chat_stream_completed",
+                  properties: {
+                    model: settings.model,
+                    trigger: parsedBody.trigger,
+                    input_tokens: usage.inputTokens,
+                    output_tokens: usage.outputTokens,
+                    total_tokens: usage.totalTokens,
+                    time_to_first_token_ms: generationStats.timeToFirstTokenMs,
+                    total_duration_ms: generationStats.totalDurationMs,
+                    tokens_per_second: generationStats.tokensPerSecond,
+                  },
+                });
 
                 try {
                   await fetchAuthAction(

@@ -6,6 +6,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -52,6 +53,7 @@ function SignUpPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
   const redirectTo = sanitizeAuthRedirect(next);
+  const posthog = usePostHog();
 
   const form = useForm({
     defaultValues: {
@@ -69,6 +71,11 @@ function SignUpPage() {
         name: value.name,
         fetchOptions: {
           onSuccess: () => {
+            posthog.identify(value.email, {
+              email: value.email,
+              name: value.name,
+            });
+            posthog.capture("user_signed_up", { method: "email" });
             void navigate({ to: redirectTo });
           },
           onError: (ctx) => {

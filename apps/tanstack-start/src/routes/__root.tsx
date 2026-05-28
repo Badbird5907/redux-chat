@@ -15,6 +15,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useAction, useConvexAuth } from "convex/react";
+import { PostHogProvider } from "posthog-js/react";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import { Toaster } from "@redux/ui/components/sonner";
@@ -176,20 +177,33 @@ function RootDocument({ children }: { children: ReactNode }) {
           "--font-audiowide": "'Audiowide', sans-serif",
         }}
       >
-        <ThemeProvider>
-          <HotkeySettingsProvider>
-            {children}
-            {AppTanStackDevtools ? (
-              <ClientOnly>
-                <Suspense fallback={null}>
-                  <AppTanStackDevtools />
-                </Suspense>
-              </ClientOnly>
-            ) : null}
-            {/* <ThemeToggle /> */}
-            <Toaster />
-          </HotkeySettingsProvider>
-        </ThemeProvider>
+        <PostHogProvider
+          apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN!}
+          options={{
+            api_host: "/ingest",
+            ui_host:
+              (import.meta.env.VITE_PUBLIC_POSTHOG_HOST as string) ||
+              "https://us.posthog.com",
+            defaults: "2025-05-24",
+            capture_exceptions: true,
+            debug: import.meta.env.DEV,
+          }}
+        >
+          <ThemeProvider>
+            <HotkeySettingsProvider>
+              {children}
+              {AppTanStackDevtools ? (
+                <ClientOnly>
+                  <Suspense fallback={null}>
+                    <AppTanStackDevtools />
+                  </Suspense>
+                </ClientOnly>
+              ) : null}
+              {/* <ThemeToggle /> */}
+              <Toaster />
+            </HotkeySettingsProvider>
+          </ThemeProvider>
+        </PostHogProvider>
         <Analytics />
         <SpeedInsights />
         <Scripts />

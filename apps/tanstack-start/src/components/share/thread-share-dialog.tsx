@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Trash,
 } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -70,6 +71,7 @@ export function ThreadShareDialog({
     api.functions.threads.selectThreadBranch,
   );
   const navigate = useNavigate();
+  const posthog = usePostHog();
   const [busyShareId, setBusyShareId] = useState<string | undefined>();
   const [creating, setCreating] = useState(false);
 
@@ -89,6 +91,7 @@ export function ThreadShareDialog({
         threadId,
         settings: DEFAULT_SHARE_SETTINGS,
       });
+      posthog.capture("share_link_created", { thread_id: threadId });
       await navigator.clipboard.writeText(`${origin}/share/${result.shareId}`);
       toast.success("Share link created and copied");
     } catch (error) {
