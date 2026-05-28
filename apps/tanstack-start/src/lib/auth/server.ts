@@ -9,7 +9,7 @@ import { env } from "@/env";
 
 // import { env } from '@/env'
 
-const isAuthError = (error: unknown) => {
+export const isAuthError = (error: unknown) => {
   // This broadly matches potentially auth related errors, can be rewritten to
   // work with your app's own error handling.
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
