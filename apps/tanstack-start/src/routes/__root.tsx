@@ -33,6 +33,28 @@ const isDev = import.meta.env.DEV;
 const AppTanStackDevtools = isDev
   ? lazy(() => import("@/components/devtools/tanstack-devtools"))
   : null;
+const DEFAULT_POSTHOG_UI_HOST = "https://us.posthog.com";
+
+function getPostHogUiHost(posthogHost: string | undefined): string {
+  if (!posthogHost) {
+    return DEFAULT_POSTHOG_UI_HOST;
+  }
+
+  const normalizedHost = posthogHost.replace(/\/$/, "");
+
+  if (/^https:\/\/(us|eu)\.i\.posthog\.com$/i.test(normalizedHost)) {
+    return normalizedHost.replace(
+      /^https:\/\/(us|eu)\.i\.posthog\.com$/i,
+      "https://$1.posthog.com",
+    );
+  }
+
+  if (normalizedHost === "https://app.posthog.com") {
+    return DEFAULT_POSTHOG_UI_HOST;
+  }
+
+  return normalizedHost;
+}
 
 const getAuth = createServerFn({ method: "GET" }).handler(async () => {
   return await getToken();
@@ -163,8 +185,7 @@ function EnsureStripeCustomerOnAuth() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   const posthogProjectToken = env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
-  const posthogHost =
-    env.VITE_PUBLIC_POSTHOG_HOST ?? "https://us.posthog.com";
+  const posthogUiHost = getPostHogUiHost(env.VITE_PUBLIC_POSTHOG_HOST);
   const appShell = (
     <ThemeProvider>
       <HotkeySettingsProvider>
@@ -204,7 +225,7 @@ function RootDocument({ children }: { children: ReactNode }) {
             apiKey={posthogProjectToken}
             options={{
               api_host: "/ingest",
-              ui_host: posthogHost,
+              ui_host: posthogUiHost,
               defaults: "2025-05-24",
               capture_exceptions: true,
               debug: isDev,

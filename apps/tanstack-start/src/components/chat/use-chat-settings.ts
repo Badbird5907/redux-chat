@@ -19,25 +19,6 @@ import { authClient } from "@/lib/auth/client";
 
 const DEFAULT_SETTINGS_CACHE_KEY = "redux-chat:default-message-settings:v1";
 
-function readCachedDefaultSettings() {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  try {
-    const rawSettings = window.localStorage.getItem(DEFAULT_SETTINGS_CACHE_KEY);
-    if (!rawSettings) {
-      return undefined;
-    }
-
-    return normalizeMessageSettings(
-      JSON.parse(rawSettings) as MessageSettingsInput,
-    );
-  } catch {
-    return undefined;
-  }
-}
-
 function cacheDefaultSettings(settings: MessageSettings) {
   if (typeof window === "undefined") {
     return;
@@ -72,13 +53,9 @@ export function useChatSettings(
     () => (threadId ? `thread:${threadId}` : "home"),
     [threadId],
   );
-  const cachedDefaultSettings = useMemo(
-    () => (threadId ? undefined : readCachedDefaultSettings()),
-    [threadId],
-  );
   const normalizedInitialSettings = useMemo(
-    () => normalizeMessageSettings(initialSettings ?? cachedDefaultSettings),
-    [cachedDefaultSettings, initialSettings],
+    () => normalizeMessageSettings(initialSettings),
+    [initialSettings],
   );
 
   const [settings, setSettings] = useState<MessageSettings>(

@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useMutation } from "convex/react";
 import { toast } from "sonner";
@@ -49,6 +49,65 @@ const SUGGESTIONS = [
   "Write a professional email template",
 ];
 
+function getTimeBasedGreeting() {
+  const now = new Date();
+  const hours = now.getHours();
+
+  const morningGreetings = [
+    "Good morning",
+    "Rise and shine",
+    "Morning! Ready to tackle the day?",
+    "What's on the agenda today?",
+    "Good morning! Let's make today great",
+    "Morning! How can I help you today?",
+  ];
+
+  const afternoonGreetings = [
+    "Good afternoon",
+    "Afternoon! How's your day going?",
+    "Good afternoon! What can I help with?",
+    "Afternoon! Ready to dive in?",
+    "Good afternoon! Let's get things done",
+  ];
+
+  const eveningGreetings = [
+    "Good evening",
+    "Evening! How was your day?",
+    "Good evening! What's on your mind?",
+    "Evening! Ready to chat?",
+    "Good evening! How can I assist you?",
+  ];
+
+  const nightGreetings = [
+    "Good evening",
+    "Quiet hours, clear thoughts",
+    "What can I help with tonight?",
+    "Ready when you are",
+  ];
+
+  let greetings: string[];
+  if (hours >= 5 && hours < 12) {
+    greetings = morningGreetings;
+  } else if (hours >= 12 && hours < 17) {
+    greetings = afternoonGreetings;
+  } else if (hours >= 17 && hours < 22) {
+    greetings = eveningGreetings;
+  } else {
+    greetings = nightGreetings;
+  }
+
+  const dayOfYear = Math.floor(
+    (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) /
+      1000 /
+      60 /
+      60 /
+      24,
+  );
+  const selectionIndex = (hours + dayOfYear) % greetings.length;
+
+  return greetings[selectionIndex] ?? greetings[0] ?? "Hello";
+}
+
 export const EmptyChat = ({
   threadId,
   chatProjectId,
@@ -63,6 +122,7 @@ export const EmptyChat = ({
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const { allocate: allocateSignedIds } = useSignedCid();
   const createMessage = useMutation(api.functions.threads.sendMessage);
+  const [greeting, setGreeting] = useState("Hello");
 
   const handleSuggestionClick = async (text: string) => {
     if (isAuthLoading) {
@@ -97,69 +157,12 @@ export const EmptyChat = ({
     }
   };
 
-  const greeting = useMemo(() => {
-    const now = new Date();
-    const hours = now.getHours();
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setGreeting(getTimeBasedGreeting());
+    }, 0);
 
-    // Define greetings for different time periods
-    const morningGreetings = [
-      "Good morning",
-      "Rise and shine",
-      "Morning! Ready to tackle the day?",
-      "What's on the agenda today?",
-      "Good morning! Let's make today great",
-      "Morning! How can I help you today?",
-    ];
-
-    const afternoonGreetings = [
-      "Good afternoon",
-      "Afternoon! How's your day going?",
-      "Good afternoon! What can I help with?",
-      "Afternoon! Ready to dive in?",
-      "Good afternoon! Let's get things done",
-    ];
-
-    const eveningGreetings = [
-      "Good evening",
-      "Evening! How was your day?",
-      "Good evening! What's on your mind?",
-      "Evening! Ready to chat?",
-      "Good evening! How can I assist you?",
-    ];
-
-    const nightGreetings = [
-      "Good evening",
-      "Quiet hours, clear thoughts",
-      "What can I help with tonight?",
-      "Ready when you are",
-    ];
-
-    // Select greetings based on time of day
-    let greetings: string[];
-    if (hours >= 5 && hours < 12) {
-      greetings = morningGreetings;
-    } else if (hours >= 12 && hours < 17) {
-      greetings = afternoonGreetings;
-    } else if (hours >= 17 && hours < 22) {
-      greetings = eveningGreetings;
-    } else {
-      greetings = nightGreetings;
-    }
-
-    // Deterministically select a greeting based on hour and day
-    // This ensures consistency while still providing variety throughout the day
-    const dayOfYear = Math.floor(
-      (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) /
-        1000 /
-        60 /
-        60 /
-        24,
-    );
-    const selectionIndex = (hours + dayOfYear) % greetings.length;
-    const selectedGreeting =
-      greetings[selectionIndex] ?? greetings[0] ?? "Hello";
-
-    return selectedGreeting;
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   return (

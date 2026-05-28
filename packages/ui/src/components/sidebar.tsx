@@ -37,12 +37,11 @@ const SIDEBAR_WIDTH_ICON = "3rem";
 const MIN_SIDEBAR_WIDTH = "14rem";
 const MAX_SIDEBAR_WIDTH = "22rem";
 
-function getStoredSidebarConfig(defaultOpen: boolean, defaultWidth: string) {
-  if (typeof window === "undefined") {
-    return { open: defaultOpen, width: defaultWidth };
-  }
-
-  const savedConfig = window.localStorage.getItem(SIDEBAR_CONFIG_KEY);
+function parseSidebarConfig(
+  savedConfig: string | null,
+  defaultOpen: boolean,
+  defaultWidth: string,
+) {
   if (!savedConfig) {
     return { open: defaultOpen, width: defaultWidth };
   }
@@ -105,19 +104,41 @@ function SidebarProvider({
   const [openMobile, setOpenMobile] = React.useState(false);
 
   //* new state for sidebar width
-  const [width, setWidth] = React.useState(
-    () => getStoredSidebarConfig(defaultOpen, defaultWidth).width,
-  );
+  const [width, setWidth] = React.useState(defaultWidth);
 
   //* new state for tracking is dragging rail
   const [isDraggingRail, setIsDraggingRail] = React.useState(false);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(
-    () => getStoredSidebarConfig(defaultOpen, defaultWidth).open,
-  );
+  const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      let savedConfig: string | null = null;
+
+      try {
+        savedConfig = window.localStorage.getItem(SIDEBAR_CONFIG_KEY);
+      } catch {
+        savedConfig = null;
+      }
+
+      const storedConfig = parseSidebarConfig(
+        savedConfig,
+        defaultOpen,
+        defaultWidth,
+      );
+
+      setWidth(storedConfig.width);
+
+      if (openProp === undefined) {
+        _setOpen(storedConfig.open);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [defaultOpen, defaultWidth, openProp]);
 
   const persistConfig = React.useCallback((open: boolean, width: string) => {
     const config = `${open}:${width}`;

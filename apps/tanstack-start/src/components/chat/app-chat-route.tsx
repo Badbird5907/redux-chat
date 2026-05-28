@@ -1,7 +1,6 @@
 "use client";
 
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 
 import type { Chat } from ".";
 import { useChatRouteAdoption } from "@/components/chat/chat-route-adoption";
@@ -51,22 +50,10 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
   const chatPanelKey = `${chatResetKey}:${routeSessionKey}`;
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={chatPanelKey}
-        className="h-full"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.1, ease: "easeOut" }}
-      >
-        <Suspense fallback={null}>
-          <ChatRouteClient
-            initialThreadId={initialThreadId}
-            preload={preload}
-          />
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
+    <div key={chatPanelKey} className="h-full">
+      <Suspense fallback={null}>
+        <ChatRouteClient initialThreadId={initialThreadId} preload={preload} />
+      </Suspense>
+    </div>
   );
 }

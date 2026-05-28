@@ -27,6 +27,7 @@ import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as RedeemCodeRouteImport } from './routes/redeem.$code'
+import { Route as IngestSplatRouteImport } from './routes/ingest/$'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
@@ -134,6 +135,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
 const RedeemCodeRoute = RedeemCodeRouteImport.update({
   id: '/redeem/$code',
   path: '/redeem/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IngestSplatRoute = IngestSplatRouteImport.update({
+  id: '/ingest/$',
+  path: '/ingest/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/ingest/$': typeof IngestSplatRoute
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/ingest/$': typeof IngestSplatRoute
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
@@ -320,6 +328,7 @@ export interface FileRoutesById {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/ingest/$': typeof IngestSplatRoute
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
@@ -361,6 +370,7 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/ingest/$'
     | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/attachments'
@@ -394,6 +404,7 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/ingest/$'
     | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/attachments'
@@ -433,6 +444,7 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/auth/sign-up'
+    | '/ingest/$'
     | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/attachments'
@@ -467,6 +479,7 @@ export interface RootRouteChildren {
   ReasoningRoute: typeof ReasoningRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiUploadRoute: typeof ApiUploadRoute
+  IngestSplatRoute: typeof IngestSplatRoute
   RedeemCodeRoute: typeof RedeemCodeRoute
   LogosIndexRoute: typeof LogosIndexRoute
   TestIndexRoute: typeof TestIndexRoute
@@ -602,6 +615,13 @@ declare module '@tanstack/react-router' {
       path: '/redeem/$code'
       fullPath: '/redeem/$code'
       preLoaderRoute: typeof RedeemCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ingest/$': {
+      id: '/ingest/$'
+      path: '/ingest/$'
+      fullPath: '/ingest/$'
+      preLoaderRoute: typeof IngestSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/sign-up': {
@@ -848,6 +868,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReasoningRoute: ReasoningRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ApiUploadRoute: ApiUploadRoute,
+  IngestSplatRoute: IngestSplatRoute,
   RedeemCodeRoute: RedeemCodeRoute,
   LogosIndexRoute: LogosIndexRoute,
   TestIndexRoute: TestIndexRoute,
