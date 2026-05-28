@@ -19,6 +19,7 @@ const shikiTheme: [ThemeInput, ThemeInput] = ["github-light", "github-dark"];
 interface MarkdownRendererProps {
   content: string;
   className?: string;
+  controls?: boolean;
   isStreaming?: boolean;
   mode: "static" | "streaming";
   reasoning?: boolean;
@@ -27,6 +28,7 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({
   content,
   className,
+  controls = true,
   isStreaming = false,
   mode,
   reasoning = false,
@@ -43,7 +45,7 @@ export function MarkdownRenderer({
         className,
       )}
       components={streamdownComponents}
-      controls={true}
+      controls={controls}
       isAnimating={isStreaming}
       lineNumbers={false}
       mode={mode}

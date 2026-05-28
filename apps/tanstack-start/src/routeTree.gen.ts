@@ -249,9 +249,9 @@ export interface FileRoutesByFullPath {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
-  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/admin/': typeof AdminIndexRoute
@@ -282,9 +282,9 @@ export interface FileRoutesByTo {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
-  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/': typeof AppIndexRoute
@@ -322,9 +322,9 @@ export interface FileRoutesById {
   '/auth/sign-up': typeof AuthSignUpRoute
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
-  '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/_app/': typeof AppIndexRoute
@@ -363,9 +363,9 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/redeem/$code'
     | '/settings/appearance'
+    | '/settings/attachments'
     | '/settings/hotkeys'
     | '/settings/instructions'
-    | '/settings/attachments'
     | '/settings/mcp'
     | '/settings/security'
     | '/admin/'
@@ -396,9 +396,9 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/redeem/$code'
     | '/settings/appearance'
+    | '/settings/attachments'
     | '/settings/hotkeys'
     | '/settings/instructions'
-    | '/settings/attachments'
     | '/settings/mcp'
     | '/settings/security'
     | '/'
@@ -435,9 +435,9 @@ export interface FileRouteTypes {
     | '/auth/sign-up'
     | '/redeem/$code'
     | '/settings/appearance'
+    | '/settings/attachments'
     | '/settings/hotkeys'
     | '/settings/instructions'
-    | '/settings/attachments'
     | '/settings/mcp'
     | '/settings/security'
     | '/_app/'
@@ -817,8 +817,8 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface SettingsRouteChildren {
-  SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
   SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsMcpRoute: typeof SettingsMcpRoute
@@ -827,8 +827,8 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
-  SettingsAttachmentsRoute: SettingsAttachmentsRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsAttachmentsRoute: SettingsAttachmentsRoute,
   SettingsHotkeysRoute: SettingsHotkeysRoute,
   SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsMcpRoute: SettingsMcpRoute,

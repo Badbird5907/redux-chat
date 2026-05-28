@@ -4,6 +4,7 @@ import { MarkdownRenderer } from "./markdown-renderer";
 
 interface StreamingMarkdownProps {
   content: string;
+  controls?: boolean;
   isStreaming?: boolean;
   reasoning?: boolean;
   className?: string;
@@ -11,6 +12,7 @@ interface StreamingMarkdownProps {
 
 export function StreamingMarkdown({
   content,
+  controls,
   isStreaming = false,
   reasoning = false,
   className,
@@ -19,6 +21,7 @@ export function StreamingMarkdown({
     <MarkdownRenderer
       className={className}
       content={content}
+      controls={controls}
       isStreaming={isStreaming}
       mode="streaming"
       reasoning={reasoning}

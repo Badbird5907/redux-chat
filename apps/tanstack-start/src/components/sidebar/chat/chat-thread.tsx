@@ -1,7 +1,16 @@
 import * as React from "react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import { useMutation } from "convex/react";
-import { Ellipsis, Pencil, RotateCw, Share2, Trash } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useConvex, useMutation } from "convex/react";
+import {
+  Download,
+  Ellipsis,
+  FileText,
+  Pencil,
+  RotateCw,
+  Share2,
+  Trash,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -10,6 +19,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@redux/ui/components/dropdown-menu";
 import { Input } from "@redux/ui/components/input";
@@ -20,7 +32,14 @@ import {
 } from "@redux/ui/components/sidebar";
 import Spinner from "@redux/ui/components/spinner";
 
+import { getVisibleBranchMessages } from "@/components/chat/chat-branching";
+import { toChatUIMessage } from "@/components/chat/chat-message-utils";
+import {
+  exportThreadMarkdown,
+  requestThreadPdfExport,
+} from "@/components/chat/thread-export";
 import { ThreadShareDialog } from "@/components/share/thread-share-dialog";
+import { resolveAttachments } from "@/server/attachments";
 
 /** Must match `packages/backend/convex/functions/threads.ts` default thread name. */
 const THREAD_PLACEHOLDER_NAME = "New Thread";
@@ -49,6 +68,8 @@ export default function ChatThreadSidebarItem({
 }: ChatThreadSidebarItemProps) {
   const router = useRouter();
   const routerState = useRouterState();
+  const convex = useConvex();
+  const resolveAttachmentsFn = useServerFn(resolveAttachments);
   const isActive = routerState.location.pathname === `/chat/${threadId}`;
   const renameThread = useMutation(api.functions.threads.updateThreadName);
   const regenerateThreadTitle = useMutation(
@@ -62,6 +83,7 @@ export default function ChatThreadSidebarItem({
   const [displayedTitle, setDisplayedTitle] = React.useState(threadName);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
   const [isRegeneratingTitle, setIsRegeneratingTitle] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const lastThreadIdRef = React.useRef(threadId);
@@ -132,7 +154,7 @@ export default function ChatThreadSidebarItem({
   }, [threadId, threadName, titleSource, titleGeneratedAt]);
 
   const handleContextMenu = (event: React.MouseEvent<HTMLLIElement>) => {
-    if (isRenaming || isDeleting || isRegeneratingTitle) {
+    if (isRenaming || isDeleting || isRegeneratingTitle || isExporting) {
       return;
     }
 
@@ -196,6 +218,83 @@ export default function ChatThreadSidebarItem({
   const openShareDialog = () => {
     setMenuOpen(false);
     setShareOpen(true);
+  };
+
+  const handleExport = async (format: "markdown" | "pdf") => {
+    setMenuOpen(false);
+    setIsExporting(true);
+
+    try {
+      const [thread, persistedMessages] = await Promise.all([
+        convex.query(api.functions.threads.getThread, { threadId }),
+        convex.query(api.functions.threads.getThreadMessages, { threadId }),
+      ]);
+
+      if (!thread) {
+        throw new Error("Thread not found");
+      }
+
+      const allMessages = persistedMessages.map(toChatUIMessage);
+      const messages = getVisibleBranchMessages(
+        allMessages,
+        thread.selectedLeafMessageId,
+      );
+      const attachmentIds = Array.from(
+        new Set(
+          messages.flatMap(
+            (message) =>
+              message.attachments?.map(
+                (attachment) => attachment.attachmentId,
+              ) ?? [],
+          ),
+        ),
+      );
+      const resolvedAttachments =
+        attachmentIds.length > 0
+          ? Object.fromEntries(
+              (
+                await resolveAttachmentsFn({
+                  data: { attachmentIds },
+                })
+              ).map((attachment) => [
+                attachment.attachmentId,
+                {
+                  attachmentId: attachment.attachmentId,
+                  fileName: attachment.fileName,
+                  originalFileName: attachment.originalFileName,
+                  usedDerivative:
+                    attachment.originalFileName !== undefined
+                      ? true
+                      : undefined,
+                  mimeType: attachment.mimeType,
+                  size: attachment.size,
+                  expiresAt: attachment.expiresAt,
+                  expired: attachment.expired,
+                  url: attachment.url,
+                },
+              ]),
+            )
+          : {};
+
+      const exportInput = {
+        threadId,
+        threadName,
+        messages,
+        resolvedAttachments,
+      };
+
+      if (format === "markdown") {
+        exportThreadMarkdown(exportInput);
+      } else {
+        requestThreadPdfExport(exportInput);
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to export thread",
+      );
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const cancelRenaming = () => {
@@ -285,7 +384,9 @@ export default function ChatThreadSidebarItem({
         <DropdownMenuTrigger
           render={
             <SidebarMenuAction
-              disabled={isRenaming || isDeleting || isRegeneratingTitle}
+              disabled={
+                isRenaming || isDeleting || isRegeneratingTitle || isExporting
+              }
               showOnHover={status === "completed"}
               className={
                 status === "generating"
@@ -320,11 +421,37 @@ export default function ChatThreadSidebarItem({
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={openShareDialog}
-            disabled={isDeleting || isRegeneratingTitle}
+            disabled={isDeleting || isRegeneratingTitle || isExporting}
           >
             <Share2 className="size-4" />
             <span>Share</span>
           </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger
+              disabled={isDeleting || isRegeneratingTitle || isExporting}
+            >
+              <Download className="size-4" />
+              <span>{isExporting ? "Exporting…" : "Export"}</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="min-w-36">
+              <DropdownMenuItem
+                onClick={() => {
+                  void handleExport("markdown");
+                }}
+              >
+                <FileText className="size-4" />
+                <span>Markdown</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  void handleExport("pdf");
+                }}
+              >
+                <FileText className="size-4" />
+                <span>PDF</span>
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {

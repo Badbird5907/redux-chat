@@ -297,7 +297,13 @@ export function useChatDraft({
     return () => {
       cancelled = true;
     };
-  }, [persistDraft, resolveAttachmentsFn, scopeKey, settingsReady]);
+  }, [
+    persistDraft,
+    resolveAttachmentsFn,
+    scopeKey,
+    setAttachments,
+    settingsReady,
+  ]);
 
   useEffect(() => {
     if (
@@ -387,11 +393,14 @@ export function useChatDraft({
     return () => {
       window.removeEventListener(DRAFT_UPDATED_EVENT, handleDraftUpdated);
     };
-  }, [persistDraft, scopeKey]);
+  }, [persistDraft, scopeKey, setAttachments]);
 
-  const appendAttachment = useCallback((attachment: DraftAttachment) => {
-    setAttachments((previous) => [...previous, attachment]);
-  }, []);
+  const appendAttachment = useCallback(
+    (attachment: DraftAttachment) => {
+      setAttachments((previous) => [...previous, attachment]);
+    },
+    [setAttachments],
+  );
 
   const updateAttachment = useCallback(
     (
@@ -406,7 +415,7 @@ export function useChatDraft({
         ),
       );
     },
-    [],
+    [setAttachments],
   );
 
   const removeAttachment = useCallback(
@@ -429,7 +438,7 @@ export function useChatDraft({
         ),
       );
     },
-    [attachments, deleteDraftAttachmentFn],
+    [attachments, deleteDraftAttachmentFn, setAttachments],
   );
 
   const clearDraft = useCallback(() => {
@@ -443,7 +452,7 @@ export function useChatDraft({
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(scopeKey);
     }
-  }, [scopeKey]);
+  }, [scopeKey, setAttachments]);
 
   return {
     text,

@@ -1130,6 +1130,7 @@ export function useChatSession({
 
   return {
     currentThreadId,
+    currentThreadName: thread?.name,
     handleThreadIdChange,
     effectiveChatProjectId,
     chatSessionId,

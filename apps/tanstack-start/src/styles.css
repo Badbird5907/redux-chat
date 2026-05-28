@@ -119,3 +119,55 @@
 .analysis-code-block .chat-markdown__pre code {
   @apply block min-w-max font-mono text-[13px];
 }
+
+@media print {
+  @page {
+    margin: 0.65in;
+  }
+
+  html,
+  body {
+    background: white !important;
+    height: auto !important;
+    overflow: visible !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body.thread-export-printing > *:not(.thread-print-root) {
+    display: none !important;
+  }
+
+  body.thread-export-printing > .thread-print-root {
+    display: block !important;
+  }
+
+  .thread-print-root .chat-markdown [data-streamdown="code-block"],
+  .thread-print-root .chat-markdown [data-streamdown="table-wrapper"],
+  .thread-print-root figure {
+    break-inside: avoid;
+  }
+
+  .thread-print-root .chat-markdown [data-streamdown="code-block-actions"],
+  .thread-print-root
+    .chat-markdown
+    [data-streamdown="table-wrapper"]
+    > div:not(:has(table)) {
+    display: none !important;
+  }
+
+  .thread-print-root .chat-markdown [data-streamdown="code-block"],
+  .thread-print-root .chat-markdown [data-streamdown="table-wrapper"] {
+    margin: 0.75rem 0;
+  }
+
+  .thread-print-root .chat-markdown [data-streamdown="code-block-body"] {
+    overflow: visible !important;
+  }
+
+  .thread-print-root .chat-markdown__image {
+    max-height: 7in;
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
