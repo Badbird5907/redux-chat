@@ -14,7 +14,7 @@ export function useBillingState() {
     const sync = () => {
       void fetchBillingState()
         .then((state) => {
-          if (!cancelled) {
+          if (!cancelled && state !== null) {
             setBillingState(state);
           }
         })
