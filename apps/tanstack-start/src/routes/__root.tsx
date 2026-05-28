@@ -22,13 +22,15 @@ import { Toaster } from "@redux/ui/components/sonner";
 import { ThemeProvider } from "@redux/ui/components/theme";
 import { cn } from "@redux/ui/lib/utils";
 
+import { env } from "@/env";
 import { authClient } from "@/lib/auth/client";
 import { getToken } from "@/lib/auth/server";
 import { HotkeySettingsProvider } from "@/lib/hotkeys";
 import appCss from "@/styles.css?url";
 
 // eslint-disable-next-line turbo/no-undeclared-env-vars -- DEV is a Vite built-in, not a user-provided environment variable.
-const AppTanStackDevtools = import.meta.env.DEV
+const isDev = import.meta.env.DEV;
+const AppTanStackDevtools = isDev
   ? lazy(() => import("@/components/devtools/tanstack-devtools"))
   : null;
 
@@ -160,6 +162,26 @@ function EnsureStripeCustomerOnAuth() {
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
+  const posthogProjectToken = env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
+  const posthogHost =
+    env.VITE_PUBLIC_POSTHOG_HOST ?? "https://us.posthog.com";
+  const appShell = (
+    <ThemeProvider>
+      <HotkeySettingsProvider>
+        {children}
+        {AppTanStackDevtools ? (
+          <ClientOnly>
+            <Suspense fallback={null}>
+              <AppTanStackDevtools />
+            </Suspense>
+          </ClientOnly>
+        ) : null}
+        {/* <ThemeToggle /> */}
+        <Toaster />
+      </HotkeySettingsProvider>
+    </ThemeProvider>
+  );
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -177,33 +199,22 @@ function RootDocument({ children }: { children: ReactNode }) {
           "--font-audiowide": "'Audiowide', sans-serif",
         }}
       >
-        <PostHogProvider
-          apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN!}
-          options={{
-            api_host: "/ingest",
-            ui_host:
-              (import.meta.env.VITE_PUBLIC_POSTHOG_HOST as string) ||
-              "https://us.posthog.com",
-            defaults: "2025-05-24",
-            capture_exceptions: true,
-            debug: import.meta.env.DEV,
-          }}
-        >
-          <ThemeProvider>
-            <HotkeySettingsProvider>
-              {children}
-              {AppTanStackDevtools ? (
-                <ClientOnly>
-                  <Suspense fallback={null}>
-                    <AppTanStackDevtools />
-                  </Suspense>
-                </ClientOnly>
-              ) : null}
-              {/* <ThemeToggle /> */}
-              <Toaster />
-            </HotkeySettingsProvider>
-          </ThemeProvider>
-        </PostHogProvider>
+        {posthogProjectToken ? (
+          <PostHogProvider
+            apiKey={posthogProjectToken}
+            options={{
+              api_host: "/ingest",
+              ui_host: posthogHost,
+              defaults: "2025-05-24",
+              capture_exceptions: true,
+              debug: isDev,
+            }}
+          >
+            {appShell}
+          </PostHogProvider>
+        ) : (
+          appShell
+        )}
         <Analytics />
         <SpeedInsights />
         <Scripts />

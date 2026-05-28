@@ -502,7 +502,7 @@ export const Route = createFileRoute("/api/chat/")({
             error: "Insufficient credits to start generation.",
           });
 
-          getPostHogClient().capture({
+          getPostHogClient()?.capture({
             distinctId: requestUserId,
             event: "out_of_credits",
             properties: {
@@ -981,7 +981,7 @@ export const Route = createFileRoute("/api/chat/")({
                   },
                 );
 
-                getPostHogClient().capture({
+                getPostHogClient()?.capture({
                   distinctId: requestUserId,
                   event: "chat_stream_completed",
                   properties: {

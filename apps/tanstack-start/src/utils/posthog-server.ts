@@ -1,20 +1,19 @@
 import { PostHog } from "posthog-node";
 
+import { env } from "@/env";
+
 let posthogClient: PostHog | null = null;
 
-export function getPostHogClient(): PostHog {
-  if (!posthogClient) {
-    posthogClient = new PostHog(
-      process.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN ??
-        import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN,
-      {
-        host:
-          process.env.VITE_PUBLIC_POSTHOG_HOST ??
-          import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-        flushAt: 1,
-        flushInterval: 0,
-      },
-    );
+export function getPostHogClient(): PostHog | null {
+  if (!env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+    return null;
   }
+
+  posthogClient ??= new PostHog(env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN, {
+    host: env.VITE_PUBLIC_POSTHOG_HOST,
+    flushAt: 1,
+    flushInterval: 0,
+  });
+
   return posthogClient;
 }

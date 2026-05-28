@@ -45,6 +45,8 @@ export const env = createEnv({
     VITE_CONVEX_URL: z.string().min(1),
     VITE_CONVEX_SITE_URL: z.string().min(1),
     VITE_SENTRY_DSN: z.string().min(1).optional(),
+    VITE_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string().min(1).optional(),
+    VITE_PUBLIC_POSTHOG_HOST: z.string().min(1).optional(),
   },
   runtimeEnv: {
     ...import.meta.env,
