@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAction } from "convex/react";
-import { ChevronRight, CreditCard } from "lucide-react";
+import { ChevronRight, CreditCard, TriangleAlert } from "lucide-react";
 
 import type { PlanTier } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
@@ -197,6 +197,9 @@ function RouteComponent() {
   const getStripeCustomerBalance = useAction(
     api.functions.billing.getCurrentUserStripeCustomerBalance,
   );
+  const getPaymentMethodStatus = useAction(
+    api.functions.billing.getCurrentUserPaymentMethodStatus,
+  );
   const baseBillingState = useQuery(
     api.functions.billing.getCurrentBillingState,
     {},
@@ -255,6 +258,11 @@ function RouteComponent() {
     "rescind" | "discard" | null
   >(null);
   const [addCreditsOpen, setAddCreditsOpen] = useState(false);
+  const [addPaymentMethodDialogOpen, setAddPaymentMethodDialogOpen] =
+    useState(false);
+  const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(
+    null,
+  );
 
   const hydratedScheduleForSubIdRef = useRef<string | null>(null);
   const billingQuerySettled = baseBillingState !== undefined;
@@ -319,6 +327,8 @@ function RouteComponent() {
       : undefined;
   const showPaidManage = tierRank(currentTier) >= 1;
   const isOnPaidPlan = showPaidManage;
+  const showMissingPaymentMethodNag =
+    isOnPaidPlan && hasPaymentMethod === false;
 
   const renewSummary = renewalSummary(billingState?.currentPeriodEnd);
 
@@ -442,6 +452,28 @@ function RouteComponent() {
       cancelled = true;
     };
   }, [getStripeCustomerBalance]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isOnPaidPlan) {
+      return;
+    }
+    void getPaymentMethodStatus({})
+      .then((result) => {
+        if (!cancelled) {
+          setHasPaymentMethod(result.hasPaymentMethod);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          console.error("Failed to load payment method status", error);
+          setHasPaymentMethod(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnPaidPlan, getPaymentMethodStatus]);
 
   useEffect(() => {
     const confirm = planSwitchConfirm;
@@ -648,6 +680,33 @@ function RouteComponent() {
         </div>
       ) : null}
 
+      {showMissingPaymentMethodNag ? (
+        <Card className="gap-0 border-amber-500/30 bg-amber-500/5 px-5 py-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+                <TriangleAlert className="size-4" aria-hidden />
+                Add a billing method to keep your plan active
+              </p>
+              <p className="text-muted-foreground text-xs leading-snug">
+                You are on a paid plan without a payment method on file. Add one
+                now so your plan can renew when your billing cycle renews.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                className="whitespace-nowrap"
+                onClick={() => setAddPaymentMethodDialogOpen(true)}
+              >
+                Add billing method
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       <Dialog
         open={planSwitchConfirm !== null}
         onOpenChange={(open) => {
@@ -792,6 +851,42 @@ function RouteComponent() {
                 : planSwitchConfirm?.isUpgrade
                   ? "Confirm"
                   : "Confirm switch"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={addPaymentMethodDialogOpen}
+        onOpenChange={(open) => {
+          if (!portalLoading) {
+            setAddPaymentMethodDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent showCloseButton={!portalLoading}>
+          <DialogHeader>
+            <DialogTitle>Add billing method</DialogTitle>
+            <DialogDescription>
+              You&apos;ll be redirected to Stripe&apos;s billing dashboard to
+              add a payment method.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddPaymentMethodDialogOpen(false)}
+              disabled={portalLoading}
+            >
+              Not now
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void openCustomerPortal()}
+              disabled={portalLoading}
+            >
+              {portalLoading ? "Opening…" : "Continue to Stripe"}
             </Button>
           </DialogFooter>
         </DialogContent>
