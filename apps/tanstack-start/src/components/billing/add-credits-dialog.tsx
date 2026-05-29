@@ -31,7 +31,7 @@ type AddCreditsBillingState = {
 type AddCreditsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  billingState: AddCreditsBillingState | undefined;
+  billingState: AddCreditsBillingState | null | undefined;
   triggerContext?: "out_of_credits" | "settings";
 };
 
@@ -121,10 +121,10 @@ export function AddCreditsDialog({
         amount_cents: amountCents,
         credits,
         trigger_context: triggerContext,
-        tier: billingState?.tier,
+        tier: billingState.tier,
       });
       const checkout = await createCheckout({ amountCents });
-      window.location.href = checkout.url;
+      window.location.assign(checkout.url);
     } catch (checkoutError) {
       const message =
         checkoutError instanceof Error

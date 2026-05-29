@@ -650,6 +650,7 @@ export function ChatInput({
       status,
       threadId,
       isOutOfCredits,
+      posthog,
     ],
   );
 
