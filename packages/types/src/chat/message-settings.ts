@@ -14,13 +14,15 @@ export const MESSAGE_TOOL_NAMES = [
 ] as const;
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
+type MessageToolState<T> = T | false;
+type MessageToolStateInput<T> = T | false | null | undefined;
 
 export type SearchToolSettings = object;
 
 export type BashWorkspaceToolSettings = object;
 
 export interface AnalysisWorkspaceToolSettings {
-  syncUploads: boolean;
+  syncUploads?: boolean;
 }
 
 export interface AnalysisWorkspaceToolSettingsInput {
@@ -28,41 +30,51 @@ export interface AnalysisWorkspaceToolSettingsInput {
 }
 
 export interface McpServersToolSettings {
-  serverIds: string[];
+  serverIds?: string[];
 }
 
 export interface McpServersToolSettingsInput {
-  serverIds: string[];
+  serverIds?: string[];
 }
 
 export interface ImageGenerationToolSettings {
-  modelId: string;
+  modelId?: string;
 }
 
 export interface ImageGenerationToolSettingsInput {
-  modelId: string;
+  modelId?: string;
 }
 
 export interface MessageToolSettings {
-  search?: SearchToolSettings;
-  bashWorkspace?: BashWorkspaceToolSettings;
-  analysisWorkspace?: AnalysisWorkspaceToolSettings;
-  mcpServers?: McpServersToolSettings;
-  imageGeneration?: ImageGenerationToolSettings;
+  search: MessageToolState<SearchToolSettings>;
+  bashWorkspace: MessageToolState<BashWorkspaceToolSettings>;
+  analysisWorkspace: MessageToolState<AnalysisWorkspaceToolSettings>;
+  mcpServers: MessageToolState<McpServersToolSettings>;
+  imageGeneration: MessageToolState<ImageGenerationToolSettings>;
 }
 
 export interface MessageToolSettingsInput {
-  search?: SearchToolSettings;
-  bashWorkspace?: BashWorkspaceToolSettings;
-  analysisWorkspace?: AnalysisWorkspaceToolSettingsInput;
-  mcpServers?: McpServersToolSettingsInput;
-  imageGeneration?: ImageGenerationToolSettingsInput;
+  search?: MessageToolStateInput<SearchToolSettings>;
+  bashWorkspace?: MessageToolStateInput<BashWorkspaceToolSettings>;
+  analysisWorkspace?: MessageToolStateInput<AnalysisWorkspaceToolSettingsInput>;
+  mcpServers?: MessageToolStateInput<McpServersToolSettingsInput>;
+  imageGeneration?: MessageToolStateInput<ImageGenerationToolSettingsInput>;
 }
 
 /** Lines shown before collapsing user messages in chat. Use `0` to disable collapsing. */
 export const DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES = 100;
 const DEFAULT_IMAGE_GENERATION_MODEL_ID =
   getImageGenerationToolModels()[0]?.id;
+
+function getDefaultEnabledTools(): MessageToolSettings {
+  return {
+    search: {},
+    bashWorkspace: {},
+    analysisWorkspace: {},
+    mcpServers: {},
+    imageGeneration: {},
+  };
+}
 
 export interface MessageSettings {
   model: string;
@@ -87,18 +99,7 @@ export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
 
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
   model: DEFAULT_CHAT_MODEL_ID,
-  tools: {
-    search: {},
-    bashWorkspace: {},
-    analysisWorkspace: { syncUploads: true },
-    ...(DEFAULT_IMAGE_GENERATION_MODEL_ID
-      ? {
-          imageGeneration: {
-            modelId: DEFAULT_IMAGE_GENERATION_MODEL_ID,
-          },
-        }
-      : {}),
-  },
+  tools: getDefaultEnabledTools(),
   instructionId: undefined,
   userMessagePreviewMaxLines: DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES,
 };
@@ -107,7 +108,7 @@ function toolsInputForNormalization(
   input: MessageSettingsInput | null | undefined,
 ): MessageToolSettingsInput {
   if (input == null || !Object.prototype.hasOwnProperty.call(input, "tools")) {
-    return { ...DEFAULT_MESSAGE_SETTINGS.tools };
+    return getDefaultEnabledTools();
   }
   return input.tools ?? {};
 }
@@ -186,42 +187,56 @@ function normalizeUserMessagePreviewMaxLines(value: unknown): number {
 function normalizeTools(
   tools: MessageToolSettingsInput | null | undefined,
 ): MessageToolSettings {
-  const normalizedTools: MessageToolSettings = {};
+  const normalizedTools: MessageToolSettings = getDefaultEnabledTools();
+  normalizedTools.search = normalizeSimpleToolState(tools?.search);
+  normalizedTools.bashWorkspace = normalizeSimpleToolState(tools?.bashWorkspace);
+  normalizedTools.analysisWorkspace = normalizeAnalysisWorkspaceToolState(
+    tools?.analysisWorkspace,
+  );
+  normalizedTools.mcpServers = normalizeMcpServersToolState(tools?.mcpServers);
+  normalizedTools.imageGeneration = normalizeImageGenerationToolState(
+    tools?.imageGeneration,
+  );
 
-  if (
-    tools?.search &&
-    typeof tools.search === "object" &&
-    !Array.isArray(tools.search)
-  ) {
-    normalizedTools.search = {};
+  return normalizedTools;
+}
+
+function normalizeSimpleToolState(value: unknown): object | false {
+  if (value === false) {
+    return false;
   }
 
-  if (
-    tools?.bashWorkspace &&
-    typeof tools.bashWorkspace === "object" &&
-    !Array.isArray(tools.bashWorkspace)
-  ) {
-    normalizedTools.bashWorkspace = {};
+  return {};
+}
+
+function normalizeAnalysisWorkspaceToolState(
+  value: MessageToolStateInput<AnalysisWorkspaceToolSettingsInput>,
+): AnalysisWorkspaceToolSettings | false {
+  if (value === false) {
+    return false;
   }
 
-  if (
-    tools?.analysisWorkspace &&
-    typeof tools.analysisWorkspace === "object" &&
-    !Array.isArray(tools.analysisWorkspace)
-  ) {
-    normalizedTools.analysisWorkspace = {
-      syncUploads: tools.analysisWorkspace.syncUploads !== false,
-    };
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    if (value.syncUploads === false) {
+      return { syncUploads: false };
+    }
   }
 
-  if (
-    tools?.mcpServers &&
-    typeof tools.mcpServers === "object" &&
-    !Array.isArray(tools.mcpServers)
-  ) {
+  return {};
+}
+
+function normalizeMcpServersToolState(
+  value: MessageToolStateInput<McpServersToolSettingsInput>,
+): McpServersToolSettings | false {
+  if (value === false) {
+    return false;
+  }
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const rawServerIds = Array.isArray(value.serverIds) ? value.serverIds : [];
     const serverIds = Array.from(
       new Set(
-        tools.mcpServers.serverIds.filter(
+        rawServerIds.filter(
           (serverId): serverId is string =>
             typeof serverId === "string" && serverId.trim().length > 0,
         ),
@@ -229,37 +244,65 @@ function normalizeTools(
     );
 
     if (serverIds.length > 0) {
-      normalizedTools.mcpServers = { serverIds };
+      return { serverIds };
     }
   }
 
-  if (
-    tools?.imageGeneration &&
-    typeof tools.imageGeneration === "object" &&
-    !Array.isArray(tools.imageGeneration)
-  ) {
+  return {};
+}
+
+function normalizeImageGenerationToolState(
+  value: MessageToolStateInput<ImageGenerationToolSettingsInput>,
+): ImageGenerationToolSettings | false {
+  if (value === false) {
+    return false;
+  }
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
     const modelId =
-      typeof tools.imageGeneration.modelId === "string"
-        ? normalizeModelId(tools.imageGeneration.modelId)
-        : undefined;
-
+      typeof value.modelId === "string" ? normalizeModelId(value.modelId) : null;
     if (modelId) {
-      normalizedTools.imageGeneration = { modelId };
+      return { modelId };
     }
   }
 
-  return normalizedTools;
+  return {};
 }
 
 export function isToolEnabled(
   tools: MessageToolSettings,
   toolName: MessageToolName,
 ) {
-  return tools[toolName] !== undefined;
+  return tools[toolName] !== false;
 }
 
 export function getEnabledMessageTools(tools: MessageToolSettings) {
   return MESSAGE_TOOL_NAMES.filter((toolName) =>
     isToolEnabled(tools, toolName),
   );
+}
+
+export function getAnalysisWorkspaceSyncUploads(tools: MessageToolSettings) {
+  const value = tools.analysisWorkspace;
+  return value !== false && value.syncUploads !== false;
+}
+
+export function getImageGenerationToolModelId(tools: MessageToolSettings) {
+  const value = tools.imageGeneration;
+  if (value === false) {
+    return undefined;
+  }
+
+  const explicitModelId =
+    typeof value.modelId === "string" ? normalizeModelId(value.modelId) : null;
+  return explicitModelId ?? DEFAULT_IMAGE_GENERATION_MODEL_ID;
+}
+
+export function getMcpServerIds(tools: MessageToolSettings): string[] {
+  const value = tools.mcpServers;
+  if (value === false) {
+    return [];
+  }
+
+  return value.serverIds ?? [];
 }

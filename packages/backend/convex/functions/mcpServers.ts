@@ -1,7 +1,7 @@
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { mergeMessageSettings } from "@redux/types";
+import { getMcpServerIds, mergeMessageSettings } from "@redux/types";
 
 import type { DataModel, Doc } from "../_generated/dataModel";
 import { mutation, query } from "./index";
@@ -237,7 +237,7 @@ async function setMcpServersEnabled(
 function stripDeletedServerIdFromSettings<
   T extends Doc<"defaultMessageSettings"> | Doc<"threads">,
 >(doc: T, mcpServerId: string) {
-  const currentIds = doc.settings.tools.mcpServers?.serverIds ?? [];
+  const currentIds = getMcpServerIds(doc.settings.tools);
   const nextIds = currentIds.filter((serverId) => serverId !== mcpServerId);
 
   if (nextIds.length === currentIds.length) {
@@ -247,7 +247,7 @@ function stripDeletedServerIdFromSettings<
   return mergeMessageSettings(doc.settings, {
     tools: {
       ...doc.settings.tools,
-      mcpServers: nextIds.length > 0 ? { serverIds: nextIds } : undefined,
+      mcpServers: nextIds.length > 0 ? { serverIds: nextIds } : {},
     },
   });
 }
@@ -261,7 +261,9 @@ async function addServerIdToDefaultSettings(
     .query("defaultMessageSettings")
     .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
     .first();
-  const currentServerIds = existing?.settings.tools.mcpServers?.serverIds ?? [];
+  const currentServerIds = existing
+    ? getMcpServerIds(existing.settings.tools)
+    : [];
   const settings = mergeMessageSettings(existing?.settings, {
     tools: {
       mcpServers: {

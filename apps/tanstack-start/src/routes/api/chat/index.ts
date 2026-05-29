@@ -20,7 +20,11 @@ import { z } from "zod";
 import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import { getChatModelConfig } from "@redux/shared/models";
-import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
+import {
+  getMcpServerIds,
+  isToolEnabled,
+  normalizeMessageSettings,
+} from "@redux/types";
 
 import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
@@ -65,22 +69,36 @@ const requestBody = z.object({
     thinkingLevel: z.enum(["instant", "low", "medium", "high"]).optional(),
     instructionId: z.string().optional(),
     tools: z.object({
-      search: z.object({}).optional(),
-      bashWorkspace: z.object({}).optional(),
+      search: z.union([z.object({}), z.literal(false), z.null()]).optional(),
+      bashWorkspace: z
+        .union([z.object({}), z.literal(false), z.null()])
+        .optional(),
       analysisWorkspace: z
-        .object({
-          syncUploads: z.boolean().optional(),
-        })
+        .union([
+          z.object({
+            syncUploads: z.boolean().optional(),
+          }),
+          z.literal(false),
+          z.null(),
+        ])
         .optional(),
       mcpServers: z
-        .object({
-          serverIds: z.array(z.string()),
-        })
+        .union([
+          z.object({
+            serverIds: z.array(z.string()).optional(),
+          }),
+          z.literal(false),
+          z.null(),
+        ])
         .optional(),
       imageGeneration: z
-        .object({
-          modelId: z.string(),
-        })
+        .union([
+          z.object({
+            modelId: z.string().optional(),
+          }),
+          z.literal(false),
+          z.null(),
+        ])
         .optional(),
     }),
   }),
@@ -468,7 +486,7 @@ export const Route = createFileRoute("/api/chat/")({
           settings.tools,
           "bashWorkspace",
         );
-        const enabledMcpServerIds = settings.tools.mcpServers?.serverIds ?? [];
+        const enabledMcpServerIds = getMcpServerIds(settings.tools);
         console.log("Received request:", {
           threadId,
           assistantMessageId,

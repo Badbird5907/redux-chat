@@ -13,7 +13,11 @@ import { z } from "zod";
 import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
 import type { MessageSettings } from "@redux/types";
 import { isImageGenerationToolModel } from "@redux/shared/models";
-import { getEnabledMessageTools } from "@redux/types";
+import {
+  getAnalysisWorkspaceSyncUploads,
+  getEnabledMessageTools,
+  getImageGenerationToolModelId,
+} from "@redux/types";
 
 import { createBashWorkspaceRuntime } from "@/lib/ai/tools/bash-workspace";
 import {
@@ -307,8 +311,7 @@ export async function createToolRuntime(
   }
 
   if (enabledTools.includes("analysisWorkspace")) {
-    const uploadsEnabled =
-      settings.tools.analysisWorkspace?.syncUploads !== false;
+    const uploadsEnabled = getAnalysisWorkspaceSyncUploads(settings.tools);
 
     sandboxRuntime = createSandboxRuntime({
       attachments,
@@ -412,7 +415,7 @@ export async function createToolRuntime(
   }
 
   if (enabledTools.includes("imageGeneration")) {
-    const modelId = settings.tools.imageGeneration?.modelId;
+    const modelId = getImageGenerationToolModelId(settings.tools);
     if (modelId && generationContext && isImageGenerationToolModel(modelId)) {
       tools.generate_image = instrumentTool(
         tool({

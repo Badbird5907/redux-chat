@@ -20,7 +20,11 @@ import {
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "@redux/shared/models";
-import { isToolEnabled } from "@redux/types";
+import {
+  getImageGenerationToolModelId,
+  getMcpServerIds,
+  isToolEnabled,
+} from "@redux/types";
 import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -267,14 +271,14 @@ export function ChatInput({
     [],
   );
   const selectedImageGenerationModelId =
-    settings.tools.imageGeneration?.modelId ?? imageGenerationModels[0]?.id;
+    getImageGenerationToolModelId(settings.tools) ?? imageGenerationModels[0]?.id;
   const isImageGenerationEnabled = isToolEnabled(
     settings.tools,
     "imageGeneration",
   );
   const enabledMcpServerIds = useMemo(
-    () => settings.tools.mcpServers?.serverIds ?? [],
-    [settings.tools.mcpServers],
+    () => getMcpServerIds(settings.tools),
+    [settings.tools],
   );
   const showErrorBorder = status === "error";
   const selectedInstruction =
@@ -376,7 +380,7 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          search: enabled ? {} : undefined,
+          search: enabled ? {} : false,
         },
       });
     },
@@ -387,7 +391,7 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          analysisWorkspace: enabled ? { syncUploads: true } : undefined,
+          analysisWorkspace: enabled ? {} : false,
         },
       });
     },
@@ -398,14 +402,11 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          imageGeneration:
-            enabled && selectedImageGenerationModelId
-              ? { modelId: selectedImageGenerationModelId }
-              : undefined,
+          imageGeneration: enabled ? {} : false,
         },
       });
     },
-    [onSettingsChange, selectedImageGenerationModelId],
+    [onSettingsChange],
   );
 
   const handleImageGenerationModelChange = useCallback(
@@ -423,7 +424,7 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          bashWorkspace: enabled ? {} : undefined,
+          bashWorkspace: enabled ? {} : false,
         },
       });
     },
@@ -489,8 +490,7 @@ export function ChatInput({
 
       void onSettingsChange({
         tools: {
-          mcpServers:
-            nextServerIds.length > 0 ? { serverIds: nextServerIds } : undefined,
+          mcpServers: nextServerIds.length > 0 ? { serverIds: nextServerIds } : {},
         },
       });
     },

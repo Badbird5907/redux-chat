@@ -12,12 +12,31 @@ const mutationInfo = z.discriminatedUnion("type", [
 ]);
 
 const messageToolsSchema = z.object({
-  search: z.object({}).optional(),
-  bashWorkspace: z.object({}).optional(),
+  search: z.union([z.object({}), z.literal(false)]).optional(),
+  bashWorkspace: z.union([z.object({}), z.literal(false)]).optional(),
   analysisWorkspace: z
-    .object({
-      syncUploads: z.boolean().optional(),
-    })
+    .union([
+      z.object({
+        syncUploads: z.boolean().optional(),
+      }),
+      z.literal(false),
+    ])
+    .optional(),
+  mcpServers: z
+    .union([
+      z.object({
+        serverIds: z.array(z.string()).optional(),
+      }),
+      z.literal(false),
+    ])
+    .optional(),
+  imageGeneration: z
+    .union([
+      z.object({
+        modelId: z.string().optional(),
+      }),
+      z.literal(false),
+    ])
     .optional(),
 });
 

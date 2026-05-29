@@ -62,22 +62,38 @@ export const update = mutation({
       thinkingLevel: v.optional(thinkingLevelValidator),
       tools: v.optional(
         v.object({
-          search: v.optional(v.object({})),
-          bashWorkspace: v.optional(v.object({})),
+          search: v.optional(
+            v.union(v.object({}), v.literal(false), v.null()),
+          ),
+          bashWorkspace: v.optional(
+            v.union(v.object({}), v.literal(false), v.null()),
+          ),
           analysisWorkspace: v.optional(
-            v.object({
-              syncUploads: v.optional(v.boolean()),
-            }),
+            v.union(
+              v.object({
+                syncUploads: v.optional(v.boolean()),
+              }),
+              v.literal(false),
+              v.null(),
+            ),
           ),
           mcpServers: v.optional(
-            v.object({
-              serverIds: v.array(v.string()),
-            }),
+            v.union(
+              v.object({
+                serverIds: v.optional(v.array(v.string())),
+              }),
+              v.literal(false),
+              v.null(),
+            ),
           ),
           imageGeneration: v.optional(
-            v.object({
-              modelId: v.string(),
-            }),
+            v.union(
+              v.object({
+                modelId: v.optional(v.string()),
+              }),
+              v.literal(false),
+              v.null(),
+            ),
           ),
         }),
       ),

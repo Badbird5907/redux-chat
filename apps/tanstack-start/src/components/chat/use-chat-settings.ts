@@ -92,15 +92,30 @@ export function useChatSettings(
       }
 
       try {
-        const nextSettings = threadId
-          ? normalizeMessageSettings(
-              (
-                await convex.query(api.functions.threads.getThread, {
-                  threadId,
-                })
-              )?.settings,
-            )
-          : normalizeMessageSettings(await getDefaultSettings({}));
+        let nextSettings: MessageSettings;
+        if (threadId) {
+          const thread = await convex.query(api.functions.threads.getThread, {
+            threadId,
+          });
+          nextSettings = normalizeMessageSettings(thread?.settings);
+
+          // When new tools are introduced, heal older thread documents so they
+          // persist canonical enabled values instead of missing/null states.
+          if (
+            thread &&
+            JSON.stringify(nextSettings.tools) !==
+              JSON.stringify(thread.settings.tools)
+          ) {
+            await updateThreadSettings({
+              threadId,
+              patch: {
+                tools: nextSettings.tools,
+              },
+            });
+          }
+        } else {
+          nextSettings = normalizeMessageSettings(await getDefaultSettings({}));
+        }
 
         if (!cancelled) {
           setSettings(nextSettings);
@@ -134,6 +149,7 @@ export function useChatSettings(
     scopeKey,
     session?.session.userId,
     threadId,
+    updateThreadSettings,
   ]);
 
   const updateSettings = useCallback(
