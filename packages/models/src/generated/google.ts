@@ -7,7 +7,7 @@ export const googleModels = {
   name: "Google",
   npm: "@ai-sdk/google",
   doc: "https://ai.google.dev/gemini-api/docs/models",
-  env: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+  env: ["GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
   models: {
     "gemini-2.0-flash": {
       id: "gemini-2.0-flash",

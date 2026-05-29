@@ -47,7 +47,8 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "auth:generate": "dotenv -e ../../.env -- pnpx @better-auth/cli generate --config scripts/auth-cli.ts --output convex/betterAuth/schema.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:app": "cd ../.. && pnpm build"
   },
   "dependencies": {
     "@ai-sdk/google-vertex": "5.0.0-beta.66",
