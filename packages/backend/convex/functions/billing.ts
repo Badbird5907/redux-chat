@@ -226,6 +226,59 @@ export const getCurrentUserStripeCustomerBalance = action({
   },
 });
 
+export const getCurrentUserPaymentMethodStatus = action({
+  args: {},
+  handler: async (ctx): Promise<{ hasPaymentMethod: boolean }> => {
+    const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
+      ctx,
+      ctx.userId,
+    );
+    if (subscriptionState.fromFallback) {
+      return { hasPaymentMethod: false };
+    }
+    if (subscriptionState.tier === "free") {
+      return { hasPaymentMethod: true };
+    }
+
+    const customerId = await ensureStripeCustomerForCurrentUser(ctx);
+    const stripe = getStripeSdkClient();
+    const customer = await withTimeout(
+      stripe.customers.retrieve(customerId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.customers.retrieve",
+    );
+    if ("deleted" in customer && customer.deleted) {
+      return { hasPaymentMethod: false };
+    }
+    if (customerHasDefaultPaymentMethod(customer)) {
+      return { hasPaymentMethod: true };
+    }
+
+    const subscriptionId = subscriptionState.subscription?.subscriptionId;
+    if (subscriptionId) {
+      const liveSubscription = await withTimeout(
+        stripe.subscriptions.retrieve(subscriptionId),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.subscriptions.retrieve",
+      );
+      if (liveSubscription.default_payment_method != null) {
+        return { hasPaymentMethod: true };
+      }
+    }
+
+    const savedCardMethods = await withTimeout(
+      stripe.paymentMethods.list({
+        customer: customerId,
+        type: "card",
+        limit: 1,
+      }),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "stripe.paymentMethods.list",
+    );
+    return { hasPaymentMethod: savedCardMethods.data.length > 0 };
+  },
+});
+
 export const getCurrentBillingState = query({
   args: {},
   handler: async (ctx) => {
@@ -1216,6 +1269,12 @@ async function stripeCustomerExists(
     }
     throw error;
   }
+}
+
+function customerHasDefaultPaymentMethod(customer: Stripe.Customer): boolean {
+  return Boolean(
+    customer.invoice_settings.default_payment_method ?? customer.default_source,
+  );
 }
 
 async function getCreditTopUpIntentDoc(
