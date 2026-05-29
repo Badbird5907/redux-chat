@@ -258,8 +258,6 @@ function RouteComponent() {
     "rescind" | "discard" | null
   >(null);
   const [addCreditsOpen, setAddCreditsOpen] = useState(false);
-  const [addPaymentMethodDialogOpen, setAddPaymentMethodDialogOpen] =
-    useState(false);
   const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(
     null,
   );
@@ -631,12 +629,13 @@ function RouteComponent() {
     }
   };
 
-  const openCustomerPortal = async () => {
+  const openCustomerPortal = async (pathSuffix = "") => {
     setPortalLoading(true);
     setBillingError(null);
     try {
       const portal = await createCustomerPortal({});
-      window.location.href = portal.url;
+      const baseUrl = portal.url.replace(/\/+$/, "");
+      window.location.href = pathSuffix ? `${baseUrl}${pathSuffix}` : portal.url;
     } catch (error) {
       setBillingError(
         error instanceof Error
@@ -698,9 +697,10 @@ function RouteComponent() {
                 type="button"
                 variant="outline"
                 className="whitespace-nowrap"
-                onClick={() => setAddPaymentMethodDialogOpen(true)}
+                disabled={portalLoading}
+                onClick={() => void openCustomerPortal("/payment-methods")}
               >
-                Add billing method
+                {portalLoading ? "Opening…" : "Add billing method"}
               </Button>
             </div>
           </div>
@@ -851,42 +851,6 @@ function RouteComponent() {
                 : planSwitchConfirm?.isUpgrade
                   ? "Confirm"
                   : "Confirm switch"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={addPaymentMethodDialogOpen}
-        onOpenChange={(open) => {
-          if (!portalLoading) {
-            setAddPaymentMethodDialogOpen(open);
-          }
-        }}
-      >
-        <DialogContent showCloseButton={!portalLoading}>
-          <DialogHeader>
-            <DialogTitle>Add billing method</DialogTitle>
-            <DialogDescription>
-              You&apos;ll be redirected to Stripe&apos;s billing dashboard to
-              add a payment method.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setAddPaymentMethodDialogOpen(false)}
-              disabled={portalLoading}
-            >
-              Not now
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void openCustomerPortal()}
-              disabled={portalLoading}
-            >
-              {portalLoading ? "Opening…" : "Continue to Stripe"}
             </Button>
           </DialogFooter>
         </DialogContent>
