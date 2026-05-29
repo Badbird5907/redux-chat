@@ -690,7 +690,7 @@ function RouteComponent() {
               </p>
               <p className="text-muted-foreground text-xs leading-snug">
                 You are on a paid plan without a payment method on file. Add one
-                now so your plan can renew when your gifted period ends.
+                now so your plan can renew when your billing cycle renews.
               </p>
             </div>
             <div className="shrink-0">
@@ -869,7 +869,7 @@ function RouteComponent() {
             <DialogTitle>Add billing method</DialogTitle>
             <DialogDescription>
               You&apos;ll be redirected to Stripe&apos;s billing dashboard to
-              add a payment method, then returned to this page.
+              add a payment method.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
