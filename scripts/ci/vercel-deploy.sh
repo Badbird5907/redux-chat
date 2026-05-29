@@ -7,5 +7,6 @@ echo "AEHJNE: apps/tanstack-start/.vercel/output"
 ls -la apps/tanstack-start/.vercel/output
 echo "FESJNHF: apps/tanstack-start/.vercel"
 ls -la apps/tanstack-start/.vercel
+ls -la /vercel/output
 popd
 cd ./apps/tanstack-start
