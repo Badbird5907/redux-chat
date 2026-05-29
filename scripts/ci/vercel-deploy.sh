@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+trap 'popd' EXIT
 
 pushd ./packages/backend
 pnpm run convex deploy --cmd "pnpm run build:app"
