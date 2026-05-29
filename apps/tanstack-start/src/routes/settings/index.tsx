@@ -635,7 +635,9 @@ function RouteComponent() {
     try {
       const portal = await createCustomerPortal({});
       const baseUrl = portal.url.replace(/\/+$/, "");
-      window.location.href = pathSuffix ? `${baseUrl}${pathSuffix}` : portal.url;
+      window.location.href = pathSuffix
+        ? `${baseUrl}${pathSuffix}`
+        : portal.url;
     } catch (error) {
       setBillingError(
         error instanceof Error

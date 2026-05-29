@@ -1,10 +1,9 @@
 import type { AuthFunctions, GenericCtx } from "@convex-dev/better-auth";
 import type { BetterAuthOptions } from "better-auth/minimal";
-// import { oAuthProxy } from "better-auth/plugins";
 import { createClient } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
-import { admin } from "better-auth/plugins";
+import { admin, oAuthProxy } from "better-auth/plugins";
 
 import type { DataModel } from "@redux/backend/convex/_generated/dataModel";
 import { components, internal } from "@redux/backend/convex/_generated/api";
@@ -29,18 +28,64 @@ export const authComponent = createClient<DataModel, typeof authSchema>(
 );
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
+const ANALYSIS_ORIGIN_FALLBACK = "http://localhost:3712";
+
+function normalizeOrigin(url: string | undefined) {
+  if (!url) {
+    return ANALYSIS_ORIGIN_FALLBACK;
+  }
+
+  const trimmedUrl = url.trim().replace(/\/+$/, "");
+
+  if (/^https?:\/\//i.test(trimmedUrl)) {
+    return trimmedUrl;
+  }
+
+  return `https://${trimmedUrl}`;
+}
+
+function optionalEnvString(value: unknown) {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function parseTrustedOrigins(origins: string | undefined) {
+  return (
+    origins
+      ?.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+      .map(normalizeOrigin) ?? []
+  );
+}
+
 export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
   const env = backendEnv();
+  const siteUrl = normalizeOrigin(optionalEnvString(env.SITE_URL));
+  const productionEnvUrl = optionalEnvString(env.PRODUCTION_URL);
+  const productionUrl = productionEnvUrl
+    ? normalizeOrigin(productionEnvUrl)
+    : siteUrl;
+  const oauthProxySecret =
+    optionalEnvString(env.OAUTH_PROXY_SECRET) ?? env.AUTH_SECRET;
+  const trustedOrigins = Array.from(
+    new Set([
+      siteUrl,
+      productionUrl,
+      ...parseTrustedOrigins(optionalEnvString(env.OAUTH_PROXY_TRUSTED_ORIGINS)),
+    ]),
+  );
 
   return {
     database: authComponent.adapter(ctx),
-    baseURL: env.SITE_URL,
+    baseURL: siteUrl,
     secret: env.AUTH_SECRET,
+    trustedOrigins,
 
     plugins: [
-      // oAuthProxy({
-      //   productionURL: env.BASE_URL,
-      // }),
+      oAuthProxy({
+        productionURL: productionUrl,
+        secret: oauthProxySecret,
+      }),
       admin(),
       auditLog({
         nonBlocking: false,
