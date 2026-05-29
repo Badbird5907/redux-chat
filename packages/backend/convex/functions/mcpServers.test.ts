@@ -1,6 +1,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getEnabledToolSettings } from "@redux/types";
+
 import { api } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
@@ -124,9 +126,10 @@ describe("functions/mcpServers", () => {
         .first();
     });
 
-    expect(defaultSettings?.settings.tools.mcpServers?.serverIds).toEqual([
-      mcpServerId,
-    ]);
+    expect(
+      getEnabledToolSettings(defaultSettings?.settings.tools, "mcpServers")
+        ?.serverIds,
+    ).toEqual([mcpServerId]);
   });
 
   it("removes deleted server ids from default settings and thread settings", async () => {
@@ -186,10 +189,14 @@ describe("functions/mcpServers", () => {
     });
 
     expect(
-      stored.defaultSettings?.settings.tools.mcpServers?.serverIds,
+      getEnabledToolSettings(
+        stored.defaultSettings?.settings.tools,
+        "mcpServers",
+      )?.serverIds,
     ).toEqual([retainedServerId]);
-    expect(stored.thread?.settings.tools.mcpServers?.serverIds).toEqual([
-      retainedServerId,
-    ]);
+    expect(
+      getEnabledToolSettings(stored.thread?.settings.tools, "mcpServers")
+        ?.serverIds,
+    ).toEqual([retainedServerId]);
   });
 });

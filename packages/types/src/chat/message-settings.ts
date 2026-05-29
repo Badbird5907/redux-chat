@@ -1,5 +1,10 @@
 import type { ThinkingLevel } from "@redux/shared/models";
-import { DEFAULT_CHAT_MODEL_ID, normalizeModelId } from "@redux/shared/models";
+import {
+  DEFAULT_CHAT_MODEL_ID,
+  DEFAULT_IMAGE_GENERATION_MODEL_ID,
+  isImageGenerationToolModel,
+  normalizeModelId,
+} from "@redux/shared/models";
 
 export const MESSAGE_TOOL_NAMES = [
   "search",
@@ -11,9 +16,9 @@ export const MESSAGE_TOOL_NAMES = [
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
 
-export type SearchToolSettings = object;
+export type SearchToolSettings = Record<string, never>;
 
-export type BashWorkspaceToolSettings = object;
+export type BashWorkspaceToolSettings = Record<string, never>;
 
 export interface AnalysisWorkspaceToolSettings {
   syncUploads: boolean;
@@ -28,7 +33,7 @@ export interface McpServersToolSettings {
 }
 
 export interface McpServersToolSettingsInput {
-  serverIds: string[];
+  serverIds?: string[] | null;
 }
 
 export interface ImageGenerationToolSettings {
@@ -36,24 +41,39 @@ export interface ImageGenerationToolSettings {
 }
 
 export interface ImageGenerationToolSettingsInput {
-  modelId: string;
+  modelId?: string | null;
 }
 
-export interface MessageToolSettings {
-  search?: SearchToolSettings;
-  bashWorkspace?: BashWorkspaceToolSettings;
-  analysisWorkspace?: AnalysisWorkspaceToolSettings;
-  mcpServers?: McpServersToolSettings;
-  imageGeneration?: ImageGenerationToolSettings;
+export interface MessageToolSettingsByName {
+  search: SearchToolSettings;
+  bashWorkspace: BashWorkspaceToolSettings;
+  analysisWorkspace: AnalysisWorkspaceToolSettings;
+  mcpServers: McpServersToolSettings;
+  imageGeneration: ImageGenerationToolSettings;
 }
 
-export interface MessageToolSettingsInput {
-  search?: SearchToolSettings;
-  bashWorkspace?: BashWorkspaceToolSettings;
-  analysisWorkspace?: AnalysisWorkspaceToolSettingsInput;
-  mcpServers?: McpServersToolSettingsInput;
-  imageGeneration?: ImageGenerationToolSettingsInput;
+export interface MessageToolSettingsInputByName {
+  search: SearchToolSettings;
+  bashWorkspace: BashWorkspaceToolSettings;
+  analysisWorkspace: AnalysisWorkspaceToolSettingsInput;
+  mcpServers: McpServersToolSettingsInput;
+  imageGeneration: ImageGenerationToolSettingsInput;
 }
+
+export type MessageToolSetting<T> = T | false;
+
+export type MessageToolSettings = {
+  [ToolName in MessageToolName]: MessageToolSetting<
+    MessageToolSettingsByName[ToolName]
+  >;
+};
+
+export type MessageToolSettingsInput = Partial<{
+  [ToolName in MessageToolName]:
+    | MessageToolSettingsInputByName[ToolName]
+    | false
+    | null;
+}>;
 
 /** Lines shown before collapsing user messages in chat. Use `0` to disable collapsing. */
 export const DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES = 100;
@@ -72,11 +92,11 @@ export interface MessageSettingsInput extends Omit<
   Partial<MessageSettings>,
   "tools"
 > {
-  tools?: MessageToolSettingsInput;
+  tools?: MessageToolSettingsInput | null;
 }
 
 export type MessageSettingsPatch = Partial<Omit<MessageSettings, "tools">> & {
-  tools?: MessageToolSettingsInput;
+  tools?: MessageToolSettingsInput | null;
 };
 
 export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
@@ -85,18 +105,15 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
     search: {},
     bashWorkspace: {},
     analysisWorkspace: { syncUploads: true },
+    mcpServers: { serverIds: [] },
+    imageGeneration: { modelId: DEFAULT_IMAGE_GENERATION_MODEL_ID },
   },
   instructionId: undefined,
   userMessagePreviewMaxLines: DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES,
 };
 
-function toolsInputForNormalization(
-  input: MessageSettingsInput | null | undefined,
-): MessageToolSettingsInput {
-  if (input == null || !Object.prototype.hasOwnProperty.call(input, "tools")) {
-    return { ...DEFAULT_MESSAGE_SETTINGS.tools };
-  }
-  return input.tools ?? {};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function normalizeMessageSettings(
@@ -113,7 +130,7 @@ export function normalizeMessageSettings(
     ...rest,
     model: normalizedModel,
     thinkingLevel: normalizeThinkingLevel(rest.thinkingLevel),
-    tools: normalizeTools(toolsInputForNormalization(input)),
+    tools: normalizeTools(input?.tools),
     userMessagePreviewMaxLines: normalizeUserMessagePreviewMaxLines(
       rest.userMessagePreviewMaxLines,
     ),
@@ -135,10 +152,14 @@ export function mergeMessageSettings(
     ...patch,
     tools:
       patch.tools !== undefined
-        ? normalizeTools({
-            ...normalizedBase.tools,
-            ...patch.tools,
-          })
+        ? normalizeTools(
+            patch.tools === null
+              ? null
+              : {
+                  ...normalizedBase.tools,
+                  ...patch.tools,
+                },
+          )
         : normalizedBase.tools,
   });
 }
@@ -170,83 +191,91 @@ function normalizeUserMessagePreviewMaxLines(value: unknown): number {
   return Math.min(50_000, Math.max(1, rounded));
 }
 
-function normalizeTools(
-  tools: MessageToolSettingsInput | null | undefined,
+export function normalizeTools(
+  tools: MessageToolSettings | MessageToolSettingsInput | null | undefined,
 ): MessageToolSettings {
-  const normalizedTools: MessageToolSettings = {};
-
-  if (
-    tools?.search &&
-    typeof tools.search === "object" &&
-    !Array.isArray(tools.search)
-  ) {
-    normalizedTools.search = {};
-  }
-
-  if (
-    tools?.bashWorkspace &&
-    typeof tools.bashWorkspace === "object" &&
-    !Array.isArray(tools.bashWorkspace)
-  ) {
-    normalizedTools.bashWorkspace = {};
-  }
-
-  if (
-    tools?.analysisWorkspace &&
-    typeof tools.analysisWorkspace === "object" &&
-    !Array.isArray(tools.analysisWorkspace)
-  ) {
-    normalizedTools.analysisWorkspace = {
-      syncUploads: tools.analysisWorkspace.syncUploads !== false,
-    };
-  }
-
-  if (
-    tools?.mcpServers &&
-    typeof tools.mcpServers === "object" &&
-    !Array.isArray(tools.mcpServers)
-  ) {
-    const serverIds = Array.from(
-      new Set(
-        tools.mcpServers.serverIds.filter(
-          (serverId): serverId is string =>
-            typeof serverId === "string" && serverId.trim().length > 0,
-        ),
-      ),
-    );
-
-    if (serverIds.length > 0) {
-      normalizedTools.mcpServers = { serverIds };
-    }
-  }
-
-  if (
-    tools?.imageGeneration &&
-    typeof tools.imageGeneration === "object" &&
-    !Array.isArray(tools.imageGeneration)
-  ) {
-    const modelId =
-      typeof tools.imageGeneration.modelId === "string"
-        ? normalizeModelId(tools.imageGeneration.modelId)
-        : undefined;
-
-    if (modelId) {
-      normalizedTools.imageGeneration = { modelId };
-    }
-  }
-
-  return normalizedTools;
+  return {
+    search: tools?.search === false ? false : {},
+    bashWorkspace: tools?.bashWorkspace === false ? false : {},
+    analysisWorkspace:
+      tools?.analysisWorkspace === false
+        ? false
+        : {
+            syncUploads:
+              isRecord(tools?.analysisWorkspace) &&
+              tools.analysisWorkspace.syncUploads === false
+                ? false
+                : true,
+          },
+    mcpServers:
+      tools?.mcpServers === false
+        ? false
+        : {
+            serverIds: normalizeMcpServerIds(
+              isRecord(tools?.mcpServers)
+                ? tools.mcpServers.serverIds
+                : undefined,
+            ),
+          },
+    imageGeneration:
+      tools?.imageGeneration === false
+        ? false
+        : {
+            modelId: normalizeImageGenerationModelId(
+              isRecord(tools?.imageGeneration)
+                ? tools.imageGeneration.modelId
+                : undefined,
+            ),
+          },
+  };
 }
 
 export function isToolEnabled(
-  tools: MessageToolSettings,
+  tools: MessageToolSettings | MessageToolSettingsInput | null | undefined,
   toolName: MessageToolName,
 ) {
-  return tools[toolName] !== undefined;
+  return tools?.[toolName] !== false;
 }
 
 export function getEnabledMessageTools(tools: MessageToolSettings) {
   return MESSAGE_TOOL_NAMES.filter((toolName) =>
     isToolEnabled(tools, toolName),
   );
+}
+
+export function getEnabledToolSettings<ToolName extends MessageToolName>(
+  tools: MessageToolSettings | MessageToolSettingsInput | null | undefined,
+  toolName: ToolName,
+): MessageToolSettingsByName[ToolName] | undefined {
+  const value = normalizeTools(tools)[toolName];
+
+  if (value === false) {
+    return undefined;
+  }
+
+  return value as MessageToolSettingsByName[ToolName];
+}
+
+function normalizeMcpServerIds(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value.filter(
+        (serverId): serverId is string =>
+          typeof serverId === "string" && serverId.trim().length > 0,
+      ),
+    ),
+  );
+}
+
+function normalizeImageGenerationModelId(value: unknown) {
+  const modelId =
+    typeof value === "string" ? normalizeModelId(value) : undefined;
+
+  return modelId && isImageGenerationToolModel(modelId)
+    ? modelId
+    : DEFAULT_IMAGE_GENERATION_MODEL_ID;
 }

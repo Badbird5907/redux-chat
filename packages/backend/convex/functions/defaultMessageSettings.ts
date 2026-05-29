@@ -11,6 +11,42 @@ const thinkingLevelValidator = v.union(
   v.literal("medium"),
   v.literal("high"),
 );
+const emptyToolPatchValidator = v.union(
+  v.object({}),
+  v.literal(false),
+  v.null(),
+);
+const toolPatchValidator = v.object({
+  search: v.optional(emptyToolPatchValidator),
+  bashWorkspace: v.optional(emptyToolPatchValidator),
+  analysisWorkspace: v.optional(
+    v.union(
+      v.object({
+        syncUploads: v.optional(v.boolean()),
+      }),
+      v.literal(false),
+      v.null(),
+    ),
+  ),
+  mcpServers: v.optional(
+    v.union(
+      v.object({
+        serverIds: v.optional(v.union(v.array(v.string()), v.null())),
+      }),
+      v.literal(false),
+      v.null(),
+    ),
+  ),
+  imageGeneration: v.optional(
+    v.union(
+      v.object({
+        modelId: v.optional(v.union(v.string(), v.null())),
+      }),
+      v.literal(false),
+      v.null(),
+    ),
+  ),
+});
 
 export const getOrCreate = mutation({
   args: {},
@@ -60,27 +96,7 @@ export const update = mutation({
       clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
       thinkingLevel: v.optional(thinkingLevelValidator),
-      tools: v.optional(
-        v.object({
-          search: v.optional(v.object({})),
-          bashWorkspace: v.optional(v.object({})),
-          analysisWorkspace: v.optional(
-            v.object({
-              syncUploads: v.optional(v.boolean()),
-            }),
-          ),
-          mcpServers: v.optional(
-            v.object({
-              serverIds: v.array(v.string()),
-            }),
-          ),
-          imageGeneration: v.optional(
-            v.object({
-              modelId: v.string(),
-            }),
-          ),
-        }),
-      ),
+      tools: v.optional(v.union(toolPatchValidator, v.null())),
     }),
   },
   handler: async (ctx, args) => {

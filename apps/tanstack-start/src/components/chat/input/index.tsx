@@ -15,12 +15,13 @@ import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   classifyChatAttachment,
+  DEFAULT_IMAGE_GENERATION_MODEL_ID,
   getChatModelConfig,
   getImageGenerationToolModels,
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "@redux/shared/models";
-import { isToolEnabled } from "@redux/types";
+import { getEnabledToolSettings, isToolEnabled } from "@redux/types";
 import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
 
@@ -266,14 +267,19 @@ export function ChatInput({
       })),
     [],
   );
+  const imageGenerationSettings = getEnabledToolSettings(
+    settings.tools,
+    "imageGeneration",
+  );
   const selectedImageGenerationModelId =
-    settings.tools.imageGeneration?.modelId ?? imageGenerationModels[0]?.id;
+    imageGenerationSettings?.modelId ?? DEFAULT_IMAGE_GENERATION_MODEL_ID;
   const isImageGenerationEnabled = isToolEnabled(
     settings.tools,
     "imageGeneration",
   );
   const enabledMcpServerIds = useMemo(
-    () => settings.tools.mcpServers?.serverIds ?? [],
+    () =>
+      getEnabledToolSettings(settings.tools, "mcpServers")?.serverIds ?? [],
     [settings.tools.mcpServers],
   );
   const showErrorBorder = status === "error";
@@ -376,7 +382,7 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          search: enabled ? {} : undefined,
+          search: enabled ? {} : false,
         },
       });
     },
@@ -387,7 +393,7 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          analysisWorkspace: enabled ? { syncUploads: true } : undefined,
+          analysisWorkspace: enabled ? { syncUploads: true } : false,
         },
       });
     },
@@ -401,7 +407,7 @@ export function ChatInput({
           imageGeneration:
             enabled && selectedImageGenerationModelId
               ? { modelId: selectedImageGenerationModelId }
-              : undefined,
+              : false,
         },
       });
     },
@@ -423,7 +429,7 @@ export function ChatInput({
     (enabled: boolean) => {
       void onSettingsChange({
         tools: {
-          bashWorkspace: enabled ? {} : undefined,
+          bashWorkspace: enabled ? {} : false,
         },
       });
     },
@@ -489,8 +495,7 @@ export function ChatInput({
 
       void onSettingsChange({
         tools: {
-          mcpServers:
-            nextServerIds.length > 0 ? { serverIds: nextServerIds } : undefined,
+          mcpServers: { serverIds: nextServerIds },
         },
       });
     },

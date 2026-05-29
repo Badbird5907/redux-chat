@@ -5,7 +5,11 @@ export {
   NEW_MODEL_RECENCY_DAYS,
   parseModelReleasedAtMs,
 } from "./release-date";
-export { DEFAULT_CHAT_MODEL_ID, defaultFavorites } from "./defaults";
+export {
+  DEFAULT_CHAT_MODEL_ID,
+  DEFAULT_IMAGE_GENERATION_MODEL_ID,
+  defaultFavorites,
+} from "./defaults";
 export { PROVIDERS } from "./curated";
 export { classifyChatAttachment } from "./route-behavior";
 export {

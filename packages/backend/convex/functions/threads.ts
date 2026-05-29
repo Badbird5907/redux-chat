@@ -53,6 +53,12 @@ const thinkingLevelValidator = v.union(
   v.literal("medium"),
   v.literal("high"),
 );
+const emptyStoredToolValidator = v.union(v.object({}), v.literal(false));
+const emptyToolPatchValidator = v.union(
+  v.object({}),
+  v.literal(false),
+  v.null(),
+);
 
 const messageSettingsValidator = v.object({
   model: v.string(),
@@ -60,24 +66,65 @@ const messageSettingsValidator = v.object({
   instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
   tools: v.object({
-    search: v.optional(v.object({})),
-    bashWorkspace: v.optional(v.object({})),
+    search: v.optional(emptyStoredToolValidator),
+    bashWorkspace: v.optional(emptyStoredToolValidator),
     analysisWorkspace: v.optional(
+      v.union(
+        v.object({
+          syncUploads: v.optional(v.boolean()),
+        }),
+        v.literal(false),
+      ),
+    ),
+    mcpServers: v.optional(
+      v.union(
+        v.object({
+          serverIds: v.array(v.string()),
+        }),
+        v.literal(false),
+      ),
+    ),
+    imageGeneration: v.optional(
+      v.union(
+        v.object({
+          modelId: v.string(),
+        }),
+        v.literal(false),
+      ),
+    ),
+  }),
+});
+
+const messageSettingsToolPatchValidator = v.object({
+  search: v.optional(emptyToolPatchValidator),
+  bashWorkspace: v.optional(emptyToolPatchValidator),
+  analysisWorkspace: v.optional(
+    v.union(
       v.object({
         syncUploads: v.optional(v.boolean()),
       }),
+      v.literal(false),
+      v.null(),
     ),
-    mcpServers: v.optional(
+  ),
+  mcpServers: v.optional(
+    v.union(
       v.object({
-        serverIds: v.array(v.string()),
+        serverIds: v.optional(v.union(v.array(v.string()), v.null())),
       }),
+      v.literal(false),
+      v.null(),
     ),
-    imageGeneration: v.optional(
+  ),
+  imageGeneration: v.optional(
+    v.union(
       v.object({
-        modelId: v.string(),
+        modelId: v.optional(v.union(v.string(), v.null())),
       }),
+      v.literal(false),
+      v.null(),
     ),
-  }),
+  ),
 });
 
 async function getThreadForUser(
@@ -1262,27 +1309,7 @@ export const updateThreadSettings = mutation({
       clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
       thinkingLevel: v.optional(thinkingLevelValidator),
-      tools: v.optional(
-        v.object({
-          search: v.optional(v.object({})),
-          bashWorkspace: v.optional(v.object({})),
-          analysisWorkspace: v.optional(
-            v.object({
-              syncUploads: v.optional(v.boolean()),
-            }),
-          ),
-          mcpServers: v.optional(
-            v.object({
-              serverIds: v.array(v.string()),
-            }),
-          ),
-          imageGeneration: v.optional(
-            v.object({
-              modelId: v.string(),
-            }),
-          ),
-        }),
-      ),
+      tools: v.optional(v.union(messageSettingsToolPatchValidator, v.null())),
     }),
   },
   handler: async (ctx, args) => {
