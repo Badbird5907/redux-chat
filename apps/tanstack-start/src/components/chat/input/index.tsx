@@ -278,8 +278,7 @@ export function ChatInput({
     "imageGeneration",
   );
   const enabledMcpServerIds = useMemo(
-    () =>
-      getEnabledToolSettings(settings.tools, "mcpServers")?.serverIds ?? [],
+    () => getEnabledToolSettings(settings.tools, "mcpServers")?.serverIds ?? [],
     [settings.tools.mcpServers],
   );
   const showErrorBorder = status === "error";
@@ -1174,7 +1173,7 @@ export function ChatInput({
       <AddCreditsDialog
         open={addCreditsOpen}
         onOpenChange={setAddCreditsOpen}
-        billingState={billingState}
+        billingState={billingState ?? undefined}
         triggerContext="out_of_credits"
       />
     </>
