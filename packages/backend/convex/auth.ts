@@ -28,7 +28,13 @@ export const authComponent = createClient<DataModel, typeof authSchema>(
 );
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
-function normalizeOrigin(url: string) {
+const ANALYSIS_ORIGIN_FALLBACK = "http://localhost:3712";
+
+function normalizeOrigin(url: string | undefined) {
+  if (!url) {
+    return ANALYSIS_ORIGIN_FALLBACK;
+  }
+
   const trimmedUrl = url.trim().replace(/\/+$/, "");
 
   if (/^https?:\/\//i.test(trimmedUrl)) {
