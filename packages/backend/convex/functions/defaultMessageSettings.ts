@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 
-import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
+import {
+  mergePersistedMessageSettings,
+  normalizeMessageSettings,
+  normalizePersistedMessageSettings,
+} from "@redux/types";
 
 import { mutation } from "./index";
 import { normalizeInstructionIdForUser } from "./instructions";
@@ -57,7 +61,9 @@ export const getOrCreate = mutation({
       .first();
 
     if (existing) {
-      const normalizedSettings = normalizeMessageSettings(existing.settings);
+      const normalizedSettings = normalizePersistedMessageSettings(
+        existing.settings,
+      );
       normalizedSettings.instructionId = await normalizeInstructionIdForUser(
         ctx,
         ctx.userId,
@@ -106,7 +112,7 @@ export const update = mutation({
       .first();
 
     const { clearInstructionId, ...settingsPatch } = args.patch;
-    const mergedSettings = mergeMessageSettings(
+    const mergedSettings = mergePersistedMessageSettings(
       existing?.settings,
       settingsPatch,
     );

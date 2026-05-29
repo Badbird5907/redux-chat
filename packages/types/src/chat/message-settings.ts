@@ -13,6 +13,11 @@ export const MESSAGE_TOOL_NAMES = [
   "mcpServers",
   "imageGeneration",
 ] as const;
+const LEGACY_ABSENT_MEANS_DISABLED_TOOL_NAMES = [
+  "search",
+  "bashWorkspace",
+  "analysisWorkspace",
+] as const;
 
 export type MessageToolName = (typeof MESSAGE_TOOL_NAMES)[number];
 
@@ -116,8 +121,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function hasOwnKey(value: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
 export function normalizeMessageSettings(
   input: MessageSettingsInput | null | undefined,
+): MessageSettings {
+  return normalizeMessageSettingsWithTools(input, normalizeTools(input?.tools));
+}
+
+export function normalizePersistedMessageSettings(
+  input: MessageSettingsInput | null | undefined,
+): MessageSettings {
+  return normalizeMessageSettingsWithTools(
+    input,
+    normalizePersistedTools(input?.tools),
+  );
+}
+
+function normalizeMessageSettingsWithTools(
+  input: MessageSettingsInput | null | undefined,
+  tools: MessageToolSettings,
 ): MessageSettings {
   const rest = input ?? {};
   const normalizedModel =
@@ -130,7 +155,7 @@ export function normalizeMessageSettings(
     ...rest,
     model: normalizedModel,
     thinkingLevel: normalizeThinkingLevel(rest.thinkingLevel),
-    tools: normalizeTools(input?.tools),
+    tools,
     userMessagePreviewMaxLines: normalizeUserMessagePreviewMaxLines(
       rest.userMessagePreviewMaxLines,
     ),
@@ -141,8 +166,26 @@ export function mergeMessageSettings(
   base: MessageSettingsInput | null | undefined,
   patch: MessageSettingsPatch | null | undefined,
 ): MessageSettings {
-  const normalizedBase = normalizeMessageSettings(base);
+  return mergeMessageSettingsWithNormalizedBase(
+    normalizeMessageSettings(base),
+    patch,
+  );
+}
 
+export function mergePersistedMessageSettings(
+  base: MessageSettingsInput | null | undefined,
+  patch: MessageSettingsPatch | null | undefined,
+): MessageSettings {
+  return mergeMessageSettingsWithNormalizedBase(
+    normalizePersistedMessageSettings(base),
+    patch,
+  );
+}
+
+function mergeMessageSettingsWithNormalizedBase(
+  normalizedBase: MessageSettings,
+  patch: MessageSettingsPatch | null | undefined,
+): MessageSettings {
   if (!patch) {
     return normalizedBase;
   }
@@ -228,6 +271,24 @@ export function normalizeTools(
             ),
           },
   };
+}
+
+export function normalizePersistedTools(
+  tools: MessageToolSettings | MessageToolSettingsInput | null | undefined,
+): MessageToolSettings {
+  const normalizedTools = normalizeTools(tools);
+
+  if (!isRecord(tools)) {
+    return normalizedTools;
+  }
+
+  for (const toolName of LEGACY_ABSENT_MEANS_DISABLED_TOOL_NAMES) {
+    if (!hasOwnKey(tools, toolName)) {
+      normalizedTools[toolName] = false;
+    }
+  }
+
+  return normalizedTools;
 }
 
 export function isToolEnabled(

@@ -199,4 +199,26 @@ describe("functions/mcpServers", () => {
         ?.serverIds,
     ).toEqual([retainedServerId]);
   });
+
+  it("stores an empty MCP server config when deleting the last enabled server", async () => {
+    const t = authedTest();
+    const { mcpServerId } = await t.mutation(api.functions.mcpServers.create, {
+      name: "MCP",
+      url: "https://example.com/mcp",
+    });
+
+    await t.mutation(api.functions.mcpServers.remove, { mcpServerId });
+
+    const defaultSettings = await t.run(async (ctx) =>
+      ctx.db
+        .query("defaultMessageSettings")
+        .withIndex("by_userId", (q) => q.eq("userId", USER_ID))
+        .first(),
+    );
+
+    expect(
+      getEnabledToolSettings(defaultSettings?.settings.tools, "mcpServers")
+        ?.serverIds,
+    ).toEqual([]);
+  });
 });

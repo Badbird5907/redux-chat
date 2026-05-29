@@ -1,7 +1,10 @@
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { getEnabledToolSettings, mergeMessageSettings } from "@redux/types";
+import {
+  getEnabledToolSettings,
+  mergePersistedMessageSettings,
+} from "@redux/types";
 
 import type { DataModel, Doc } from "../_generated/dataModel";
 import { mutation, query } from "./index";
@@ -245,10 +248,10 @@ function stripDeletedServerIdFromSettings<
     return undefined;
   }
 
-  return mergeMessageSettings(doc.settings, {
+  return mergePersistedMessageSettings(doc.settings, {
     tools: {
       ...doc.settings.tools,
-      mcpServers: nextIds.length > 0 ? { serverIds: nextIds } : undefined,
+      mcpServers: { serverIds: nextIds },
     },
   });
 }
@@ -266,7 +269,7 @@ async function addServerIdToDefaultSettings(
     ? (getEnabledToolSettings(existing.settings.tools, "mcpServers")
         ?.serverIds ?? [])
     : [];
-  const settings = mergeMessageSettings(existing?.settings, {
+  const settings = mergePersistedMessageSettings(existing?.settings, {
     tools: {
       mcpServers: {
         serverIds: [...currentServerIds, mcpServerId],

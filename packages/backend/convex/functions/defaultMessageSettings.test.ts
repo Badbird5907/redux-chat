@@ -15,7 +15,7 @@ function authedTest(userId = USER_ID) {
 }
 
 describe("functions/defaultMessageSettings", () => {
-  it("normalizes missing tools to enabled defaults and writes them back", async () => {
+  it("preserves legacy disabled tools while defaulting new tools on", async () => {
     const t = authedTest();
 
     await t.run(async (ctx) => {
@@ -31,9 +31,9 @@ describe("functions/defaultMessageSettings", () => {
       {},
     );
 
-    expect(settings.tools.search).toEqual({});
-    expect(settings.tools.bashWorkspace).toEqual({});
-    expect(settings.tools.analysisWorkspace).toEqual({ syncUploads: true });
+    expect(settings.tools.search).toBe(false);
+    expect(settings.tools.bashWorkspace).toBe(false);
+    expect(settings.tools.analysisWorkspace).toBe(false);
     expect(settings.tools.mcpServers).toEqual({ serverIds: [] });
     expect(settings.tools.imageGeneration).toEqual({
       modelId: DEFAULT_IMAGE_GENERATION_MODEL_ID,

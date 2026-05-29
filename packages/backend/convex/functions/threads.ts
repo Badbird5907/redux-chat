@@ -6,7 +6,11 @@ import { Buffer } from "buffer/";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
-import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
+import {
+  mergePersistedMessageSettings,
+  normalizeMessageSettings,
+  normalizePersistedMessageSettings,
+} from "@redux/types";
 
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
@@ -426,7 +430,7 @@ export const getThread = query({
 
     return {
       ...thread,
-      settings: normalizeMessageSettings(thread.settings),
+      settings: normalizePersistedMessageSettings(thread.settings),
     };
   },
 });
@@ -1323,7 +1327,10 @@ export const updateThreadSettings = mutation({
     }
 
     const { clearInstructionId, ...settingsPatch } = args.patch;
-    const mergedSettings = mergeMessageSettings(thread.settings, settingsPatch);
+    const mergedSettings = mergePersistedMessageSettings(
+      thread.settings,
+      settingsPatch,
+    );
     mergedSettings.instructionId = await normalizeInstructionIdForUser(
       ctx,
       ctx.userId,
