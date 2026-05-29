@@ -38,7 +38,7 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
         <DialogHeader className="border-border flex flex-row items-start gap-4 border-b px-4 py-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <FileText className="text-muted-foreground h-4 w-4 shrink-0" />
+              <FileText className="text-muted-foreground size-4 shrink-0" />
               <span className="text-foreground min-w-0 truncate text-sm font-medium">
                 {file.name}
               </span>
@@ -49,12 +49,12 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
                 <p className="flex items-start gap-2">
                   {file.generatingDerivative ? (
                     <Loader2
-                      className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin"
+                      className="text-muted-foreground mt-0.5 size-3.5 shrink-0 animate-spin"
                       aria-hidden
                     />
                   ) : (
                     <ArrowRightLeft
-                      className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0"
+                      className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
                       aria-hidden
                     />
                   )}
@@ -73,7 +73,7 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
           </div>
           <div className="shrink-0 self-start">
             <Button variant="ghost" onClick={onClose}>
-              <X className="h-4 w-4" />
+              <X className="size-4" />
             </Button>
           </div>
         </DialogHeader>
@@ -112,7 +112,7 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
                   title={file.name}
                 >
                   <div className="flex h-full flex-col items-center justify-center p-12 text-center">
-                    <FileText className="text-muted-foreground mb-3 h-12 w-12" />
+                    <FileText className="text-muted-foreground mb-3 size-12" />
                     <p className="text-muted-foreground text-sm">
                       This browser does not support inline PDFs.
                       <br />
@@ -133,7 +133,7 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
 
           {!isImage && !isVideo && !isAudio && !isPDF && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <FileText className="text-muted-foreground mb-3 h-12 w-12" />
+              <FileText className="text-muted-foreground mb-3 size-12" />
               <p className="text-muted-foreground text-sm">
                 Preview not available for this file type
               </p>

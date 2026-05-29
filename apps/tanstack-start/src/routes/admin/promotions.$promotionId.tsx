@@ -97,7 +97,11 @@ type PromotionRedemptionRow = RedemptionStripeFields & {
   failureReason?: string;
 };
 
-function StripeIds({ redemption }: { redemption: RedemptionStripeFields }) {
+export function StripeIds({
+  redemption,
+}: {
+  redemption: RedemptionStripeFields;
+}) {
   const reversalTransactionId = metadataString(
     redemption.metadata,
     "reversalTransactionId",
@@ -139,7 +143,7 @@ function metadataString(metadata: unknown, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function AdminPromotionDetailPage() {
+export function AdminPromotionDetailPage() {
   const { promotionId } = Route.useParams();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(ALL_STATUSES);
   const [userSearchInput, setUserSearchInput] = useState("");

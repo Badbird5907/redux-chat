@@ -209,7 +209,7 @@ export function ChatInputAttachmentsBar({
                       }
                     }}
                     className={cn(
-                      "border-border bg-muted hover:border-primary relative inline-flex h-16 w-16 overflow-hidden rounded-lg border transition-colors",
+                      "border-border bg-muted hover:border-primary relative inline-flex size-16 overflow-hidden rounded-lg border transition-colors",
                       props.className,
                     )}
                     disabled={file.uploading || isExpired || isRemoving}
@@ -250,7 +250,7 @@ export function ChatInputAttachmentsBar({
                     )}
                     {file.uploading && (
                       <div className="bg-background/80 absolute inset-0 flex items-center justify-center">
-                        <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                        <Loader2 className="text-muted-foreground size-5 animate-spin" />
                       </div>
                     )}
                   </button>
@@ -282,9 +282,9 @@ export function ChatInputAttachmentsBar({
                 )}
               >
                 {isRemoving ? (
-                  <Loader2 className="text-muted-foreground h-3 w-3 animate-spin" />
+                  <Loader2 className="text-muted-foreground size-3 animate-spin" />
                 ) : (
-                  <X className="text-muted-foreground h-3 w-3" />
+                  <X className="text-muted-foreground size-3" />
                 )}
               </button>
             )}

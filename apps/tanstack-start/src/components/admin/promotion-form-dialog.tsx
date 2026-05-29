@@ -341,10 +341,12 @@ export function PromotionFormDialog({
       ? (promotion?.perUserRedemptionLimit ?? 2).toString()
       : "2",
   );
-  const [startsAt, setStartsAt] = useState(
+  const [startsAt, setStartsAt] = useState(() =>
     formatDateInput(promotion?.startsAt),
   );
-  const [endsAt, setEndsAt] = useState(formatDateInput(promotion?.endsAt));
+  const [endsAt, setEndsAt] = useState(() =>
+    formatDateInput(promotion?.endsAt),
+  );
 
   const reset = () => {
     setCode(promotion?.code ?? generatePromotionCode());
@@ -633,7 +635,7 @@ export function PromotionFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
           <div className="flex flex-col gap-8">
             <FormSection
               title="Basics"
@@ -837,7 +839,7 @@ export function PromotionFormDialog({
 
               {promotionType === "subscription_discount" ||
               promotionType === "gifted_subscription" ? (
-                <div className="border-border/80 bg-muted/15 grid gap-5 rounded-xl border px-4 py-4">
+                <div className="border-border/80 bg-muted/15 grid gap-5 rounded-xl border p-4">
                   <div className="grid min-w-0 gap-2">
                     <Label>Promotion applies to</Label>
                     <Select

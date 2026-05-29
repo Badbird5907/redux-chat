@@ -163,7 +163,7 @@ function promotionErrorMessage(error: unknown, fallback: string): string {
   return visibleLine ?? fallback;
 }
 
-function RedeemPromotionPage() {
+export function RedeemPromotionPage() {
   const { code } = Route.useParams();
   const preloadedPromotion = Route.useLoaderData();
   const navigate = useNavigate();
@@ -423,7 +423,7 @@ function RedeemPromotionPage() {
         <section className="border-border bg-card overflow-hidden rounded-xl border">
           <div className="bg-muted h-2" />
           <div className="space-y-5 p-6">
-            <div className="bg-muted h-12 w-12 rounded-lg" />
+            <div className="bg-muted size-12 rounded-lg" />
             <div className="space-y-2">
               <div className="bg-muted h-7 w-2/3 rounded" />
               <div className="bg-muted h-4 w-1/2 rounded" />
@@ -759,7 +759,7 @@ function RedeemPromotionPage() {
   );
 }
 
-function RedeemShell({ children }: { children: ReactNode }) {
+export function RedeemShell({ children }: { children: ReactNode }) {
   return (
     <main className="bg-background min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-4 py-8 sm:px-6">
@@ -769,7 +769,7 @@ function RedeemShell({ children }: { children: ReactNode }) {
   );
 }
 
-function StatusPanel({
+export function StatusPanel({
   icon,
   tone,
   title,

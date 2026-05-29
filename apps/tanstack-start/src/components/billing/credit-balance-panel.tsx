@@ -220,7 +220,7 @@ export function CreditBalancePanel({
         {label}
       </p>
       <Card className="bg-card/55 gap-0 overflow-hidden p-0 py-0">
-        <div className="space-y-4 px-5 py-5">
+        <div className="space-y-4 p-5">
           <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <Stat
               label="Total available"
@@ -282,7 +282,7 @@ export function CreditBalancePanel({
 
         <Separator />
 
-        <ul className="px-3 py-3">
+        <ul className="p-3">
           {orderedBuckets.map((bucket) => {
             const remaining = balances[bucket];
             const max = periodMaxByBucket[bucket];

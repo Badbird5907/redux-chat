@@ -249,7 +249,7 @@ export function useModelSelectorState({
 
     let list: ChatModelConfig[];
     if (searchingAll) {
-      list = [...CHAT_MODELS];
+      list = CHAT_MODELS.toSorted();
     } else {
       list =
         activeSidebar === "favorites"
@@ -285,7 +285,7 @@ export function useModelSelectorState({
       selectedFeatureFilters.length === 0 &&
       !minKnowledgeCutoff;
     if (!preserveFavoriteOrder) {
-      list = [...list].sort(compareChatModelsByReleaseDateNewestFirst);
+      list = list.toSorted(compareChatModelsByReleaseDateNewestFirst);
     }
 
     return list;

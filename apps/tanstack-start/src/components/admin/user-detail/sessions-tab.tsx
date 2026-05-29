@@ -63,7 +63,7 @@ function sessionFingerprint(token: string) {
 }
 
 function sortSessions(list: ListedSessionRow[]) {
-  return [...list].sort((a, b) => {
+  return list.toSorted((a, b) => {
     const ea = isExpired(a.expiresAt);
     const eb = isExpired(b.expiresAt);
     if (ea !== eb) {

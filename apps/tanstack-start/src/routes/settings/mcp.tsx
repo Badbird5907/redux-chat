@@ -1,11 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { McpSettingsManager } from "@/components/settings/mcp-settings-manager";
+import { McpRouteComponent } from "./mcp.route-component";
 
 export const Route = createFileRoute("/settings/mcp")({
-  component: RouteComponent,
+  component: McpRouteComponent,
 });
-
-function RouteComponent() {
-  return <McpSettingsManager />;
-}

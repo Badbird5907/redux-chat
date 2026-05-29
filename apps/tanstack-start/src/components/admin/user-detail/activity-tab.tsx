@@ -404,7 +404,7 @@ export function AdminUserActivityTab({
       </div>
 
       {status === "LoadingFirstPage" ? (
-        <div className="space-y-2 px-5 py-5">
+        <div className="space-y-2 p-5">
           <Skeleton className="h-16 w-full rounded-lg" />
           <Skeleton className="h-16 w-full rounded-lg" />
           <Skeleton className="h-16 w-full rounded-lg" />

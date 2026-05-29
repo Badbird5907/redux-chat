@@ -176,11 +176,11 @@ export function ChatInputToolbar({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-full"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted size-8 rounded-full"
               />
             }
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="size-5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-max min-w-52">
             <DropdownMenuItem
@@ -353,14 +353,14 @@ export function ChatInputToolbar({
           )}
           disabled={!settingsReady}
         >
-          <Search className="h-3.5 w-3.5" />
+          <Search className="size-3.5" />
           <span>Search</span>
         </button>
         {/* {project && proj && (
           <Tooltip>
             <TooltipTrigger>
               <button type="button" className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors">
-                <FolderKanban className="h-4 w-4" />
+                <FolderKanban className="size-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent>
@@ -376,8 +376,8 @@ export function ChatInputToolbar({
             aria-label={`Clear instruction: ${selectedInstructionName}`}
             className="group border-border bg-muted/50 text-muted-foreground hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors"
           >
-            <BookText className="h-3.5 w-3.5 shrink-0 group-hover:hidden" />
-            <Trash2 className="hidden h-3.5 w-3.5 shrink-0 group-hover:block" />
+            <BookText className="size-3.5 shrink-0 group-hover:hidden" />
+            <Trash2 className="hidden size-3.5 shrink-0 group-hover:block" />
             <span>{selectedInstructionName}</span>
           </button>
         ) : null}
@@ -389,14 +389,14 @@ export function ChatInputToolbar({
             type="button"
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-full"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted size-8 rounded-full"
             onClick={onToggleExpand}
             title={isExpanded ? "Collapse" : "Expand"}
           >
             {isExpanded ? (
-              <Minimize2 className="h-4 w-4" />
+              <Minimize2 className="size-4" />
             ) : (
-              <Maximize2 className="h-4 w-4" />
+              <Maximize2 className="size-4" />
             )}
           </Button>
         )}
@@ -431,7 +431,7 @@ export function ChatInputToolbar({
             type="button"
             size="icon"
             variant="destructive"
-            className="h-8 w-8 rounded-full"
+            className="size-8 rounded-full"
             onClick={onStopGeneration}
             title="Stop generating"
           >
@@ -442,7 +442,7 @@ export function ChatInputToolbar({
             type="button"
             size="icon"
             className={cn(
-              "h-8 w-8 rounded-full transition-all",
+              "size-8 rounded-full transition-all",
               input.trim() || hasUsableAttachments
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "bg-muted text-muted-foreground",
@@ -459,9 +459,9 @@ export function ChatInputToolbar({
             }
           >
             {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <ArrowUp className="h-4 w-4" />
+              <ArrowUp className="size-4" />
             )}
           </Button>
         )}

@@ -56,7 +56,7 @@ export const Route = createFileRoute("/settings/security")({
   component: SecurityRouteComponent,
 });
 
-function SecurityRouteComponent() {
+export function SecurityRouteComponent() {
   const {
     data: session,
     isPending,
@@ -622,7 +622,7 @@ function SecurityRouteComponent() {
   );
 }
 
-function SecuritySkeleton() {
+export function SecuritySkeleton() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <div className="border-border space-y-3 border-b pb-6">
