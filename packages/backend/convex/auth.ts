@@ -1,10 +1,9 @@
 import type { AuthFunctions, GenericCtx } from "@convex-dev/better-auth";
 import type { BetterAuthOptions } from "better-auth/minimal";
-// import { oAuthProxy } from "better-auth/plugins";
 import { createClient } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
-import { admin } from "better-auth/plugins";
+import { admin, oAuthProxy } from "better-auth/plugins";
 
 import type { DataModel } from "@redux/backend/convex/_generated/dataModel";
 import { components, internal } from "@redux/backend/convex/_generated/api";
@@ -29,18 +28,51 @@ export const authComponent = createClient<DataModel, typeof authSchema>(
 );
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
+function normalizeOrigin(url: string) {
+  const trimmedUrl = url.trim().replace(/\/+$/, "");
+
+  if (/^https?:\/\//i.test(trimmedUrl)) {
+    return trimmedUrl;
+  }
+
+  return `https://${trimmedUrl}`;
+}
+
+function parseTrustedOrigins(origins: string | undefined) {
+  return (
+    origins
+      ?.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+      .map(normalizeOrigin) ?? []
+  );
+}
+
 export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
   const env = backendEnv();
+  const siteUrl = normalizeOrigin(env.SITE_URL);
+  const productionUrl = env.PRODUCTION_URL
+    ? normalizeOrigin(env.PRODUCTION_URL)
+    : siteUrl;
+  const trustedOrigins = Array.from(
+    new Set([
+      siteUrl,
+      productionUrl,
+      ...parseTrustedOrigins(env.OAUTH_PROXY_TRUSTED_ORIGINS),
+    ]),
+  );
 
   return {
     database: authComponent.adapter(ctx),
-    baseURL: env.SITE_URL,
+    baseURL: siteUrl,
     secret: env.AUTH_SECRET,
+    trustedOrigins,
 
     plugins: [
-      // oAuthProxy({
-      //   productionURL: env.BASE_URL,
-      // }),
+      oAuthProxy({
+        productionURL: productionUrl,
+        secret: env.OAUTH_PROXY_SECRET ?? env.AUTH_SECRET,
+      }),
       admin(),
       auditLog({
         nonBlocking: false,

@@ -9,6 +9,18 @@ const authSecretSchema = z
     "AUTH_SECRET must not use a placeholder value",
   );
 
+const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
+
+const optionalNonEmptyStringSchema = z.preprocess(
+  emptyToUndefined,
+  z.string().min(1).optional(),
+);
+
+const optionalAuthSecretSchema = z.preprocess(
+  emptyToUndefined,
+  authSecretSchema.optional(),
+);
+
 export function backendEnv() {
   // Skip validation if environment variables aren't available
   // This happens during Convex deployment/analysis
@@ -19,10 +31,14 @@ export function backendEnv() {
 
   return createEnv({
     server: {
+      AUTH_SECRET: authSecretSchema,
       AUTH_GITHUB_ID: z.string().min(1),
       AUTH_GITHUB_SECRET: z.string().min(1),
       AUTH_GOOGLE_ID: z.string().min(1),
       AUTH_GOOGLE_SECRET: z.string().min(1),
+      PRODUCTION_URL: optionalNonEmptyStringSchema,
+      OAUTH_PROXY_SECRET: optionalAuthSecretSchema,
+      OAUTH_PROXY_TRUSTED_ORIGINS: optionalNonEmptyStringSchema,
       INTERNAL_CONVEX_SECRET: z.string().min(1),
       STRIPE_SECRET_KEY: z.string().min(1).optional(),
       STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -44,6 +60,9 @@ export function backendEnv() {
       AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
       AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
       AUTH_SECRET: process.env.AUTH_SECRET,
+      PRODUCTION_URL: process.env.PRODUCTION_URL,
+      OAUTH_PROXY_SECRET: process.env.OAUTH_PROXY_SECRET,
+      OAUTH_PROXY_TRUSTED_ORIGINS: process.env.OAUTH_PROXY_TRUSTED_ORIGINS,
       INTERNAL_CONVEX_SECRET: process.env.INTERNAL_CONVEX_SECRET,
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
