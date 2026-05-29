@@ -266,16 +266,7 @@ export const getCurrentUserPaymentMethodStatus = action({
       }
     }
 
-    const savedCardMethods = await withTimeout(
-      stripe.paymentMethods.list({
-        customer: customerId,
-        type: "card",
-        limit: 1,
-      }),
-      STRIPE_NETWORK_TIMEOUT_MS,
-      "stripe.paymentMethods.list",
-    );
-    return { hasPaymentMethod: savedCardMethods.data.length > 0 };
+    return { hasPaymentMethod: false };
   },
 });
 
