@@ -2,7 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
-import { fetchAuthAction, fetchAuthQuery, isAuthError } from "@/lib/auth/server";
+import {
+  fetchAuthAction,
+  fetchAuthQuery,
+  isAuthError,
+} from "@/lib/auth/server";
 
 export const getCurrentBillingState = createServerFn({ method: "GET" }).handler(
   async () => {

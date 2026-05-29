@@ -260,7 +260,9 @@ function RouteComponent() {
   const [addCreditsOpen, setAddCreditsOpen] = useState(false);
   const [addPaymentMethodDialogOpen, setAddPaymentMethodDialogOpen] =
     useState(false);
-  const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(null);
+  const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(
+    null,
+  );
 
   const hydratedScheduleForSubIdRef = useRef<string | null>(null);
   const billingQuerySettled = baseBillingState !== undefined;
@@ -325,7 +327,8 @@ function RouteComponent() {
       : undefined;
   const showPaidManage = tierRank(currentTier) >= 1;
   const isOnPaidPlan = showPaidManage;
-  const showMissingPaymentMethodNag = isOnPaidPlan && hasPaymentMethod === false;
+  const showMissingPaymentMethodNag =
+    isOnPaidPlan && hasPaymentMethod === false;
 
   const renewSummary = renewalSummary(billingState?.currentPeriodEnd);
 
@@ -453,10 +456,8 @@ function RouteComponent() {
   useEffect(() => {
     let cancelled = false;
     if (!isOnPaidPlan) {
-      setHasPaymentMethod(true);
       return;
     }
-    setHasPaymentMethod(null);
     void getPaymentMethodStatus({})
       .then((result) => {
         if (!cancelled) {
@@ -680,7 +681,7 @@ function RouteComponent() {
       ) : null}
 
       {showMissingPaymentMethodNag ? (
-        <Card className="border-amber-500/30 bg-amber-500/5 gap-0 px-5 py-4">
+        <Card className="gap-0 border-amber-500/30 bg-amber-500/5 px-5 py-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1 space-y-1">
               <p className="flex items-center gap-2 text-sm font-semibold tracking-tight">
@@ -867,8 +868,8 @@ function RouteComponent() {
           <DialogHeader>
             <DialogTitle>Add billing method</DialogTitle>
             <DialogDescription>
-              You&apos;ll be redirected to Stripe&apos;s billing dashboard to add a
-              payment method, then returned to this page.
+              You&apos;ll be redirected to Stripe&apos;s billing dashboard to
+              add a payment method, then returned to this page.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
