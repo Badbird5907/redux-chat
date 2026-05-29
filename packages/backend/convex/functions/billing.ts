@@ -228,13 +228,13 @@ export const getCurrentUserStripeCustomerBalance = action({
 
 export const getCurrentUserPaymentMethodStatus = action({
   args: {},
-  handler: async (ctx): Promise<{ hasPaymentMethod: boolean }> => {
+  handler: async (ctx): Promise<{ hasPaymentMethod: boolean | null }> => {
     const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
       ctx,
       ctx.userId,
     );
     if (subscriptionState.fromFallback) {
-      return { hasPaymentMethod: false };
+      return { hasPaymentMethod: null };
     }
     if (subscriptionState.tier === "free") {
       return { hasPaymentMethod: true };
