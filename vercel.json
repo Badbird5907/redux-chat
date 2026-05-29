@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pwd && ls ./scripts/ci && bash ./scripts/ci/vercel-deploy.sh",
+  "outputDirectory": "apps/tanstack-start/.vercel/output"
+}
