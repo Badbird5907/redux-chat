@@ -1,5 +1,9 @@
 import type { ThinkingLevel } from "@redux/shared/models";
-import { DEFAULT_CHAT_MODEL_ID, normalizeModelId } from "@redux/shared/models";
+import {
+  DEFAULT_CHAT_MODEL_ID,
+  getImageGenerationToolModels,
+  normalizeModelId,
+} from "@redux/shared/models";
 
 export const MESSAGE_TOOL_NAMES = [
   "search",
@@ -57,6 +61,8 @@ export interface MessageToolSettingsInput {
 
 /** Lines shown before collapsing user messages in chat. Use `0` to disable collapsing. */
 export const DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES = 100;
+const DEFAULT_IMAGE_GENERATION_MODEL_ID =
+  getImageGenerationToolModels()[0]?.id;
 
 export interface MessageSettings {
   model: string;
@@ -85,6 +91,13 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
     search: {},
     bashWorkspace: {},
     analysisWorkspace: { syncUploads: true },
+    ...(DEFAULT_IMAGE_GENERATION_MODEL_ID
+      ? {
+          imageGeneration: {
+            modelId: DEFAULT_IMAGE_GENERATION_MODEL_ID,
+          },
+        }
+      : {}),
   },
   instructionId: undefined,
   userMessagePreviewMaxLines: DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES,
