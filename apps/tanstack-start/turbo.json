@@ -4,7 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".nitro/**", ".output/**", ".tanstack/**"]
+      "outputs": [".nitro/**", ".output/**", ".tanstack/**", ".vercel/output/**"]
     },
     "dev": {
       "dependsOn": [],
