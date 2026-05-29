@@ -1,12 +1,11 @@
 #!/bin/bash
-pushd .
-cd ./packages/backend
+set -e
+
+pushd ./packages/backend
 pnpm run convex deploy --cmd "pnpm run build:app"
-pnpm run convex env set --preview-name $VERCEL_GIT_COMMIT_REF SITE_URL $VERCEL_URL
-echo "AEHJNE: apps/tanstack-start/.vercel/output"
-ls -la apps/tanstack-start/.vercel/output
-echo "FESJNHF: apps/tanstack-start/.vercel"
-ls -la apps/tanstack-start/.vercel
-ls -la /vercel/output
+pnpm run convex env set --preview-name "$VERCEL_GIT_COMMIT_REF" SITE_URL "$VERCEL_URL"
 popd
-cd ./apps/tanstack-start
+
+rm -rf .vercel/output
+mkdir -p .vercel
+cp -R apps/tanstack-start/.vercel/output .vercel/output
