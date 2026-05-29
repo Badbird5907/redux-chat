@@ -97,23 +97,33 @@ const threadShareSettings = v.object({
   autoUpdate: v.boolean(),
 });
 
+const emptyTool = v.union(v.object({}), v.literal(false));
 const messageTools = v.object({
-  search: v.optional(v.object({})),
-  bashWorkspace: v.optional(v.object({})),
+  search: v.optional(emptyTool),
+  bashWorkspace: v.optional(emptyTool),
   analysisWorkspace: v.optional(
-    v.object({
-      syncUploads: v.optional(v.boolean()),
-    }),
+    v.union(
+      v.object({
+        syncUploads: v.optional(v.boolean()),
+      }),
+      v.literal(false),
+    ),
   ),
   mcpServers: v.optional(
-    v.object({
-      serverIds: v.array(v.string()),
-    }),
+    v.union(
+      v.object({
+        serverIds: v.array(v.string()),
+      }),
+      v.literal(false),
+    ),
   ),
   imageGeneration: v.optional(
-    v.object({
-      modelId: v.string(),
-    }),
+    v.union(
+      v.object({
+        modelId: v.string(),
+      }),
+      v.literal(false),
+    ),
   ),
 });
 

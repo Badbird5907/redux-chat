@@ -20,7 +20,11 @@ import { z } from "zod";
 import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import { getChatModelConfig } from "@redux/shared/models";
-import { isToolEnabled, normalizeMessageSettings } from "@redux/types";
+import {
+  getEnabledToolSettings,
+  isToolEnabled,
+  normalizeMessageSettings,
+} from "@redux/types";
 
 import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
@@ -49,6 +53,9 @@ import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materi
 import { retrieveProjectContext } from "@/server/rag/retrieve";
 import { getPostHogClient } from "@/utils/posthog-server";
 
+const disabledToolSchema = z.literal(false);
+const emptyToolSchema = z.union([z.object({}), disabledToolSchema, z.null()]);
+
 const requestBody = z.object({
   fileIds: z.array(z.string()),
   threadId: z.string(),
@@ -64,25 +71,40 @@ const requestBody = z.object({
     model: z.string(),
     thinkingLevel: z.enum(["instant", "low", "medium", "high"]).optional(),
     instructionId: z.string().optional(),
-    tools: z.object({
-      search: z.object({}).optional(),
-      bashWorkspace: z.object({}).optional(),
-      analysisWorkspace: z
-        .object({
-          syncUploads: z.boolean().optional(),
-        })
-        .optional(),
-      mcpServers: z
-        .object({
-          serverIds: z.array(z.string()),
-        })
-        .optional(),
-      imageGeneration: z
-        .object({
-          modelId: z.string(),
-        })
-        .optional(),
-    }),
+    tools: z
+      .object({
+        search: emptyToolSchema.optional(),
+        bashWorkspace: emptyToolSchema.optional(),
+        analysisWorkspace: z
+          .union([
+            z.object({
+              syncUploads: z.boolean().optional(),
+            }),
+            disabledToolSchema,
+            z.null(),
+          ])
+          .optional(),
+        mcpServers: z
+          .union([
+            z.object({
+              serverIds: z.array(z.string()).optional().nullable(),
+            }),
+            disabledToolSchema,
+            z.null(),
+          ])
+          .optional(),
+        imageGeneration: z
+          .union([
+            z.object({
+              modelId: z.string().optional().nullable(),
+            }),
+            disabledToolSchema,
+            z.null(),
+          ])
+          .optional(),
+      })
+      .optional()
+      .nullable(),
   }),
   model: z.string(),
   id: z.string(),
@@ -468,7 +490,8 @@ export const Route = createFileRoute("/api/chat/")({
           settings.tools,
           "bashWorkspace",
         );
-        const enabledMcpServerIds = settings.tools.mcpServers?.serverIds ?? [];
+        const enabledMcpServerIds =
+          getEnabledToolSettings(settings.tools, "mcpServers")?.serverIds ?? [];
         console.log("Received request:", {
           threadId,
           assistantMessageId,

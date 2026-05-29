@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 
-import { mergeMessageSettings, normalizeMessageSettings } from "@redux/types";
+import {
+  mergePersistedMessageSettings,
+  normalizeMessageSettings,
+  normalizePersistedMessageSettings,
+} from "@redux/types";
 
 import { mutation } from "./index";
 import { normalizeInstructionIdForUser } from "./instructions";
@@ -11,6 +15,42 @@ const thinkingLevelValidator = v.union(
   v.literal("medium"),
   v.literal("high"),
 );
+const emptyToolPatchValidator = v.union(
+  v.object({}),
+  v.literal(false),
+  v.null(),
+);
+const toolPatchValidator = v.object({
+  search: v.optional(emptyToolPatchValidator),
+  bashWorkspace: v.optional(emptyToolPatchValidator),
+  analysisWorkspace: v.optional(
+    v.union(
+      v.object({
+        syncUploads: v.optional(v.boolean()),
+      }),
+      v.literal(false),
+      v.null(),
+    ),
+  ),
+  mcpServers: v.optional(
+    v.union(
+      v.object({
+        serverIds: v.optional(v.union(v.array(v.string()), v.null())),
+      }),
+      v.literal(false),
+      v.null(),
+    ),
+  ),
+  imageGeneration: v.optional(
+    v.union(
+      v.object({
+        modelId: v.optional(v.union(v.string(), v.null())),
+      }),
+      v.literal(false),
+      v.null(),
+    ),
+  ),
+});
 
 export const getOrCreate = mutation({
   args: {},
@@ -21,7 +61,9 @@ export const getOrCreate = mutation({
       .first();
 
     if (existing) {
-      const normalizedSettings = normalizeMessageSettings(existing.settings);
+      const normalizedSettings = normalizePersistedMessageSettings(
+        existing.settings,
+      );
       normalizedSettings.instructionId = await normalizeInstructionIdForUser(
         ctx,
         ctx.userId,
@@ -60,27 +102,7 @@ export const update = mutation({
       clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
       thinkingLevel: v.optional(thinkingLevelValidator),
-      tools: v.optional(
-        v.object({
-          search: v.optional(v.object({})),
-          bashWorkspace: v.optional(v.object({})),
-          analysisWorkspace: v.optional(
-            v.object({
-              syncUploads: v.optional(v.boolean()),
-            }),
-          ),
-          mcpServers: v.optional(
-            v.object({
-              serverIds: v.array(v.string()),
-            }),
-          ),
-          imageGeneration: v.optional(
-            v.object({
-              modelId: v.string(),
-            }),
-          ),
-        }),
-      ),
+      tools: v.optional(v.union(toolPatchValidator, v.null())),
     }),
   },
   handler: async (ctx, args) => {
@@ -90,7 +112,7 @@ export const update = mutation({
       .first();
 
     const { clearInstructionId, ...settingsPatch } = args.patch;
-    const mergedSettings = mergeMessageSettings(
+    const mergedSettings = mergePersistedMessageSettings(
       existing?.settings,
       settingsPatch,
     );
