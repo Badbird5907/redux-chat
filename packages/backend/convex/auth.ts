@@ -44,6 +44,10 @@ function normalizeOrigin(url: string | undefined) {
   return `https://${trimmedUrl}`;
 }
 
+function optionalEnvString(value: unknown) {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 function parseTrustedOrigins(origins: string | undefined) {
   return (
     origins
@@ -56,15 +60,18 @@ function parseTrustedOrigins(origins: string | undefined) {
 
 export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
   const env = backendEnv();
-  const siteUrl = normalizeOrigin(env.SITE_URL);
-  const productionUrl = env.PRODUCTION_URL
-    ? normalizeOrigin(env.PRODUCTION_URL)
+  const siteUrl = normalizeOrigin(optionalEnvString(env.SITE_URL));
+  const productionEnvUrl = optionalEnvString(env.PRODUCTION_URL);
+  const productionUrl = productionEnvUrl
+    ? normalizeOrigin(productionEnvUrl)
     : siteUrl;
+  const oauthProxySecret =
+    optionalEnvString(env.OAUTH_PROXY_SECRET) ?? env.AUTH_SECRET;
   const trustedOrigins = Array.from(
     new Set([
       siteUrl,
       productionUrl,
-      ...parseTrustedOrigins(env.OAUTH_PROXY_TRUSTED_ORIGINS),
+      ...parseTrustedOrigins(optionalEnvString(env.OAUTH_PROXY_TRUSTED_ORIGINS)),
     ]),
   );
 
@@ -77,7 +84,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     plugins: [
       oAuthProxy({
         productionURL: productionUrl,
-        secret: env.OAUTH_PROXY_SECRET ?? env.AUTH_SECRET,
+        secret: oauthProxySecret,
       }),
       admin(),
       auditLog({
