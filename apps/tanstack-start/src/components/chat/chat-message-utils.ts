@@ -52,26 +52,25 @@ export function haveEquivalentMessageStructure(
   left: UIMessage[],
   right: UIMessage[],
 ) {
-  if (left.length !== right.length) {
-    return false;
-  }
+  return (
+    left.length === right.length &&
+    left.every((message, index) => {
+      const other = right[index];
 
-  return left.every((message, index) => {
-    const other = right[index];
+      if (!other) {
+        return false;
+      }
 
-    if (!other) {
-      return false;
-    }
+      if (message.id !== other.id || message.role !== other.role) {
+        return false;
+      }
 
-    if (message.id !== other.id || message.role !== other.role) {
-      return false;
-    }
-
-    return (
-      getRenderableMessageSignature(message) ===
-      getRenderableMessageSignature(other)
-    );
-  });
+      return (
+        getRenderableMessageSignature(message) ===
+        getRenderableMessageSignature(other)
+      );
+    })
+  );
 }
 
 function getRenderableMessageSignature(message: UIMessage) {

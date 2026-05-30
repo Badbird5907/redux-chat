@@ -138,8 +138,10 @@ function chunkText(text: string): string[] {
       }
       return paragraph.split(/(?<=[.?!])\s+/);
     })
-    .map((piece) => piece.trim())
-    .filter(Boolean);
+    .flatMap((piece) => {
+      const trimmedPiece = piece.trim();
+      return trimmedPiece ? [trimmedPiece] : [];
+    });
 
   const chunks: string[] = [];
   let buffer: string[] = [];
@@ -255,26 +257,29 @@ async function extractPdfChunks(bytes: ArrayBuffer): Promise<ExtractedChunk[]> {
     );
   }
 
-  const chunks: ExtractedChunk[] = [];
-  let chunkIndex = 0;
+  const sliceStarts: number[] = [];
   for (let start = 0; start < totalPages; start += PDF_PAGES_PER_SLICE) {
-    const end = Math.min(start + PDF_PAGES_PER_SLICE, totalPages);
-    const slice = await PDFDocument.create();
-    const indices: number[] = [];
-    for (let i = start; i < end; i += 1) indices.push(i);
-    const copied = await slice.copyPages(src, indices);
-    copied.forEach((page) => slice.addPage(page));
-    const sliceBytes = await slice.save();
-    const data = Buffer.from(sliceBytes).toString("base64");
-
-    chunks.push({
-      chunkIndex: chunkIndex,
-      modality: "pdf_page",
-      pageNumber: start + 1, // 1-indexed; first page of the slice
-      text: normalizePdfSliceText(pageTexts.slice(start, end).join("\n\n")),
-      inlineData: { mimeType: "application/pdf", data },
-    });
-    chunkIndex += 1;
+    sliceStarts.push(start);
   }
-  return chunks;
+
+  return Promise.all(
+    sliceStarts.map(async (start, chunkIndex): Promise<ExtractedChunk> => {
+      const end = Math.min(start + PDF_PAGES_PER_SLICE, totalPages);
+      const slice = await PDFDocument.create();
+      const indices: number[] = [];
+      for (let i = start; i < end; i += 1) indices.push(i);
+      const copied = await slice.copyPages(src, indices);
+      copied.forEach((page) => slice.addPage(page));
+      const sliceBytes = await slice.save();
+      const data = Buffer.from(sliceBytes).toString("base64");
+
+      return {
+        chunkIndex: chunkIndex,
+        modality: "pdf_page",
+        pageNumber: start + 1, // 1-indexed; first page of the slice
+        text: normalizePdfSliceText(pageTexts.slice(start, end).join("\n\n")),
+        inlineData: { mimeType: "application/pdf", data },
+      };
+    }),
+  );
 }

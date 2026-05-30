@@ -17,7 +17,7 @@ import {
 } from "@redux/ui/components/dialog";
 import { Skeleton } from "@redux/ui/components/skeleton";
 
-import { formatNumber } from "@/components/billing/credit-balance-panel";
+import { formatNumber } from "@/components/billing/format-number";
 
 const PAGE_SIZE = 10;
 
@@ -35,6 +35,10 @@ const STATUS_STYLES: Record<string, string> = {
   expired: "border-zinc-500/20 bg-zinc-500/10 text-zinc-500",
   revoked: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
 };
+const grantDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 type Grant = {
   _id: string;
@@ -53,10 +57,7 @@ function formatDate(value: number | undefined): string {
   if (value === undefined) {
     return "Never";
   }
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
+  return grantDateFormatter.format(value);
 }
 
 function formatSource(source: string): string {
@@ -151,7 +152,7 @@ function CreditGrantHistoryList() {
   return (
     <div className="border-border/60 overflow-hidden rounded-lg border">
       {status === "LoadingFirstPage" ? (
-        <div className="space-y-2 px-5 py-5">
+        <div className="space-y-2 p-5">
           <Skeleton className="h-16 w-full rounded-lg" />
           <Skeleton className="h-16 w-full rounded-lg" />
           <Skeleton className="h-16 w-full rounded-lg" />

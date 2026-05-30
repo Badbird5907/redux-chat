@@ -102,52 +102,6 @@ function shiftCheckboxClickHandler<TData>(
   }
 }
 
-function getRowSelectionSelectedIds(rowSelection: RowSelectionState): string[] {
-  return Object.entries(rowSelection)
-    .filter(([, selected]) => selected)
-    .map(([id]) => id);
-}
-
-function getRowsForRowSelection<TData>(
-  data: TData[],
-  rowSelection: RowSelectionState,
-  getRowId: (row: TData) => string,
-): TData[] {
-  const selected = new Set(getRowSelectionSelectedIds(rowSelection));
-  return data.filter((row) => selected.has(getRowId(row)));
-}
-
-function useDataTableMultiselect<TData>(getRowId: (row: TData) => string): {
-  rowSelection: RowSelectionState;
-  onRowSelectionChange: OnChangeFn<RowSelectionState>;
-  getRowId: (originalRow: TData, index: number, parent?: Row<TData>) => string;
-  getSelectedRows: (data: TData[]) => TData[];
-  selectedIds: string[];
-} {
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const getRowIdForTable = React.useCallback(
-    (originalRow: TData, _index: number, _parent?: Row<TData>) =>
-      getRowId(originalRow),
-    [getRowId],
-  );
-  const getSelectedRows = React.useCallback(
-    (data: TData[]) => getRowsForRowSelection(data, rowSelection, getRowId),
-    [rowSelection, getRowId],
-  );
-  const selectedIds = React.useMemo(
-    () => getRowSelectionSelectedIds(rowSelection),
-    [rowSelection],
-  );
-
-  return {
-    rowSelection,
-    onRowSelectionChange: setRowSelection,
-    getRowId: getRowIdForTable,
-    getSelectedRows,
-    selectedIds,
-  };
-}
-
 interface DataTablePaginationState {
   page: number;
   pageSize: number;
@@ -354,7 +308,7 @@ function DataTable<TData, TValue>({
         const { row } = context;
         const canSelect = row.getCanSelect();
         const handleSelectionCellClick = (
-          event: React.MouseEvent<HTMLDivElement>,
+          event: React.MouseEvent<HTMLElement>,
         ) => {
           event.stopPropagation();
           if (!canSelect) {
@@ -377,7 +331,9 @@ function DataTable<TData, TValue>({
 
         return (
           // -m-2 p-2: extend hit target over TableCell padding so row onClick does not fire on near-misses.
-          <div
+          <button
+            type="button"
+            tabIndex={canSelect ? 0 : -1}
             className={cn(
               "-m-2 flex min-h-10 items-center justify-center p-2",
               canSelect ? "cursor-pointer" : "cursor-not-allowed",
@@ -386,6 +342,17 @@ function DataTable<TData, TValue>({
               if (e.shiftKey) e.preventDefault();
             }}
             onClick={handleSelectionCellClick}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                e.preventDefault();
+                if (!canSelect) {
+                  return;
+                }
+                row.toggleSelected(!row.getIsSelected());
+                previousSelectedRowIdRef.current = context.row.id;
+              }
+            }}
           >
             <Checkbox
               checked={row.getIsSelected()}
@@ -419,7 +386,7 @@ function DataTable<TData, TValue>({
               }}
               aria-label="Select row"
             />
-          </div>
+          </button>
         );
       },
       enableSorting: false,
@@ -499,7 +466,7 @@ function DataTable<TData, TValue>({
                 <div className="flex flex-col items-center justify-center gap-2">
                   <Spinner className="size-8" />
                   <span className="text-muted-foreground text-sm">
-                    Loading...
+                    Loading&hellip;
                   </span>
                 </div>
               </TableCell>
@@ -562,13 +529,7 @@ function DataTable<TData, TValue>({
   );
 }
 
-export {
-  DataTable,
-  DataTablePagination,
-  getRowSelectionSelectedIds,
-  getRowsForRowSelection,
-  useDataTableMultiselect,
-};
+export { DataTable, DataTablePagination };
 export type {
   CellContext,
   ColumnDef,

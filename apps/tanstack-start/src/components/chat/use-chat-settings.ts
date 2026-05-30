@@ -49,10 +49,7 @@ export function useChatSettings(
   const updateThreadSettings = useMutation(
     api.functions.threads.updateThreadSettings,
   );
-  const scopeKey = useMemo(
-    () => (threadId ? `thread:${threadId}` : "home"),
-    [threadId],
-  );
+  const scopeKey = threadId ? `thread:${threadId}` : "home";
   const normalizedInitialSettings = useMemo(
     () => normalizeMessageSettings(initialSettings),
     [initialSettings],

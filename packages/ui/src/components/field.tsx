@@ -1,10 +1,11 @@
 import type { VariantProps } from "class-variance-authority";
-import { useMemo } from "react";
 import { cva } from "class-variance-authority";
 
 import { Label } from "@redux/ui/components/label";
 import { Separator } from "@redux/ui/components/separator";
 import { cn } from "@redux/ui/lib/utils";
+
+const groupRole = "group" as const;
 
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
@@ -75,7 +76,7 @@ function Field({
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
   return (
     <div
-      role="group"
+      role={groupRole}
       data-slot="field"
       data-orientation={orientation}
       className={cn(fieldVariants({ orientation }), className)}
@@ -180,7 +181,7 @@ function FieldError({
 }: React.ComponentProps<"div"> & {
   errors?: ({ message?: string } | undefined)[];
 }) {
-  const content = useMemo(() => {
+  const content = (() => {
     if (children) {
       return children;
     }
@@ -201,12 +202,12 @@ function FieldError({
     return (
       <ul className="ml-4 flex list-disc flex-col gap-1">
         {uniqueErrors.map(
-          (error, index) =>
-            error?.message && <li key={index}>{error.message}</li>,
+          (error) =>
+            error?.message && <li key={error.message}>{error.message}</li>,
         )}
       </ul>
     );
-  }, [children, errors]);
+  })();
 
   if (!content) {
     return null;

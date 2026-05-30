@@ -228,7 +228,7 @@ export function ChatInputAttachmentsBar({
                         )}
                       >
                         <Icon
-                          className="h-[22px] w-[22px] shrink-0 opacity-90"
+                          className="size-[22px] shrink-0 opacity-90"
                           aria-hidden
                         />
                         <span className="max-w-full truncate px-px text-[9px] leading-none font-semibold tracking-wide">

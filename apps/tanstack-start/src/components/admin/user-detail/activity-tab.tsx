@@ -1,6 +1,6 @@
 "use no memo";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery as useConvexQuery, usePaginatedQuery } from "convex/react";
 import {
   AlertTriangle,
@@ -32,6 +32,7 @@ import {
 } from "@redux/ui/components/select";
 import { Skeleton } from "@redux/ui/components/skeleton";
 
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { formatDate } from "./utils";
 
 const PAGE_SIZE = 25;
@@ -227,14 +228,14 @@ export function AdminUserActivityTab({
   userId: string;
   displayName: string;
 }) {
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useReducerState("");
+  const [toDate, setToDate] = useReducerState("");
   const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>(ALL_FILTER_VALUE);
+    useReducerState<StatusFilter>(ALL_FILTER_VALUE);
   const [severityFilter, setSeverityFilter] =
-    useState<SeverityFilter>(ALL_FILTER_VALUE);
-  const [actionValues, setActionValues] = useState<string[]>([]);
-  const [ipValues, setIpValues] = useState<string[]>([]);
+    useReducerState<SeverityFilter>(ALL_FILTER_VALUE);
+  const [actionValues, setActionValues] = useReducerState<string[]>([]);
+  const [ipValues, setIpValues] = useReducerState<string[]>([]);
 
   const facets = useConvexQuery(
     api.functions.adminUserDetail.listAuditLogFacetsForUser,

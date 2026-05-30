@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
@@ -24,12 +24,11 @@ import { sanitizeAuthRedirect } from "@/lib/auth/redirect";
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
+  email: z.email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export function SignUpPage() {
-  const navigate = useNavigate();
   const { next } = useSearch({ from: "/auth/sign-up" });
   const redirectTo = sanitizeAuthRedirect(next);
   const posthog = usePostHog();
@@ -55,7 +54,7 @@ export function SignUpPage() {
               name: value.name,
             });
             posthog.capture("user_signed_up", { method: "email" });
-            void navigate({ to: redirectTo });
+            window.location.assign(redirectTo);
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);
@@ -81,16 +80,13 @@ export function SignUpPage() {
           />
 
           <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            action={async () => {
               await form.handleSubmit();
             }}
             className="space-y-4"
           >
-            <form.Field
-              name="name"
-              children={(field) => (
+            <form.Field name="name">
+              {(field) => (
                 <Field>
                   <FieldLabel>Name</FieldLabel>
                   <Input
@@ -105,10 +101,9 @@ export function SignUpPage() {
                   )}
                 </Field>
               )}
-            />
-            <form.Field
-              name="email"
-              children={(field) => (
+            </form.Field>
+            <form.Field name="email">
+              {(field) => (
                 <Field>
                   <FieldLabel>Email</FieldLabel>
                   <Input
@@ -123,10 +118,9 @@ export function SignUpPage() {
                   )}
                 </Field>
               )}
-            />
-            <form.Field
-              name="password"
-              children={(field) => (
+            </form.Field>
+            <form.Field name="password">
+              {(field) => (
                 <Field>
                   <FieldLabel>Password</FieldLabel>
                   <Input
@@ -142,7 +136,7 @@ export function SignUpPage() {
                   )}
                 </Field>
               )}
-            />
+            </form.Field>
             <Button
               className="w-full"
               type="submit"

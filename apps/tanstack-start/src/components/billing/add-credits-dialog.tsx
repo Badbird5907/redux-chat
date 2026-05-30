@@ -22,7 +22,7 @@ import {
 import { Input } from "@redux/ui/components/input";
 import { cn } from "@redux/ui/lib/utils";
 
-import { formatNumber } from "@/components/billing/credit-balance-panel";
+import { formatNumber } from "@/components/billing/format-number";
 
 type AddCreditsBillingState = {
   tier?: "free" | "plus" | "pro";
@@ -36,12 +36,13 @@ type AddCreditsDialogProps = {
 };
 
 const PRESET_AMOUNTS = [500, 1_000, 2_500, 5_000] as const;
+const usdFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
 
 function formatUsd(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
+  return usdFormatter.format(cents / 100);
 }
 
 function dollarsInputFromCents(cents: number) {

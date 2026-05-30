@@ -3,6 +3,8 @@ import { Search } from "lucide-react";
 import type { ModelSelectorState } from "./use-model-selector-state";
 import { ModelFeatureFilters } from "./feature-filters";
 
+const searchInputRole = "combobox" as const;
+
 type SearchBarProps = Pick<
   ModelSelectorState,
   | "searchInputRef"
@@ -45,8 +47,9 @@ export function ModelSelectorSearchBar(barProps: SearchBarProps) {
           <Search className="text-muted-foreground size-4 shrink-0" />
           <input
             ref={searchInputRef}
-            type="search"
-            role="combobox"
+            type="text"
+            role={searchInputRole}
+            aria-label="Search models"
             aria-controls={listboxId}
             aria-expanded={open}
             aria-autocomplete="list"

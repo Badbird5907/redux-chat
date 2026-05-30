@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "convex/react";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -21,13 +21,6 @@ export function ProjectDescription({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(description ?? "");
   const [saving, setSaving] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (editing) {
-      textareaRef.current?.focus();
-    }
-  }, [editing]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -75,7 +68,7 @@ export function ProjectDescription({
         {editing ? (
           <div className="flex flex-col gap-2">
             <Textarea
-              ref={textareaRef}
+              autoFocus
               rows={4}
               value={draft}
               placeholder="Brief summary shown under the project title..."

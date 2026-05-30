@@ -113,29 +113,29 @@ export function ThemeProvider({ children }: React.PropsWithChildren) {
 
   const resolvedTheme = themeMode === "auto" ? getSystemTheme() : themeMode;
 
-  const setTheme = (newTheme: ThemeMode) => {
+  const setTheme = React.useCallback((newTheme: ThemeMode) => {
     setThemeMode(newTheme);
     setStoredThemeMode(newTheme);
     updateThemeClass(newTheme);
-  };
+  }, []);
 
-  const toggleMode = () => {
+  const toggleMode = React.useCallback(() => {
     setTheme(getNextTheme(themeMode));
-  };
+  }, [setTheme, themeMode]);
+
+  const themeContextValue = React.useMemo(
+    () => ({
+      themeMode,
+      resolvedTheme,
+      setTheme,
+      toggleMode,
+    }),
+    [resolvedTheme, setTheme, themeMode, toggleMode],
+  );
 
   return (
-    <ThemeContext
-      value={{
-        themeMode,
-        resolvedTheme,
-        setTheme,
-        toggleMode,
-      }}
-    >
-      <script
-        dangerouslySetInnerHTML={{ __html: themeDetectorScript }}
-        suppressHydrationWarning
-      />
+    <ThemeContext value={themeContextValue}>
+      <script suppressHydrationWarning>{themeDetectorScript}</script>
       {children}
     </ThemeContext>
   );

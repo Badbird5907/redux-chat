@@ -11,7 +11,7 @@ interface ChatInputEditorSectionProps {
   input: string;
   setInput: (value: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
-  visualizationRef: RefObject<HTMLDivElement | null>;
+  visualizationRef: RefObject<HTMLButtonElement | null>;
   visualizationHeight: number | null;
   tokenizedText: string[];
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -57,6 +57,7 @@ export function ChatInputEditorSection({
           onKeyDown={onKeyDown}
           onPaste={onPasteFiles}
           placeholder="Message..."
+          aria-label="Message"
           rows={1}
           className={cn(
             "text-foreground placeholder:text-muted-foreground w-full resize-none bg-transparent text-base leading-6 focus:outline-none",

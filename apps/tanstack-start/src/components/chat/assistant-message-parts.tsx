@@ -221,7 +221,7 @@ export function AssistantMessageParts({
             return (
               <GeneratedImageBlock
                 image={generatedImage}
-                key={`${message.id}:generated-image:${index}`}
+                key={`${message.id}:generated-image:${getGeneratedImageKey(generatedImage)}`}
               />
             );
           }
@@ -378,8 +378,6 @@ function renderTextWithGeneratedImages({
   return nodes;
 }
 
-export { getAssistantStepIcon } from "./assistant-message-helpers";
-
 interface GeneratedImagePart {
   type: "data-generated-image";
   url?: string;
@@ -470,7 +468,7 @@ function GeneratedImageBlock({ image }: { image: GeneratedImagePart }) {
           <Skeleton className="absolute inset-0 h-full w-full rounded-none" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-muted-foreground text-sm">
-              Generating image...
+              Generating image&hellip;
             </div>
           </div>
         </div>

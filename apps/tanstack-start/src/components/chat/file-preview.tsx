@@ -91,12 +91,22 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
             <video
               src={file.url}
               controls
+              aria-label={file.name}
               className="h-auto w-full rounded-lg"
-            />
+            >
+              <track kind="captions" />
+            </video>
           )}
 
           {isAudio && file.url && (
-            <audio src={file.url} controls className="w-full" />
+            <audio
+              src={file.url}
+              controls
+              aria-label={file.name}
+              className="w-full"
+            >
+              <track kind="captions" />
+            </audio>
           )}
 
           {isPDF && file.url && (
@@ -108,6 +118,7 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
               >
                 <iframe
                   src={`${file.url}#view=FitH`}
+                  sandbox=""
                   className="h-full w-full border-0"
                   title={file.name}
                 >

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +16,7 @@ import { Label } from "@redux/ui/components/label";
 
 import type { AdminUserDetail, DialogBaseProps } from "../types";
 import { authClient } from "@/lib/auth/client";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 function normalizeCommaRoles(value: string): string {
   return value
@@ -65,11 +65,13 @@ function EditProfileForm({
   user: AdminUserDetail;
 }) {
   const queryClient = useQueryClient();
-  const [name, setName] = useState(() => user.name?.trim() ?? "");
-  const [email, setEmail] = useState(() => user.email.trim());
-  const [imageUrl, setImageUrl] = useState(() => initialImageField(user.image));
-  const [role, setRole] = useState(() => (user.role ?? "").trim());
-  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useReducerState(() => user.name?.trim() ?? "");
+  const [email, setEmail] = useReducerState(() => user.email.trim());
+  const [imageUrl, setImageUrl] = useReducerState(() =>
+    initialImageField(user.image),
+  );
+  const [role, setRole] = useReducerState(() => (user.role ?? "").trim());
+  const [error, setError] = useReducerState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {

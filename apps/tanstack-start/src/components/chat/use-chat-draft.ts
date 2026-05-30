@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -77,6 +77,10 @@ function revokeObjectUrl(attachment: DraftAttachment) {
   }
 }
 
+function revokeAttachmentRefUrls(attachmentsRef: RefObject<DraftAttachment[]>) {
+  attachmentsRef.current.forEach(revokeObjectUrl);
+}
+
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
 }
@@ -141,6 +145,12 @@ export function useChatDraft({
   const [attachments, setAttachmentsState] = useState<DraftAttachment[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
+  const setTextRef = useRef(setText);
+  const setIsReadyRef = useRef(setIsReady);
+  const setLoadedScopeKeyRef = useRef(setLoadedScopeKey);
+  setTextRef.current = setText;
+  setIsReadyRef.current = setIsReady;
+  setLoadedScopeKeyRef.current = setLoadedScopeKey;
   const previousAttachmentsRef = useRef<DraftAttachment[]>([]);
 
   const setAttachments = useCallback<
@@ -155,6 +165,8 @@ export function useChatDraft({
       return sanitizeDraftAttachments(next);
     });
   }, []);
+  const setAttachmentsRef = useRef(setAttachments);
+  setAttachmentsRef.current = setAttachments;
 
   useEffect(() => {
     const previousAttachments = previousAttachmentsRef.current;
@@ -173,7 +185,7 @@ export function useChatDraft({
 
   useEffect(() => {
     return () => {
-      previousAttachmentsRef.current.forEach(revokeObjectUrl);
+      revokeAttachmentRefUrls(previousAttachmentsRef);
     };
   }, []);
 
@@ -316,19 +328,22 @@ export function useChatDraft({
       return;
     }
 
-    const persistedAttachments = attachments
-      .filter(
-        (attachment) =>
-          !attachment.uploading && !isAttachmentExpired(attachment.expiresAt),
-      )
-      .map((attachment) => ({
-        attachmentId: attachment.attachmentId,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        size: attachment.size,
-        expiresAt: attachment.expiresAt,
-        lastKnownUrl: attachment.url,
-      }));
+    const persistedAttachments = attachments.flatMap((attachment) => {
+      if (attachment.uploading || isAttachmentExpired(attachment.expiresAt)) {
+        return [];
+      }
+
+      return [
+        {
+          attachmentId: attachment.attachmentId,
+          fileName: attachment.fileName,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          expiresAt: attachment.expiresAt,
+          lastKnownUrl: attachment.url,
+        },
+      ];
+    });
 
     if (!text.trim() && persistedAttachments.length === 0) {
       window.localStorage.removeItem(scopeKey);
@@ -370,19 +385,19 @@ export function useChatDraft({
 
       const raw = window.localStorage.getItem(scopeKey);
       if (!raw) {
-        setText("");
-        setAttachments([]);
-        setLoadedScopeKey(scopeKey);
-        setIsReady(true);
+        setTextRef.current("");
+        setAttachmentsRef.current([]);
+        setLoadedScopeKeyRef.current(scopeKey);
+        setIsReadyRef.current(true);
         return;
       }
 
       try {
         const parsed = JSON.parse(raw) as StoredDraft;
-        setText(parsed.text ?? "");
-        setAttachments([]);
-        setLoadedScopeKey(scopeKey);
-        setIsReady(true);
+        setTextRef.current(parsed.text ?? "");
+        setAttachmentsRef.current([]);
+        setLoadedScopeKeyRef.current(scopeKey);
+        setIsReadyRef.current(true);
       } catch (error) {
         console.error("Failed to sync chat draft", error);
       }
@@ -393,7 +408,7 @@ export function useChatDraft({
     return () => {
       window.removeEventListener(DRAFT_UPDATED_EVENT, handleDraftUpdated);
     };
-  }, [persistDraft, scopeKey, setAttachments]);
+  }, [persistDraft, scopeKey]);
 
   const appendAttachment = useCallback(
     (attachment: DraftAttachment) => {

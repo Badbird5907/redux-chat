@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { LogIn, LogOut, Settings, Shield, UserRoundX } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button, buttonVariants } from "@redux/ui/components/button";
+import { Button } from "@redux/ui/components/button";
+import { buttonVariants } from "@redux/ui/components/button-variants";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,16 +28,35 @@ import { cn } from "@redux/ui/lib/utils";
 import { UserInfo } from "@/components/user-info";
 import { authClient } from "@/lib/auth/client";
 
+const subscribeToClientSnapshot = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+async function stopImpersonating() {
+  const res = await authClient.admin.stopImpersonating();
+  if (res.error) {
+    toast.error(res.error.message ?? "Failed to stop impersonating");
+    return;
+  }
+  // The admin plugin switches the session cookie back to the admin's, but
+  // does NOT refresh the convex_jwt cookie. Hitting /get-session while
+  // authenticated triggers the after-hook that re-issues the JWT for the
+  // restored session, so the reload authenticates as the admin again
+  // instead of replaying the stale impersonated-user JWT.
+  await authClient.getSession({ fetchOptions: { cache: "no-store" } });
+  toast.success("Stopped impersonating");
+  window.location.assign("/admin");
+}
+
 export const AppSidebarFooter = () => {
   const { data: session, isPending } = authClient.useSession();
   const isMobile = useIsMobile();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    subscribeToClientSnapshot,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -46,22 +66,6 @@ export const AppSidebarFooter = () => {
         },
       },
     });
-  };
-
-  const handleStopImpersonating = async () => {
-    const res = await authClient.admin.stopImpersonating();
-    if (res.error) {
-      toast.error(res.error.message ?? "Failed to stop impersonating");
-      return;
-    }
-    // The admin plugin switches the session cookie back to the admin's, but
-    // does NOT refresh the convex_jwt cookie. Hitting /get-session while
-    // authenticated triggers the after-hook that re-issues the JWT for the
-    // restored session, so the reload authenticates as the admin again
-    // instead of replaying the stale impersonated-user JWT.
-    await authClient.getSession({ fetchOptions: { cache: "no-store" } });
-    toast.success("Stopped impersonating");
-    window.location.assign("/admin");
   };
 
   const handleOpenSettings = () => {
@@ -108,7 +112,13 @@ export const AppSidebarFooter = () => {
     return (
       <Sheet>
         <SheetTrigger
-          render={<button type="button" className="w-full text-left" />}
+          render={
+            <button
+              type="button"
+              className="w-full text-left"
+              aria-label="Open account settings"
+            />
+          }
         >
           <UserInfo
             userId={session.session.userId}
@@ -151,7 +161,7 @@ export const AppSidebarFooter = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={handleStopImpersonating}
+                onClick={stopImpersonating}
               >
                 <UserRoundX className="size-4" />
                 <span>Stop impersonating</span>
@@ -194,7 +204,7 @@ export const AppSidebarFooter = () => {
         {isImpersonating ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleStopImpersonating}>
+            <DropdownMenuItem onClick={stopImpersonating}>
               <UserRoundX className="size-4" />
               <span>Stop impersonating</span>
             </DropdownMenuItem>

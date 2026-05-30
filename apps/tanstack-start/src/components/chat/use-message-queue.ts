@@ -1,12 +1,17 @@
 "use client";
 
 import type { DraftAttachment } from "@/components/chat/use-chat-draft";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export interface QueuedMessage {
   id: string;
   text: string;
   attachments: DraftAttachment[];
+}
+
+interface QueueState {
+  threadId: string | undefined;
+  messages: QueuedMessage[];
 }
 
 function newQueuedId(): string {
@@ -35,34 +40,24 @@ export function snapshotAttachmentsForQueue(
 }
 
 export function useMessageQueue({ threadId }: { threadId?: string }) {
-  const [queue, setQueue] = useState<QueuedMessage[]>([]);
+  const [queueState, setQueueState] = useState<QueueState>({
+    threadId,
+    messages: [],
+  });
+  const queue =
+    queueState.threadId !== undefined && queueState.threadId !== threadId
+      ? []
+      : queueState.messages;
   const queueRef = useRef(queue);
-  const previousThreadRef = useRef(threadId);
+  queueRef.current = queue;
 
-  const replaceQueue = useCallback((next: QueuedMessage[]) => {
-    queueRef.current = next;
-    setQueue(queueRef.current);
-  }, []);
-
-  useEffect(() => {
-    const previous = previousThreadRef.current;
-
-    if (previous === threadId) {
-      return;
-    }
-
-    const shouldClear =
-      (previous !== undefined && threadId === undefined) ||
-      (previous !== undefined &&
-        threadId !== undefined &&
-        previous !== threadId);
-
-    previousThreadRef.current = threadId;
-
-    if (shouldClear) {
-      replaceQueue([]);
-    }
-  }, [replaceQueue, threadId]);
+  const replaceQueue = useCallback(
+    (next: QueuedMessage[]) => {
+      queueRef.current = next;
+      setQueueState({ threadId, messages: next });
+    },
+    [threadId],
+  );
 
   const enqueue = useCallback(
     (message: Omit<QueuedMessage, "id">) => {

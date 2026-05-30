@@ -17,6 +17,7 @@ import type {
 } from "./chat-types";
 import type { ChatPreload } from "./preload";
 import { useQuery } from "@/lib/hooks/convex";
+import { useStableInitialValue } from "@/lib/hooks/use-stable-initial-value";
 import { resolveAttachments } from "@/server/attachments";
 import {
   JUMP_TO_THREAD_BRANCH_EVENT,
@@ -63,12 +64,16 @@ export function useChatSession({
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(
     initialThreadId,
   );
+  const setCurrentThreadIdRef = useRef(setCurrentThreadId);
+  setCurrentThreadIdRef.current = setCurrentThreadId;
 
   const lastMessageCount = useRef(0);
 
   const [optimisticMessage, setOptimisticMessage] = useState<
     UIMessage | undefined
   >(undefined);
+  const setOptimisticMessageRef = useRef(setOptimisticMessage);
+  setOptimisticMessageRef.current = setOptimisticMessage;
   const [pendingAssistantMessageId, setPendingAssistantMessageId] = useState<
     string | undefined
   >(undefined);
@@ -95,7 +100,9 @@ export function useChatSession({
     chatProjectId ?? preload?.thread?.chatProjectId ?? thread?.chatProjectId;
 
   const chatSessionId = useStableClientId();
-  const [chatInstanceId] = useState(() => initialThreadId ?? chatSessionId);
+  const chatInstanceId = useStableInitialValue(
+    () => initialThreadId ?? chatSessionId,
+  );
   const locallyCompletedStreamRef = useRef(false);
   const locallyStartedStreamRef = useRef(false);
   const locallyStoppedStreamRef = useRef<
@@ -141,8 +148,13 @@ export function useChatSession({
     },
     [],
   );
+  const setTrackedPendingAssistantMessageIdRef = useRef(
+    setTrackedPendingAssistantMessageId,
+  );
+  setTrackedPendingAssistantMessageIdRef.current =
+    setTrackedPendingAssistantMessageId;
 
-  const [initialMessages] = useState<ChatMessageWithThreadMetadata[]>(() =>
+  const initialMessages = useStableInitialValue(() =>
     getVisibleBranchMessages(
       (preload?.messages ?? []).map(toChatUIMessage),
       preload?.thread?.selectedLeafMessageId,
@@ -163,18 +175,21 @@ export function useChatSession({
     [markAdoptedThreadNavigation, router],
   );
 
+  const currentThreadIdRef = useRef(currentThreadId);
+  currentThreadIdRef.current = currentThreadId;
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
         prepareReconnectToStreamRequest: () => {
-          console.log("prepareReconnectToStreamRequest", currentThreadId);
+          const threadId = currentThreadIdRef.current;
+          console.log("prepareReconnectToStreamRequest", threadId);
           return {
-            api: `/api/chat/${currentThreadId}/stream`,
+            api: `/api/chat/${threadId}/stream`,
           };
         },
       }),
-    [currentThreadId],
+    [],
   );
 
   const refreshBillingState = useAction(
@@ -254,6 +269,15 @@ export function useChatSession({
     },
   });
 
+  const replaceMessages = useCallback(
+    (nextMessages: ChatMessageWithThreadMetadata[]) => {
+      setMessages(nextMessages);
+    },
+    [setMessages],
+  );
+  const replaceMessagesRef = useRef(replaceMessages);
+  replaceMessagesRef.current = replaceMessages;
+
   const sendMessageWithTracking = useCallback(
     (
       message: {
@@ -329,27 +353,21 @@ export function useChatSession({
       locallyStartedStreamRef.current = false;
       locallyCompletedStreamRef.current = false;
       locallyStoppedStreamRef.current = undefined;
-      setCurrentThreadId(initialThreadId);
-      setOptimisticMessage(undefined);
-      setTrackedPendingAssistantMessageId(undefined);
+      setCurrentThreadIdRef.current(initialThreadId);
+      setOptimisticMessageRef.current(undefined);
+      setTrackedPendingAssistantMessageIdRef.current(undefined);
       lastMessageCount.current = 0;
       lastSyncedMessagesRef.current = [];
 
       if (status === "ready" && !initialThreadId) {
-        setMessages([]);
+        replaceMessagesRef.current([]);
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [
-    currentThreadId,
-    initialThreadId,
-    setMessages,
-    setTrackedPendingAssistantMessageId,
-    status,
-  ]);
+  }, [currentThreadId, initialThreadId, status]);
 
   useEffect(() => {
     if (initialThreadId || currentThreadId || status !== "ready") {
@@ -366,23 +384,17 @@ export function useChatSession({
       locallyStartedStreamRef.current = false;
       locallyCompletedStreamRef.current = false;
       locallyStoppedStreamRef.current = undefined;
-      setOptimisticMessage(undefined);
-      setTrackedPendingAssistantMessageId(undefined);
+      setOptimisticMessageRef.current(undefined);
+      setTrackedPendingAssistantMessageIdRef.current(undefined);
       lastMessageCount.current = 0;
       lastSyncedMessagesRef.current = [];
-      setMessages([]);
+      replaceMessagesRef.current([]);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [
-    currentThreadId,
-    initialThreadId,
-    setMessages,
-    setTrackedPendingAssistantMessageId,
-    status,
-  ]);
+  }, [currentThreadId, initialThreadId, status]);
 
   const activeStreamInfo = useQuery(
     api.functions.threads.getThreadStreamId,
@@ -598,14 +610,8 @@ export function useChatSession({
 
     console.log("Syncing messages (n,e)", convexUIMessages, messages);
     lastSyncedMessagesRef.current = convexUIMessages;
-    setMessages(convexUIMessages);
-  }, [
-    activeStreamInfo?.streamId,
-    convexUIMessages,
-    messages,
-    status,
-    setMessages,
-  ]);
+    replaceMessagesRef.current(convexUIMessages);
+  }, [activeStreamInfo?.streamId, convexUIMessages, messages, status]);
 
   useEffect(() => {
     if (status !== "error") {

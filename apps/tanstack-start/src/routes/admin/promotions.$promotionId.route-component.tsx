@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import {
   useAction,
   useMutation,
@@ -28,21 +27,11 @@ import {
 import { AdminPageNav } from "@/components/admin/admin-page-nav";
 import { PromotionFormDialog } from "@/components/admin/promotion-form-dialog";
 import { formatDate } from "@/components/admin/user-detail/utils";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 const PAGE_SIZE = 25;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const ALL_STATUSES = "all";
-
-export const Route = createFileRoute("/admin/promotions/$promotionId")({
-  head: ({ params }) => ({
-    meta: [
-      {
-        title: `Promotion ${params.promotionId.slice(0, 8)} | Admin | Redux Chat`,
-      },
-    ],
-  }),
-  component: AdminPromotionDetailPage,
-});
 
 type StatusFilter = PromotionRedemptionStatus | typeof ALL_STATUSES;
 
@@ -117,7 +106,7 @@ export function StripeIds({
     ["legacy credit", redemption.stripeCreditGrantId],
   ].filter((row): row is [string, string] => typeof row[1] === "string");
 
-  if (rows.length === 0) return <>—</>;
+  if (rows.length === 0) return <>None</>;
 
   return (
     <div className="grid gap-1">
@@ -144,15 +133,16 @@ function metadataString(metadata: unknown, key: string): string | undefined {
 }
 
 export function AdminPromotionDetailPage() {
-  const { promotionId } = Route.useParams();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(ALL_STATUSES);
-  const [userSearchInput, setUserSearchInput] = useState("");
-  const [activeUserSearch, setActiveUserSearch] = useState("");
-  const [fromInput, setFromInput] = useState("");
-  const [toInput, setToInput] = useState("");
-  const [repeatedOnly, setRepeatedOnly] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const { promotionId } = useParams({ from: "/admin/promotions/$promotionId" });
+  const [statusFilter, setStatusFilter] =
+    useReducerState<StatusFilter>(ALL_STATUSES);
+  const [userSearchInput, setUserSearchInput] = useReducerState("");
+  const [activeUserSearch, setActiveUserSearch] = useReducerState("");
+  const [fromInput, setFromInput] = useReducerState("");
+  const [toInput, setToInput] = useReducerState("");
+  const [repeatedOnly, setRepeatedOnly] = useReducerState(false);
+  const [page, setPage] = useReducerState(1);
+  const [pageSize, setPageSize] = useReducerState(PAGE_SIZE);
 
   const detail = useQuery(api.functions.promotions.adminGetPromotion, {
     promotionId,

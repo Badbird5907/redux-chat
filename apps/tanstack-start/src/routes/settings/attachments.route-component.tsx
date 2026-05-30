@@ -1,7 +1,6 @@
 "use no memo";
 
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { usePaginatedQuery } from "convex/react";
 import { FileText, Loader2, Trash2 } from "lucide-react";
@@ -23,16 +22,13 @@ const PAGE_SIZE = 25;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const MAX_DELETE_COUNT = 100;
 
-export const Route = createFileRoute("/settings/attachments")({
-  ssr: false,
-  component: AttachmentsRouteComponent,
-  head: () => ({
-    meta: [{ title: "Attachments | Redux Chat" }],
-  }),
-});
-
 type AttachmentRow =
   (typeof api.functions.attachments.listForSettings)["_returnType"]["page"][number];
+
+const attachmentDateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -45,10 +41,7 @@ function formatDate(timestamp: number | undefined) {
     return "Never";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(timestamp));
+  return attachmentDateFormatter.format(new Date(timestamp));
 }
 
 function getAttachmentScope(attachment: AttachmentRow) {
@@ -149,9 +142,9 @@ export function AttachmentsRouteComponent() {
 
   const selectedIds = useMemo(
     () =>
-      Object.entries(rowSelection)
-        .filter(([, selected]) => selected)
-        .map(([attachmentId]) => attachmentId),
+      Object.entries(rowSelection).flatMap(([attachmentId, selected]) =>
+        selected ? [attachmentId] : [],
+      ),
     [rowSelection],
   );
   const selectedCount = selectedIds.length;

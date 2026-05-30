@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useMutation } from "convex/react";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Textarea } from "@redux/ui/components/textarea";
 
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useInstructions } from "@/lib/hooks/use-instructions";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 interface InstructionDraft {
   name: string;
@@ -45,17 +46,19 @@ export function InstructionsManager() {
     api.functions.instructions.deleteInstruction,
   );
 
-  const [drafts, setDrafts] = useState<Record<string, InstructionDraft>>({});
-  const [newInstructionName, setNewInstructionName] = useState("");
-  const [newInstructionPrompt, setNewInstructionPrompt] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [savingInstructionId, setSavingInstructionId] = useState<string | null>(
-    null,
+  const [drafts, setDrafts] = useReducerState<Record<string, InstructionDraft>>(
+    {},
   );
-  const [resettingInstructionId, setResettingInstructionId] = useState<
+  const [newInstructionName, setNewInstructionName] = useReducerState("");
+  const [newInstructionPrompt, setNewInstructionPrompt] = useReducerState("");
+  const [creating, setCreating] = useReducerState(false);
+  const [savingInstructionId, setSavingInstructionId] = useReducerState<
     string | null
   >(null);
-  const [deletingInstructionId, setDeletingInstructionId] = useState<
+  const [resettingInstructionId, setResettingInstructionId] = useReducerState<
+    string | null
+  >(null);
+  const [deletingInstructionId, setDeletingInstructionId] = useReducerState<
     string | null
   >(null);
 
@@ -74,19 +77,17 @@ export function InstructionsManager() {
   const dirtyInstructionIds = useMemo(
     () =>
       new Set(
-        instructions
-          .filter((instruction) => {
-            const draft = mergedDrafts[instruction.instructionId];
-            if (!draft) {
-              return false;
-            }
+        instructions.flatMap((instruction) => {
+          const draft = mergedDrafts[instruction.instructionId];
+          if (!draft) {
+            return [];
+          }
 
-            return (
-              draft.name !== instruction.name ||
-              draft.prompt !== instruction.prompt
-            );
-          })
-          .map((instruction) => instruction.instructionId),
+          return draft.name !== instruction.name ||
+            draft.prompt !== instruction.prompt
+            ? [instruction.instructionId]
+            : [];
+        }),
       ),
     [instructions, mergedDrafts],
   );
