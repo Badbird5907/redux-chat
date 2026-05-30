@@ -40,7 +40,6 @@ import { Separator } from "@redux/ui/components/separator";
 import Spinner from "@redux/ui/components/spinner";
 import GithubIcon from "@redux/ui/icons/github";
 
-
 export function ComponentsRouteComponent() {
   return (
     <div className="container mx-auto space-y-10 py-10">
