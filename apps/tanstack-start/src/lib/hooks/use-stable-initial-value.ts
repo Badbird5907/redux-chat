@@ -1,11 +1,6 @@
-import { useRef } from "react";
-
-const unset = Symbol("unset");
+import { useState } from "react";
 
 export function useStableInitialValue<T>(createValue: () => T): T {
-  const valueRef = useRef<T | typeof unset>(unset);
-  if (valueRef.current === unset) {
-    valueRef.current = createValue();
-  }
-  return valueRef.current;
+  const [value] = useState(createValue);
+  return value;
 }

@@ -147,8 +147,10 @@ export function ChatInput({
   const setInputRef = useRef(setInput);
   const setAttachmentsRef = useRef(setAttachments);
 
-  setInputRef.current = setInput;
-  setAttachmentsRef.current = setAttachments;
+  useEffect(() => {
+    setInputRef.current = setInput;
+    setAttachmentsRef.current = setAttachments;
+  });
 
   useEffect(() => {
     if (!editMessage || editingMessageIdRef.current === editMessage.id) {

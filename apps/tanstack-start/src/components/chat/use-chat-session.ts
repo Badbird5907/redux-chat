@@ -65,7 +65,9 @@ export function useChatSession({
     initialThreadId,
   );
   const setCurrentThreadIdRef = useRef(setCurrentThreadId);
-  setCurrentThreadIdRef.current = setCurrentThreadId;
+  useEffect(() => {
+    setCurrentThreadIdRef.current = setCurrentThreadId;
+  });
 
   const lastMessageCount = useRef(0);
 
@@ -73,7 +75,9 @@ export function useChatSession({
     UIMessage | undefined
   >(undefined);
   const setOptimisticMessageRef = useRef(setOptimisticMessage);
-  setOptimisticMessageRef.current = setOptimisticMessage;
+  useEffect(() => {
+    setOptimisticMessageRef.current = setOptimisticMessage;
+  });
   const [pendingAssistantMessageId, setPendingAssistantMessageId] = useState<
     string | undefined
   >(undefined);
@@ -151,8 +155,10 @@ export function useChatSession({
   const setTrackedPendingAssistantMessageIdRef = useRef(
     setTrackedPendingAssistantMessageId,
   );
-  setTrackedPendingAssistantMessageIdRef.current =
-    setTrackedPendingAssistantMessageId;
+  useEffect(() => {
+    setTrackedPendingAssistantMessageIdRef.current =
+      setTrackedPendingAssistantMessageId;
+  });
 
   const initialMessages = useStableInitialValue(() =>
     getVisibleBranchMessages(
@@ -176,20 +182,26 @@ export function useChatSession({
   );
 
   const currentThreadIdRef = useRef(currentThreadId);
-  currentThreadIdRef.current = currentThreadId;
-  const transport = useMemo(
+  useEffect(() => {
+    currentThreadIdRef.current = currentThreadId;
+  });
+  const prepareReconnectToStreamRequest = useCallback(() => {
+    const threadId = currentThreadIdRef.current;
+    console.log("prepareReconnectToStreamRequest", threadId);
+    return {
+      api: `/api/chat/${threadId}/stream`,
+    };
+  }, []);
+  // The ref-capturing callback is only invoked when the transport requests a
+  // reconnect, never during React's render phase. The lint rule traces closures
+  // conservatively and can't tell.
+  const [transport] = useState(
+    // eslint-disable-next-line react-hooks/refs
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        prepareReconnectToStreamRequest: () => {
-          const threadId = currentThreadIdRef.current;
-          console.log("prepareReconnectToStreamRequest", threadId);
-          return {
-            api: `/api/chat/${threadId}/stream`,
-          };
-        },
+        prepareReconnectToStreamRequest,
       }),
-    [],
   );
 
   const refreshBillingState = useAction(
@@ -276,7 +288,9 @@ export function useChatSession({
     [setMessages],
   );
   const replaceMessagesRef = useRef(replaceMessages);
-  replaceMessagesRef.current = replaceMessages;
+  useEffect(() => {
+    replaceMessagesRef.current = replaceMessages;
+  });
 
   const sendMessageWithTracking = useCallback(
     (

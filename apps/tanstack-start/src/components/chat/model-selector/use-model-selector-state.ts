@@ -62,9 +62,7 @@ export function useModelSelectorState({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Map<string, HTMLDivElement> | null>(null);
-  if (optionRefs.current === null) {
-    optionRefs.current = new Map();
-  }
+  optionRefs.current ??= new Map();
   const listboxId = useId();
   const optionIdPrefix = useId();
   const favoritesLayoutGroupId = useId();

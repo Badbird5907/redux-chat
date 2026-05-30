@@ -28,9 +28,6 @@ import { RedeemShell } from "@/components/redeem/redeem-shell";
 import { StatusPanel } from "@/components/redeem/status-panel";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
-type PublicPromotionPayload =
-  (typeof api.functions.promotions.getPublicPromotionByCode)["_returnType"];
-
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
 type StripeConfiguredPrices = {

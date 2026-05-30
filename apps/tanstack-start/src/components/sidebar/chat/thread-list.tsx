@@ -1,13 +1,7 @@
 "use no memo";
 
 // Opt out of React Compiler - TanStack Virtual uses flushSync internally
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePaginatedQuery } from "convex/react";
 
@@ -90,7 +84,10 @@ const LOAD_MORE_ITEMS = 20;
 const ITEM_GAP = 4; // Vertical spacing between thread items
 const ITEM_HEIGHT = 32 + ITEM_GAP; // Height of each thread item including gap
 const HEADER_HEIGHT = 28; // Height of group headers
-const subscribeToClientSnapshot = () => () => {};
+function noopUnsubscribe() {
+  // useSyncExternalStore requires returning an unsubscribe function.
+}
+const subscribeToClientSnapshot = () => noopUnsubscribe;
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

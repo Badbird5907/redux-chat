@@ -112,7 +112,9 @@ export function useFileUpload({
 }: UseFileUploadParams) {
   const [fileDragHighlight, setFileDragHighlight] = useState(false);
   const setFileDragHighlightRef = useRef(setFileDragHighlight);
-  setFileDragHighlightRef.current = setFileDragHighlight;
+  useEffect(() => {
+    setFileDragHighlightRef.current = setFileDragHighlight;
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const upload = useUpload({

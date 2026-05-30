@@ -28,7 +28,10 @@ import { cn } from "@redux/ui/lib/utils";
 import { UserInfo } from "@/components/user-info";
 import { authClient } from "@/lib/auth/client";
 
-const subscribeToClientSnapshot = () => () => {};
+function noopUnsubscribe() {
+  // useSyncExternalStore requires returning an unsubscribe function.
+}
+const subscribeToClientSnapshot = () => noopUnsubscribe;
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 

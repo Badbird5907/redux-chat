@@ -87,7 +87,9 @@ export default function ChatThreadSidebarItem({
   const [isExporting, setIsExporting] = useReducerState(false);
   const [isRegeneratingTitle, setIsRegeneratingTitle] = useReducerState(false);
   const setDisplayedTitleRef = React.useRef(setDisplayedTitle);
-  setDisplayedTitleRef.current = setDisplayedTitle;
+  React.useEffect(() => {
+    setDisplayedTitleRef.current = setDisplayedTitle;
+  });
   const inputRef = React.useRef<HTMLInputElement>(null);
   const lastThreadIdRef = React.useRef(threadId);
   const prevThreadNameRef = React.useRef(threadName);
