@@ -89,8 +89,6 @@ export async function materializeAttachmentsForRoute<
         return message;
       }
 
-      const materializedParts: UIMessagePart<UIDataTypes, UITools>[] = [];
-
       if (options.useBashUploadReferences) {
         const uploadSummary = formatBashUploadSummary(attachments);
         return uploadSummary
@@ -107,113 +105,116 @@ export async function materializeAttachmentsForRoute<
           : message;
       }
 
-      for (const attachment of attachments) {
-        const plan = planChatAttachment(route, attachment);
-        if (
-          plan.deliveryMode === "native" &&
-          !(plan.kind === "pdf" && !supportsPdfFiles)
-        ) {
-          materializedParts.push({
-            type: "file",
-            mediaType: attachment.mimeType,
-            url: attachment.url,
-            filename: attachment.fileName,
-          });
-          continue;
-        }
-
-        if (plan.kind === "pdf" && !supportsPdfFiles) {
-          const derivative = await ensureAttachmentDerivative({
-            source: attachment,
-            kind: "pdf_text",
-          });
-          if (derivative.kind === "converted_pdf") {
-            throw new Error(
-              `Expected extracted PDF text for ${attachment.fileName}, received a PDF derivative instead`,
-            );
-          }
-
-          materializedParts.push(
-            toInlineTextPart({
-              fileName: attachment.fileName,
-              mimeType: attachment.mimeType,
-              textChunks: derivative.textChunks,
-            }),
-          );
-          continue;
-        }
-
-        if (!plan.derivativeKind) {
-          throw new Error(
-            `Attachment derivative kind is missing for ${attachment.fileName}`,
-          );
-        }
-
-        const derivative = await ensureAttachmentDerivative({
-          source: attachment,
-          kind: plan.derivativeKind,
-        });
-
-        if (derivative.kind === "converted_pdf") {
-          if (!supportsPdfFiles) {
-            if (derivative.textChunks && derivative.textChunks.length > 0) {
-              materializedParts.push(
-                toInlineTextPart({
-                  fileName: derivative.fileName,
-                  mimeType: derivative.mimeType,
-                  textChunks: derivative.textChunks,
-                }),
-              );
-              continue;
+      const materializedParts = (
+        await Promise.all(
+          attachments.map(async (attachment) => {
+            const plan = planChatAttachment(route, attachment);
+            if (
+              plan.deliveryMode === "native" &&
+              !(plan.kind === "pdf" && !supportsPdfFiles)
+            ) {
+              return [
+                {
+                  type: "file",
+                  mediaType: attachment.mimeType,
+                  url: attachment.url,
+                  filename: attachment.fileName,
+                } satisfies UIMessagePart<UIDataTypes, UITools>,
+              ];
             }
 
-            const pdfText = await extractPdfTextDerivative({
-              source: {
-                ...attachment,
-                fileName: derivative.fileName,
-                mimeType: derivative.mimeType,
-              },
-              bytes: await downloadBytes(derivative.url),
+            if (plan.kind === "pdf" && !supportsPdfFiles) {
+              const derivative = await ensureAttachmentDerivative({
+                source: attachment,
+                kind: "pdf_text",
+              });
+              if (derivative.kind === "converted_pdf") {
+                throw new Error(
+                  `Expected extracted PDF text for ${attachment.fileName}, received a PDF derivative instead`,
+                );
+              }
+
+              return [
+                toInlineTextPart({
+                  fileName: attachment.fileName,
+                  mimeType: attachment.mimeType,
+                  textChunks: derivative.textChunks,
+                }),
+              ];
+            }
+
+            if (!plan.derivativeKind) {
+              throw new Error(
+                `Attachment derivative kind is missing for ${attachment.fileName}`,
+              );
+            }
+
+            const derivative = await ensureAttachmentDerivative({
+              source: attachment,
+              kind: plan.derivativeKind,
             });
 
-            await storeReadyPdfDerivativeText(
-              {
-                source: attachment,
-                kind: "converted_pdf",
-              },
-              {
-                charCount: pdfText.charCount,
-                textChunks: pdfText.textChunks,
-              },
-            );
+            if (derivative.kind === "converted_pdf") {
+              if (!supportsPdfFiles) {
+                if (derivative.textChunks && derivative.textChunks.length > 0) {
+                  return [
+                    toInlineTextPart({
+                      fileName: derivative.fileName,
+                      mimeType: derivative.mimeType,
+                      textChunks: derivative.textChunks,
+                    }),
+                  ];
+                }
 
-            materializedParts.push(
+                const pdfText = await extractPdfTextDerivative({
+                  source: {
+                    ...attachment,
+                    fileName: derivative.fileName,
+                    mimeType: derivative.mimeType,
+                  },
+                  bytes: await downloadBytes(derivative.url),
+                });
+
+                await storeReadyPdfDerivativeText(
+                  {
+                    source: attachment,
+                    kind: "converted_pdf",
+                  },
+                  {
+                    charCount: pdfText.charCount,
+                    textChunks: pdfText.textChunks,
+                  },
+                );
+
+                return [
+                  toInlineTextPart({
+                    fileName: derivative.fileName,
+                    mimeType: derivative.mimeType,
+                    textChunks: pdfText.textChunks,
+                  }),
+                ];
+              }
+
+              return [
+                {
+                  type: "file",
+                  mediaType: "application/pdf",
+                  url: derivative.url,
+                  filename: derivative.fileName,
+                } satisfies UIMessagePart<UIDataTypes, UITools>,
+              ];
+            }
+
+            return [
               toInlineTextPart({
-                fileName: derivative.fileName,
-                mimeType: derivative.mimeType,
-                textChunks: pdfText.textChunks,
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+                textChunks: derivative.textChunks,
               }),
-            );
-            continue;
-          }
-
-          materializedParts.push({
-            type: "file",
-            mediaType: "application/pdf",
-            url: derivative.url,
-            filename: derivative.fileName,
-          });
-          continue;
-        }
-
-        materializedParts.push(
-          toInlineTextPart({
-            fileName: attachment.fileName,
-            mimeType: attachment.mimeType,
-            textChunks: derivative.textChunks,
+            ];
           }),
-        );
-      }
+        )
+      ).flat();
 
       return {
         ...message,

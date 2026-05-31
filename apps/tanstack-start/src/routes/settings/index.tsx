@@ -1,6 +1,6 @@
-import type { StripePlanPrice } from "@/components/billing/plan-tier-marketing-card";
+import type { StripePlanPrice } from "@/components/billing/plan-tier-marketing-utils";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAction } from "convex/react";
 import { ChevronRight, CreditCard, TriangleAlert } from "lucide-react";
@@ -22,16 +22,35 @@ import {
 import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
 import { CreditBalancePanel } from "@/components/billing/credit-balance-panel";
 import { CreditGrantHistoryDialog } from "@/components/billing/credit-grant-history";
-import {
-  formatStripeRecurringPrice,
-  PlanTierMarketingCard,
-} from "@/components/billing/plan-tier-marketing-card";
+import { PlanTierMarketingCard } from "@/components/billing/plan-tier-marketing-card";
+import { formatStripeRecurringPrice } from "@/components/billing/plan-tier-marketing-utils";
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 export const Route = createFileRoute("/settings/")({
   component: RouteComponent,
 });
+
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+const renewalDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+});
+
+function getCurrencyFormatter(currency: string) {
+  const normalizedCurrency = currency.toUpperCase();
+  const cachedFormatter = currencyFormatters.get(normalizedCurrency);
+  if (cachedFormatter) {
+    return cachedFormatter;
+  }
+
+  const formatter = Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: normalizedCurrency,
+  });
+  currencyFormatters.set(normalizedCurrency, formatter);
+  return formatter;
+}
 
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
@@ -116,10 +135,7 @@ function formatCurrencyFromMinorUnits(
   currency: string,
 ): string {
   try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount / 100);
+    return getCurrencyFormatter(currency).format(amount / 100);
   } catch {
     return `$${String(amount / 100)}`;
   }
@@ -153,9 +169,7 @@ function renewalSummary(periodEnd: number | undefined): string | null {
     return null;
   }
   const days = Math.max(0, Math.ceil((periodEnd - Date.now()) / 86_400_000));
-  const dateStr = new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-  }).format(periodEnd);
+  const dateStr = renewalDateFormatter.format(periodEnd);
   return `${dateStr} (${days}d)`;
 }
 
@@ -225,42 +239,43 @@ function RouteComponent() {
   const discardPendingPlanChange = useAction(
     api.functions.billing.discardScheduledPaidPlanChange,
   );
-  const [billingError, setBillingError] = useState<string | null>(null);
-  const [planSwitchConfirm, setPlanSwitchConfirm] = useState<{
+  const [billingError, setBillingError] = useReducerState<string | null>(null);
+  const [planSwitchConfirm, setPlanSwitchConfirm] = useReducerState<{
     priceId: string;
     planName: string;
     isUpgrade: boolean;
   } | null>(null);
-  const [checkoutLoadingPriceId, setCheckoutLoadingPriceId] = useState<
+  const [checkoutLoadingPriceId, setCheckoutLoadingPriceId] = useReducerState<
     string | null
   >(null);
-  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useReducerState(false);
   const [stripePriceDetails, setStripePriceDetails] =
-    useState<StripePriceConfig | null>(null);
+    useReducerState<StripePriceConfig | null>(null);
   const [stripeCustomerBalance, setStripeCustomerBalance] =
-    useState<StripeCustomerBalanceSummary | null>(null);
-  const [planSwitchLoading, setPlanSwitchLoading] = useState(false);
-  const [planSwitchPreview, setPlanSwitchPreview] = useState<{
+    useReducerState<StripeCustomerBalanceSummary | null>(null);
+  const [planSwitchLoading, setPlanSwitchLoading] = useReducerState(false);
+  const [planSwitchPreview, setPlanSwitchPreview] = useReducerState<{
     priceId: string;
     loading: boolean;
     data: PaidPlanSwitchPreview | null;
     error: string | null;
   } | null>(null);
-  const [liveSubscriptionSchedule, setLiveSubscriptionSchedule] = useState<
-    | {
-        cancelAtPeriodEnd: boolean;
-        pendingPriceId: string | undefined;
-        pendingAppliesAtMs: number | undefined;
-      }
-    | undefined
-  >(undefined);
-  const [billingScheduleMutation, setBillingScheduleMutation] = useState<
+  const [liveSubscriptionSchedule, setLiveSubscriptionSchedule] =
+    useReducerState<
+      | {
+          cancelAtPeriodEnd: boolean;
+          pendingPriceId: string | undefined;
+          pendingAppliesAtMs: number | undefined;
+        }
+      | undefined
+    >(undefined);
+  const [billingScheduleMutation, setBillingScheduleMutation] = useReducerState<
     "rescind" | "discard" | null
   >(null);
-  const [addCreditsOpen, setAddCreditsOpen] = useState(false);
-  const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(
-    null,
-  );
+  const [addCreditsOpen, setAddCreditsOpen] = useReducerState(false);
+  const [hasPaymentMethod, setHasPaymentMethod] = useReducerState<
+    boolean | null
+  >(null);
 
   const hydratedScheduleForSubIdRef = useRef<string | null>(null);
   const billingQuerySettled = baseBillingState !== undefined;
@@ -292,7 +307,12 @@ function RouteComponent() {
       cancelled = true;
       hydratedScheduleForSubIdRef.current = null;
     };
-  }, [billingQuerySettled, subscriptionIdForHydration, refreshBillingStatus]);
+  }, [
+    billingQuerySettled,
+    subscriptionIdForHydration,
+    refreshBillingStatus,
+    setLiveSubscriptionSchedule,
+  ]);
 
   const billingState = baseBillingState;
   const configuredStripePrices = stripePriceDetails ?? stripePrices;
@@ -430,7 +450,7 @@ function RouteComponent() {
     return () => {
       cancelled = true;
     };
-  }, [getStripePriceDetails]);
+  }, [getStripePriceDetails, setStripePriceDetails]);
 
   useEffect(() => {
     let cancelled = false;
@@ -449,7 +469,7 @@ function RouteComponent() {
     return () => {
       cancelled = true;
     };
-  }, [getStripeCustomerBalance]);
+  }, [getStripeCustomerBalance, setStripeCustomerBalance]);
 
   useEffect(() => {
     let cancelled = false;
@@ -471,7 +491,7 @@ function RouteComponent() {
     return () => {
       cancelled = true;
     };
-  }, [isOnPaidPlan, getPaymentMethodStatus]);
+  }, [isOnPaidPlan, getPaymentMethodStatus, setHasPaymentMethod]);
 
   useEffect(() => {
     const confirm = planSwitchConfirm;
@@ -508,7 +528,7 @@ function RouteComponent() {
     return () => {
       cancelled = true;
     };
-  }, [planSwitchConfirm, previewPaidPlanSwitch]);
+  }, [planSwitchConfirm, previewPaidPlanSwitch, setPlanSwitchPreview]);
 
   const applyBillingScheduleRefresh = async () => {
     const result = await refreshBillingStatus({});
@@ -816,7 +836,7 @@ function RouteComponent() {
                 </p>
               ) : (
                 <p className="text-muted-foreground text-sm">
-                  Preparing Stripe invoice preview...
+                  Preparing Stripe invoice preview&hellip;
                 </p>
               )}
             </div>

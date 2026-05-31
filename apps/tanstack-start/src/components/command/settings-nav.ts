@@ -48,8 +48,10 @@ export function settingsNavMatches(query: string, searchBlob: string) {
   const segments = query
     .toLowerCase()
     .split(/[/\s]+/)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
+    .flatMap((segment) => {
+      const trimmed = segment.trim();
+      return trimmed ? [trimmed] : [];
+    });
   if (segments.length === 0) {
     return true;
   }

@@ -80,8 +80,10 @@ async function embedRequest(items: EmbedItem[]): Promise<number[][]> {
     })),
   };
 
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+  const attemptRequest = async (
+    attempt: number,
+    lastError?: unknown,
+  ): Promise<number[][]> => {
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -95,11 +97,14 @@ async function embedRequest(items: EmbedItem[]): Promise<number[][]> {
       if (!response.ok) {
         const text = await response.text();
         if (response.status >= 500 || response.status === 429) {
-          lastError = new Error(
+          const retryError = new Error(
             `Gemini embeddings ${response.status}: ${text.slice(0, 500)}`,
           );
+          if (attempt >= MAX_RETRIES) {
+            throw retryError;
+          }
           await sleep(250 * Math.pow(2, attempt));
-          continue;
+          return attemptRequest(attempt + 1, retryError);
         }
         throw new Error(
           `Gemini embeddings ${response.status}: ${text.slice(0, 500)}`,
@@ -109,13 +114,19 @@ async function embedRequest(items: EmbedItem[]): Promise<number[][]> {
       const json = (await response.json()) as BatchEmbedResponse;
       return json.embeddings.map((row) => row.values);
     } catch (error) {
-      lastError = error;
+      if (attempt >= MAX_RETRIES) {
+        throw error instanceof Error
+          ? error
+          : lastError instanceof Error
+            ? lastError
+            : new Error("Gemini embeddings failed");
+      }
       await sleep(250 * Math.pow(2, attempt));
+      return attemptRequest(attempt + 1, error);
     }
-  }
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Gemini embeddings failed");
+  };
+
+  return attemptRequest(0);
 }
 
 /**
@@ -125,15 +136,14 @@ async function embedRequest(items: EmbedItem[]): Promise<number[][]> {
  */
 export async function embedItems(items: EmbedItem[]): Promise<number[][]> {
   if (items.length === 0) return [];
-  const out: number[][] = [];
+  const batches: EmbedItem[][] = [];
 
   let buffer: EmbedItem[] = [];
   let bufferBytes = 0;
 
-  const flush = async () => {
+  const flush = () => {
     if (buffer.length === 0) return;
-    const vectors = await embedRequest(buffer);
-    out.push(...vectors);
+    batches.push(buffer);
     buffer = [];
     bufferBytes = 0;
   };
@@ -145,14 +155,16 @@ export async function embedItems(items: EmbedItem[]): Promise<number[][]> {
       (buffer.length >= MAX_BATCH_ITEMS ||
         bufferBytes + itemBytes > MAX_BATCH_BYTES)
     ) {
-      await flush();
+      flush();
     }
     buffer.push(item);
     bufferBytes += itemBytes;
   }
-  await flush();
+  flush();
 
-  return out;
+  return (
+    await Promise.all(batches.map((batch) => embedRequest(batch)))
+  ).flat();
 }
 
 /**

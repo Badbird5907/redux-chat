@@ -23,14 +23,14 @@ import {
 import type {
   MinKnowledgeCutoff,
   ModelFeatureFilterId,
-} from "./feature-filters";
+} from "./feature-filter-utils";
 import { requestFocusComposer } from "@/components/chat/focus-composer";
 import { OPEN_MODEL_SELECTOR_EVENT } from "@/components/chat/open-model-selector";
 import { useQuery } from "@/lib/hooks/convex";
 import {
   modelMatchesFeatureFilters,
   modelMatchesMinKnowledgeCutoff,
-} from "./feature-filters";
+} from "./feature-filter-utils";
 
 type ModelSelectorNavColumn = "search" | "sidebar" | "list";
 
@@ -61,7 +61,8 @@ export function useModelSelectorState({
   const favoriteDragActiveRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
-  const optionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const optionRefs = useRef<Map<string, HTMLDivElement> | null>(null);
+  optionRefs.current ??= new Map();
   const listboxId = useId();
   const optionIdPrefix = useId();
   const favoritesLayoutGroupId = useId();
@@ -425,7 +426,7 @@ export function useModelSelectorState({
     if (effectiveListNavIndex < 0) return;
     const m = filteredModels[effectiveListNavIndex];
     if (!m) return;
-    optionRefs.current.get(m.id)?.scrollIntoView({ block: "nearest" });
+    optionRefs.current?.get(m.id)?.scrollIntoView({ block: "nearest" });
   }, [effectiveListNavIndex, filteredModels]);
 
   const canReorderFavorites =

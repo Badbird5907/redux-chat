@@ -84,7 +84,9 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
             </div>
           )}
           {files === undefined ? (
-            <p className="text-muted-foreground text-sm">Loading files...</p>
+            <p className="text-muted-foreground text-sm">
+              Loading files&hellip;
+            </p>
           ) : files.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               No files yet. Click + to add reference material to this project.

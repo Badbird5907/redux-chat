@@ -2,7 +2,6 @@ import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import type React from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -10,6 +9,7 @@ import type { ChatModelConfig } from "@redux/shared/models";
 import { isFileAllowedForModel } from "@redux/shared/models";
 
 import { useUpload } from "@/lib/silo/react";
+import { ChatFileDropHighlightOverlay } from "./chat-file-drop-highlight-overlay";
 
 const uploadedChatAttachmentSchema = z.object({
   attachmentId: z.string().min(1),
@@ -82,27 +82,6 @@ function extractPastedFiles(data: DataTransfer | null): File[] {
   return out;
 }
 
-function ChatFileDropHighlightOverlay() {
-  return (
-    <div
-      className="bg-background/55 animate-in fade-in pointer-events-none fixed inset-0 z-100 flex items-center justify-center backdrop-blur-sm duration-200"
-      aria-hidden
-    >
-      <div className="border-primary/70 bg-card/95 text-foreground flex max-w-md flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-12 py-10 text-center shadow-xl">
-        <Upload
-          className="text-primary size-12"
-          strokeWidth={1.5}
-          aria-hidden
-        />
-        <p className="text-lg font-medium">Drop files to attach</p>
-        <p className="text-muted-foreground text-sm">
-          Release to add them to your message
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export interface UseFileUploadParams {
   threadId?: string;
   selectedModel: string;
@@ -132,6 +111,10 @@ export function useFileUpload({
   currentAttachmentCount,
 }: UseFileUploadParams) {
   const [fileDragHighlight, setFileDragHighlight] = useState(false);
+  const setFileDragHighlightRef = useRef(setFileDragHighlight);
+  useEffect(() => {
+    setFileDragHighlightRef.current = setFileDragHighlight;
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const upload = useUpload({
@@ -154,6 +137,7 @@ export function useFileUpload({
           )
         : Infinity;
       let addedInBatch = 0;
+      const uploadTasks: Promise<void>[] = [];
 
       for (const file of fileList) {
         if (attachmentLimits && addedInBatch >= remainingSlots) {
@@ -198,57 +182,65 @@ export function useFileUpload({
           objectUrl,
         });
 
-        try {
-          console.log("uploading file", file);
-          const completion = await upload.uploadFile(file, {
-            input: {
-              modelId: selectedModel,
-              threadId,
-            },
-          });
-          const result = isUploadedChatAttachment(completion.result)
-            ? completion.result
-            : await awaitRouteCompletion(completion.fileKeyId);
+        uploadTasks.push(
+          (async () => {
+            try {
+              console.log("uploading file", file);
+              const completion = await upload.uploadFile(file, {
+                input: {
+                  modelId: selectedModel,
+                  threadId,
+                },
+              });
+              const result = isUploadedChatAttachment(completion.result)
+                ? completion.result
+                : await awaitRouteCompletion(completion.fileKeyId);
 
-          if (!isUploadedChatAttachment(result)) {
-            throw new Error(`Upload failed for ${file.name}`);
-          }
+              if (!isUploadedChatAttachment(result)) {
+                throw new Error(`Upload failed for ${file.name}`);
+              }
 
-          updateAttachment(tempId, (attachment) => {
-            if (attachment.objectUrl) {
-              URL.revokeObjectURL(attachment.objectUrl);
+              updateAttachment(tempId, (attachment) => {
+                if (attachment.objectUrl) {
+                  URL.revokeObjectURL(attachment.objectUrl);
+                }
+
+                return {
+                  attachmentId: result.attachmentId,
+                  fileName: result.fileName,
+                  mimeType: result.mimeType,
+                  size: result.size,
+                  url: result.url,
+                  uploading: false,
+                  expiresAt: result.expiresAt,
+                };
+              });
+            } catch (error) {
+              setAttachments((previous) => {
+                return previous.filter((attachment) => {
+                  if (attachment.attachmentId !== tempId) {
+                    return true;
+                  }
+
+                  if (attachment.objectUrl) {
+                    URL.revokeObjectURL(attachment.objectUrl);
+                  }
+
+                  return false;
+                });
+              });
+
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : `Failed to upload ${file.name}`,
+              );
             }
-
-            return {
-              attachmentId: result.attachmentId,
-              fileName: result.fileName,
-              mimeType: result.mimeType,
-              size: result.size,
-              url: result.url,
-              uploading: false,
-              expiresAt: result.expiresAt,
-            };
-          });
-        } catch (error) {
-          setAttachments((previous) => {
-            const failedAttachment = previous.find(
-              (attachment) => attachment.attachmentId === tempId,
-            );
-            if (failedAttachment?.objectUrl) {
-              URL.revokeObjectURL(failedAttachment.objectUrl);
-            }
-            return previous.filter(
-              (attachment) => attachment.attachmentId !== tempId,
-            );
-          });
-
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : `Failed to upload ${file.name}`,
-          );
-        }
+          })(),
+        );
       }
+
+      await Promise.all(uploadTasks);
     },
     [
       appendAttachment,
@@ -318,7 +310,7 @@ export function useFileUpload({
         return;
       }
 
-      setFileDragHighlight(true);
+      setFileDragHighlightRef.current(true);
     };
 
     const onDragLeave = (e: DragEvent) => {
@@ -327,7 +319,7 @@ export function useFileUpload({
         return;
       }
 
-      setFileDragHighlight(false);
+      setFileDragHighlightRef.current(false);
     };
 
     const onDragOver = (e: DragEvent) => {
@@ -342,7 +334,7 @@ export function useFileUpload({
     };
 
     const onDrop = (e: DragEvent) => {
-      setFileDragHighlight(false);
+      setFileDragHighlightRef.current(false);
 
       const target = e.target;
       if (

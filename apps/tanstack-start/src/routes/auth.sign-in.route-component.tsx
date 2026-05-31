@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
@@ -23,12 +23,11 @@ import { authClient } from "@/lib/auth/client";
 import { sanitizeAuthRedirect } from "@/lib/auth/redirect";
 
 const signInSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
 export function SignInPage() {
-  const navigate = useNavigate();
   const { next } = useSearch({ from: "/auth/sign-in" });
   const redirectTo = sanitizeAuthRedirect(next);
   const posthog = usePostHog();
@@ -50,7 +49,7 @@ export function SignInPage() {
             posthog.identify(value.email, { email: value.email });
             posthog.capture("user_signed_in", { method: "email" });
             localStorage.setItem("last-used-provider", "email");
-            void navigate({ to: redirectTo });
+            window.location.assign(redirectTo);
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);
@@ -78,16 +77,13 @@ export function SignInPage() {
           />
 
           <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            action={async () => {
               await form.handleSubmit();
             }}
             className="space-y-4"
           >
-            <form.Field
-              name="email"
-              children={(field) => (
+            <form.Field name="email">
+              {(field) => (
                 <Field>
                   <FieldLabel>Email</FieldLabel>
                   <Input
@@ -102,10 +98,9 @@ export function SignInPage() {
                   )}
                 </Field>
               )}
-            />
-            <form.Field
-              name="password"
-              children={(field) => (
+            </form.Field>
+            <form.Field name="password">
+              {(field) => (
                 <Field>
                   <div className="flex items-center justify-between">
                     <FieldLabel>Password</FieldLabel>
@@ -129,7 +124,7 @@ export function SignInPage() {
                   )}
                 </Field>
               )}
-            />
+            </form.Field>
             <Button
               className="w-full"
               type="submit"

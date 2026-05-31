@@ -1,11 +1,6 @@
 import { useMemo, useState } from "react";
 import { Check, ListFilter } from "lucide-react";
 
-import type {
-  ChatModelConfig,
-  ModelKnowledgeCutoff,
-} from "@redux/shared/models";
-import { CHAT_MODELS } from "@redux/shared/models";
 import { Button } from "@redux/ui/components/button";
 import { Label } from "@redux/ui/components/label";
 import {
@@ -15,11 +10,18 @@ import {
 } from "@redux/ui/components/popover";
 import { cn } from "@redux/ui/lib/utils";
 
-import type { CapabilityId } from "./capabilities";
+import type {
+  MinKnowledgeCutoff,
+  ModelFeatureFilterId,
+} from "./feature-filter-utils";
 import {
   CAPABILITY_CHIP_WRAPPER_CLASSES,
   CAPABILITY_DEFS,
-} from "./capabilities";
+} from "./capabilities-data";
+import {
+  clampCutoffToPresent,
+  knowledgeCutoffYearOptions,
+} from "./feature-filter-utils";
 
 const MONTHS: readonly { value: number; label: string }[] = [
   { value: 1, label: "January" },
@@ -36,58 +38,6 @@ const MONTHS: readonly { value: number; label: string }[] = [
   { value: 12, label: "December" },
 ] as const;
 
-function cutoffPeriodKey(year: number, month: number): number {
-  return year * 12 + month;
-}
-
-function modelKnowledgePeriodKey(k: ModelKnowledgeCutoff): number {
-  const month = k.month ?? 12;
-  return cutoffPeriodKey(k.year, month);
-}
-
-export type MinKnowledgeCutoff = { year: number; month: number };
-
-export function modelMatchesMinKnowledgeCutoff(
-  model: ChatModelConfig,
-  min: MinKnowledgeCutoff | null,
-): boolean {
-  if (!min) return true;
-  const k = model.knowledgeCutoff;
-  if (!k) return true;
-  return modelKnowledgePeriodKey(k) >= cutoffPeriodKey(min.year, min.month);
-}
-
-/** Descending years, never after the current calendar year. */
-function knowledgeCutoffYearOptions(calendarYear: number): readonly number[] {
-  let minY = calendarYear;
-  let maxY = calendarYear;
-  for (const m of CHAT_MODELS) {
-    const y = m.knowledgeCutoff?.year;
-    if (y != null) {
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  minY = Math.min(minY, calendarYear - 6);
-  maxY = Math.min(maxY, calendarYear);
-  const out: number[] = [];
-  for (let y = maxY; y >= minY; y--) out.push(y);
-  return out;
-}
-
-function clampCutoffToPresent(
-  c: MinKnowledgeCutoff,
-  calendarYear: number,
-  calendarMonth: number,
-): MinKnowledgeCutoff {
-  if (c.year > calendarYear)
-    return { year: calendarYear, month: calendarMonth };
-  if (c.year === calendarYear && c.month > calendarMonth) {
-    return { year: calendarYear, month: calendarMonth };
-  }
-  return c;
-}
-
 function selectableMonthsForYear(
   year: number,
   calendarYear: number,
@@ -96,19 +46,6 @@ function selectableMonthsForYear(
   if (year > calendarYear) return [];
   if (year < calendarYear) return MONTHS;
   return MONTHS.filter((m) => m.value <= calendarMonth);
-}
-
-export type ModelFeatureFilterId = CapabilityId;
-
-export function modelMatchesFeatureFilters(
-  model: ChatModelConfig,
-  selectedIds: readonly string[],
-): boolean {
-  if (selectedIds.length === 0) return true;
-  return selectedIds.every((id) => {
-    const f = CAPABILITY_DEFS.find((x) => x.id === id);
-    return f?.test(model) ?? false;
-  });
 }
 
 const selectClass =
@@ -209,7 +146,7 @@ export function ModelFeatureFilters({
               <p className="text-muted-foreground px-1 pb-2 text-xs font-medium tracking-wide uppercase">
                 Features
               </p>
-              <ul className="flex flex-col gap-0.5" role="list">
+              <ul className="flex flex-col gap-0.5">
                 {CAPABILITY_DEFS.map(({ id, label, Icon, chipClassName }) => {
                   const isOn = selected.has(id);
                   return (
@@ -251,9 +188,9 @@ export function ModelFeatureFilters({
               </ul>
             </div>
 
-            <div className="bg-border mx-3 h-px shrink-0" role="separator" />
+            <hr className="bg-border mx-3 h-px shrink-0 border-0" />
 
-            <div className="px-3 py-3">
+            <div className="p-3">
               <p className="text-muted-foreground px-1 pb-1 text-xs font-medium tracking-wide uppercase">
                 Minimum knowledge cutoff
               </p>
@@ -296,7 +233,7 @@ export function ModelFeatureFilters({
                         onMinKnowledgeCutoffChange({ year, month });
                       }}
                     >
-                      <option value="">—</option>
+                      <option value="">Any</option>
                       {years.map((y) => (
                         <option key={y} value={y}>
                           {y}
@@ -338,7 +275,7 @@ export function ModelFeatureFilters({
                         });
                       }}
                     >
-                      <option value="">—</option>
+                      <option value="">Any</option>
                       {(draftYear === ""
                         ? []
                         : selectableMonthsForYear(
@@ -358,7 +295,7 @@ export function ModelFeatureFilters({
             </div>
           </div>
 
-          <div className="border-border/70 shrink-0 border-t px-2 py-2">
+          <div className="border-border/70 shrink-0 border-t p-2">
             <Button
               type="button"
               variant="ghost"

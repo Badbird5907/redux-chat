@@ -1,8 +1,8 @@
 import type { AppHotkeyBinding, AppHotkeyId } from "@/lib/hotkeys/registry";
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useMemo,
   useSyncExternalStore,
 } from "react";
@@ -17,6 +17,7 @@ import {
 const HOTKEY_STORAGE_KEY = "redux-chat:hotkeys";
 const DEFAULT_BINDINGS = getDefaultHotkeyBindings();
 const EMPTY_OVERRIDES: AppHotkeyOverrides = {};
+const APP_HOTKEY_ID_SET = new Set<AppHotkeyId>(appHotkeyIds);
 const hotkeyOverrideListeners = new Set<() => void>();
 let hotkeyOverrideSnapshot = EMPTY_OVERRIDES;
 
@@ -42,7 +43,7 @@ function sanitizeHotkeyOverrides(value: unknown): AppHotkeyOverrides {
   const sanitized: AppHotkeyOverrides = {};
 
   for (const [rawId, rawBinding] of Object.entries(value)) {
-    if (!appHotkeyIds.includes(rawId as AppHotkeyId)) {
+    if (!APP_HOTKEY_ID_SET.has(rawId as AppHotkeyId)) {
       continue;
     }
 
@@ -222,7 +223,7 @@ export function HotkeySettingsProvider({
 }
 
 export function useHotkeySettings() {
-  const context = useContext(HotkeySettingsContext);
+  const context = use(HotkeySettingsContext);
 
   if (!context) {
     throw new Error(

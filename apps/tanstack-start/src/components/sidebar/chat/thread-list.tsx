@@ -1,7 +1,7 @@
 "use no memo";
 
 // Opt out of React Compiler - TanStack Virtual uses flushSync internally
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePaginatedQuery } from "convex/react";
 
@@ -84,14 +84,20 @@ const LOAD_MORE_ITEMS = 20;
 const ITEM_GAP = 4; // Vertical spacing between thread items
 const ITEM_HEIGHT = 32 + ITEM_GAP; // Height of each thread item including gap
 const HEADER_HEIGHT = 28; // Height of group headers
+function noopUnsubscribe() {
+  // useSyncExternalStore requires returning an unsubscribe function.
+}
+const subscribeToClientSnapshot = () => noopUnsubscribe;
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export default function ThreadList() {
   const { data: session, isPending } = authClient.useSession();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    subscribeToClientSnapshot,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
 
   const { results, status, loadMore } = usePaginatedQuery(
     api.functions.threads.getThreads,
@@ -262,16 +268,12 @@ export default function ThreadList() {
                 <div
                   key={item.key}
                   style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                     paddingTop: `${ITEM_GAP / 2}px`,
                     paddingBottom: `${ITEM_GAP / 2}px`,
                   }}
-                  className="px-1"
+                  className="absolute top-0 left-0 w-full px-1"
                 >
                   <ChatThreadSidebarItem
                     threadId={item.thread.threadId}

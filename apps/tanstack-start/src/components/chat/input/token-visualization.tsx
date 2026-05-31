@@ -16,7 +16,7 @@ const TOKEN_COLORS = [
 ] as const;
 
 interface TokenVisualizationProps {
-  visualizationRef: RefObject<HTMLDivElement | null>;
+  visualizationRef: RefObject<HTMLButtonElement | null>;
   isExpanded: boolean;
   visualizationHeight: number | null;
   tokenizedText: string[];
@@ -31,10 +31,11 @@ export function TokenVisualization({
   onClose,
 }: TokenVisualizationProps) {
   return (
-    <div
+    <button
+      type="button"
       ref={visualizationRef}
       className={cn(
-        "w-full cursor-pointer overflow-y-auto text-base leading-6 wrap-break-word whitespace-pre-wrap",
+        "w-full cursor-pointer overflow-y-auto border-0 bg-transparent p-0 text-left text-base leading-6 wrap-break-word whitespace-pre-wrap",
         isExpanded && "flex-1",
       )}
       style={
@@ -47,13 +48,6 @@ export function TokenVisualization({
             }
       }
       onClick={onClose}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          onClose();
-        }
-      }}
     >
       {tokenizedText.map((token, index) => {
         const colorClass = TOKEN_COLORS[index % TOKEN_COLORS.length];
@@ -62,9 +56,9 @@ export function TokenVisualization({
         if (hasNewline) {
           const parts = token.split("\n");
           return (
-            <span key={index}>
+            <span key={`${token}-${index}`}>
               {parts.map((part, partIndex) => (
-                <span key={`${index}-${partIndex}`}>
+                <span key={`${part}-${partIndex}`}>
                   {part && (
                     <span
                       className={cn("inline-block rounded px-0.5", colorClass)}
@@ -95,13 +89,13 @@ export function TokenVisualization({
 
         return (
           <span
-            key={index}
+            key={`${token}-${index}`}
             className={cn("inline-block rounded px-0.5", colorClass)}
           >
             {token}
           </span>
         );
       })}
-    </div>
+    </button>
   );
 }

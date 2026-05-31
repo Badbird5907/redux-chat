@@ -21,9 +21,9 @@ export function SignOutPage() {
   }, [navigate]);
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-4">
+    <div className="flex flex-col items-center justify-center gap-y-4">
       <Loader2 className="text-primary size-8 animate-spin" />
-      <p className="text-muted-foreground text-sm">Signing out...</p>
+      <p className="text-muted-foreground text-sm">Signing out&hellip;</p>
     </div>
   );
 }

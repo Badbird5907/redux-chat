@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useMemo, useRef } from "react";
+import { createContext, use, useCallback, useMemo, useRef } from "react";
 
 interface ChatRouteAdoptionContextValue {
   markAdoptedThreadNavigation: (threadId: string) => void;
@@ -51,7 +51,7 @@ export function ChatRouteAdoptionProvider({
 }
 
 export function useChatRouteAdoption() {
-  const context = useContext(ChatRouteAdoptionContext);
+  const context = use(ChatRouteAdoptionContext);
 
   if (!context) {
     throw new Error(

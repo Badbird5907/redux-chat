@@ -25,7 +25,7 @@ export function AdminUserOverviewTab({ user }: { user: AdminUserDetail }) {
             </p>
           </div>
         </div>
-        <div className="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2">
+        <div className="grid gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
           <InfoField label="Name">
             {typeof user.name === "string" && user.name.trim() !== ""
               ? user.name

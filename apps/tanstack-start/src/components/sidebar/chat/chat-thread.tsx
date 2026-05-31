@@ -37,8 +37,9 @@ import { toChatUIMessage } from "@/components/chat/chat-message-utils";
 import {
   exportThreadMarkdown,
   requestThreadPdfExport,
-} from "@/components/chat/thread-export";
+} from "@/components/chat/thread-export-utils";
 import { ThreadShareDialog } from "@/components/share/thread-share-dialog";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { resolveAttachments } from "@/server/attachments";
 
 /** Must match `packages/backend/convex/functions/threads.ts` default thread name. */
@@ -76,15 +77,19 @@ export default function ChatThreadSidebarItem({
     api.functions.threads.regenerateThreadTitle,
   );
   const deleteThread = useMutation(api.functions.threads.deleteThread);
-  const [menuOpen, setMenuOpen] = React.useState(false);
-  const [shareOpen, setShareOpen] = React.useState(false);
-  const [isRenaming, setIsRenaming] = React.useState(false);
-  const [draftName, setDraftName] = React.useState(threadName);
-  const [displayedTitle, setDisplayedTitle] = React.useState(threadName);
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [isDeleting, setIsDeleting] = React.useState(false);
-  const [isExporting, setIsExporting] = React.useState(false);
-  const [isRegeneratingTitle, setIsRegeneratingTitle] = React.useState(false);
+  const [menuOpen, setMenuOpen] = useReducerState(false);
+  const [shareOpen, setShareOpen] = useReducerState(false);
+  const [isRenaming, setIsRenaming] = useReducerState(false);
+  const [draftName, setDraftName] = useReducerState(() => threadName);
+  const [displayedTitle, setDisplayedTitle] = useReducerState(() => threadName);
+  const [isSaving, setIsSaving] = useReducerState(false);
+  const [isDeleting, setIsDeleting] = useReducerState(false);
+  const [isExporting, setIsExporting] = useReducerState(false);
+  const [isRegeneratingTitle, setIsRegeneratingTitle] = useReducerState(false);
+  const setDisplayedTitleRef = React.useRef(setDisplayedTitle);
+  React.useEffect(() => {
+    setDisplayedTitleRef.current = setDisplayedTitle;
+  });
   const inputRef = React.useRef<HTMLInputElement>(null);
   const lastThreadIdRef = React.useRef(threadId);
   const prevThreadNameRef = React.useRef(threadName);
@@ -99,7 +104,7 @@ export default function ChatThreadSidebarItem({
       prevThreadNameRef.current = threadName;
       prevTitleGeneratedAtRef.current = titleGeneratedAt;
       skipRemoteTitleRevealRef.current = false;
-      setDisplayedTitle(threadName);
+      setDisplayedTitleRef.current(threadName);
       return;
     }
 
@@ -131,12 +136,12 @@ export default function ChatThreadSidebarItem({
     prevTitleGeneratedAtRef.current = titleGeneratedAt;
 
     if (!shouldRevealLikeAi) {
-      setDisplayedTitle(threadName);
+      setDisplayedTitleRef.current(threadName);
       return;
     }
 
     const target = threadName;
-    setDisplayedTitle(target.slice(0, 1));
+    setDisplayedTitleRef.current(target.slice(0, 1));
     let revealed = 1;
     if (revealed >= target.length) {
       return;
@@ -144,7 +149,7 @@ export default function ChatThreadSidebarItem({
 
     const id = window.setInterval(() => {
       revealed += 1;
-      setDisplayedTitle(target.slice(0, revealed));
+      setDisplayedTitleRef.current(target.slice(0, revealed));
       if (revealed >= target.length) {
         window.clearInterval(id);
       }

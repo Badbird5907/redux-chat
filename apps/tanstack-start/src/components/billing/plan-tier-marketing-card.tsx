@@ -1,73 +1,11 @@
+import type { PlanTierMarketingPlan } from "@/components/billing/plan-tier-marketing-utils";
 import type { ReactNode } from "react";
 
-import type { getPlanConfig, PlanTier } from "@redux/shared";
 import { Card } from "@redux/ui/components/card";
 import { cn } from "@redux/ui/lib/utils";
 
-import { formatNumber } from "@/components/billing/credit-balance-panel";
-
-export type StripePlanPrice = {
-  id: string;
-  amount?: number | null;
-  currency?: string | null;
-} | null;
-
-export function planTierMarketingFeatures(tier: PlanTier): string[] {
-  if (tier === "free") {
-    return ["1 attachment per message (up to 10 MB)"];
-  }
-  if (tier === "plus") {
-    return [
-      "Multiple attachments per message",
-      "Project workspaces & knowledge search",
-      "Web search and analysis tools (credits apply)",
-    ];
-  }
-  return ["All features from Plus"];
-}
-
-export function getStripeRecurringPrice(product: StripePlanPrice | undefined):
-  | {
-      amount: number;
-      currency: string;
-    }
-  | undefined {
-  if (!product || typeof product.amount !== "number") {
-    return undefined;
-  }
-  if (product.amount < 0) {
-    return undefined;
-  }
-  return {
-    amount: product.amount,
-    currency: (product.currency ?? "USD").toUpperCase(),
-  };
-}
-
-export function formatCurrencyFromMinorUnits(
-  amount: number,
-  currency: string,
-): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount / 100);
-  } catch {
-    return `$${String(amount / 100)}`;
-  }
-}
-
-export function formatStripeRecurringPrice(
-  product: StripePlanPrice | undefined,
-): string | undefined {
-  const price = getStripeRecurringPrice(product);
-  if (!price) {
-    return undefined;
-  }
-
-  return formatCurrencyFromMinorUnits(price.amount, price.currency);
-}
+import { formatNumber } from "@/components/billing/format-number";
+import { planTierMarketingFeatures } from "@/components/billing/plan-tier-marketing-utils";
 
 function priceLineFromLabel(
   name: string,
@@ -92,8 +30,6 @@ function priceLineFromLabel(
   }
   return "—";
 }
-
-export type PlanTierMarketingPlan = ReturnType<typeof getPlanConfig>;
 
 export function PlanTierMarketingCard({
   name,

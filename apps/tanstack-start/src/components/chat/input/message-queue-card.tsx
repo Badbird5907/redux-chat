@@ -1,6 +1,6 @@
 import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import type { QueuedMessage } from "@/components/chat/use-message-queue";
-import { useState } from "react";
+import { useRef } from "react";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -22,6 +22,7 @@ import { Textarea } from "@redux/ui/components/textarea";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { PreviewableFile } from "./types";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { isAttachmentExpired } from "./utils";
 
@@ -53,26 +54,25 @@ export function MessageQueueCard({
   onPreviewAttachment,
   onSaveEdit,
 }: MessageQueueCardProps) {
-  const [expanded, setExpanded] = useState(true);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [discardOpen, setDiscardOpen] = useState(false);
-  const [discardTarget, setDiscardTarget] = useState<QueuedMessage | null>(
-    null,
-  );
-  const [editing, setEditing] = useState<QueuedMessage | null>(null);
-  const [draftText, setDraftText] = useState("");
-  const [draftAttachments, setDraftAttachments] = useState<DraftAttachment[]>(
-    [],
-  );
+  const [expanded, setExpanded] = useReducerState(true);
+  const [editorOpen, setEditorOpen] = useReducerState(false);
+  const [discardOpen, setDiscardOpen] = useReducerState(false);
+  const discardTargetRef = useRef<QueuedMessage | null>(null);
+  const editingRef = useRef<QueuedMessage | null>(null);
+  const [draftText, setDraftText] = useReducerState("");
+  const [draftAttachments, setDraftAttachments] = useReducerState<
+    DraftAttachment[]
+  >([]);
 
   function openInlineEditor(message: QueuedMessage) {
-    setEditing(message);
+    editingRef.current = message;
     setDraftText(message.text);
     setDraftAttachments(message.attachments);
     setEditorOpen(true);
   }
 
   async function persistEditor() {
+    const editing = editingRef.current;
     if (!editing) return;
 
     await onSaveEdit(editing.id, {
@@ -81,7 +81,7 @@ export function MessageQueueCard({
     });
 
     setEditorOpen(false);
-    setEditing(null);
+    editingRef.current = null;
   }
 
   return (
@@ -166,7 +166,7 @@ export function MessageQueueCard({
                       className="text-muted-foreground hover:text-destructive size-7"
                       title="Discard"
                       onClick={() => {
-                        setDiscardTarget(message);
+                        discardTargetRef.current = message;
                         setDiscardOpen(true);
                       }}
                     >
@@ -186,7 +186,7 @@ export function MessageQueueCard({
         onOpenChange={(open) => {
           setEditorOpen(open);
           if (!open) {
-            setEditing(null);
+            editingRef.current = null;
           }
         }}
       >
@@ -225,7 +225,7 @@ export function MessageQueueCard({
               variant="outline"
               onClick={() => {
                 setEditorOpen(false);
-                setEditing(null);
+                editingRef.current = null;
               }}
             >
               Cancel
@@ -246,10 +246,11 @@ export function MessageQueueCard({
               variant="ghost"
               className="text-muted-foreground w-full justify-center text-xs"
               onClick={() => {
+                const editing = editingRef.current;
                 if (!editing) return;
                 onEditInComposer(editing);
                 setEditorOpen(false);
-                setEditing(null);
+                editingRef.current = null;
               }}
             >
               Move to composer to edit attachments further
@@ -262,7 +263,7 @@ export function MessageQueueCard({
         open={discardOpen}
         onOpenChange={(open) => {
           setDiscardOpen(open);
-          if (!open) setDiscardTarget(null);
+          if (!open) discardTargetRef.current = null;
         }}
       >
         <DialogContent className="max-w-md gap-4">
@@ -274,7 +275,7 @@ export function MessageQueueCard({
               variant="outline"
               onClick={() => {
                 setDiscardOpen(false);
-                setDiscardTarget(null);
+                discardTargetRef.current = null;
               }}
             >
               Cancel
@@ -283,11 +284,12 @@ export function MessageQueueCard({
               variant="destructive"
               onClick={() =>
                 void (async () => {
+                  const discardTarget = discardTargetRef.current;
                   if (discardTarget) {
                     await onDiscard(discardTarget);
                   }
                   setDiscardOpen(false);
-                  setDiscardTarget(null);
+                  discardTargetRef.current = null;
                 })()
               }
             >

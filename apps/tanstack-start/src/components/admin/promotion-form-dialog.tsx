@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { useMutation } from "convex/react";
 import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +38,8 @@ import {
 } from "@redux/ui/components/select";
 import { Separator } from "@redux/ui/components/separator";
 import { Textarea } from "@redux/ui/components/textarea";
+
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 type PerUserMode = "once" | "limited" | "unlimited";
 type PromotionFormType =
@@ -279,72 +280,77 @@ export function PromotionFormDialog({
     promotion?.perUserRedemptionLimit,
   );
 
-  const [open, setOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [code, setCode] = useState(promotion?.code ?? generatePromotionCode());
-  const [name, setName] = useState(promotion?.name ?? "");
-  const [description, setDescription] = useState(promotion?.description ?? "");
-  const [status, setStatus] = useState<PromotionStatus>(
+  const [open, setOpen] = useReducerState(false);
+  const [submitting, setSubmitting] = useReducerState(false);
+  const [code, setCode] = useReducerState(
+    promotion?.code ?? generatePromotionCode(),
+  );
+  const [name, setName] = useReducerState(promotion?.name ?? "");
+  const [description, setDescription] = useReducerState(
+    promotion?.description ?? "",
+  );
+  const [status, setStatus] = useReducerState<PromotionStatus>(
     promotion?.status ?? "active",
   );
   const [promotionType, setPromotionType] =
-    useState<PromotionFormType>(initialPromotionType);
-  const [amount, setAmount] = useState(
+    useReducerState<PromotionFormType>(initialPromotionType);
+  const [amount, setAmount] = useReducerState(
     typeof config.amount === "number" ? config.amount.toString() : "",
   );
   const [appCreditPlanEligibilityMode, setAppCreditPlanEligibilityMode] =
-    useState<AppCreditPlanEligibilityMode>(initialAppCreditPlanEligibilityMode);
-  const [appCreditSelectedPlanTiers, setAppCreditSelectedPlanTiers] = useState<
-    PlanTier[]
-  >(initialAppCreditSelectedPlanTiers);
-  const [invoiceCreditUsd, setInvoiceCreditUsd] = useState(
+    useReducerState<AppCreditPlanEligibilityMode>(
+      initialAppCreditPlanEligibilityMode,
+    );
+  const [appCreditSelectedPlanTiers, setAppCreditSelectedPlanTiers] =
+    useReducerState<PlanTier[]>(initialAppCreditSelectedPlanTiers);
+  const [invoiceCreditUsd, setInvoiceCreditUsd] = useReducerState(
     typeof config.amountCents === "number"
       ? (config.amountCents / 100).toFixed(2)
       : "",
   );
-  const [targetTierMode, setTargetTierMode] = useState<TargetTierMode>(
+  const [targetTierMode, setTargetTierMode] = useReducerState<TargetTierMode>(
     initialTargetTierMode,
   );
-  const [freeUsersOnly, setFreeUsersOnly] = useState(
+  const [freeUsersOnly, setFreeUsersOnly] = useReducerState(
     subscriptionConfig?.freeUsersOnly !== false,
   );
-  const [discountType, setDiscountType] = useState<DiscountType>(
+  const [discountType, setDiscountType] = useReducerState<DiscountType>(
     subscriptionDiscount.type === "amount" ? "amount" : "percent",
   );
-  const [percentOff, setPercentOff] = useState(
+  const [percentOff, setPercentOff] = useReducerState(
     typeof subscriptionDiscount.percentOff === "number"
       ? subscriptionDiscount.percentOff.toString()
       : "",
   );
-  const [amountOffCents, setAmountOffCents] = useState(
+  const [amountOffCents, setAmountOffCents] = useReducerState(
     typeof subscriptionDiscount.amountOffCents === "number"
       ? subscriptionDiscount.amountOffCents.toString()
       : "",
   );
   const [duration, setDuration] =
-    useState<SubscriptionDuration>(initialDuration);
-  const [durationMonths, setDurationMonths] = useState(
+    useReducerState<SubscriptionDuration>(initialDuration);
+  const [durationMonths, setDurationMonths] = useReducerState(
     typeof subscriptionDuration.months === "number"
       ? subscriptionDuration.months.toString()
       : "3",
   );
-  const [maxRedemptions, setMaxRedemptions] = useState(
+  const [maxRedemptions, setMaxRedemptions] = useReducerState(
     promotion?.maxRedemptions?.toString() ?? "",
   );
-  const [pauseOnRedemptionLimit, setPauseOnRedemptionLimit] = useState(
+  const [pauseOnRedemptionLimit, setPauseOnRedemptionLimit] = useReducerState(
     promotion?.pauseOnRedemptionLimit === true,
   );
   const [perUserMode, setPerUserMode] =
-    useState<PerUserMode>(initialPerUserMode);
-  const [perUserLimit, setPerUserLimit] = useState(
+    useReducerState<PerUserMode>(initialPerUserMode);
+  const [perUserLimit, setPerUserLimit] = useReducerState(
     initialPerUserMode === "limited"
       ? (promotion?.perUserRedemptionLimit ?? 2).toString()
       : "2",
   );
-  const [startsAt, setStartsAt] = useState(() =>
+  const [startsAt, setStartsAt] = useReducerState(() =>
     formatDateInput(promotion?.startsAt),
   );
-  const [endsAt, setEndsAt] = useState(() =>
+  const [endsAt, setEndsAt] = useReducerState(() =>
     formatDateInput(promotion?.endsAt),
   );
 

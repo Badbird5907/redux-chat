@@ -59,12 +59,24 @@ interface ChatInputToolbarProps {
   selectedInstructionId?: string;
   selectedInstructionName?: string;
   onInstructionChange: (instructionId: string) => void;
-  instructionsReady: boolean;
-  canUploadFiles: boolean;
-  isAnalysisWorkspaceEnabled: boolean;
-  isImageGenerationEnabled: boolean;
-  isBashWorkspaceEnabled: boolean;
-  isSearchEnabled: boolean;
+  state: {
+    instructionsReady: boolean;
+    canUploadFiles: boolean;
+    isAnalysisWorkspaceEnabled: boolean;
+    isImageGenerationEnabled: boolean;
+    isBashWorkspaceEnabled: boolean;
+    isSearchEnabled: boolean;
+    settingsReady: boolean;
+    isContentOverflowing: boolean;
+    isExpanded: boolean;
+    showTokenVisualization: boolean;
+    canConfigureReasoning: boolean;
+    hasUsableAttachments: boolean;
+    isSubmitting: boolean;
+    hasUploadingFiles: boolean;
+    draftReady: boolean;
+    isOutOfCredits: boolean;
+  };
   imageGenerationModels: {
     id: string;
     name: string;
@@ -76,31 +88,21 @@ interface ChatInputToolbarProps {
   onImageGenerationModelChange: (modelId: string) => void;
   onBashWorkspaceEnabledChange: (enabled: boolean) => void;
   onToggleSearch: () => void;
-  settingsReady: boolean;
   mcpServers: {
     mcpServerId: string;
     name: string;
   }[];
   enabledMcpServerIds: string[];
   onToggleMcpServer: (mcpServerId: string) => void;
-  isContentOverflowing: boolean;
-  isExpanded: boolean;
   onToggleExpand: () => void;
   tokenCount: number;
-  showTokenVisualization: boolean;
   onTokenCountClick: () => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
   thinkingLevel: ThinkingLevel;
   thinkingLevels: readonly ThinkingLevel[];
-  canConfigureReasoning: boolean;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
   input: string;
-  hasUsableAttachments: boolean;
-  isSubmitting: boolean;
-  hasUploadingFiles: boolean;
-  draftReady: boolean;
-  isOutOfCredits: boolean;
   onSubmit: () => void;
   onStopGeneration?: () => void;
 }
@@ -117,12 +119,7 @@ export function ChatInputToolbar({
   selectedInstructionId,
   selectedInstructionName,
   onInstructionChange,
-  instructionsReady,
-  canUploadFiles,
-  isAnalysisWorkspaceEnabled,
-  isImageGenerationEnabled,
-  isBashWorkspaceEnabled,
-  isSearchEnabled,
+  state,
   imageGenerationModels,
   selectedImageGenerationModelId,
   onAnalysisWorkspaceEnabledChange,
@@ -130,33 +127,41 @@ export function ChatInputToolbar({
   onImageGenerationModelChange,
   onBashWorkspaceEnabledChange,
   onToggleSearch,
-  settingsReady,
   mcpServers,
   enabledMcpServerIds,
   onToggleMcpServer,
-  isContentOverflowing,
-  isExpanded,
   onToggleExpand,
   tokenCount,
-  showTokenVisualization,
   onTokenCountClick,
   // project,
   selectedModel,
   onModelChange,
   thinkingLevel,
   thinkingLevels,
-  canConfigureReasoning,
   onThinkingLevelChange,
   input,
-  hasUsableAttachments,
-  isSubmitting,
-  hasUploadingFiles,
-  draftReady,
-  isOutOfCredits,
   onSubmit,
   onStopGeneration,
 }: ChatInputToolbarProps) {
   const uploadFileHotkey = useResolvedHotkey("chat.uploadFile");
+  const {
+    instructionsReady,
+    canUploadFiles,
+    isAnalysisWorkspaceEnabled,
+    isImageGenerationEnabled,
+    isBashWorkspaceEnabled,
+    isSearchEnabled,
+    settingsReady,
+    isContentOverflowing,
+    isExpanded,
+    showTokenVisualization,
+    canConfigureReasoning,
+    hasUsableAttachments,
+    isSubmitting,
+    hasUploadingFiles,
+    draftReady,
+    isOutOfCredits,
+  } = state;
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
     <div className="flex items-center justify-between px-2 pb-2">
@@ -166,6 +171,7 @@ export function ChatInputToolbar({
           type="file"
           multiple
           accept={acceptedFileTypes}
+          aria-label="Upload files"
           onChange={onFileChange}
           className="hidden"
         />

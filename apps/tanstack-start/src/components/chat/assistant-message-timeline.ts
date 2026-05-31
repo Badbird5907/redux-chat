@@ -48,8 +48,7 @@ export function normalizeAssistantMessage(
   message: UIMessage,
 ): NormalizedAssistantMessage {
   const textContent = message.parts
-    .filter(isTextUIPart)
-    .map((part) => part.text)
+    .flatMap((part) => (isTextUIPart(part) ? [part.text] : []))
     .join("");
   const indexedParts = message.parts.map((part, index) => ({
     id: `${message.id}:${index}`,
@@ -231,8 +230,10 @@ export function normalizeAssistantMessage(
 
 function joinReasoningParts(parts: string[]) {
   const joined = parts
-    .map((part) => part.trim())
-    .filter(Boolean)
+    .flatMap((part) => {
+      const trimmed = part.trim();
+      return trimmed ? [trimmed] : [];
+    })
     .join("\n\n");
   return joined || undefined;
 }
@@ -681,8 +682,10 @@ function summarizeUnknown(value: unknown): string | undefined {
 
     const preview: string = value
       .slice(0, 3)
-      .map((item) => summarizeUnknown(item))
-      .filter(Boolean)
+      .flatMap((item) => {
+        const summary = summarizeUnknown(item);
+        return summary ? [summary] : [];
+      })
       .join(" | ");
 
     return summarizeText(preview);
