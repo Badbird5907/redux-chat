@@ -28,6 +28,7 @@ import GoogleIcon from "@redux/ui/icons/google";
 
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { authClient } from "@/lib/auth/client";
+import { toAbsoluteAuthCallbackURL } from "@/lib/auth/redirect";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 const emailSchema = z.object({
@@ -185,6 +186,7 @@ export function SecurityRouteComponent() {
     setIsLinkingGithub(true);
     const result = await authClient.linkSocial({
       provider: "github",
+      callbackURL: toAbsoluteAuthCallbackURL("/settings/security"),
     });
 
     if (result.error) {
@@ -200,6 +202,7 @@ export function SecurityRouteComponent() {
     setIsLinkingGoogle(true);
     const result = await authClient.linkSocial({
       provider: "google",
+      callbackURL: toAbsoluteAuthCallbackURL("/settings/security"),
     });
 
     if (result.error) {
