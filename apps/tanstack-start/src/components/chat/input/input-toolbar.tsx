@@ -1,5 +1,5 @@
 import type React from "react";
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
 import {
   ArrowUp,
@@ -162,6 +162,11 @@ export function ChatInputToolbar({
     draftReady,
     isOutOfCredits,
   } = state;
+  const hasBeenReadyRef = useRef(false);
+  if (settingsReady) {
+    hasBeenReadyRef.current = true;
+  }
+  const showModelControls = settingsReady || hasBeenReadyRef.current;
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
     <div className="flex items-center justify-between px-2 pb-2">
@@ -421,17 +426,27 @@ export function ChatInputToolbar({
             {tokenCount.toLocaleString()} tokens
           </button>
         )}
-        {canConfigureReasoning ? (
-          <ReasoningLevelSelector
-            thinkingLevel={thinkingLevel}
-            thinkingLevels={thinkingLevels}
-            onThinkingLevelChange={onThinkingLevelChange}
+        <div
+          className={cn(
+            "flex items-center gap-1 transition-opacity duration-200",
+            showModelControls
+              ? "opacity-100"
+              : "pointer-events-none opacity-0",
+          )}
+          aria-hidden={!showModelControls}
+        >
+          {canConfigureReasoning ? (
+            <ReasoningLevelSelector
+              thinkingLevel={thinkingLevel}
+              thinkingLevels={thinkingLevels}
+              onThinkingLevelChange={onThinkingLevelChange}
+            />
+          ) : null}
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={onModelChange}
           />
-        ) : null}
-        <ModelSelector
-          selectedModel={selectedModel}
-          onModelChange={onModelChange}
-        />
+        </div>
         {isSubmitting && onStopGeneration ? (
           <Button
             type="button"
