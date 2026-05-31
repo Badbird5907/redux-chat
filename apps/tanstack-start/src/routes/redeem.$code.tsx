@@ -163,7 +163,7 @@ function promotionErrorMessage(error: unknown, fallback: string): string {
   return visibleLine ?? fallback;
 }
 
-export function RedeemPromotionPage() {
+function RedeemPromotionPage() {
   const { code } = Route.useParams();
   const preloadedPromotion = Route.useLoaderData();
   const navigate = useNavigate();
@@ -759,7 +759,7 @@ export function RedeemPromotionPage() {
   );
 }
 
-export function RedeemShell({ children }: { children: ReactNode }) {
+function RedeemShell({ children }: { children: ReactNode }) {
   return (
     <main className="bg-background min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-4 py-8 sm:px-6">
@@ -769,7 +769,7 @@ export function RedeemShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function StatusPanel({
+function StatusPanel({
   icon,
   tone,
   title,

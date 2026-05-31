@@ -97,7 +97,7 @@ type PromotionRedemptionRow = RedemptionStripeFields & {
   failureReason?: string;
 };
 
-export function StripeIds({
+function StripeIds({
   redemption,
 }: {
   redemption: RedemptionStripeFields;
@@ -143,7 +143,7 @@ function metadataString(metadata: unknown, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-export function AdminPromotionDetailPage() {
+function AdminPromotionDetailPage() {
   const { promotionId } = Route.useParams();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(ALL_STATUSES);
   const [userSearchInput, setUserSearchInput] = useState("");

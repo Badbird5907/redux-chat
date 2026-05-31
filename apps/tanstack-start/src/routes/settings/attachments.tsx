@@ -75,7 +75,7 @@ function getAttachmentId(attachment: AttachmentRow) {
   return attachment.attachmentId;
 }
 
-export function AttachmentsRouteComponent() {
+function AttachmentsRouteComponent() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
