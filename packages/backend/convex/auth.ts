@@ -89,6 +89,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     plugins: [
       oAuthProxy({
         productionURL: productionUrl,
+        currentURL: siteUrl,
         secret: oauthProxySecret,
       }),
       admin(),
