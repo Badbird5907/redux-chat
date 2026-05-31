@@ -33,3 +33,13 @@ export function sanitizeAuthRedirect(value: unknown): string {
     return "/";
   }
 }
+
+export function toAbsoluteAuthCallbackURL(path: string): string {
+  const sanitizedPath = sanitizeAuthRedirect(path);
+
+  if (typeof window === "undefined") {
+    return sanitizedPath;
+  }
+
+  return new URL(sanitizedPath, window.location.origin).toString();
+}

@@ -9,6 +9,7 @@ import GithubIcon from "@redux/ui/icons/github";
 import GoogleIcon from "@redux/ui/icons/google";
 
 import { authClient } from "@/lib/auth/client";
+import { toAbsoluteAuthCallbackURL } from "@/lib/auth/redirect";
 
 type SocialOAuthSectionProps = {
   callbackURL: string;
@@ -37,7 +38,7 @@ export function SocialOAuthSection({
     setLoadingProvider(provider);
     await authClient.signIn.social({
       provider,
-      callbackURL,
+      callbackURL: toAbsoluteAuthCallbackURL(callbackURL),
       fetchOptions: {
         onSuccess: () => {
           localStorage.setItem("last-used-provider", provider);

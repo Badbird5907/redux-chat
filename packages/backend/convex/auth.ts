@@ -65,8 +65,13 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
   const productionUrl = productionEnvUrl
     ? normalizeOrigin(productionEnvUrl)
     : siteUrl;
-  const oauthProxySecret =
-    optionalEnvString(env.OAUTH_PROXY_SECRET) ?? env.AUTH_SECRET;
+  const configuredOAuthProxySecret = optionalEnvString(env.OAUTH_PROXY_SECRET);
+  if (productionUrl !== siteUrl && !configuredOAuthProxySecret) {
+    throw new Error(
+      "OAUTH_PROXY_SECRET must be set to the same value in every deployment when PRODUCTION_URL differs from SITE_URL.",
+    );
+  }
+  const oauthProxySecret = configuredOAuthProxySecret ?? env.AUTH_SECRET;
   const trustedOrigins = Array.from(
     new Set([
       siteUrl,
