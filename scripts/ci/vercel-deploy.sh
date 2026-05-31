@@ -5,7 +5,11 @@ export NITRO_PRESET=vercel
 
 pushd ./packages/backend
 pnpm run convex deploy --cmd "pnpm run build:app"
-SITE_URL="$VERCEL_URL"
+if [[ "${VERCEL_ENV:-}" == "production" ]]; then
+  SITE_URL="redux.chat"
+else
+  SITE_URL="$VERCEL_URL"
+fi
 case "$SITE_URL" in
   http://* | https://*) ;;
   *) SITE_URL="https://$SITE_URL" ;;
