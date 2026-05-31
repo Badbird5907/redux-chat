@@ -1,5 +1,9 @@
 import { useEffect } from "react";
-import { useLoaderData, useParams } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  useLoaderData,
+  useParams,
+} from "@tanstack/react-router";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
 import {
   AlertCircle,
@@ -27,6 +31,8 @@ import { formatCurrencyFromMinorUnits } from "@/components/billing/plan-tier-mar
 import { RedeemShell } from "@/components/redeem/redeem-shell";
 import { StatusPanel } from "@/components/redeem/status-panel";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
+
+import { loadPublicPromotion } from "./redeem.$code-loader";
 
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
@@ -140,7 +146,7 @@ function promotionErrorMessage(error: unknown, fallback: string): string {
   return visibleLine ?? fallback;
 }
 
-export function RedeemPromotionPage() {
+function RedeemPromotionPage() {
   const { code } = useParams({ from: "/redeem/$code" });
   const preloadedPromotion = useLoaderData({ from: "/redeem/$code" });
   const posthog = usePostHog();
@@ -768,3 +774,12 @@ function formatRedemptionResult(result: {
       : ""
   }`;
 }
+
+export const Route = createFileRoute("/redeem/$code")({
+  ssr: "data-only",
+  loader: ({ params }) => loadPublicPromotion(params.code),
+  head: ({ params }) => ({
+    meta: [{ title: `Redeem ${params.code} | Redux Chat` }],
+  }),
+  component: RedeemPromotionPage,
+});

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useForm } from "@tanstack/react-form";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
 import { Loader2, LockKeyhole, Mail, Unlink } from "lucide-react";
 import { toast } from "sonner";
@@ -28,7 +28,6 @@ import GoogleIcon from "@redux/ui/icons/google";
 
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { authClient } from "@/lib/auth/client";
-import { toAbsoluteAuthCallbackURL } from "@/lib/auth/redirect";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 const emailSchema = z.object({
@@ -54,7 +53,7 @@ type AuthAccount = {
   scopes: string[];
 };
 
-export function SecurityRouteComponent() {
+function SecurityRouteComponent() {
   const {
     data: session,
     isPending,
@@ -186,7 +185,6 @@ export function SecurityRouteComponent() {
     setIsLinkingGithub(true);
     const result = await authClient.linkSocial({
       provider: "github",
-      callbackURL: toAbsoluteAuthCallbackURL("/settings/security"),
     });
 
     if (result.error) {
@@ -202,7 +200,6 @@ export function SecurityRouteComponent() {
     setIsLinkingGoogle(true);
     const result = await authClient.linkSocial({
       provider: "google",
-      callbackURL: toAbsoluteAuthCallbackURL("/settings/security"),
     });
 
     if (result.error) {
@@ -666,3 +663,7 @@ function SecuritySkeleton() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/settings/security")({
+  component: SecurityRouteComponent,
+});

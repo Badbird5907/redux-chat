@@ -1,8 +1,48 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useState } from "react";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useRouteContext,
+} from "@tanstack/react-router";
 
+import { SidebarProvider } from "@redux/ui/components/sidebar";
+
+import { AdminSidebarPanel } from "@/components/admin/sidebar-panel";
+import { CommandPanel } from "@/components/command";
+import {
+  ModelSwitcherHotkeyRegistration,
+  NewChatHotkeyRegistration,
+  ReasoningLevelSelectorHotkeyRegistration,
+  SidebarToggleHotkeyRegistration,
+} from "@/lib/hotkeys";
 import { fetchAdminDashboardAccess } from "@/server/admin/ensure-admin-access";
 import { getSidebarConfig } from "@/server/cookie";
-import { AdminLayout } from "./admin.route-component";
+
+function AdminLayout() {
+  const { defaultOpen, defaultWidth } = useRouteContext({ from: "/admin" });
+  const [commandOpen, setCommandOpen] = useState(false);
+
+  return (
+    <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+      <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
+      <NewChatHotkeyRegistration />
+      <ModelSwitcherHotkeyRegistration />
+      <ReasoningLevelSelectorHotkeyRegistration />
+      <SidebarToggleHotkeyRegistration />
+      <AdminSidebarPanel />
+      <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">
+        <div className="bg-card/80 border-border/60 relative flex-1 overflow-hidden rounded-4xl border">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_58%)]" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_top_right,hsl(var(--muted-foreground)/0.12),transparent_70%)]" />
+          <div className="relative h-full overflow-y-auto px-4 py-6 md:px-8 md:py-8">
+            <Outlet />
+          </div>
+        </div>
+      </main>
+    </SidebarProvider>
+  );
+}
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ context }) => {

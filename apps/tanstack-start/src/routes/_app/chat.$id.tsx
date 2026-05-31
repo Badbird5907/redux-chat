@@ -6,7 +6,10 @@ import z from "zod";
 import { api } from "@redux/backend/convex/_generated/api";
 
 import { fetchAuthQuery } from "@/lib/auth/server";
-import { ChatPage } from "./chat.$id.route-component";
+
+function ChatPage() {
+  return null;
+}
 
 const loadChat = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string() }))

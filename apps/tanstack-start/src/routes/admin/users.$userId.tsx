@@ -1,7 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useParams } from "@tanstack/react-router";
 import z from "zod";
 
-import { AdminUserDetailRoute } from "./users.$userId.route-component";
+import { AdminUserDetailPage } from "@/components/admin/user-detail/admin-user-detail-page";
+
+function AdminUserDetailRoute() {
+  const { userId } = useParams({ from: "/admin/users/$userId" });
+  return <AdminUserDetailPage userId={userId} />;
+}
 
 export const Route = createFileRoute("/admin/users/$userId")({
   params: z.object({ userId: z.string() }),

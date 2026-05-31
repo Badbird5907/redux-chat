@@ -14,7 +14,7 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
-import { createResumableStreamContext } from "resumable-stream";
+import { createResumableStreamContext } from "resumable-stream/generic";
 import { z } from "zod";
 
 import type { ThinkingLevel } from "@redux/shared/models";

@@ -1,6 +1,5 @@
-"use no memo";
-
 import { useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { usePaginatedQuery } from "convex/react";
 import { FileText, Loader2, Trash2 } from "lucide-react";
@@ -69,6 +68,8 @@ function getAttachmentId(attachment: AttachmentRow) {
 }
 
 function AttachmentsRouteComponent() {
+  "use no memo";
+
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
@@ -294,3 +295,11 @@ function AttachmentsRouteComponent() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/settings/attachments")({
+  ssr: false,
+  component: AttachmentsRouteComponent,
+  head: () => ({
+    meta: [{ title: "Attachments | Redux Chat" }],
+  }),
+});

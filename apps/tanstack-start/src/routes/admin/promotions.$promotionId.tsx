@@ -1,4 +1,8 @@
-import { Link, useParams } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  useParams,
+} from "@tanstack/react-router";
 import {
   useAction,
   useMutation,
@@ -132,7 +136,7 @@ function metadataString(metadata: unknown, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-export function AdminPromotionDetailPage() {
+function AdminPromotionDetailPage() {
   const { promotionId } = useParams({ from: "/admin/promotions/$promotionId" });
   const [statusFilter, setStatusFilter] =
     useReducerState<StatusFilter>(ALL_STATUSES);
@@ -655,3 +659,14 @@ export function AdminPromotionDetailPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/admin/promotions/$promotionId")({
+  head: ({ params }) => ({
+    meta: [
+      {
+        title: `Promotion ${params.promotionId.slice(0, 8)} | Admin | Redux Chat`,
+      },
+    ],
+  }),
+  component: AdminPromotionDetailPage,
+});
