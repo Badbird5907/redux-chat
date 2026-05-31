@@ -150,7 +150,7 @@ export function ChatInput({
   useEffect(() => {
     setInputRef.current = setInput;
     setAttachmentsRef.current = setAttachments;
-  });
+  }, [setInput, setAttachments]);
 
   useEffect(() => {
     if (!editMessage || editingMessageIdRef.current === editMessage.id) {
@@ -191,19 +191,21 @@ export function ChatInput({
     }
 
     const activeElement = document.activeElement;
-    const canTakeInitialFocus =
-      activeElement === null ||
-      activeElement === document.body ||
-      activeElement === document.documentElement;
+    const isEditableElsewhere =
+      activeElement instanceof HTMLElement &&
+      activeElement !== textareaRef.current &&
+      (activeElement.tagName === "INPUT" ||
+        activeElement.tagName === "TEXTAREA" ||
+        activeElement.isContentEditable);
 
-    if (!canTakeInitialFocus) {
+    if (isEditableElsewhere) {
       return;
     }
 
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
-  }, [draftReady]);
+  }, [draftReady, threadId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

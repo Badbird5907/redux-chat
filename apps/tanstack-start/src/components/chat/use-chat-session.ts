@@ -67,7 +67,7 @@ export function useChatSession({
   const setCurrentThreadIdRef = useRef(setCurrentThreadId);
   useEffect(() => {
     setCurrentThreadIdRef.current = setCurrentThreadId;
-  });
+  }, [setCurrentThreadId]);
 
   const lastMessageCount = useRef(0);
 
@@ -77,7 +77,7 @@ export function useChatSession({
   const setOptimisticMessageRef = useRef(setOptimisticMessage);
   useEffect(() => {
     setOptimisticMessageRef.current = setOptimisticMessage;
-  });
+  }, [setOptimisticMessage]);
   const [pendingAssistantMessageId, setPendingAssistantMessageId] = useState<
     string | undefined
   >(undefined);
@@ -158,7 +158,7 @@ export function useChatSession({
   useEffect(() => {
     setTrackedPendingAssistantMessageIdRef.current =
       setTrackedPendingAssistantMessageId;
-  });
+  }, [setTrackedPendingAssistantMessageId]);
 
   const initialMessages = useStableInitialValue(() =>
     getVisibleBranchMessages(

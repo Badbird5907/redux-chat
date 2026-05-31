@@ -114,7 +114,7 @@ export function useFileUpload({
   const setFileDragHighlightRef = useRef(setFileDragHighlight);
   useEffect(() => {
     setFileDragHighlightRef.current = setFileDragHighlight;
-  });
+  }, [setFileDragHighlight]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const upload = useUpload({

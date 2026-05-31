@@ -152,7 +152,7 @@ export function useChatDraft({
     setTextRef.current = setText;
     setIsReadyRef.current = setIsReady;
     setLoadedScopeKeyRef.current = setLoadedScopeKey;
-  });
+  }, [setText, setIsReady, setLoadedScopeKey]);
   const previousAttachmentsRef = useRef<DraftAttachment[]>([]);
 
   const setAttachments = useCallback<
@@ -170,7 +170,7 @@ export function useChatDraft({
   const setAttachmentsRef = useRef(setAttachments);
   useEffect(() => {
     setAttachmentsRef.current = setAttachments;
-  });
+  }, [setAttachments]);
 
   useEffect(() => {
     const previousAttachments = previousAttachmentsRef.current;
