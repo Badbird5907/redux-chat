@@ -24,7 +24,6 @@ import {
   ConversationScrollButton,
 } from "@/components/ai/conversation";
 import {
-  ADJACENT_PANEL_WIDTH,
   AttachmentSidePanel,
   isAdjacentPreviewSupported,
 } from "@/components/chat/attachment-side-panel";
@@ -74,9 +73,9 @@ export function Chat({
 }) {
   const [printExportInput, setPrintExportInput] =
     useState<ThreadExportInput | null>(null);
-  const [adjacentFile, setAdjacentFile] = useState<AdjacentPanelFile | null>(
-    null,
-  );
+  const [openFiles, setOpenFiles] = useState<AdjacentPanelFile[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  const [panelWidth, setPanelWidth] = useState(0);
   const isMobile = useIsMobile();
   const printRootRef = useRef<HTMLDivElement | null>(null);
   const printInProgressRef = useRef(false);
@@ -117,12 +116,19 @@ export function Chat({
   const handleAttachmentPreview = useCallback(
     (file: PreviewableFile | null) => {
       if (file && !isMobile && isAdjacentPreviewSupported(file)) {
-        setAdjacentFile({
+        const panelFile: AdjacentPanelFile = {
           id: file.id,
           name: file.name,
           type: file.type,
           url: file.url,
+        };
+        setOpenFiles((prev) => {
+          if (prev.some((f) => f.id === panelFile.id)) {
+            return prev;
+          }
+          return [...prev, panelFile];
         });
+        setActiveFileId(panelFile.id);
         setPreviewFile(null);
         return;
       }
@@ -131,7 +137,29 @@ export function Chat({
     [isMobile, setPreviewFile],
   );
 
-  const isAdjacentPanelOpen = Boolean(adjacentFile) && !isMobile;
+  const handleCloseTab = useCallback(
+    (fileId: string) => {
+      setOpenFiles((prev) => {
+        const next = prev.filter((f) => f.id !== fileId);
+        if (next.length === 0) {
+          setActiveFileId(null);
+        } else if (activeFileId === fileId) {
+          const closedIndex = prev.findIndex((f) => f.id === fileId);
+          const nextActive = next[Math.min(closedIndex, next.length - 1)];
+          setActiveFileId(nextActive?.id ?? null);
+        }
+        return next;
+      });
+    },
+    [activeFileId],
+  );
+
+  const handleCloseAllTabs = useCallback(() => {
+    setOpenFiles([]);
+    setActiveFileId(null);
+  }, []);
+
+  const isAdjacentPanelOpen = openFiles.length > 0 && !isMobile;
 
   const handleFilePreviewRequest = useEffectEvent((file: PreviewableFile) => {
     handleAttachmentPreview(file);
@@ -316,7 +344,9 @@ export function Chat({
           <ChatInput
             threadId={currentThreadId}
             adjacentPanelWidth={
-              isAdjacentPanelOpen ? ADJACENT_PANEL_WIDTH : undefined
+              isAdjacentPanelOpen && panelWidth > 0
+                ? `${panelWidth}px`
+                : undefined
             }
             chatProjectId={effectiveChatProjectId}
             setThreadId={handleThreadIdChange}
@@ -341,11 +371,14 @@ export function Chat({
             onClose={() => setPreviewFile(null)}
           />
         </div>
-        {isAdjacentPanelOpen && adjacentFile ? (
+        {isAdjacentPanelOpen && activeFileId ? (
           <AttachmentSidePanel
-            key={adjacentFile.id}
-            file={adjacentFile}
-            onClose={() => setAdjacentFile(null)}
+            activeFileId={activeFileId}
+            files={openFiles}
+            onClose={handleCloseTab}
+            onCloseAll={handleCloseAllTabs}
+            onSelectTab={setActiveFileId}
+            onWidthChange={setPanelWidth}
           />
         ) : null}
       </div>
