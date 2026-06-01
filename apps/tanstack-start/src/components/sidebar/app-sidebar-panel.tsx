@@ -48,8 +48,8 @@ export function AppSidebarPanel() {
                 }
               >
                 <Plus />
-                <span>New Chat</span>
-                <CommandShortcut className="opacity-0 transition-opacity group-hover/menu-item:opacity-100">
+                <span className="min-w-0 truncate">New Chat</span>
+                <CommandShortcut className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
                   {formatForDisplay(newChatHotkey)}
                 </CommandShortcut>
               </SidebarMenuButton>
@@ -62,8 +62,8 @@ export function AppSidebarPanel() {
                 onClick={() => setCommandOpen(true)}
               >
                 <Search />
-                <span>Search</span>
-                <CommandShortcut className="opacity-0 transition-opacity group-hover/menu-item:opacity-100">
+                <span className="min-w-0 truncate">Search</span>
+                <CommandShortcut className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
                   {formatForDisplay(commandHotkey)}
                 </CommandShortcut>
               </SidebarMenuButton>
@@ -75,7 +75,7 @@ export function AppSidebarPanel() {
                 render={<Link to="/projects" />}
               >
                 <FolderKanban />
-                <span>Projects</span>
+                <span className="min-w-0 truncate">Projects</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
