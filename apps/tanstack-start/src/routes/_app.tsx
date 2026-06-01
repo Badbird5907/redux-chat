@@ -11,9 +11,9 @@ import { SidebarProvider } from "@redux/ui/components/sidebar";
 
 import { AppChatRoute } from "@/components/chat/app-chat-route";
 import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
+import { ChatTopBar } from "@/components/layout/chat-top-bar";
 // import { getToken } from "@/lib/auth/server";
 import { TopLeftActions } from "@/components/layout/top-left-actions";
-import { TopRightActions } from "@/components/layout/top-right-actions";
 import { AppSidebarPanel } from "@/components/sidebar/app-sidebar-panel";
 import {
   ModelSwitcherHotkeyRegistration,
@@ -131,8 +131,11 @@ function AppLayout() {
         <AppSidebarPanel />
         <main className="bg-muted/35 dark:bg-background flex h-dvh min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none p-2">
           <div className="bg-page-card border-border/60 relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none rounded-4xl border p-4">
-            <TopLeftActions />
-            <TopRightActions />
+            {chatThreadId !== undefined ? (
+              <ChatTopBar threadId={chatThreadId} />
+            ) : (
+              <TopLeftActions />
+            )}
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
               {isChatSurfaceRoute ? (
                 shouldRenderChatSurface ? (
