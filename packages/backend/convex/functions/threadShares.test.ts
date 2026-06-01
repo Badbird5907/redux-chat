@@ -88,6 +88,7 @@ async function seedThread(t: ReturnType<typeof authedTest>) {
       size: 12,
       isPublic: true,
       serveImage: false,
+      expiryStatus: "active",
       createdAt: NOW,
       updatedAt: NOW,
     });

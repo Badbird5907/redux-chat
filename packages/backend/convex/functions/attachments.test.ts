@@ -19,7 +19,7 @@ async function insertAttachment(
     attachmentId: string;
     userId?: string;
     expiresAt?: number;
-    expiryStatus?: "active" | "expired";
+    expiryStatus: "active" | "expired";
     createdAt?: number;
   },
 ) {

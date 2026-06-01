@@ -327,7 +327,7 @@ export default defineSchema({
     isPublic: v.boolean(),
     serveImage: v.boolean(),
     expiresAt: v.optional(v.number()),
-    expiryStatus: v.optional(attachmentExpiryStatus),
+    expiryStatus: attachmentExpiryStatus,
     // RAG indexing state for project files (only set when chatProjectId is set).
     embeddingStatus: v.optional(embeddingStatus),
     embeddingError: v.optional(v.string()),

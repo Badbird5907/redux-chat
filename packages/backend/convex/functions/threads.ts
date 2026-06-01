@@ -306,6 +306,7 @@ async function cloneAttachedAttachmentsToMessage(
       isPublic: attachment.isPublic,
       serveImage: attachment.serveImage,
       expiresAt: attachment.expiresAt,
+      expiryStatus: attachment.expiryStatus,
       embeddingStatus: attachment.embeddingStatus,
       embeddingError: attachment.embeddingError,
       embeddingChunkCount: attachment.embeddingChunkCount,

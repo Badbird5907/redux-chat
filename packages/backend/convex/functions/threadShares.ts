@@ -737,6 +737,7 @@ export const fork = mutation({
             isPublic: attachment.isPublic,
             serveImage: attachment.serveImage,
             expiresAt: attachment.expiresAt,
+            expiryStatus: attachment.expiryStatus,
             createdAt: now,
             updatedAt: now,
           });
