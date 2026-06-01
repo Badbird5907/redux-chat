@@ -32,7 +32,7 @@ const pickerSurfaceClassName = cn(
 );
 
 const triggerButtonClassName = cn(
-  "text-muted-foreground hover:text-foreground hover:bg-muted h-7 min-w-0 max-w-[45vw] gap-1.5 rounded-md px-2 text-xs sm:max-w-none",
+  "text-muted-foreground hover:text-foreground hover:bg-muted h-7 max-w-[45vw] min-w-0 gap-1.5 rounded-md px-2 text-xs sm:max-w-none",
 );
 
 export function ModelSelector({

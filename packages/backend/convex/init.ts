@@ -1,7 +1,7 @@
 import { Crons } from "@convex-dev/crons";
 
 import { components, internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internalMutation } from "./functions/internal";
 
 const crons = new Crons(components.crons);
 const ATTACHMENT_EXPIRY_CRON_NAME = "sweep-expired-attachments";
@@ -9,7 +9,9 @@ const ATTACHMENT_EXPIRY_CRON_INTERVAL_MS = 60 * 60 * 1000;
 
 export const registerAttachmentExpiryCron = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async (
+    ctx,
+  ): Promise<{ registered: false } | { registered: true; cronId: string }> => {
     const existingCron = await crons.get(ctx, {
       name: ATTACHMENT_EXPIRY_CRON_NAME,
     });
@@ -17,7 +19,7 @@ export const registerAttachmentExpiryCron = internalMutation({
       return { registered: false };
     }
 
-    const cronId = await crons.register(
+    const cronId: string = await crons.register(
       ctx,
       { kind: "interval", ms: ATTACHMENT_EXPIRY_CRON_INTERVAL_MS },
       internal.functions.attachments.internal_sweepExpiredAttachments,
