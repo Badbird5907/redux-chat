@@ -2,7 +2,7 @@ import type {
   ChatMessageWithThreadMetadata,
   ResolvedAttachment,
 } from "@/components/chat/chat-types";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { isToolUIPart } from "ai";
 import {
@@ -24,6 +24,7 @@ import { cn } from "@redux/ui/lib/utils";
 
 import { getVisibleBranchMessages } from "@/components/chat/chat-branching";
 import { toChatUIMessage } from "@/components/chat/chat-message-utils";
+import { requestFilePreview } from "@/components/chat/file-preview-events";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
 
@@ -33,6 +34,7 @@ interface FileEntry {
   key: string;
   fileName: string;
   kind: "image" | "file";
+  mimeType?: string;
   url?: string;
   downloadUrl?: string;
   size?: number;
@@ -53,6 +55,7 @@ interface ModelFileLike {
   url?: string;
   downloadUrl?: string;
   fileName?: string;
+  mimeType?: string;
   size?: number;
 }
 
@@ -125,6 +128,7 @@ function collectModelFiles(messages: ChatMessageWithThreadMetadata[]) {
             key,
             fileName: generatedImageFileName(image),
             kind: "image",
+            mimeType: image.mimeType,
             url: image.url,
             downloadUrl: image.downloadUrl,
             origin: "model",
@@ -144,6 +148,7 @@ function collectModelFiles(messages: ChatMessageWithThreadMetadata[]) {
             key,
             fileName: file.fileName,
             kind: file.kind === "image" ? "image" : "file",
+            mimeType: file.mimeType,
             url: file.url,
             downloadUrl: file.downloadUrl,
             size: file.size,
@@ -181,6 +186,7 @@ function collectAttachmentEntries(
         key: `attachment:${attachment.attachmentId}`,
         fileName,
         kind: mimeType.startsWith("image/") ? "image" : "file",
+        mimeType,
         url: detail?.url ?? attachment.url,
         downloadUrl: detail?.url ?? attachment.url,
         size: detail?.size ?? attachment.size,
@@ -208,8 +214,26 @@ function formatFileSize(size: number | undefined) {
   return `${rounded} ${units[unitIndex]}`;
 }
 
-function FileRow({ entry }: { entry: FileEntry }) {
+function FileRow({
+  entry,
+  onPreview,
+}: {
+  entry: FileEntry;
+  onPreview?: (entry: FileEntry) => void;
+}) {
   const subtitle = entry.expired ? "Expired" : formatFileSize(entry.size);
+  const clickable = Boolean(onPreview) && Boolean(entry.url) && !entry.expired;
+
+  const details = (
+    <>
+      <div className="truncate text-sm font-medium" title={entry.fileName}>
+        {entry.fileName}
+      </div>
+      {subtitle ? (
+        <div className="text-muted-foreground text-xs">{subtitle}</div>
+      ) : null}
+    </>
+  );
 
   return (
     <div className="border-border/60 hover:bg-muted/40 flex items-center gap-3 rounded-lg border px-3 py-2">
@@ -229,14 +253,17 @@ function FileRow({ entry }: { entry: FileEntry }) {
           )}
         </div>
       )}
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium" title={entry.fileName}>
-          {entry.fileName}
-        </div>
-        {subtitle ? (
-          <div className="text-muted-foreground text-xs">{subtitle}</div>
-        ) : null}
-      </div>
+      {clickable ? (
+        <button
+          type="button"
+          onClick={() => onPreview?.(entry)}
+          className="min-w-0 flex-1 text-left"
+        >
+          {details}
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1">{details}</div>
+      )}
       <div className="flex shrink-0 items-center gap-1">
         <a
           className={cn(
@@ -270,9 +297,11 @@ function FileRow({ entry }: { entry: FileEntry }) {
 function FileSection({
   title,
   entries,
+  onPreview,
 }: {
   title: string;
   entries: FileEntry[];
+  onPreview?: (entry: FileEntry) => void;
 }) {
   if (entries.length === 0) {
     return null;
@@ -284,7 +313,7 @@ function FileSection({
       </div>
       <div className="space-y-2">
         {entries.map((entry) => (
-          <FileRow entry={entry} key={entry.key} />
+          <FileRow entry={entry} key={entry.key} onPreview={onPreview} />
         ))}
       </div>
     </div>
@@ -383,6 +412,22 @@ export function FilesSheet({
 
   const isEmpty = attachmentEntries.length === 0 && modelEntries.length === 0;
 
+  const handlePreview = useCallback(
+    (entry: FileEntry) => {
+      if (!entry.url) {
+        return;
+      }
+      requestFilePreview({
+        id: entry.key,
+        name: entry.fileName,
+        type: entry.mimeType ?? (entry.kind === "image" ? "image/*" : ""),
+        url: entry.url,
+      });
+      onOpenChange(false);
+    },
+    [onOpenChange],
+  );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
@@ -427,10 +472,15 @@ export function FilesSheet({
             </div>
           ) : (
             <>
-              <FileSection title="Attachments" entries={attachmentEntries} />
+              <FileSection
+                title="Attachments"
+                entries={attachmentEntries}
+                onPreview={handlePreview}
+              />
               <FileSection
                 title="Generated & presented"
                 entries={modelEntries}
+                onPreview={handlePreview}
               />
             </>
           )}

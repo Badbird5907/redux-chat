@@ -2,8 +2,10 @@
 
 import type { UIMessage } from "ai";
 import type React from "react";
+import { useEffect, useState } from "react";
 import { isReasoningUIPart, isTextUIPart, isToolUIPart } from "ai";
 import {
+  CheckIcon,
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -29,6 +31,8 @@ import {
   ReasoningTrigger,
 } from "@/components/ai/reasoning";
 import { Shimmer } from "@/components/ai/shimmer";
+import { isAdjacentPreviewSupported } from "@/components/chat/attachment-side-panel";
+import { requestFilePreview } from "@/components/chat/file-preview-events";
 import { AnalysisDetailsButton } from "@/components/chat/tools/analysis";
 import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 import {
@@ -509,18 +513,40 @@ function MediaActions({
   downloadLabel: string;
   openLabel: string;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
+  const handleCopy = () => {
+    if (!url) {
+      return;
+    }
+    void navigator.clipboard
+      .writeText(url)
+      .then(() => setCopied(true))
+      .catch((error: unknown) => console.error("Failed to copy URL", error));
+  };
+
   return (
     <div className="flex shrink-0 items-center gap-1">
       <button
         type="button"
         className="hover:bg-muted disabled:text-muted-foreground/40 rounded-md p-1.5 disabled:pointer-events-none"
-        title={copyLabel}
+        title={copied ? "Copied!" : copyLabel}
         disabled={!url}
-        onClick={() =>
-          url ? void navigator.clipboard.writeText(url) : undefined
-        }
+        onClick={handleCopy}
       >
-        <CopyIcon className="size-4" />
+        {copied ? (
+          <CheckIcon className="size-4 text-emerald-500" />
+        ) : (
+          <CopyIcon className="size-4" />
+        )}
       </button>
       <button
         type="button"
@@ -563,6 +589,7 @@ function MediaBlock({
   isImage,
   isLoading,
   loadingLabel,
+  onPreview,
   url,
 }: {
   alt: string;
@@ -572,17 +599,30 @@ function MediaBlock({
   isImage: boolean;
   isLoading?: boolean;
   loadingLabel?: string;
+  onPreview?: () => void;
   url?: string;
 }) {
   if (!isImage) {
+    const label = (
+      <>
+        <FileIcon className="text-muted-foreground size-5 shrink-0" />
+        <span className="min-w-0 truncate text-sm font-medium">{caption}</span>
+      </>
+    );
+
     return (
       <div className="border-border bg-card flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <FileIcon className="text-muted-foreground size-5 shrink-0" />
-          <span className="min-w-0 truncate text-sm font-medium">
-            {caption}
-          </span>
-        </div>
+        {onPreview ? (
+          <button
+            type="button"
+            onClick={onPreview}
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left hover:opacity-80"
+          >
+            {label}
+          </button>
+        ) : (
+          <div className="flex min-w-0 items-center gap-2.5">{label}</div>
+        )}
         <MediaActions
           url={url}
           downloadUrl={downloadUrl}
@@ -693,6 +733,14 @@ function ModelFileBlock({ file }: { file: ModelFilePart }) {
       ? `${file.fileName} \u00b7 ${formatFileSize(file.size)}`
       : file.fileName;
 
+  const canPreview =
+    !isImage &&
+    Boolean(file.url) &&
+    isAdjacentPreviewSupported({
+      name: file.fileName,
+      type: file.mimeType ?? "",
+    });
+
   return (
     <MediaBlock
       alt={file.fileName}
@@ -700,6 +748,17 @@ function ModelFileBlock({ file }: { file: ModelFilePart }) {
       downloadName={file.fileName}
       downloadUrl={file.downloadUrl}
       isImage={isImage}
+      onPreview={
+        canPreview
+          ? () =>
+              requestFilePreview({
+                id: file.url ?? file.fileName,
+                name: file.fileName,
+                type: file.mimeType ?? "",
+                url: file.url,
+              })
+          : undefined
+      }
       url={file.url}
     />
   );

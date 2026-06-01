@@ -30,6 +30,7 @@ import {
 } from "@/components/chat/attachment-side-panel";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { ChatMessageList } from "./chat-message-list";
+import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
 import { ChatInput } from "./input";
 import { ThreadPrintExport } from "./thread-export";
@@ -131,6 +132,23 @@ export function Chat({
   );
 
   const isAdjacentPanelOpen = Boolean(adjacentFile) && !isMobile;
+
+  const handleFilePreviewRequest = useEffectEvent((file: PreviewableFile) => {
+    handleAttachmentPreview(file);
+  });
+
+  useEffect(() => {
+    const handleRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<PreviewableFile>;
+      handleFilePreviewRequest(customEvent.detail);
+    };
+
+    window.addEventListener(OPEN_FILE_PREVIEW_EVENT, handleRequest);
+
+    return () => {
+      window.removeEventListener(OPEN_FILE_PREVIEW_EVENT, handleRequest);
+    };
+  }, []);
 
   const startPdfExport = useCallback((input: ThreadExportInput) => {
     setPrintExportInput(input);
