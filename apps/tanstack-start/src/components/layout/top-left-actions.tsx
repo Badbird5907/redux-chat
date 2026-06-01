@@ -11,7 +11,7 @@ import {
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
 
 export function TopLeftActions() {
-  const { open: sidebarOpen, openMobile, isMobile } = useSidebar();
+  const { open: sidebarOpen, isMobile } = useSidebar();
   const { project, isChatRoute } = useCurrentProject();
 
   const projectBack =

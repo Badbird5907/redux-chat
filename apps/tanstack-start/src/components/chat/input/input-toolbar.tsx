@@ -170,8 +170,8 @@ export function ChatInputToolbar({
   const showModelControls = settingsReady || hasBeenReady;
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
-    <div className="flex items-center justify-between px-2 pb-2">
-      <div className="flex items-center gap-1">
+    <div className="flex min-w-0 items-center justify-between gap-2 px-2 pb-2">
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
         <input
           ref={fileInputRef}
           type="file"
@@ -358,7 +358,7 @@ export function ChatInputToolbar({
           type="button"
           onClick={onToggleSearch}
           className={cn(
-            "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+            "hidden shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors sm:flex",
             isSearchEnabled
               ? "bg-primary/60 border-primary/90 text-primary-foreground hover:bg-primary/20"
               : "hover:bg-muted/80 text-foreground border-border bg-none",
@@ -390,12 +390,12 @@ export function ChatInputToolbar({
           >
             <BookText className="size-3.5 shrink-0 group-hover:hidden" />
             <Trash2 className="hidden size-3.5 shrink-0 group-hover:block" />
-            <span>{selectedInstructionName}</span>
+            <span className="min-w-0 truncate">{selectedInstructionName}</span>
           </button>
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 shrink-0 items-center gap-2">
         {isContentOverflowing && (
           <Button
             type="button"
@@ -429,7 +429,7 @@ export function ChatInputToolbar({
         )}
         <div
           className={cn(
-            "flex items-center gap-1 transition-opacity duration-200",
+            "flex min-w-0 items-center gap-1 transition-opacity duration-200",
             showModelControls ? "opacity-100" : "pointer-events-none opacity-0",
           )}
           aria-hidden={!showModelControls}

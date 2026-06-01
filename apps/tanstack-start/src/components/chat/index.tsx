@@ -221,7 +221,7 @@ export function Chat({
 
   return (
     <>
-      <div className="flex h-full flex-col overflow-hidden print:hidden">
+      <div className="flex h-full min-w-0 flex-col overflow-hidden print:hidden">
         <Conversation className="relative size-full">
           <InitialThreadScrollInitializer
             enabled={shouldInitializeInitialThreadScroll}

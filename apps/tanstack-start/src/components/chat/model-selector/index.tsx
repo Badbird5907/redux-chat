@@ -32,7 +32,7 @@ const pickerSurfaceClassName = cn(
 );
 
 const triggerButtonClassName = cn(
-  "text-muted-foreground hover:text-foreground hover:bg-muted h-7 gap-1.5 rounded-md px-2 text-xs",
+  "text-muted-foreground hover:text-foreground hover:bg-muted h-7 min-w-0 max-w-[45vw] gap-1.5 rounded-md px-2 text-xs sm:max-w-none",
 );
 
 export function ModelSelector({
@@ -85,8 +85,10 @@ export function ModelSelector({
             />
           }
         >
-          <ProviderGlyph maker={maker} className="size-3.5" />
-          <span className="font-medium">{currentModelName}</span>
+          <ProviderGlyph maker={maker} className="size-3.5 shrink-0" />
+          <span className="min-w-0 truncate font-medium">
+            {currentModelName}
+          </span>
           <ChevronDown className="size-3 shrink-0 opacity-70" />
         </SheetTrigger>
         <SheetContent
@@ -121,8 +123,8 @@ export function ModelSelector({
           />
         }
       >
-        <ProviderGlyph maker={maker} className="size-3.5" />
-        <span className="font-medium">{currentModelName}</span>
+        <ProviderGlyph maker={maker} className="size-3.5 shrink-0" />
+        <span className="min-w-0 truncate font-medium">{currentModelName}</span>
         <ChevronDown className="size-3 shrink-0 opacity-70" />
       </PopoverTrigger>
       <PopoverContent

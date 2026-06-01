@@ -262,7 +262,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   return (
     <div
       className={cn(
-        "group flex w-full",
+        "group flex w-full min-w-0",
         message.role === "user" ? "justify-end" : "justify-start",
       )}
     >
@@ -270,12 +270,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         className={cn(
           message.role === "user"
             ? "flex max-w-full flex-col items-end"
-            : "w-full",
+            : "w-full min-w-0",
         )}
       >
         <div
           className={cn(
-            "rounded-lg px-4 py-2",
+            "max-w-full min-w-0 rounded-lg px-4 py-2",
             message.role === "user" &&
               "bg-primary text-primary-foreground max-w-full min-w-0",
           )}
