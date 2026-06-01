@@ -89,17 +89,21 @@ function AppLayout() {
 
   return (
     <ChatRouteAdoptionProvider>
-      <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+      <SidebarProvider
+        className="h-svh max-h-svh overflow-hidden"
+        defaultOpen={defaultOpen}
+        defaultWidth={defaultWidth}
+      >
         <NewChatHotkeyRegistration />
         <ModelSwitcherHotkeyRegistration />
         <ReasoningLevelSelectorHotkeyRegistration />
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
-        <main className="bg-muted/35 dark:bg-background flex h-dvh min-w-0 flex-1 flex-col overflow-x-hidden p-2">
-          <div className="bg-page-card border-border/60 relative min-w-0 flex-1 overflow-hidden rounded-4xl border p-4">
+        <main className="bg-muted/35 dark:bg-background flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2">
+          <div className="bg-page-card border-border/60 relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-4xl border p-4">
             <TopLeftActions />
             <TopRightActions />
-            <div className="h-full min-w-0 overflow-hidden">
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
               {isChatSurfaceRoute ? (
                 shouldRenderChatSurface ? (
                   <AppChatRoute
