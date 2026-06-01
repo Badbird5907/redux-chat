@@ -3,1476 +3,1750 @@
 import type { ModelsDevProviderCatalog } from "../types";
 
 export const openaiModels = {
-  id: "openai",
-  name: "OpenAI",
-  npm: "@ai-sdk/openai",
-  doc: "https://platform.openai.com/docs/models",
-  env: ["OPENAI_API_KEY"],
-  models: {
-    "gpt-image-2": {
-      id: "gpt-image-2",
-      name: "GPT Image 2",
-      family: "gpt-image",
-      attachment: false,
-      reasoning: false,
-      tool_call: false,
-      structured_output: false,
-      temperature: false,
-      release_date: "2026-05-01",
-      last_updated: "2026-05-01",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["image"],
-      },
-      cost: {
-        input: 5,
-        output: 40,
-      },
-    },
+  "id": "openai",
+  "name": "OpenAI",
+  "npm": "@ai-sdk/openai",
+  "doc": "https://platform.openai.com/docs/models",
+  "env": [
+    "OPENAI_API_KEY"
+  ],
+  "models": {
     "chatgpt-image-latest": {
-      id: "chatgpt-image-latest",
-      name: "chatgpt-image-latest",
-      family: "gpt-image",
-      attachment: true,
-      reasoning: false,
-      tool_call: false,
-      temperature: false,
-      release_date: "2025-12-16",
-      last_updated: "2025-12-16",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+      "id": "chatgpt-image-latest",
+      "name": "chatgpt-image-latest",
+      "family": "gpt-image",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": false,
+      "temperature": false,
+      "release_date": "2025-12-16",
+      "last_updated": "2025-12-16",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text",
+          "image"
+        ]
       },
-      limit: {
-        context: 0,
-        input: 0,
-        output: 0,
-      },
+      "limit": {
+        "context": 0,
+        "input": 0,
+        "output": 0
+      }
     },
     "gpt-3.5-turbo": {
-      id: "gpt-3.5-turbo",
-      name: "GPT-3.5-turbo",
-      family: "gpt",
-      attachment: false,
-      reasoning: false,
-      tool_call: false,
-      structured_output: false,
-      temperature: true,
-      knowledge: "2021-09-01",
-      release_date: "2023-03-01",
-      last_updated: "2023-11-06",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "gpt-3.5-turbo",
+      "name": "GPT-3.5-turbo",
+      "family": "gpt",
+      "attachment": false,
+      "reasoning": false,
+      "tool_call": false,
+      "structured_output": false,
+      "temperature": true,
+      "knowledge": "2021-09-01",
+      "release_date": "2023-03-01",
+      "last_updated": "2023-11-06",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0,
-        input: 0.5,
-        output: 1.5,
+      "cost": {
+        "cache_read": 0,
+        "input": 0.5,
+        "output": 1.5
       },
-      limit: {
-        context: 16385,
-        output: 4096,
-      },
+      "limit": {
+        "context": 16385,
+        "output": 4096
+      }
     },
     "gpt-4": {
-      id: "gpt-4",
-      name: "GPT-4",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: false,
-      temperature: true,
-      knowledge: "2023-11",
-      release_date: "2023-11-06",
-      last_updated: "2024-04-09",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "gpt-4",
+      "name": "GPT-4",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": false,
+      "temperature": true,
+      "knowledge": "2023-11",
+      "release_date": "2023-11-06",
+      "last_updated": "2024-04-09",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 30,
-        output: 60,
+      "cost": {
+        "input": 30,
+        "output": 60
       },
-      limit: {
-        context: 8192,
-        output: 8192,
-      },
+      "limit": {
+        "context": 8192,
+        "output": 8192
+      }
     },
     "gpt-4-turbo": {
-      id: "gpt-4-turbo",
-      name: "GPT-4 Turbo",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: false,
-      temperature: true,
-      knowledge: "2023-12",
-      release_date: "2023-11-06",
-      last_updated: "2024-04-09",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-4-turbo",
+      "name": "GPT-4 Turbo",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": false,
+      "temperature": true,
+      "knowledge": "2023-12",
+      "release_date": "2023-11-06",
+      "last_updated": "2024-04-09",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 10,
-        output: 30,
+      "cost": {
+        "input": 10,
+        "output": 30
       },
-      limit: {
-        context: 128000,
-        output: 4096,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 4096
+      }
     },
     "gpt-4.1": {
-      id: "gpt-4.1",
-      name: "GPT-4.1",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2024-04",
-      release_date: "2025-04-14",
-      last_updated: "2025-04-14",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "gpt-4.1",
+      "name": "GPT-4.1",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2024-04",
+      "release_date": "2025-04-14",
+      "last_updated": "2025-04-14",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        input: 2,
-        output: 8,
+      "cost": {
+        "cache_read": 0.5,
+        "input": 2,
+        "output": 8
       },
-      limit: {
-        context: 1047576,
-        output: 32768,
-      },
+      "limit": {
+        "context": 1047576,
+        "output": 32768
+      }
     },
     "gpt-4.1-mini": {
-      id: "gpt-4.1-mini",
-      name: "GPT-4.1 mini",
-      family: "gpt-mini",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2024-04",
-      release_date: "2025-04-14",
-      last_updated: "2025-04-14",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "gpt-4.1-mini",
+      "name": "GPT-4.1 mini",
+      "family": "gpt-mini",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2024-04",
+      "release_date": "2025-04-14",
+      "last_updated": "2025-04-14",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.1,
-        input: 0.4,
-        output: 1.6,
+      "cost": {
+        "cache_read": 0.1,
+        "input": 0.4,
+        "output": 1.6
       },
-      limit: {
-        context: 1047576,
-        output: 32768,
-      },
+      "limit": {
+        "context": 1047576,
+        "output": 32768
+      }
     },
     "gpt-4.1-nano": {
-      id: "gpt-4.1-nano",
-      name: "GPT-4.1 nano",
-      family: "gpt-nano",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2024-04",
-      release_date: "2025-04-14",
-      last_updated: "2025-04-14",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-4.1-nano",
+      "name": "GPT-4.1 nano",
+      "family": "gpt-nano",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2024-04",
+      "release_date": "2025-04-14",
+      "last_updated": "2025-04-14",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.025,
-        input: 0.1,
-        output: 0.4,
+      "cost": {
+        "cache_read": 0.025,
+        "input": 0.1,
+        "output": 0.4
       },
-      limit: {
-        context: 1047576,
-        output: 32768,
-      },
+      "limit": {
+        "context": 1047576,
+        "output": 32768
+      }
     },
     "gpt-4o": {
-      id: "gpt-4o",
-      name: "GPT-4o",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2023-09",
-      release_date: "2024-05-13",
-      last_updated: "2024-08-06",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2023-09",
+      "release_date": "2024-05-13",
+      "last_updated": "2024-08-06",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.25,
-        input: 2.5,
-        output: 10,
+      "cost": {
+        "cache_read": 1.25,
+        "input": 2.5,
+        "output": 10
       },
-      limit: {
-        context: 128000,
-        output: 16384,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 16384
+      }
     },
     "gpt-4o-2024-05-13": {
-      id: "gpt-4o-2024-05-13",
-      name: "GPT-4o (2024-05-13)",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2023-09",
-      release_date: "2024-05-13",
-      last_updated: "2024-05-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-4o-2024-05-13",
+      "name": "GPT-4o (2024-05-13)",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2023-09",
+      "release_date": "2024-05-13",
+      "last_updated": "2024-05-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 5,
-        output: 15,
+      "cost": {
+        "input": 5,
+        "output": 15
       },
-      limit: {
-        context: 128000,
-        output: 4096,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 4096
+      }
     },
     "gpt-4o-2024-08-06": {
-      id: "gpt-4o-2024-08-06",
-      name: "GPT-4o (2024-08-06)",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2023-09",
-      release_date: "2024-08-06",
-      last_updated: "2024-08-06",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-4o-2024-08-06",
+      "name": "GPT-4o (2024-08-06)",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2023-09",
+      "release_date": "2024-08-06",
+      "last_updated": "2024-08-06",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.25,
-        input: 2.5,
-        output: 10,
+      "cost": {
+        "cache_read": 1.25,
+        "input": 2.5,
+        "output": 10
       },
-      limit: {
-        context: 128000,
-        output: 16384,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 16384
+      }
     },
     "gpt-4o-2024-11-20": {
-      id: "gpt-4o-2024-11-20",
-      name: "GPT-4o (2024-11-20)",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2023-09",
-      release_date: "2024-11-20",
-      last_updated: "2024-11-20",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-4o-2024-11-20",
+      "name": "GPT-4o (2024-11-20)",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2023-09",
+      "release_date": "2024-11-20",
+      "last_updated": "2024-11-20",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.25,
-        input: 2.5,
-        output: 10,
+      "cost": {
+        "cache_read": 1.25,
+        "input": 2.5,
+        "output": 10
       },
-      limit: {
-        context: 128000,
-        output: 16384,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 16384
+      }
     },
     "gpt-4o-mini": {
-      id: "gpt-4o-mini",
-      name: "GPT-4o mini",
-      family: "gpt-mini",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2023-09",
-      release_date: "2024-07-18",
-      last_updated: "2024-07-18",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o mini",
+      "family": "gpt-mini",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2023-09",
+      "release_date": "2024-07-18",
+      "last_updated": "2024-07-18",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.075,
-        input: 0.15,
-        output: 0.6,
+      "cost": {
+        "cache_read": 0.075,
+        "input": 0.15,
+        "output": 0.6
       },
-      limit: {
-        context: 128000,
-        output: 16384,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 16384
+      }
     },
     "gpt-5": {
-      id: "gpt-5",
-      name: "GPT-5",
-      family: "gpt",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-08-07",
-      last_updated: "2025-08-07",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5",
+      "name": "GPT-5",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-08-07",
+      "last_updated": "2025-08-07",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.125,
-        input: 1.25,
-        output: 10,
+      "cost": {
+        "cache_read": 0.125,
+        "input": 1.25,
+        "output": 10
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5-chat-latest": {
-      id: "gpt-5-chat-latest",
-      name: "GPT-5 Chat (latest)",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: false,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2024-09-30",
-      release_date: "2025-08-07",
-      last_updated: "2025-08-07",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5-chat-latest",
+      "name": "GPT-5 Chat (latest)",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": false,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-08-07",
+      "last_updated": "2025-08-07",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.125,
-        input: 1.25,
-        output: 10,
+      "cost": {
+        "cache_read": 0.125,
+        "input": 1.25,
+        "output": 10
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5-codex": {
-      id: "gpt-5-codex",
-      name: "GPT-5-Codex",
-      family: "gpt-codex",
-      attachment: false,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-09-15",
-      last_updated: "2025-09-15",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5-codex",
+      "name": "GPT-5-Codex",
+      "family": "gpt-codex",
+      "attachment": false,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-09-15",
+      "last_updated": "2025-09-15",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.125,
-        input: 1.25,
-        output: 10,
+      "cost": {
+        "cache_read": 0.125,
+        "input": 1.25,
+        "output": 10
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5-mini": {
-      id: "gpt-5-mini",
-      name: "GPT-5 Mini",
-      family: "gpt-mini",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-05-30",
-      release_date: "2025-08-07",
-      last_updated: "2025-08-07",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5-mini",
+      "name": "GPT-5 Mini",
+      "family": "gpt-mini",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-05-30",
+      "release_date": "2025-08-07",
+      "last_updated": "2025-08-07",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.025,
-        input: 0.25,
-        output: 2,
+      "cost": {
+        "cache_read": 0.025,
+        "input": 0.25,
+        "output": 2
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5-nano": {
-      id: "gpt-5-nano",
-      name: "GPT-5 Nano",
-      family: "gpt-nano",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-05-30",
-      release_date: "2025-08-07",
-      last_updated: "2025-08-07",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5-nano",
+      "name": "GPT-5 Nano",
+      "family": "gpt-nano",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-05-30",
+      "release_date": "2025-08-07",
+      "last_updated": "2025-08-07",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.005,
-        input: 0.05,
-        output: 0.4,
+      "cost": {
+        "cache_read": 0.005,
+        "input": 0.05,
+        "output": 0.4
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5-pro": {
-      id: "gpt-5-pro",
-      name: "GPT-5 Pro",
-      family: "gpt-pro",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-10-06",
-      last_updated: "2025-10-06",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5-pro",
+      "name": "GPT-5 Pro",
+      "family": "gpt-pro",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-10-06",
+      "last_updated": "2025-10-06",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 15,
-        output: 120,
+      "cost": {
+        "input": 15,
+        "output": 120
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 272000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 272000
+      }
     },
     "gpt-5.1": {
-      id: "gpt-5.1",
-      name: "GPT-5.1",
-      family: "gpt",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-11-13",
-      last_updated: "2025-11-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.1",
+      "name": "GPT-5.1",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-11-13",
+      "last_updated": "2025-11-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.125,
-        input: 1.25,
-        output: 10,
+      "cost": {
+        "cache_read": 0.125,
+        "input": 1.25,
+        "output": 10
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.1-chat-latest": {
-      id: "gpt-5.1-chat-latest",
-      name: "GPT-5.1 Chat",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-11-13",
-      last_updated: "2025-11-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.1-chat-latest",
+      "name": "GPT-5.1 Chat",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-11-13",
+      "last_updated": "2025-11-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.125,
-        input: 1.25,
-        output: 10,
+      "cost": {
+        "cache_read": 0.125,
+        "input": 1.25,
+        "output": 10
       },
-      limit: {
-        context: 128000,
-        output: 16384,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 16384
+      }
     },
     "gpt-5.1-codex": {
-      id: "gpt-5.1-codex",
-      name: "GPT-5.1 Codex",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-11-13",
-      last_updated: "2025-11-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.1-codex",
+      "name": "GPT-5.1 Codex",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-11-13",
+      "last_updated": "2025-11-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.125,
-        input: 1.25,
-        output: 10,
+      "cost": {
+        "cache_read": 0.125,
+        "input": 1.25,
+        "output": 10
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.1-codex-max": {
-      id: "gpt-5.1-codex-max",
-      name: "GPT-5.1 Codex Max",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-11-13",
-      last_updated: "2025-11-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.1-codex-max",
+      "name": "GPT-5.1 Codex Max",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-11-13",
+      "last_updated": "2025-11-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.125,
-        input: 1.25,
-        output: 10,
+      "cost": {
+        "cache_read": 0.125,
+        "input": 1.25,
+        "output": 10
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.1-codex-mini": {
-      id: "gpt-5.1-codex-mini",
-      name: "GPT-5.1 Codex mini",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-09-30",
-      release_date: "2025-11-13",
-      last_updated: "2025-11-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.1-codex-mini",
+      "name": "GPT-5.1 Codex mini",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-09-30",
+      "release_date": "2025-11-13",
+      "last_updated": "2025-11-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.025,
-        input: 0.25,
-        output: 2,
+      "cost": {
+        "cache_read": 0.025,
+        "input": 0.25,
+        "output": 2
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.2": {
-      id: "gpt-5.2",
-      name: "GPT-5.2",
-      family: "gpt",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2025-12-11",
-      last_updated: "2025-12-11",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.2",
+      "name": "GPT-5.2",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2025-12-11",
+      "last_updated": "2025-12-11",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.175,
-        input: 1.75,
-        output: 14,
+      "cost": {
+        "cache_read": 0.175,
+        "input": 1.75,
+        "output": 14
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.2-chat-latest": {
-      id: "gpt-5.2-chat-latest",
-      name: "GPT-5.2 Chat",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2025-12-11",
-      last_updated: "2025-12-11",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.2-chat-latest",
+      "name": "GPT-5.2 Chat",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2025-12-11",
+      "last_updated": "2025-12-11",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.175,
-        input: 1.75,
-        output: 14,
+      "cost": {
+        "cache_read": 0.175,
+        "input": 1.75,
+        "output": 14
       },
-      limit: {
-        context: 128000,
-        output: 16384,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 16384
+      }
     },
     "gpt-5.2-codex": {
-      id: "gpt-5.2-codex",
-      name: "GPT-5.2 Codex",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2025-12-11",
-      last_updated: "2025-12-11",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "gpt-5.2-codex",
+      "name": "GPT-5.2 Codex",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2025-12-11",
+      "last_updated": "2025-12-11",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.175,
-        input: 1.75,
-        output: 14,
+      "cost": {
+        "cache_read": 0.175,
+        "input": 1.75,
+        "output": 14
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.2-pro": {
-      id: "gpt-5.2-pro",
-      name: "GPT-5.2 Pro",
-      family: "gpt-pro",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: false,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2025-12-11",
-      last_updated: "2025-12-11",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.2-pro",
+      "name": "GPT-5.2 Pro",
+      "family": "gpt-pro",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": false,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2025-12-11",
+      "last_updated": "2025-12-11",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 21,
-        output: 168,
+      "cost": {
+        "input": 21,
+        "output": 168
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.3-chat-latest": {
-      id: "gpt-5.3-chat-latest",
-      name: "GPT-5.3 Chat (latest)",
-      family: "gpt",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      knowledge: "2025-08-31",
-      release_date: "2026-03-03",
-      last_updated: "2026-03-03",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.3-chat-latest",
+      "name": "GPT-5.3 Chat (latest)",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-03-03",
+      "last_updated": "2026-03-03",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.175,
-        input: 1.75,
-        output: 14,
+      "cost": {
+        "cache_read": 0.175,
+        "input": 1.75,
+        "output": 14
       },
-      limit: {
-        context: 128000,
-        output: 16384,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 16384
+      }
     },
     "gpt-5.3-codex": {
-      id: "gpt-5.3-codex",
-      name: "GPT-5.3 Codex",
-      family: "gpt-codex",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2026-02-05",
-      last_updated: "2026-02-05",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "gpt-5.3-codex",
+      "name": "GPT-5.3 Codex",
+      "family": "gpt-codex",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-02-05",
+      "last_updated": "2026-02-05",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.175,
-        input: 1.75,
-        output: 14,
+      "cost": {
+        "cache_read": 0.175,
+        "input": 1.75,
+        "output": 14
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.3-codex-spark": {
-      id: "gpt-5.3-codex-spark",
-      name: "GPT-5.3 Codex Spark",
-      family: "gpt-codex-spark",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2026-02-05",
-      last_updated: "2026-02-05",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "gpt-5.3-codex-spark",
+      "name": "GPT-5.3 Codex Spark",
+      "family": "gpt-codex-spark",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-02-05",
+      "last_updated": "2026-02-05",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.175,
-        input: 1.75,
-        output: 14,
+      "cost": {
+        "cache_read": 0.175,
+        "input": 1.75,
+        "output": 14
       },
-      limit: {
-        context: 128000,
-        input: 100000,
-        output: 32000,
-      },
+      "limit": {
+        "context": 128000,
+        "input": 100000,
+        "output": 32000
+      }
     },
     "gpt-5.4": {
-      id: "gpt-5.4",
-      name: "GPT-5.4",
-      family: "gpt",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2026-03-05",
-      last_updated: "2026-03-05",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
-      },
-      cost: {
-        cache_read: 0.25,
-        context_over_200k: {
-          cache_read: 0.5,
-          input: 5,
-          output: 22.5,
-        },
-        input: 2.5,
-        output: 15,
-        tiers: [
-          {
-            input: 5,
-            output: 22.5,
-            cache_read: 0.5,
-            tier: {
-              type: "context",
-              size: 272000,
-            },
-          },
+      "id": "gpt-5.4",
+      "name": "GPT-5.4",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-03-05",
+      "last_updated": "2026-03-05",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
         ],
+        "output": [
+          "text"
+        ]
       },
-      limit: {
-        context: 1050000,
-        input: 922000,
-        output: 128000,
+      "cost": {
+        "cache_read": 0.25,
+        "context_over_200k": {
+          "cache_read": 0.5,
+          "input": 5,
+          "output": 22.5
+        },
+        "input": 2.5,
+        "output": 15,
+        "tiers": [
+          {
+            "input": 5,
+            "output": 22.5,
+            "cache_read": 0.5,
+            "tier": {
+              "type": "context",
+              "size": 272000
+            }
+          }
+        ]
       },
+      "limit": {
+        "context": 1050000,
+        "input": 922000,
+        "output": 128000
+      }
     },
     "gpt-5.4-mini": {
-      id: "gpt-5.4-mini",
-      name: "GPT-5.4 mini",
-      family: "gpt-mini",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2026-03-17",
-      last_updated: "2026-03-17",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.4-mini",
+      "name": "GPT-5.4 mini",
+      "family": "gpt-mini",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-03-17",
+      "last_updated": "2026-03-17",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.075,
-        input: 0.75,
-        output: 4.5,
+      "cost": {
+        "cache_read": 0.075,
+        "input": 0.75,
+        "output": 4.5
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.4-nano": {
-      id: "gpt-5.4-nano",
-      name: "GPT-5.4 nano",
-      family: "gpt-nano",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2026-03-17",
-      last_updated: "2026-03-17",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "gpt-5.4-nano",
+      "name": "GPT-5.4 nano",
+      "family": "gpt-nano",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-03-17",
+      "last_updated": "2026-03-17",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.02,
-        input: 0.2,
-        output: 1.25,
+      "cost": {
+        "cache_read": 0.02,
+        "input": 0.2,
+        "output": 1.25
       },
-      limit: {
-        context: 400000,
-        input: 272000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 400000,
+        "input": 272000,
+        "output": 128000
+      }
     },
     "gpt-5.4-pro": {
-      id: "gpt-5.4-pro",
-      name: "GPT-5.4 Pro",
-      family: "gpt-pro",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: false,
-      temperature: false,
-      knowledge: "2025-08-31",
-      release_date: "2026-03-05",
-      last_updated: "2026-03-05",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
-      },
-      cost: {
-        context_over_200k: {
-          input: 60,
-          output: 270,
-        },
-        input: 30,
-        output: 180,
-        tiers: [
-          {
-            input: 60,
-            output: 270,
-            tier: {
-              type: "context",
-              size: 272000,
-            },
-          },
+      "id": "gpt-5.4-pro",
+      "name": "GPT-5.4 Pro",
+      "family": "gpt-pro",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": false,
+      "temperature": false,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-03-05",
+      "last_updated": "2026-03-05",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
         ],
+        "output": [
+          "text"
+        ]
       },
-      limit: {
-        context: 1050000,
-        input: 922000,
-        output: 128000,
+      "cost": {
+        "context_over_200k": {
+          "input": 60,
+          "output": 270
+        },
+        "input": 30,
+        "output": 180,
+        "tiers": [
+          {
+            "input": 60,
+            "output": 270,
+            "tier": {
+              "type": "context",
+              "size": 272000
+            }
+          }
+        ]
       },
+      "limit": {
+        "context": 1050000,
+        "input": 922000,
+        "output": 128000
+      }
     },
     "gpt-5.5": {
-      id: "gpt-5.5",
-      name: "GPT-5.5",
-      family: "gpt",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-12-01",
-      release_date: "2026-04-23",
-      last_updated: "2026-04-23",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
-      },
-      cost: {
-        cache_read: 0.5,
-        context_over_200k: {
-          cache_read: 1,
-          input: 10,
-          output: 45,
-        },
-        input: 5,
-        output: 30,
-        tiers: [
-          {
-            input: 10,
-            output: 45,
-            cache_read: 1,
-            tier: {
-              type: "context",
-              size: 272000,
-            },
-          },
+      "id": "gpt-5.5",
+      "name": "GPT-5.5",
+      "family": "gpt",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-12-01",
+      "release_date": "2026-04-23",
+      "last_updated": "2026-04-23",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
         ],
+        "output": [
+          "text"
+        ]
       },
-      limit: {
-        context: 1050000,
-        input: 922000,
-        output: 128000,
+      "cost": {
+        "cache_read": 0.5,
+        "context_over_200k": {
+          "cache_read": 1,
+          "input": 10,
+          "output": 45
+        },
+        "input": 5,
+        "output": 30,
+        "tiers": [
+          {
+            "input": 10,
+            "output": 45,
+            "cache_read": 1,
+            "tier": {
+              "type": "context",
+              "size": 272000
+            }
+          }
+        ]
       },
+      "limit": {
+        "context": 1050000,
+        "input": 922000,
+        "output": 128000
+      }
     },
     "gpt-5.5-pro": {
-      id: "gpt-5.5-pro",
-      name: "GPT-5.5 Pro",
-      family: "gpt-pro",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2025-12-01",
-      release_date: "2026-04-23",
-      last_updated: "2026-04-23",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
-      },
-      cost: {
-        context_over_200k: {
-          input: 60,
-          output: 270,
-        },
-        input: 30,
-        output: 180,
-        tiers: [
-          {
-            input: 60,
-            output: 270,
-            tier: {
-              type: "context",
-              size: 272000,
-            },
-          },
+      "id": "gpt-5.5-pro",
+      "name": "GPT-5.5 Pro",
+      "family": "gpt-pro",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2025-12-01",
+      "release_date": "2026-04-23",
+      "last_updated": "2026-04-23",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
         ],
+        "output": [
+          "text"
+        ]
       },
-      limit: {
-        context: 1050000,
-        input: 922000,
-        output: 128000,
+      "cost": {
+        "context_over_200k": {
+          "input": 60,
+          "output": 270
+        },
+        "input": 30,
+        "output": 180,
+        "tiers": [
+          {
+            "input": 60,
+            "output": 270,
+            "tier": {
+              "type": "context",
+              "size": 272000
+            }
+          }
+        ]
       },
+      "limit": {
+        "context": 1050000,
+        "input": 922000,
+        "output": 128000
+      }
     },
     "gpt-image-1": {
-      id: "gpt-image-1",
-      name: "gpt-image-1",
-      family: "gpt-image",
-      attachment: true,
-      reasoning: false,
-      tool_call: false,
-      temperature: false,
-      release_date: "2025-04-24",
-      last_updated: "2025-04-24",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["image"],
+      "id": "gpt-image-1",
+      "name": "gpt-image-1",
+      "family": "gpt-image",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": false,
+      "temperature": false,
+      "release_date": "2025-04-24",
+      "last_updated": "2025-04-24",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
       },
-      limit: {
-        context: 0,
-        input: 0,
-        output: 0,
-      },
+      "limit": {
+        "context": 0,
+        "input": 0,
+        "output": 0
+      }
     },
     "gpt-image-1-mini": {
-      id: "gpt-image-1-mini",
-      name: "gpt-image-1-mini",
-      family: "gpt-image",
-      attachment: true,
-      reasoning: false,
-      tool_call: false,
-      temperature: false,
-      release_date: "2025-09-26",
-      last_updated: "2025-09-26",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+      "id": "gpt-image-1-mini",
+      "name": "gpt-image-1-mini",
+      "family": "gpt-image",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": false,
+      "temperature": false,
+      "release_date": "2025-09-26",
+      "last_updated": "2025-09-26",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text",
+          "image"
+        ]
       },
-      limit: {
-        context: 0,
-        input: 0,
-        output: 0,
-      },
+      "limit": {
+        "context": 0,
+        "input": 0,
+        "output": 0
+      }
     },
     "gpt-image-1.5": {
-      id: "gpt-image-1.5",
-      name: "gpt-image-1.5",
-      family: "gpt-image",
-      attachment: true,
-      reasoning: false,
-      tool_call: false,
-      temperature: false,
-      release_date: "2025-11-25",
-      last_updated: "2025-11-25",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+      "id": "gpt-image-1.5",
+      "name": "gpt-image-1.5",
+      "family": "gpt-image",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": false,
+      "temperature": false,
+      "release_date": "2025-11-25",
+      "last_updated": "2025-11-25",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text",
+          "image"
+        ]
       },
-      limit: {
-        context: 0,
-        input: 0,
-        output: 0,
-      },
+      "limit": {
+        "context": 0,
+        "input": 0,
+        "output": 0
+      }
     },
-    o1: {
-      id: "o1",
-      name: "o1",
-      family: "o",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2023-09",
-      release_date: "2024-12-05",
-      last_updated: "2024-12-05",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+    "gpt-image-2": {
+      "id": "gpt-image-2",
+      "name": "GPT Image 2",
+      "family": "gpt-image",
+      "attachment": false,
+      "reasoning": false,
+      "tool_call": false,
+      "structured_output": false,
+      "temperature": false,
+      "release_date": "2026-05-01",
+      "last_updated": "2026-05-01",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
       },
-      cost: {
-        cache_read: 7.5,
-        input: 15,
-        output: 60,
+      "cost": {
+        "input": 5,
+        "output": 40
+      }
+    },
+    "o1": {
+      "id": "o1",
+      "name": "o1",
+      "family": "o",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2023-09",
+      "release_date": "2024-12-05",
+      "last_updated": "2024-12-05",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      limit: {
-        context: 200000,
-        output: 100000,
+      "cost": {
+        "cache_read": 7.5,
+        "input": 15,
+        "output": 60
       },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
     "o1-mini": {
-      id: "o1-mini",
-      name: "o1-mini",
-      family: "o-mini",
-      attachment: false,
-      reasoning: true,
-      tool_call: false,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2023-09",
-      release_date: "2024-09-12",
-      last_updated: "2024-09-12",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "o1-mini",
+      "name": "o1-mini",
+      "family": "o-mini",
+      "attachment": false,
+      "reasoning": true,
+      "tool_call": false,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2023-09",
+      "release_date": "2024-09-12",
+      "last_updated": "2024-09-12",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.55,
-        input: 1.1,
-        output: 4.4,
+      "cost": {
+        "cache_read": 0.55,
+        "input": 1.1,
+        "output": 4.4
       },
-      limit: {
-        context: 128000,
-        output: 65536,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 65536
+      }
     },
     "o1-preview": {
-      id: "o1-preview",
-      name: "o1-preview",
-      family: "o",
-      attachment: false,
-      reasoning: true,
-      tool_call: false,
-      temperature: true,
-      knowledge: "2023-09",
-      release_date: "2024-09-12",
-      last_updated: "2024-09-12",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "o1-preview",
+      "name": "o1-preview",
+      "family": "o",
+      "attachment": false,
+      "reasoning": true,
+      "tool_call": false,
+      "temperature": true,
+      "knowledge": "2023-09",
+      "release_date": "2024-09-12",
+      "last_updated": "2024-09-12",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 7.5,
-        input: 15,
-        output: 60,
+      "cost": {
+        "cache_read": 7.5,
+        "input": 15,
+        "output": 60
       },
-      limit: {
-        context: 128000,
-        output: 32768,
-      },
+      "limit": {
+        "context": 128000,
+        "output": 32768
+      }
     },
     "o1-pro": {
-      id: "o1-pro",
-      name: "o1-pro",
-      family: "o-pro",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2023-09",
-      release_date: "2025-03-19",
-      last_updated: "2025-03-19",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "o1-pro",
+      "name": "o1-pro",
+      "family": "o-pro",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2023-09",
+      "release_date": "2025-03-19",
+      "last_updated": "2025-03-19",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 150,
-        output: 600,
+      "cost": {
+        "input": 150,
+        "output": 600
       },
-      limit: {
-        context: 200000,
-        output: 100000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
-    o3: {
-      id: "o3",
-      name: "o3",
-      family: "o",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-05",
-      release_date: "2025-04-16",
-      last_updated: "2025-04-16",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+    "o3": {
+      "id": "o3",
+      "name": "o3",
+      "family": "o",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-05",
+      "release_date": "2025-04-16",
+      "last_updated": "2025-04-16",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        input: 2,
-        output: 8,
+      "cost": {
+        "cache_read": 0.5,
+        "input": 2,
+        "output": 8
       },
-      limit: {
-        context: 200000,
-        output: 100000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
     "o3-deep-research": {
-      id: "o3-deep-research",
-      name: "o3-deep-research",
-      family: "o",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: false,
-      knowledge: "2024-05",
-      release_date: "2024-06-26",
-      last_updated: "2024-06-26",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "o3-deep-research",
+      "name": "o3-deep-research",
+      "family": "o",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": false,
+      "knowledge": "2024-05",
+      "release_date": "2024-06-26",
+      "last_updated": "2024-06-26",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 2.5,
-        input: 10,
-        output: 40,
+      "cost": {
+        "cache_read": 2.5,
+        "input": 10,
+        "output": 40
       },
-      limit: {
-        context: 200000,
-        output: 100000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
     "o3-mini": {
-      id: "o3-mini",
-      name: "o3-mini",
-      family: "o-mini",
-      attachment: false,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-05",
-      release_date: "2024-12-20",
-      last_updated: "2025-01-29",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "o3-mini",
+      "name": "o3-mini",
+      "family": "o-mini",
+      "attachment": false,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-05",
+      "release_date": "2024-12-20",
+      "last_updated": "2025-01-29",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.55,
-        input: 1.1,
-        output: 4.4,
+      "cost": {
+        "cache_read": 0.55,
+        "input": 1.1,
+        "output": 4.4
       },
-      limit: {
-        context: 200000,
-        output: 100000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
     "o3-pro": {
-      id: "o3-pro",
-      name: "o3-pro",
-      family: "o-pro",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-05",
-      release_date: "2025-06-10",
-      last_updated: "2025-06-10",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "o3-pro",
+      "name": "o3-pro",
+      "family": "o-pro",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-05",
+      "release_date": "2025-06-10",
+      "last_updated": "2025-06-10",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 20,
-        output: 80,
+      "cost": {
+        "input": 20,
+        "output": 80
       },
-      limit: {
-        context: 200000,
-        output: 100000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
     "o4-mini": {
-      id: "o4-mini",
-      name: "o4-mini",
-      family: "o-mini",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: false,
-      knowledge: "2024-05",
-      release_date: "2025-04-16",
-      last_updated: "2025-04-16",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "o4-mini",
+      "name": "o4-mini",
+      "family": "o-mini",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": false,
+      "knowledge": "2024-05",
+      "release_date": "2025-04-16",
+      "last_updated": "2025-04-16",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.275,
-        input: 1.1,
-        output: 4.4,
+      "cost": {
+        "cache_read": 0.275,
+        "input": 1.1,
+        "output": 4.4
       },
-      limit: {
-        context: 200000,
-        output: 100000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
     "o4-mini-deep-research": {
-      id: "o4-mini-deep-research",
-      name: "o4-mini-deep-research",
-      family: "o-mini",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: false,
-      knowledge: "2024-05",
-      release_date: "2024-06-26",
-      last_updated: "2024-06-26",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+      "id": "o4-mini-deep-research",
+      "name": "o4-mini-deep-research",
+      "family": "o-mini",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": false,
+      "knowledge": "2024-05",
+      "release_date": "2024-06-26",
+      "last_updated": "2024-06-26",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        input: 2,
-        output: 8,
+      "cost": {
+        "cache_read": 0.5,
+        "input": 2,
+        "output": 8
       },
-      limit: {
-        context: 200000,
-        output: 100000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 100000
+      }
     },
     "text-embedding-3-large": {
-      id: "text-embedding-3-large",
-      name: "text-embedding-3-large",
-      family: "text-embedding",
-      attachment: false,
-      reasoning: false,
-      tool_call: false,
-      temperature: false,
-      knowledge: "2024-01",
-      release_date: "2024-01-25",
-      last_updated: "2024-01-25",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "text-embedding-3-large",
+      "name": "text-embedding-3-large",
+      "family": "text-embedding",
+      "attachment": false,
+      "reasoning": false,
+      "tool_call": false,
+      "temperature": false,
+      "knowledge": "2024-01",
+      "release_date": "2024-01-25",
+      "last_updated": "2024-01-25",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 0.13,
-        output: 0,
+      "cost": {
+        "input": 0.13,
+        "output": 0
       },
-      limit: {
-        context: 8191,
-        output: 3072,
-      },
+      "limit": {
+        "context": 8191,
+        "output": 3072
+      }
     },
     "text-embedding-3-small": {
-      id: "text-embedding-3-small",
-      name: "text-embedding-3-small",
-      family: "text-embedding",
-      attachment: false,
-      reasoning: false,
-      tool_call: false,
-      temperature: false,
-      knowledge: "2024-01",
-      release_date: "2024-01-25",
-      last_updated: "2024-01-25",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "text-embedding-3-small",
+      "name": "text-embedding-3-small",
+      "family": "text-embedding",
+      "attachment": false,
+      "reasoning": false,
+      "tool_call": false,
+      "temperature": false,
+      "knowledge": "2024-01",
+      "release_date": "2024-01-25",
+      "last_updated": "2024-01-25",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 0.02,
-        output: 0,
+      "cost": {
+        "input": 0.02,
+        "output": 0
       },
-      limit: {
-        context: 8191,
-        output: 1536,
-      },
+      "limit": {
+        "context": 8191,
+        "output": 1536
+      }
     },
     "text-embedding-ada-002": {
-      id: "text-embedding-ada-002",
-      name: "text-embedding-ada-002",
-      family: "text-embedding",
-      attachment: false,
-      reasoning: false,
-      tool_call: false,
-      temperature: false,
-      knowledge: "2022-12",
-      release_date: "2022-12-15",
-      last_updated: "2022-12-15",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
+      "id": "text-embedding-ada-002",
+      "name": "text-embedding-ada-002",
+      "family": "text-embedding",
+      "attachment": false,
+      "reasoning": false,
+      "tool_call": false,
+      "temperature": false,
+      "knowledge": "2022-12",
+      "release_date": "2022-12-15",
+      "last_updated": "2022-12-15",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        input: 0.1,
-        output: 0,
+      "cost": {
+        "input": 0.1,
+        "output": 0
       },
-      limit: {
-        context: 8192,
-        output: 1536,
-      },
-    },
-  },
+      "limit": {
+        "context": 8192,
+        "output": 1536
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const openaiCatalog = openaiModels;
