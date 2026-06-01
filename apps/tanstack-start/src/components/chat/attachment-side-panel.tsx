@@ -10,7 +10,148 @@ import { StaticMarkdown } from "@/components/markdown/static-markdown";
 
 export const ADJACENT_PANEL_WIDTH = "clamp(320px, 38vw, 560px)";
 
-const MARKDOWN_EXTENSIONS = [".md", ".markdown"];
+const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".mdx"];
+
+const TEXT_EXTENSIONS = [
+  ".txt",
+  ".text",
+  ".log",
+  ".csv",
+  ".tsv",
+  ".json",
+  ".jsonc",
+  ".json5",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".conf",
+  ".env",
+  ".properties",
+  ".xml",
+  ".svg",
+  ".html",
+  ".htm",
+  ".css",
+  ".scss",
+  ".sass",
+  ".less",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".kt",
+  ".kts",
+  ".c",
+  ".h",
+  ".cpp",
+  ".cc",
+  ".cxx",
+  ".hpp",
+  ".cs",
+  ".php",
+  ".swift",
+  ".scala",
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".fish",
+  ".ps1",
+  ".bat",
+  ".sql",
+  ".graphql",
+  ".gql",
+  ".proto",
+  ".vue",
+  ".svelte",
+  ".astro",
+  ".lua",
+  ".pl",
+  ".r",
+  ".dart",
+  ".ex",
+  ".exs",
+  ".clj",
+  ".hs",
+  ".elm",
+  ".jl",
+  ".nim",
+  ".zig",
+  ".tf",
+  ".hcl",
+  ".gradle",
+  ".diff",
+  ".patch",
+];
+
+const TEXT_MIME_TYPES = new Set([
+  "application/json",
+  "application/xml",
+  "application/javascript",
+  "application/typescript",
+  "application/x-sh",
+  "application/x-yaml",
+  "application/yaml",
+  "image/svg+xml",
+]);
+
+const EXTENSIONLESS_TEXT_FILENAMES = new Set([
+  "dockerfile",
+  "makefile",
+  "license",
+  "readme",
+  ".gitignore",
+  ".gitattributes",
+  ".npmrc",
+  ".prettierrc",
+  ".eslintrc",
+  ".editorconfig",
+]);
+
+const EXTENSION_LANGUAGE: Record<string, string> = {
+  mjs: "javascript",
+  cjs: "javascript",
+  js: "javascript",
+  jsx: "jsx",
+  ts: "typescript",
+  mts: "typescript",
+  cts: "typescript",
+  tsx: "tsx",
+  py: "python",
+  rb: "ruby",
+  rs: "rust",
+  kt: "kotlin",
+  kts: "kotlin",
+  yml: "yaml",
+  h: "c",
+  hpp: "cpp",
+  cc: "cpp",
+  cxx: "cpp",
+  cs: "csharp",
+  sh: "bash",
+  bash: "bash",
+  zsh: "bash",
+  htm: "html",
+  gql: "graphql",
+  pl: "perl",
+  ex: "elixir",
+  exs: "elixir",
+  clj: "clojure",
+  hs: "haskell",
+  jl: "julia",
+  tf: "hcl",
+  patch: "diff",
+};
 
 export interface AdjacentPanelFile {
   id: string;
@@ -19,15 +160,55 @@ export interface AdjacentPanelFile {
   url?: string;
 }
 
+function getExtension(name: string) {
+  const lower = name.toLowerCase();
+  const lastDot = lower.lastIndexOf(".");
+  return lastDot >= 0 ? lower.slice(lastDot) : "";
+}
+
+function isMarkdownFile(file: { name: string; type: string }) {
+  return (
+    file.type === "text/markdown" ||
+    MARKDOWN_EXTENSIONS.includes(getExtension(file.name))
+  );
+}
+
 export function isAdjacentPreviewSupported(file: {
   name: string;
   type: string;
 }) {
   const name = file.name.toLowerCase();
+  const extension = getExtension(name);
   return (
-    file.type === "text/markdown" ||
-    MARKDOWN_EXTENSIONS.some((extension) => name.endsWith(extension))
+    file.type.startsWith("text/") ||
+    TEXT_MIME_TYPES.has(file.type) ||
+    isMarkdownFile(file) ||
+    TEXT_EXTENSIONS.includes(extension) ||
+    EXTENSIONLESS_TEXT_FILENAMES.has(name)
   );
+}
+
+function languageForFile(name: string) {
+  const extension = getExtension(name).replace(/^\./, "");
+  if (extension) {
+    return EXTENSION_LANGUAGE[extension] ?? extension;
+  }
+  if (name.toLowerCase() === "dockerfile") {
+    return "dockerfile";
+  }
+  if (name.toLowerCase() === "makefile") {
+    return "makefile";
+  }
+  return "text";
+}
+
+function toFencedCodeBlock(content: string, language: string) {
+  const longestBacktickRun = (content.match(/`+/g) ?? []).reduce(
+    (max, run) => Math.max(max, run.length),
+    0,
+  );
+  const fence = "`".repeat(Math.max(3, longestBacktickRun + 1));
+  return `${fence}${language}\n${content}\n${fence}`;
 }
 
 type PanelState =
@@ -53,6 +234,8 @@ export function AttachmentSidePanel({
       ? { status: "loading" }
       : { status: "error", error: "This file is no longer available." },
   );
+
+  const asMarkdown = isMarkdownFile(file);
 
   useEffect(() => {
     if (!file.url) {
@@ -128,8 +311,18 @@ export function AttachmentSidePanel({
             <FileText className="size-8" />
             {state.error}
           </div>
+        ) : state.content.length === 0 ? (
+          <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+            This file is empty.
+          </div>
         ) : (
-          <StaticMarkdown content={state.content} />
+          <StaticMarkdown
+            content={
+              asMarkdown
+                ? state.content
+                : toFencedCodeBlock(state.content, languageForFile(file.name))
+            }
+          />
         )}
       </div>
     </aside>
