@@ -64,7 +64,7 @@ export function SocialOAuthSection({
             disabled={oauthBusy}
           >
             {loadingProvider === "google" ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
               <GoogleIcon width={24} height={24} className="mr-2 shrink-0" />
             )}
@@ -88,7 +88,7 @@ export function SocialOAuthSection({
             disabled={oauthBusy}
           >
             {loadingProvider === "github" ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
               <GithubIcon width={24} height={24} />
             )}

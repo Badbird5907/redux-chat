@@ -2,17 +2,10 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import {
-  createContext,
-  memo,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import { createContext, memo, use, useEffect, useMemo, useRef } from "react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { ChevronDownIcon, DotIcon } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 
 import { Badge } from "@redux/ui/components/badge";
 import {
@@ -34,7 +27,7 @@ const ChainOfThoughtContext = createContext<ChainOfThoughtContextValue | null>(
 );
 
 const useChainOfThought = () => {
-  const context = useContext(ChainOfThoughtContext);
+  const context = use(ChainOfThoughtContext);
   if (!context) {
     throw new Error(
       "ChainOfThought components must be used within ChainOfThought",
@@ -43,9 +36,15 @@ const useChainOfThought = () => {
   return context;
 };
 
-function renderShimmerableLabel(label: ReactNode, shimmer: boolean) {
+function ShimmerableLabel({
+  label,
+  shimmer,
+}: {
+  label: ReactNode;
+  shimmer: boolean;
+}) {
   if (!shimmer) {
-    return label;
+    return <>{label}</>;
   }
 
   if (typeof label === "string" || typeof label === "number") {
@@ -56,7 +55,7 @@ function renderShimmerableLabel(label: ReactNode, shimmer: boolean) {
     );
   }
 
-  return label;
+  return <>{label}</>;
 }
 
 export type ChainOfThoughtProps = ComponentProps<"div"> & {
@@ -148,7 +147,10 @@ export const ChainOfThoughtHeader = memo(
               status === "error" && "text-destructive",
             )}
           >
-            {renderShimmerableLabel(children ?? "Thought Process", shimmer)}
+            <ShimmerableLabel
+              label={children ?? "Thought Process"}
+              shimmer={shimmer}
+            />
           </span>
           <ChevronDownIcon
             className={cn(
@@ -163,7 +165,7 @@ export const ChainOfThoughtHeader = memo(
 );
 
 export type ChainOfThoughtStepProps = Omit<
-  ComponentProps<typeof motion.div>,
+  ComponentProps<typeof m.div>,
   "children"
 > & {
   children?: ReactNode;
@@ -199,7 +201,7 @@ export const ChainOfThoughtStep = memo(
     children,
     ...props
   }: ChainOfThoughtStepProps) => (
-    <motion.div
+    <m.div
       animate={{ opacity: 1, y: 0 }}
       className={cn(
         "flex gap-2 text-sm",
@@ -225,13 +227,15 @@ export const ChainOfThoughtStep = memo(
         <div className="bg-border absolute top-7 bottom-0 left-1/2 -mx-px w-px" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
-        <div>{renderShimmerableLabel(label, shimmer)}</div>
+        <div>
+          <ShimmerableLabel label={label} shimmer={shimmer} />
+        </div>
         {description && (
           <div className="text-muted-foreground text-xs">{description}</div>
         )}
         {children}
       </div>
-    </motion.div>
+    </m.div>
   ),
 );
 

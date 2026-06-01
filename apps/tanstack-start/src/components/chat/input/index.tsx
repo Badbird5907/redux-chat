@@ -1,7 +1,7 @@
 import type { DraftAttachment } from "@/components/chat/use-chat-draft";
 import type { QueuedMessage } from "@/components/chat/use-message-queue";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { isTextUIPart } from "ai";
@@ -38,6 +38,7 @@ import {
 import { submitMessage } from "@/components/chat/use-submit-message";
 import { useQuery } from "@/lib/hooks/convex";
 import { useInstructions } from "@/lib/hooks/use-instructions";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { useAppHotkey } from "@/lib/hotkeys";
 import { deleteDraftAttachment } from "@/server/attachments";
 import {
@@ -86,17 +87,22 @@ export function ChatInput({
     settingsReady,
     persistDraft: !editMessage,
   });
-  const [previewFile, setPreviewFile] = useState<PreviewableFile | null>(null);
-  const [showTokenVisualization, setShowTokenVisualization] = useState(false);
-  const [textareaHeight, setTextareaHeight] = useState<number | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [addCreditsOpen, setAddCreditsOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useReducerState<PreviewableFile | null>(
+    null,
+  );
+  const [showTokenVisualization, setShowTokenVisualization] =
+    useReducerState(false);
+  const [measuredTextareaHeight, setMeasuredTextareaHeight] = useReducerState<
+    number | null
+  >(null);
+  const [isExpanded, setIsExpanded] = useReducerState(false);
+  const [dropdownOpen, setDropdownOpen] = useReducerState(false);
+  const [addCreditsOpen, setAddCreditsOpen] = useReducerState(false);
   const navigate = useNavigate();
   const posthog = usePostHog();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const visualizationRef = useRef<HTMLDivElement>(null);
+  const visualizationRef = useRef<HTMLButtonElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
   const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
   const {
@@ -138,6 +144,13 @@ export function ChatInput({
   >(() => Promise.resolve(false));
 
   const editingMessageIdRef = useRef<string | undefined>(undefined);
+  const setInputRef = useRef(setInput);
+  const setAttachmentsRef = useRef(setAttachments);
+
+  useEffect(() => {
+    setInputRef.current = setInput;
+    setAttachmentsRef.current = setAttachments;
+  }, [setInput, setAttachments]);
 
   useEffect(() => {
     if (!editMessage || editingMessageIdRef.current === editMessage.id) {
@@ -145,13 +158,12 @@ export function ChatInput({
     }
 
     editingMessageIdRef.current = editMessage.id;
-    setInput(
+    setInputRef.current(() =>
       editMessage.parts
-        .filter(isTextUIPart)
-        .map((part) => part.text)
+        .flatMap((part) => (isTextUIPart(part) ? [part.text] : []))
         .join(""),
     );
-    setAttachments(
+    setAttachmentsRef.current(() =>
       (editMessage.attachments ?? []).map((attachment) => ({
         attachmentId: attachment.attachmentId,
         fileName: attachment.fileName,
@@ -163,7 +175,7 @@ export function ChatInput({
         url: attachment.url,
       })),
     );
-  }, [editMessage, setAttachments, setInput]);
+  }, [editMessage]);
 
   useEffect(() => {
     if (editMessage) {
@@ -179,19 +191,21 @@ export function ChatInput({
     }
 
     const activeElement = document.activeElement;
-    const canTakeInitialFocus =
-      activeElement === null ||
-      activeElement === document.body ||
-      activeElement === document.documentElement;
+    const isEditableElsewhere =
+      activeElement instanceof HTMLElement &&
+      activeElement !== textareaRef.current &&
+      (activeElement.tagName === "INPUT" ||
+        activeElement.tagName === "TEXTAREA" ||
+        activeElement.isContentEditable);
 
-    if (!canTakeInitialFocus) {
+    if (isEditableElsewhere) {
       return;
     }
 
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
-  }, [draftReady]);
+  }, [draftReady, threadId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -206,7 +220,7 @@ export function ChatInput({
     return () => {
       window.removeEventListener(FOCUS_COMPOSER_EVENT, onFocusComposer);
     };
-  }, []);
+  }, [setMeasuredTextareaHeight]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -232,8 +246,6 @@ export function ChatInput({
       const maxHeight = lineHeight * 10;
       const newHeight = Math.min(textarea.scrollHeight, maxHeight);
 
-      setTextareaHeight(newHeight);
-
       if (showTokenVisualization) {
         textarea.style.height = previousHeight;
         textarea.style.display = previousDisplay;
@@ -245,12 +257,29 @@ export function ChatInput({
     }
   }, [input, showTokenVisualization, isExpanded]);
 
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const updateMeasuredHeight = () => {
+      setMeasuredTextareaHeight(textarea.scrollHeight);
+    };
+    const frame = window.requestAnimationFrame(updateMeasuredHeight);
+    const observer = new ResizeObserver(updateMeasuredHeight);
+    observer.observe(textarea);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [setMeasuredTextareaHeight]);
+
   const visualizationHeight = useMemo(() => {
-    if (!showTokenVisualization || !textareaHeight) return null;
+    if (!showTokenVisualization || !measuredTextareaHeight) return null;
     const lineHeight = 24;
     const maxHeight = lineHeight * 10;
-    return Math.min(textareaHeight, maxHeight);
-  }, [showTokenVisualization, textareaHeight]);
+    return Math.min(measuredTextareaHeight, maxHeight);
+  }, [showTokenVisualization, measuredTextareaHeight]);
 
   const selectedModel = settings.model;
   const isSearchEnabled = isToolEnabled(settings.tools, "search");
@@ -279,7 +308,7 @@ export function ChatInput({
   );
   const enabledMcpServerIds = useMemo(
     () => getEnabledToolSettings(settings.tools, "mcpServers")?.serverIds ?? [],
-    [settings.tools.mcpServers],
+    [settings.tools],
   );
   const showErrorBorder = status === "error";
   const selectedInstruction =
@@ -337,7 +366,7 @@ export function ChatInput({
 
   const beforeOpenFilePicker = useCallback(() => {
     setDropdownOpen(false);
-  }, []);
+  }, [setDropdownOpen]);
 
   const {
     fileInputRef,
@@ -442,7 +471,7 @@ export function ChatInput({
       });
       setDropdownOpen(false);
     },
-    [onSettingsChange],
+    [onSettingsChange, setDropdownOpen],
   );
 
   const handleThinkingLevelChange = useCallback(
@@ -739,13 +768,12 @@ export function ChatInput({
       );
 
       await Promise.all(
-        existing.attachments
-          .filter(
-            (attachment) =>
-              !nextIds.has(attachment.attachmentId) &&
-              attachment.source !== "retained",
-          )
-          .map((attachment) => discardDraftAttachmentForQueue(attachment)),
+        existing.attachments.flatMap((attachment) =>
+          !nextIds.has(attachment.attachmentId) &&
+          attachment.source !== "retained"
+            ? [discardDraftAttachmentForQueue(attachment)]
+            : [],
+        ),
       );
 
       updateQueued(messageId, draft);
@@ -863,12 +891,15 @@ export function ChatInput({
 
     try {
       if (editMessage && threadId) {
-        const retainedAttachmentIds = currentAttachments
-          .filter((attachment) => attachment.source === "retained")
-          .map((attachment) => attachment.attachmentId);
-        const draftAttachmentIds = currentAttachments
-          .filter((attachment) => attachment.source !== "retained")
-          .map((attachment) => attachment.attachmentId);
+        const retainedAttachmentIds: string[] = [];
+        const draftAttachmentIds: string[] = [];
+        for (const attachment of currentAttachments) {
+          if (attachment.source === "retained") {
+            retainedAttachmentIds.push(attachment.attachmentId);
+          } else {
+            draftAttachmentIds.push(attachment.attachmentId);
+          }
+        }
 
         await onSubmitEdit?.({
           retainedAttachmentIds,
@@ -920,6 +951,7 @@ export function ChatInput({
     onCancelEdit,
     onSubmitEdit,
     setAttachments,
+    setIsExpanded,
     settingsReady,
     status,
     submitNewUserPayload,
@@ -959,18 +991,18 @@ export function ChatInput({
     if (input.trim()) {
       setShowTokenVisualization(!showTokenVisualization);
     }
-  }, [input, showTokenVisualization]);
+  }, [input, setShowTokenVisualization, showTokenVisualization]);
 
   const isContentOverflowing = useMemo(() => {
-    if (!textareaHeight) return false;
+    if (!measuredTextareaHeight) return false;
     const lineHeight = 24;
     const maxHeight = lineHeight * 10;
-    return textareaHeight >= maxHeight;
-  }, [textareaHeight]);
+    return measuredTextareaHeight >= maxHeight;
+  }, [measuredTextareaHeight]);
 
   const toggleExpand = useCallback(() => {
     setIsExpanded(!isExpanded);
-  }, [isExpanded]);
+  }, [isExpanded, setIsExpanded]);
 
   const fixedInputDesktopLeft = useMemo(() => {
     if (sidebarState === "expanded") {
@@ -986,8 +1018,10 @@ export function ChatInput({
     <>
       {dropHighlightLayer}
       {isExpanded && (
-        <div
-          className="bg-background/80 animate-in fade-in fixed inset-0 z-40 backdrop-blur-sm duration-300"
+        <button
+          type="button"
+          aria-label="Collapse composer"
+          className="bg-background/80 animate-in fade-in fixed inset-0 z-40 border-0 p-0 backdrop-blur-sm duration-300"
           onClick={toggleExpand}
         />
       )}
@@ -1115,12 +1149,24 @@ export function ChatInput({
                   : undefined
               }
               onInstructionChange={handleInstructionChange}
-              instructionsReady={instructionsReady}
-              canUploadFiles={canUploadFiles}
-              isAnalysisWorkspaceEnabled={isAnalysisWorkspaceEnabled}
-              isImageGenerationEnabled={isImageGenerationEnabled}
-              isBashWorkspaceEnabled={isBashWorkspaceEnabled}
-              isSearchEnabled={isSearchEnabled}
+              state={{
+                instructionsReady,
+                canUploadFiles,
+                isAnalysisWorkspaceEnabled,
+                isImageGenerationEnabled,
+                isBashWorkspaceEnabled,
+                isSearchEnabled,
+                settingsReady,
+                isContentOverflowing,
+                isExpanded,
+                showTokenVisualization,
+                canConfigureReasoning,
+                hasUsableAttachments,
+                isSubmitting,
+                hasUploadingFiles,
+                draftReady,
+                isOutOfCredits,
+              }}
               imageGenerationModels={imageGenerationModels}
               selectedImageGenerationModelId={selectedImageGenerationModelId}
               onAnalysisWorkspaceEnabledChange={
@@ -1132,18 +1178,14 @@ export function ChatInput({
               onImageGenerationModelChange={handleImageGenerationModelChange}
               onBashWorkspaceEnabledChange={handleBashWorkspaceEnabledChange}
               onToggleSearch={() => handleSearchEnabledChange(!isSearchEnabled)}
-              settingsReady={settingsReady}
               mcpServers={mcpServers.map((server) => ({
                 mcpServerId: server.mcpServerId,
                 name: server.name,
               }))}
               enabledMcpServerIds={enabledMcpServerIds}
               onToggleMcpServer={handleToggleMcpServer}
-              isContentOverflowing={isContentOverflowing}
-              isExpanded={isExpanded}
               onToggleExpand={toggleExpand}
               tokenCount={tokenCount}
-              showTokenVisualization={showTokenVisualization}
               onTokenCountClick={handleTokenCountClick}
               selectedModel={selectedModel}
               onModelChange={(modelId) => {
@@ -1151,14 +1193,8 @@ export function ChatInput({
               }}
               thinkingLevel={effectiveThinkingLevel}
               thinkingLevels={availableThinkingLevels}
-              canConfigureReasoning={canConfigureReasoning}
               onThinkingLevelChange={handleThinkingLevelChange}
               input={input}
-              hasUsableAttachments={hasUsableAttachments}
-              isSubmitting={isSubmitting}
-              hasUploadingFiles={hasUploadingFiles}
-              draftReady={draftReady}
-              isOutOfCredits={isOutOfCredits}
               onStopGeneration={onStopGeneration}
               onSubmit={() => void handleSubmit()}
               project={chatProjectId}

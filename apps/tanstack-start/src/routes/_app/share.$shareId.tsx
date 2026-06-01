@@ -1,4 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  useLoaderData,
+  useParams,
+} from "@tanstack/react-router";
 import { ConvexHttpClient } from "convex/browser";
 import z from "zod";
 
@@ -8,6 +12,17 @@ import { SignedCidProvider } from "@/components/chat/client-id";
 import { SharedChat } from "@/components/share/shared-chat";
 import { env } from "@/env";
 
+function SharePage() {
+  const { shareId } = useParams({ from: "/_app/share/$shareId" });
+  const preload = useLoaderData({ from: "/_app/share/$shareId" });
+
+  return (
+    <SignedCidProvider>
+      <SharedChat shareId={shareId} preload={preload} />
+    </SignedCidProvider>
+  );
+}
+
 async function loadShare(shareId: string) {
   const client = new ConvexHttpClient(env.VITE_CONVEX_URL);
   return await client
@@ -16,8 +31,8 @@ async function loadShare(shareId: string) {
 }
 
 export const Route = createFileRoute("/_app/share/$shareId")({
-  ssr: "data-only",
   params: z.object({ shareId: z.string() }),
+  ssr: "data-only",
   loader: ({ params }) => loadShare(params.shareId),
   head: ({ loaderData }) => {
     const name = loaderData?.thread.name.trim();
@@ -31,14 +46,3 @@ export const Route = createFileRoute("/_app/share/$shareId")({
   },
   component: SharePage,
 });
-
-function SharePage() {
-  const { shareId } = Route.useParams();
-  const preload = Route.useLoaderData();
-
-  return (
-    <SignedCidProvider>
-      <SharedChat shareId={shareId} preload={preload} />
-    </SignedCidProvider>
-  );
-}

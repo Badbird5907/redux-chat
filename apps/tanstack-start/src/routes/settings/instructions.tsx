@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { InstructionsManager } from "@/components/settings/instructions-manager";
 
-export const Route = createFileRoute("/settings/instructions")({
-  component: RouteComponent,
-});
-
-function RouteComponent() {
+function InstructionsRouteComponent() {
   return <InstructionsManager />;
 }
+
+export const Route = createFileRoute("/settings/instructions")({
+  component: InstructionsRouteComponent,
+});

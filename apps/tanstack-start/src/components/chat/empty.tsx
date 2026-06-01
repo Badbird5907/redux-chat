@@ -18,6 +18,7 @@ interface SuggestionCardProps {
 const SuggestionCard = ({ text, onClick }: SuggestionCardProps) => {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="border-border bg-card hover:bg-muted/50 text-foreground rounded-xl border px-4 py-3 text-left text-sm transition-colors"
     >

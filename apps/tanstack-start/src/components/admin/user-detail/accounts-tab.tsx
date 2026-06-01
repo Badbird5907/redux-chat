@@ -181,7 +181,7 @@ export function AdminUserAccountsTab({
         </p>
       </div>
       {accounts === undefined ? (
-        <div className="space-y-2 px-5 py-5">
+        <div className="space-y-2 p-5">
           <Skeleton className="h-14 w-full rounded-lg" />
           <Skeleton className="h-14 w-full rounded-lg" />
         </div>

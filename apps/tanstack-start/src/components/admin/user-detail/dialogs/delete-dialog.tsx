@@ -80,8 +80,7 @@ function DeleteForm({
 
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault();
+      action={() => {
         if (canDelete) {
           mutation.mutate();
         }

@@ -3,9 +3,9 @@
 import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
-import { cva } from "class-variance-authority";
 import { ExternalLinkIcon } from "lucide-react";
 
+import { tabsListVariants } from "@redux/ui/components/tabs-variants";
 import { cn } from "@redux/ui/lib/utils";
 
 const tabsTriggerClassName = cn(
@@ -88,6 +88,11 @@ function Tabs({
       ? initialValue
       : coerceTabValue(fromUrl, initialValue);
   });
+  const onValueChangeEvent = React.useEffectEvent(
+    (next: TabValue, details: TabsValueChangeDetails) => {
+      onValueChange?.(next, details);
+    },
+  );
 
   React.useEffect(() => {
     if (!queryParam) return;
@@ -97,7 +102,7 @@ function Tabs({
         if (fromUrl === null) return;
         const next = coerceTabValue(fromUrl, valueProp);
         if (String(next) === String(valueProp)) return;
-        onValueChange?.(next, POPSTATE_CHANGE_DETAILS);
+        onValueChangeEvent(next, POPSTATE_CHANGE_DETAILS);
       };
       window.addEventListener("popstate", onPopState);
       return () => window.removeEventListener("popstate", onPopState);
@@ -111,7 +116,7 @@ function Tabs({
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [queryParam, queryParamKey, isControlled, valueProp, onValueChange]);
+  }, [queryParam, queryParamKey, isControlled, valueProp]);
 
   const handleValueChange = React.useCallback(
     (next, details) => {
@@ -199,21 +204,6 @@ const POPSTATE_CHANGE_DETAILS = {
   activationDirection: "none",
 } as unknown as TabsValueChangeDetails;
 
-const tabsListVariants = cva(
-  "group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-8 group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col data-[variant=line]:rounded-none",
-  {
-    variants: {
-      variant: {
-        default: "bg-muted",
-        line: "gap-1 bg-transparent",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  },
-);
-
 function TabsList({
   className,
   variant = "default",
@@ -276,11 +266,4 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   );
 }
 
-export {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  ExternalTabsTrigger,
-  TabsContent,
-  tabsListVariants,
-};
+export { Tabs, TabsList, TabsTrigger, ExternalTabsTrigger, TabsContent };

@@ -1,7 +1,9 @@
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ConvexHttpClient } from "convex/browser";
+import { useEffect } from "react";
+import {
+  createFileRoute,
+  useLoaderData,
+  useParams,
+} from "@tanstack/react-router";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
 import {
   AlertCircle,
@@ -24,32 +26,12 @@ import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 
 import { formatDate } from "@/components/admin/user-detail/utils";
-import {
-  formatCurrencyFromMinorUnits,
-  PlanTierMarketingCard,
-} from "@/components/billing/plan-tier-marketing-card";
-import { env } from "@/env";
-
-type PublicPromotionPayload =
-  (typeof api.functions.promotions.getPublicPromotionByCode)["_returnType"];
-
-async function loadPublicPromotion(
-  code: string,
-): Promise<PublicPromotionPayload | null> {
-  const client = new ConvexHttpClient(env.VITE_CONVEX_URL);
-  return await client
-    .query(api.functions.promotions.getPublicPromotionByCode, { code })
-    .catch(() => null);
-}
-
-export const Route = createFileRoute("/redeem/$code")({
-  ssr: "data-only",
-  loader: ({ params }) => loadPublicPromotion(params.code),
-  head: ({ params }) => ({
-    meta: [{ title: `Redeem ${params.code} | Redux Chat` }],
-  }),
-  component: RedeemPromotionPage,
-});
+import { PlanTierMarketingCard } from "@/components/billing/plan-tier-marketing-card";
+import { formatCurrencyFromMinorUnits } from "@/components/billing/plan-tier-marketing-utils";
+import { RedeemShell } from "@/components/redeem/redeem-shell";
+import { StatusPanel } from "@/components/redeem/status-panel";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
+import { loadPublicPromotion } from "./redeem.$code-loader";
 
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
@@ -164,9 +146,8 @@ function promotionErrorMessage(error: unknown, fallback: string): string {
 }
 
 function RedeemPromotionPage() {
-  const { code } = Route.useParams();
-  const preloadedPromotion = Route.useLoaderData();
-  const navigate = useNavigate();
+  const { code } = useParams({ from: "/redeem/$code" });
+  const preloadedPromotion = useLoaderData({ from: "/redeem/$code" });
   const posthog = usePostHog();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const publicPromotion = useQuery(
@@ -193,13 +174,15 @@ function RedeemPromotionPage() {
     api.functions.promotions.previewSubscriptionPromotionUpgrade,
   );
   const [configuredStripePrices, setConfiguredStripePrices] =
-    useState<StripeConfiguredPrices | null>(null);
+    useReducerState<StripeConfiguredPrices | null>(null);
   const redeemPromotion = useAction(api.functions.promotions.redeemPromotion);
   const cancelPendingCheckout = useAction(
     api.functions.promotions.cancelPendingPromotionCheckout,
   );
-  const [targetTier, setTargetTier] = useState<"plus" | "pro" | undefined>();
-  const [result, setResult] = useState<{
+  const [targetTier, setTargetTier] = useReducerState<
+    "plus" | "pro" | undefined
+  >(undefined);
+  const [result, setResult] = useReducerState<{
     type?: string;
     kind?: string;
     amount: number;
@@ -209,10 +192,12 @@ function RedeemPromotionPage() {
     freeUntil?: number;
     targetTier?: string;
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const [upgradePreview, setUpgradePreview] = useState<{
+  const [error, setError] = useReducerState<string | null>(null);
+  const [checkoutMessage, setCheckoutMessage] = useReducerState<string | null>(
+    null,
+  );
+  const [pending, setPending] = useReducerState(false);
+  const [upgradePreview, setUpgradePreview] = useReducerState<{
     targetTier: "plus" | "pro";
     loading: boolean;
     data: PaidPlanSwitchPreview | null;
@@ -221,10 +206,9 @@ function RedeemPromotionPage() {
 
   const redeem = async () => {
     if (!isAuthenticated) {
-      void navigate({
-        to: "/auth/sign-in",
-        search: { next: `/redeem/${encodeURIComponent(code)}` },
-      });
+      const signInUrl = new URL("/auth/sign-in", window.location.origin);
+      signInUrl.searchParams.set("next", `/redeem/${encodeURIComponent(code)}`);
+      window.location.assign(`${signInUrl.pathname}${signInUrl.search}`);
       return;
     }
 
@@ -319,7 +303,7 @@ function RedeemPromotionPage() {
       );
       return () => window.clearTimeout(timeout);
     }
-  }, [cancelPendingCheckout, isAuthenticated]);
+  }, [cancelPendingCheckout, isAuthenticated, setCheckoutMessage, setError]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -341,7 +325,7 @@ function RedeemPromotionPage() {
     return () => {
       cancelled = true;
     };
-  }, [getStripePriceDetails, isAuthenticated]);
+  }, [getStripePriceDetails, isAuthenticated, setConfiguredStripePrices]);
 
   const isSubscriptionPromo = promotion?.kind === "subscription_discount";
   const configuredTargetTiers = isSubscriptionPromo
@@ -410,6 +394,7 @@ function RedeemPromotionPage() {
     paidUpgradeSelected,
     previewSubscriptionPromotionUpgrade,
     selectedTargetTier,
+    setUpgradePreview,
   ]);
 
   const selectSubscriptionTargetTier = (tier: "plus" | "pro") => {
@@ -423,7 +408,7 @@ function RedeemPromotionPage() {
         <section className="border-border bg-card overflow-hidden rounded-xl border">
           <div className="bg-muted h-2" />
           <div className="space-y-5 p-6">
-            <div className="bg-muted h-12 w-12 rounded-lg" />
+            <div className="bg-muted size-12 rounded-lg" />
             <div className="space-y-2">
               <div className="bg-muted h-7 w-2/3 rounded" />
               <div className="bg-muted h-4 w-1/2 rounded" />
@@ -685,7 +670,7 @@ function RedeemPromotionPage() {
                 </>
               ) : (
                 <p className="text-muted-foreground text-sm">
-                  Preparing Stripe invoice preview...
+                  Preparing Stripe invoice preview&hellip;
                 </p>
               )}
             </div>
@@ -759,49 +744,6 @@ function RedeemPromotionPage() {
   );
 }
 
-function RedeemShell({ children }: { children: ReactNode }) {
-  return (
-    <main className="bg-background min-h-screen">
-      <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-4 py-8 sm:px-6">
-        <div className="w-full min-w-0">{children}</div>
-      </div>
-    </main>
-  );
-}
-
-function StatusPanel({
-  icon,
-  tone,
-  title,
-  description,
-  className,
-}: {
-  icon: ReactNode;
-  tone: "success" | "destructive" | "muted";
-  title: string;
-  description: string;
-  className?: string;
-}) {
-  const toneClass =
-    tone === "success"
-      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-      : tone === "destructive"
-        ? "border-destructive/30 bg-destructive/10 text-destructive"
-        : "border-border bg-muted/35 text-foreground";
-
-  return (
-    <div
-      className={`rounded-lg border p-4 text-sm ${toneClass} ${className ?? ""}`}
-    >
-      <div className="flex items-center gap-2 font-medium">
-        {icon}
-        {title}
-      </div>
-      <p className="text-muted-foreground mt-2 leading-6">{description}</p>
-    </div>
-  );
-}
-
 function formatRedemptionResult(result: {
   kind?: string;
   amount: number;
@@ -831,3 +773,12 @@ function formatRedemptionResult(result: {
       : ""
   }`;
 }
+
+export const Route = createFileRoute("/redeem/$code")({
+  ssr: "data-only",
+  loader: ({ params }) => loadPublicPromotion(params.code),
+  head: ({ params }) => ({
+    meta: [{ title: `Redeem ${params.code} | Redux Chat` }],
+  }),
+  component: RedeemPromotionPage,
+});

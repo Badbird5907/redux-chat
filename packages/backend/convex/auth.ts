@@ -76,7 +76,9 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     new Set([
       siteUrl,
       productionUrl,
-      ...parseTrustedOrigins(optionalEnvString(env.OAUTH_PROXY_TRUSTED_ORIGINS)),
+      ...parseTrustedOrigins(
+        optionalEnvString(env.OAUTH_PROXY_TRUSTED_ORIGINS),
+      ),
     ]),
   );
 

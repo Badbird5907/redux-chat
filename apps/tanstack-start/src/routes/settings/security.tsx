@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
@@ -28,10 +28,10 @@ import GoogleIcon from "@redux/ui/icons/google";
 
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { authClient } from "@/lib/auth/client";
-import { toAbsoluteAuthCallbackURL } from "@/lib/auth/redirect";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 const emailSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.email("Please enter a valid email address"),
 });
 
 const passwordSchema = z
@@ -53,22 +53,18 @@ type AuthAccount = {
   scopes: string[];
 };
 
-export const Route = createFileRoute("/settings/security")({
-  component: SecurityRouteComponent,
-});
-
 function SecurityRouteComponent() {
   const {
     data: session,
     isPending,
     refetch: refetchSession,
   } = authClient.useSession();
-  const [accounts, setAccounts] = useState<AuthAccount[] | null>(null);
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-  const [isLinkingGithub, setIsLinkingGithub] = useState(false);
-  const [isUnlinkingGithub, setIsUnlinkingGithub] = useState(false);
-  const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
-  const [isUnlinkingGoogle, setIsUnlinkingGoogle] = useState(false);
+  const [accounts, setAccounts] = useReducerState<AuthAccount[] | null>(null);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useReducerState(false);
+  const [isLinkingGithub, setIsLinkingGithub] = useReducerState(false);
+  const [isUnlinkingGithub, setIsUnlinkingGithub] = useReducerState(false);
+  const [isLinkingGoogle, setIsLinkingGoogle] = useReducerState(false);
+  const [isUnlinkingGoogle, setIsUnlinkingGoogle] = useReducerState(false);
   const setPassword = useMutation(api.functions.user.setPassword);
 
   const hasLoadedAccounts = accounts !== null;
@@ -98,7 +94,7 @@ function SecurityRouteComponent() {
 
     setAccounts(result.data);
     setIsLoadingAccounts(false);
-  }, [session]);
+  }, [session, setAccounts, setIsLoadingAccounts]);
 
   useEffect(() => {
     void Promise.resolve().then(loadAccounts);
@@ -189,7 +185,6 @@ function SecurityRouteComponent() {
     setIsLinkingGithub(true);
     const result = await authClient.linkSocial({
       provider: "github",
-      callbackURL: toAbsoluteAuthCallbackURL("/settings/security"),
     });
 
     if (result.error) {
@@ -205,7 +200,6 @@ function SecurityRouteComponent() {
     setIsLinkingGoogle(true);
     const result = await authClient.linkSocial({
       provider: "google",
-      callbackURL: toAbsoluteAuthCallbackURL("/settings/security"),
     });
 
     if (result.error) {
@@ -330,9 +324,7 @@ function SecurityRouteComponent() {
           </CardHeader>
           <CardContent>
             <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
+              action={async () => {
                 await emailForm.handleSubmit();
               }}
               className="space-y-4"
@@ -345,9 +337,8 @@ function SecurityRouteComponent() {
                 </FieldDescription>
               </Field>
 
-              <emailForm.Field
-                name="email"
-                children={(field) => (
+              <emailForm.Field name="email">
+                {(field) => (
                   <Field>
                     <FieldLabel>New email</FieldLabel>
                     <Input
@@ -365,7 +356,7 @@ function SecurityRouteComponent() {
                     ) : null}
                   </Field>
                 )}
-              />
+              </emailForm.Field>
 
               <Button type="submit" disabled={emailForm.state.isSubmitting}>
                 {emailForm.state.isSubmitting ? (
@@ -390,17 +381,14 @@ function SecurityRouteComponent() {
           </CardHeader>
           <CardContent>
             <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
+              action={async () => {
                 await passwordForm.handleSubmit();
               }}
               className="space-y-4"
             >
               {hasPassword ? (
-                <passwordForm.Field
-                  name="currentPassword"
-                  children={(field) => (
+                <passwordForm.Field name="currentPassword">
+                  {(field) => (
                     <Field>
                       <FieldLabel>Current password</FieldLabel>
                       <Input
@@ -417,7 +405,7 @@ function SecurityRouteComponent() {
                       ) : null}
                     </Field>
                   )}
-                />
+                </passwordForm.Field>
               ) : (
                 <div className="bg-muted/40 border-border rounded-md border px-3 py-2.5 text-sm">
                   <p className="font-medium">No password is set</p>
@@ -431,9 +419,8 @@ function SecurityRouteComponent() {
                 </div>
               )}
 
-              <passwordForm.Field
-                name="newPassword"
-                children={(field) => (
+              <passwordForm.Field name="newPassword">
+                {(field) => (
                   <Field>
                     <FieldLabel>New password</FieldLabel>
                     <Input
@@ -450,11 +437,10 @@ function SecurityRouteComponent() {
                     ) : null}
                   </Field>
                 )}
-              />
+              </passwordForm.Field>
 
-              <passwordForm.Field
-                name="confirmPassword"
-                children={(field) => (
+              <passwordForm.Field name="confirmPassword">
+                {(field) => (
                   <Field>
                     <FieldLabel>Confirm new password</FieldLabel>
                     <Input
@@ -471,7 +457,7 @@ function SecurityRouteComponent() {
                     ) : null}
                   </Field>
                 )}
-              />
+              </passwordForm.Field>
 
               <Button
                 type="submit"
@@ -677,3 +663,7 @@ function SecuritySkeleton() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/settings/security")({
+  component: SecurityRouteComponent,
+});

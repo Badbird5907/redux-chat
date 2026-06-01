@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,6 +51,7 @@ function ChangePasswordForm({
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: async (password: string) => {
@@ -63,7 +64,10 @@ function ChangePasswordForm({
       }
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "user", "get", userId],
+      });
       toast.success(`Password updated for ${displayName}`);
       onClose();
     },

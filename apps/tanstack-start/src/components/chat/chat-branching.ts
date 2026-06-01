@@ -7,7 +7,7 @@ function messageOrderValue(message: ChatMessageWithThreadMetadata) {
 export function sortMessagesForBranching(
   messages: ChatMessageWithThreadMetadata[],
 ) {
-  return [...messages].sort((left, right) => {
+  return messages.toSorted((left, right) => {
     const depthDelta = (left.depth ?? 0) - (right.depth ?? 0);
     if (depthDelta !== 0) {
       return depthDelta;

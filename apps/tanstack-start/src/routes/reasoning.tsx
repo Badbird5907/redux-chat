@@ -6,11 +6,7 @@ import {
   BrainMediumIcon,
 } from "@/components/chat/input/brain-level-icons";
 
-export const Route = createFileRoute("/reasoning")({
-  component: RouteComponent,
-});
-
-function RouteComponent() {
+function ReasoningRouteComponent() {
   return (
     <div className="container mx-auto space-y-8 py-10">
       <div className="space-y-2">
@@ -72,3 +68,7 @@ function RouteComponent() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/reasoning")({
+  component: ReasoningRouteComponent,
+});

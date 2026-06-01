@@ -1,7 +1,5 @@
-"use no memo";
-
 import { lazy, Suspense, useMemo } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { ArrowLeft } from "lucide-react";
 import z from "zod";
@@ -25,15 +23,6 @@ const ProjectChatInputClient = lazy(
 
 const PROJECT_THREAD_PAGE_SIZE = 50;
 
-export const Route = createFileRoute("/_app/projects/$id")({
-  ssr: false,
-  params: z.object({ id: z.string() }),
-  component: ProjectDetailPage,
-  head: ({ params }) => ({
-    meta: [{ title: params.id ? `Project | Redux Chat` : "Redux Chat" }],
-  }),
-});
-
 function formatRelative(timestamp: number): string {
   const diffMs = Date.now() - timestamp;
   const minutes = Math.floor(diffMs / 60000);
@@ -46,7 +35,9 @@ function formatRelative(timestamp: number): string {
 }
 
 function ProjectDetailPage() {
-  const { id: projectId } = Route.useParams();
+  "use no memo";
+
+  const { id: projectId } = useParams({ from: "/_app/projects/$id" });
   const project = useQuery(api.functions.projects.getProject, { projectId });
 
   const projectThreads = usePaginatedQuery(
@@ -200,3 +191,12 @@ function ProjectSurface({
     </div>
   );
 }
+
+export const Route = createFileRoute("/_app/projects/$id")({
+  params: z.object({ id: z.string() }),
+  ssr: false,
+  component: ProjectDetailPage,
+  head: ({ params }) => ({
+    meta: [{ title: params.id ? `Project | Redux Chat` : "Redux Chat" }],
+  }),
+});

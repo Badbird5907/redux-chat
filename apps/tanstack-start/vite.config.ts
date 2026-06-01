@@ -7,13 +7,13 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
-import tsConfigPaths from "vite-tsconfig-paths";
 
 const require = createRequire(import.meta.url);
 const justBashBundleDir = path.dirname(require.resolve("just-bash"));
 
 export default defineConfig({
   resolve: {
+    tsconfigPaths: true,
     alias: {
       "just-bash": path.join(justBashBundleDir, "index.js"),
     },
@@ -69,11 +69,11 @@ export default defineConfig({
     external: ["xlsx", "mammoth", "pdf-lib", "unpdf", "just-bash"],
   },
   plugins: [
-    tsConfigPaths({
-      projects: ["./tsconfig.json"],
-    }),
     tanstackStart({
       srcDirectory: "src",
+      router: {
+        routeFileIgnorePattern: "-loader\\.tsx?$",
+      },
     }),
     sentryTanstackStart({
       org: "evan-yu",

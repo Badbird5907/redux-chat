@@ -1,0 +1,18 @@
+{
+  "$schema": "https://www.react.doctor/schema.json",
+  "rules": {
+    "deslop/unused-file": "off"
+  },
+  "ignore": {
+    "overrides": [
+      {
+        "files": [
+          "src/components/chat/use-chat-draft.ts",
+          "src/components/chat/use-chat-session.ts",
+          "src/components/markdown/shiki-code-block.tsx"
+        ],
+        "rules": ["react-doctor/no-event-handler"]
+      }
+    ]
+  }
+}

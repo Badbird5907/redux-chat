@@ -7,10 +7,6 @@ import { useTheme } from "@redux/ui/components/theme";
 
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 
-export const Route = createFileRoute("/settings/appearance")({
-  component: AppearanceRouteComponent,
-});
-
 const themeOptions = [
   {
     icon: Monitor,
@@ -71,3 +67,7 @@ function AppearanceRouteComponent() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/settings/appearance")({
+  component: AppearanceRouteComponent,
+});

@@ -1,5 +1,6 @@
 import type React from "react";
 import type { RefObject } from "react";
+import { useState } from "react";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
 import {
   ArrowUp,
@@ -59,12 +60,24 @@ interface ChatInputToolbarProps {
   selectedInstructionId?: string;
   selectedInstructionName?: string;
   onInstructionChange: (instructionId: string) => void;
-  instructionsReady: boolean;
-  canUploadFiles: boolean;
-  isAnalysisWorkspaceEnabled: boolean;
-  isImageGenerationEnabled: boolean;
-  isBashWorkspaceEnabled: boolean;
-  isSearchEnabled: boolean;
+  state: {
+    instructionsReady: boolean;
+    canUploadFiles: boolean;
+    isAnalysisWorkspaceEnabled: boolean;
+    isImageGenerationEnabled: boolean;
+    isBashWorkspaceEnabled: boolean;
+    isSearchEnabled: boolean;
+    settingsReady: boolean;
+    isContentOverflowing: boolean;
+    isExpanded: boolean;
+    showTokenVisualization: boolean;
+    canConfigureReasoning: boolean;
+    hasUsableAttachments: boolean;
+    isSubmitting: boolean;
+    hasUploadingFiles: boolean;
+    draftReady: boolean;
+    isOutOfCredits: boolean;
+  };
   imageGenerationModels: {
     id: string;
     name: string;
@@ -76,31 +89,21 @@ interface ChatInputToolbarProps {
   onImageGenerationModelChange: (modelId: string) => void;
   onBashWorkspaceEnabledChange: (enabled: boolean) => void;
   onToggleSearch: () => void;
-  settingsReady: boolean;
   mcpServers: {
     mcpServerId: string;
     name: string;
   }[];
   enabledMcpServerIds: string[];
   onToggleMcpServer: (mcpServerId: string) => void;
-  isContentOverflowing: boolean;
-  isExpanded: boolean;
   onToggleExpand: () => void;
   tokenCount: number;
-  showTokenVisualization: boolean;
   onTokenCountClick: () => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
   thinkingLevel: ThinkingLevel;
   thinkingLevels: readonly ThinkingLevel[];
-  canConfigureReasoning: boolean;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
   input: string;
-  hasUsableAttachments: boolean;
-  isSubmitting: boolean;
-  hasUploadingFiles: boolean;
-  draftReady: boolean;
-  isOutOfCredits: boolean;
   onSubmit: () => void;
   onStopGeneration?: () => void;
 }
@@ -117,12 +120,7 @@ export function ChatInputToolbar({
   selectedInstructionId,
   selectedInstructionName,
   onInstructionChange,
-  instructionsReady,
-  canUploadFiles,
-  isAnalysisWorkspaceEnabled,
-  isImageGenerationEnabled,
-  isBashWorkspaceEnabled,
-  isSearchEnabled,
+  state,
   imageGenerationModels,
   selectedImageGenerationModelId,
   onAnalysisWorkspaceEnabledChange,
@@ -130,33 +128,46 @@ export function ChatInputToolbar({
   onImageGenerationModelChange,
   onBashWorkspaceEnabledChange,
   onToggleSearch,
-  settingsReady,
   mcpServers,
   enabledMcpServerIds,
   onToggleMcpServer,
-  isContentOverflowing,
-  isExpanded,
   onToggleExpand,
   tokenCount,
-  showTokenVisualization,
   onTokenCountClick,
   // project,
   selectedModel,
   onModelChange,
   thinkingLevel,
   thinkingLevels,
-  canConfigureReasoning,
   onThinkingLevelChange,
   input,
-  hasUsableAttachments,
-  isSubmitting,
-  hasUploadingFiles,
-  draftReady,
-  isOutOfCredits,
   onSubmit,
   onStopGeneration,
 }: ChatInputToolbarProps) {
   const uploadFileHotkey = useResolvedHotkey("chat.uploadFile");
+  const {
+    instructionsReady,
+    canUploadFiles,
+    isAnalysisWorkspaceEnabled,
+    isImageGenerationEnabled,
+    isBashWorkspaceEnabled,
+    isSearchEnabled,
+    settingsReady,
+    isContentOverflowing,
+    isExpanded,
+    showTokenVisualization,
+    canConfigureReasoning,
+    hasUsableAttachments,
+    isSubmitting,
+    hasUploadingFiles,
+    draftReady,
+    isOutOfCredits,
+  } = state;
+  const [hasBeenReady, setHasBeenReady] = useState(settingsReady);
+  if (settingsReady && !hasBeenReady) {
+    setHasBeenReady(true);
+  }
+  const showModelControls = settingsReady || hasBeenReady;
   // const proj = useQuery(api.functions.projects.getProject, { projectId: project ?? ""}, { skip: !project });
   return (
     <div className="flex items-center justify-between px-2 pb-2">
@@ -166,6 +177,7 @@ export function ChatInputToolbar({
           type="file"
           multiple
           accept={acceptedFileTypes}
+          aria-label="Upload files"
           onChange={onFileChange}
           className="hidden"
         />
@@ -176,11 +188,11 @@ export function ChatInputToolbar({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-full"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted size-8 rounded-full"
               />
             }
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="size-5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-max min-w-52">
             <DropdownMenuItem
@@ -353,14 +365,14 @@ export function ChatInputToolbar({
           )}
           disabled={!settingsReady}
         >
-          <Search className="h-3.5 w-3.5" />
+          <Search className="size-3.5" />
           <span>Search</span>
         </button>
         {/* {project && proj && (
           <Tooltip>
             <TooltipTrigger>
               <button type="button" className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors">
-                <FolderKanban className="h-4 w-4" />
+                <FolderKanban className="size-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent>
@@ -376,8 +388,8 @@ export function ChatInputToolbar({
             aria-label={`Clear instruction: ${selectedInstructionName}`}
             className="group border-border bg-muted/50 text-muted-foreground hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors"
           >
-            <BookText className="h-3.5 w-3.5 shrink-0 group-hover:hidden" />
-            <Trash2 className="hidden h-3.5 w-3.5 shrink-0 group-hover:block" />
+            <BookText className="size-3.5 shrink-0 group-hover:hidden" />
+            <Trash2 className="hidden size-3.5 shrink-0 group-hover:block" />
             <span>{selectedInstructionName}</span>
           </button>
         ) : null}
@@ -389,14 +401,14 @@ export function ChatInputToolbar({
             type="button"
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-full"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted size-8 rounded-full"
             onClick={onToggleExpand}
             title={isExpanded ? "Collapse" : "Expand"}
           >
             {isExpanded ? (
-              <Minimize2 className="h-4 w-4" />
+              <Minimize2 className="size-4" />
             ) : (
-              <Maximize2 className="h-4 w-4" />
+              <Maximize2 className="size-4" />
             )}
           </Button>
         )}
@@ -415,23 +427,31 @@ export function ChatInputToolbar({
             {tokenCount.toLocaleString()} tokens
           </button>
         )}
-        {canConfigureReasoning ? (
-          <ReasoningLevelSelector
-            thinkingLevel={thinkingLevel}
-            thinkingLevels={thinkingLevels}
-            onThinkingLevelChange={onThinkingLevelChange}
+        <div
+          className={cn(
+            "flex items-center gap-1 transition-opacity duration-200",
+            showModelControls ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+          aria-hidden={!showModelControls}
+        >
+          {canConfigureReasoning ? (
+            <ReasoningLevelSelector
+              thinkingLevel={thinkingLevel}
+              thinkingLevels={thinkingLevels}
+              onThinkingLevelChange={onThinkingLevelChange}
+            />
+          ) : null}
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={onModelChange}
           />
-        ) : null}
-        <ModelSelector
-          selectedModel={selectedModel}
-          onModelChange={onModelChange}
-        />
+        </div>
         {isSubmitting && onStopGeneration ? (
           <Button
             type="button"
             size="icon"
             variant="destructive"
-            className="h-8 w-8 rounded-full"
+            className="size-8 rounded-full"
             onClick={onStopGeneration}
             title="Stop generating"
           >
@@ -442,7 +462,7 @@ export function ChatInputToolbar({
             type="button"
             size="icon"
             className={cn(
-              "h-8 w-8 rounded-full transition-all",
+              "size-8 rounded-full transition-all",
               input.trim() || hasUsableAttachments
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "bg-muted text-muted-foreground",
@@ -459,9 +479,9 @@ export function ChatInputToolbar({
             }
           >
             {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <ArrowUp className="h-4 w-4" />
+              <ArrowUp className="size-4" />
             )}
           </Button>
         )}

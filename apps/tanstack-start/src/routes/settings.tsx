@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  useRouteContext,
+} from "@tanstack/react-router";
 
 import { SidebarProvider } from "@redux/ui/components/sidebar";
 
@@ -13,24 +17,8 @@ import {
 } from "@/lib/hotkeys";
 import { getSidebarConfig } from "@/server/cookie";
 
-export const Route = createFileRoute("/settings")({
-  beforeLoad: async () => {
-    const sidebarConfig = await getSidebarConfig();
-    const [openState, savedWidth] = sidebarConfig?.split(":") ?? [];
-    const defaultOpen =
-      openState !== undefined ? openState === "true" : undefined;
-    const defaultWidth = savedWidth;
-
-    return {
-      defaultOpen,
-      defaultWidth,
-    };
-  },
-  component: SettingsLayout,
-});
-
 function SettingsLayout() {
-  const { defaultOpen, defaultWidth } = Route.useRouteContext();
+  const { defaultOpen, defaultWidth } = useRouteContext({ from: "/settings" });
   const [commandOpen, setCommandOpen] = useState(false);
 
   return (
@@ -53,3 +41,19 @@ function SettingsLayout() {
     </SidebarProvider>
   );
 }
+
+export const Route = createFileRoute("/settings")({
+  beforeLoad: async () => {
+    const sidebarConfig = await getSidebarConfig();
+    const [openState, savedWidth] = sidebarConfig?.split(":") ?? [];
+    const defaultOpen =
+      openState !== undefined ? openState === "true" : undefined;
+    const defaultWidth = savedWidth;
+
+    return {
+      defaultOpen,
+      defaultWidth,
+    };
+  },
+  component: SettingsLayout,
+});

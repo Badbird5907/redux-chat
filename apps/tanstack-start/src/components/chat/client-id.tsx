@@ -2,8 +2,8 @@ import type { AllocatedSignedId } from "@/components/chat/signed-id-allocator";
 import type { ReactNode } from "react";
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -82,7 +82,7 @@ export const SignedCidProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useSignedCid = () => {
-  const ctx = useContext(SignedCidContext);
+  const ctx = use(SignedCidContext);
   if (!ctx) throw new Error("Must be used in SignedCidContext");
 
   return ctx;

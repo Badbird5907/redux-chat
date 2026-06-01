@@ -3,7 +3,7 @@ import {
   createFileRoute,
   Link,
   redirect,
-  useNavigate,
+  useSearch,
 } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
@@ -28,29 +28,12 @@ import { authClient } from "@/lib/auth/client";
 import { sanitizeAuthRedirect } from "@/lib/auth/redirect";
 
 const signInSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
-export const Route = createFileRoute("/auth/sign-in")({
-  validateSearch: (search): { next?: string } => {
-    if (typeof search.next !== "string") {
-      return {};
-    }
-    return { next: sanitizeAuthRedirect(search.next) };
-  },
-  beforeLoad: ({ context, search }) => {
-    if (context.isAuthenticated) {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: sanitizeAuthRedirect(search.next) });
-    }
-  },
-  component: SignInPage,
-});
-
 function SignInPage() {
-  const navigate = useNavigate();
-  const { next } = Route.useSearch();
+  const { next } = useSearch({ from: "/auth/sign-in" });
   const redirectTo = sanitizeAuthRedirect(next);
   const posthog = usePostHog();
 
@@ -71,7 +54,7 @@ function SignInPage() {
             posthog.identify(value.email, { email: value.email });
             posthog.capture("user_signed_in", { method: "email" });
             localStorage.setItem("last-used-provider", "email");
-            void navigate({ to: redirectTo });
+            window.location.assign(redirectTo);
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);
@@ -99,16 +82,13 @@ function SignInPage() {
           />
 
           <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            action={async () => {
               await form.handleSubmit();
             }}
             className="space-y-4"
           >
-            <form.Field
-              name="email"
-              children={(field) => (
+            <form.Field name="email">
+              {(field) => (
                 <Field>
                   <FieldLabel>Email</FieldLabel>
                   <Input
@@ -123,10 +103,9 @@ function SignInPage() {
                   )}
                 </Field>
               )}
-            />
-            <form.Field
-              name="password"
-              children={(field) => (
+            </form.Field>
+            <form.Field name="password">
+              {(field) => (
                 <Field>
                   <div className="flex items-center justify-between">
                     <FieldLabel>Password</FieldLabel>
@@ -150,14 +129,14 @@ function SignInPage() {
                   )}
                 </Field>
               )}
-            />
+            </form.Field>
             <Button
               className="w-full"
               type="submit"
               disabled={form.state.isSubmitting}
             >
               {form.state.isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin" />
               ) : null}
               Sign In
             </Button>
@@ -179,3 +158,19 @@ function SignInPage() {
     </>
   );
 }
+
+export const Route = createFileRoute("/auth/sign-in")({
+  validateSearch: (search): { next?: string } => {
+    if (typeof search.next !== "string") {
+      return {};
+    }
+    return { next: sanitizeAuthRedirect(search.next) };
+  },
+  beforeLoad: ({ context, search }) => {
+    if (context.isAuthenticated) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw redirect({ to: sanitizeAuthRedirect(search.next) });
+    }
+  },
+  component: SignInPage,
+});

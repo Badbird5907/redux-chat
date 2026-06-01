@@ -87,7 +87,7 @@ export function ModelSelector({
         >
           <ProviderGlyph maker={maker} className="size-3.5" />
           <span className="font-medium">{currentModelName}</span>
-          <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+          <ChevronDown className="size-3 shrink-0 opacity-70" />
         </SheetTrigger>
         <SheetContent
           side="bottom"
@@ -123,7 +123,7 @@ export function ModelSelector({
       >
         <ProviderGlyph maker={maker} className="size-3.5" />
         <span className="font-medium">{currentModelName}</span>
-        <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+        <ChevronDown className="size-3 shrink-0 opacity-70" />
       </PopoverTrigger>
       <PopoverContent
         align="end"

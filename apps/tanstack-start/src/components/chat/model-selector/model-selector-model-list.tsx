@@ -1,6 +1,6 @@
 import type { DragEvent } from "react";
 import { Sparkles, Star } from "lucide-react";
-import { LayoutGroup, motion } from "motion/react";
+import { LayoutGroup, m } from "motion/react";
 
 import type { PlanTier } from "@redux/shared";
 import type { ChatModelConfig } from "@redux/shared/models";
@@ -17,6 +17,8 @@ import { useBillingState } from "@/components/chat/use-billing-state";
 import { Capabilities } from "./capabilities";
 import { panelSpring } from "./constants";
 import { ModelRowSubtitle } from "./model-row-subtitle";
+
+const listboxRole = "listbox" as const;
 
 type ModelListProps = Pick<
   ModelSelectorState,
@@ -73,7 +75,7 @@ export function ModelSelectorModelList(props: ModelListProps) {
         : "No models match your search.";
 
   return (
-    <motion.div
+    <m.div
       layout="position"
       transition={panelSpring}
       className="min-h-0 min-w-0 flex-1"
@@ -81,19 +83,19 @@ export function ModelSelectorModelList(props: ModelListProps) {
       <div
         ref={listboxRef}
         id={listboxId}
-        role="listbox"
+        role={listboxRole}
         aria-label="Models"
         className="h-full min-h-0 overflow-y-auto overscroll-contain"
       >
         {filteredModels.length === 0 ? (
-          <motion.p
+          <m.p
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={panelSpring}
             className="text-muted-foreground px-3 py-8 text-center text-sm"
           >
             {emptyMessage}
-          </motion.p>
+          </m.p>
         ) : (
           <LayoutGroup id={favoritesLayoutGroupId}>
             {filteredModels.map((model, rowIndex) => (
@@ -108,7 +110,7 @@ export function ModelSelectorModelList(props: ModelListProps) {
           </LayoutGroup>
         )}
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -139,11 +141,11 @@ function ModelRow({
     (listProps.isSearchActive || listProps.navColumn === "list");
 
   return (
-    <motion.div
+    <m.div
       id={`${listProps.optionIdPrefix}-opt-${model.id}`}
       ref={(el) => {
-        if (el) listProps.optionRefs.current.set(model.id, el);
-        else listProps.optionRefs.current.delete(model.id);
+        if (el) listProps.optionRefs.current?.set(model.id, el);
+        else listProps.optionRefs.current?.delete(model.id);
       }}
       layout={listProps.isFavoritesListView}
       initial={false}
@@ -233,6 +235,6 @@ function ModelRow({
       <div className="shrink-0 self-start">
         <Capabilities model={model} />
       </div>
-    </motion.div>
+    </m.div>
   );
 }

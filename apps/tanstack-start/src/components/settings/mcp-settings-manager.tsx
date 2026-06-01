@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useMutation } from "convex/react";
 import { KeyRound, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Switch } from "@redux/ui/components/switch";
 import McpLogo from "@/components/logos/mcp";
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
+import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 interface McpServerDraft {
   name: string;
@@ -39,12 +40,15 @@ function createDraft(server: {
 }
 
 function compactAuthHeaders(authHeaders: AuthHeaderDraft[]) {
-  return authHeaders
-    .map((header) => ({
+  return authHeaders.flatMap((header) => {
+    const compacted = {
       name: header.name.trim(),
       value: header.value.trim(),
-    }))
-    .filter((header) => header.name.length > 0 || header.value.length > 0);
+    };
+    return compacted.name.length > 0 || compacted.value.length > 0
+      ? [compacted]
+      : [];
+  });
 }
 
 function serializeAuthHeaders(authHeaders: AuthHeaderDraft[]) {
@@ -69,15 +73,21 @@ export function McpSettingsManager() {
   const removeServer = useMutation(api.functions.mcpServers.remove);
   const setMcpEnabled = useMutation(api.functions.mcpServers.setEnabled);
 
-  const [drafts, setDrafts] = useState<Record<string, McpServerDraft>>({});
-  const [editingIds, setEditingIds] = useState<Record<string, boolean>>({});
-  const [newServerName, setNewServerName] = useState("");
-  const [newServerUrl, setNewServerUrl] = useState("");
-  const [newAuthHeaders, setNewAuthHeaders] = useState<AuthHeaderDraft[]>([]);
-  const [savingEnabled, setSavingEnabled] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useReducerState<Record<string, McpServerDraft>>(
+    {},
+  );
+  const [editingIds, setEditingIds] = useReducerState<Record<string, boolean>>(
+    {},
+  );
+  const [newServerName, setNewServerName] = useReducerState("");
+  const [newServerUrl, setNewServerUrl] = useReducerState("");
+  const [newAuthHeaders, setNewAuthHeaders] = useReducerState<
+    AuthHeaderDraft[]
+  >([]);
+  const [savingEnabled, setSavingEnabled] = useReducerState(false);
+  const [creating, setCreating] = useReducerState(false);
+  const [savingId, setSavingId] = useReducerState<string | null>(null);
+  const [deletingId, setDeletingId] = useReducerState<string | null>(null);
 
   const mergedDrafts = useMemo(
     () =>
@@ -93,18 +103,16 @@ export function McpSettingsManager() {
   const dirtyIds = useMemo(
     () =>
       new Set(
-        servers
-          .filter((server) => {
-            const draft = mergedDrafts[server.mcpServerId];
-            const authHeaders = server.authHeaders ?? [];
-            return (
-              draft?.name !== server.name ||
-              draft.url !== server.url ||
-              serializeAuthHeaders(draft.authHeaders) !==
-                serializeAuthHeaders(authHeaders)
-            );
-          })
-          .map((server) => server.mcpServerId),
+        servers.flatMap((server) => {
+          const draft = mergedDrafts[server.mcpServerId];
+          const authHeaders = server.authHeaders ?? [];
+          return draft?.name !== server.name ||
+            draft.url !== server.url ||
+            serializeAuthHeaders(draft.authHeaders) !==
+              serializeAuthHeaders(authHeaders)
+            ? [server.mcpServerId]
+            : [];
+        }),
       ),
     [mergedDrafts, servers],
   );
@@ -466,7 +474,7 @@ function AuthHeadersEditor({
         <div className="flex flex-col gap-2">
           {authHeaders.map((header, index) => (
             <div
-              key={`${idPrefix}-auth-header-${index}`}
+              key={`${idPrefix}-auth-header-${header.name}-${header.value}-${index}`}
               className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]"
             >
               <Input

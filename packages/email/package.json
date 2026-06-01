@@ -16,9 +16,7 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "devDependencies": {
-    "@react-email/preview-server": "^5.2.10",
     "@redux/eslint-config": "workspace:*",
-    "@redux/prettier-config": "workspace:*",
     "@redux/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:react19",

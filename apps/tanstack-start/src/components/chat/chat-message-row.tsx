@@ -289,7 +289,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               className="border-destructive/40 bg-destructive/10 text-destructive ring-destructive/20 w-full gap-2 py-3 shadow-none"
             >
               <CardContent className="flex items-start gap-3 px-3">
-                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <CircleAlert className="mt-0.5 size-4 shrink-0" />
                 <div className="min-w-0 space-y-1">
                   <p className="font-medium">Message generation failed</p>
                   {message.error && (
@@ -370,9 +370,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                           : "Used derivative"
                       }
                     >
-                      {usedDerivative && <ArrowRightLeft className="h-3 w-3" />}
+                      {usedDerivative && <ArrowRightLeft className="size-3" />}
                       {generatingDerivative && (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <Loader2 className="size-3 animate-spin" />
                       )}
                     </span>
                   )}
@@ -380,10 +380,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                     <img
                       src={attachment.url}
                       alt={attachmentDisplayName(attachment)}
-                      className="h-10 w-10 rounded object-cover"
+                      className="size-10 rounded object-cover"
                     />
                   ) : (
-                    <FileText className="h-4 w-4 shrink-0" />
+                    <FileText className="size-4 shrink-0" />
                   )}
                   <div className="min-w-0">
                     <span className="block max-w-48 truncate text-sm">

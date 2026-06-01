@@ -1,11 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useMemo, useRef } from "react";
+import { createContext, use, useCallback, useMemo, useState } from "react";
 
 interface ChatRouteAdoptionContextValue {
   markAdoptedThreadNavigation: (threadId: string) => void;
   consumeAdoptedThreadNavigation: (threadId: string | undefined) => boolean;
+  isAdoptedThreadNavigation: (threadId: string | undefined) => boolean;
 }
 
 const ChatRouteAdoptionContext = createContext<
@@ -17,30 +18,43 @@ export function ChatRouteAdoptionProvider({
 }: {
   children: ReactNode;
 }) {
-  const pendingThreadIdRef = useRef<string | undefined>(undefined);
+  const [pendingThreadId, setPendingThreadId] = useState<string | undefined>(
+    undefined,
+  );
 
   const markAdoptedThreadNavigation = useCallback((threadId: string) => {
-    pendingThreadIdRef.current = threadId;
+    setPendingThreadId(threadId);
   }, []);
+
+  const isAdoptedThreadNavigation = useCallback(
+    (threadId: string | undefined) =>
+      Boolean(threadId && pendingThreadId === threadId),
+    [pendingThreadId],
+  );
 
   const consumeAdoptedThreadNavigation = useCallback(
     (threadId: string | undefined) => {
-      if (!threadId || pendingThreadIdRef.current !== threadId) {
+      if (!isAdoptedThreadNavigation(threadId)) {
         return false;
       }
 
-      pendingThreadIdRef.current = undefined;
+      setPendingThreadId(undefined);
       return true;
     },
-    [],
+    [isAdoptedThreadNavigation],
   );
 
   const value = useMemo(
     () => ({
       markAdoptedThreadNavigation,
       consumeAdoptedThreadNavigation,
+      isAdoptedThreadNavigation,
     }),
-    [consumeAdoptedThreadNavigation, markAdoptedThreadNavigation],
+    [
+      consumeAdoptedThreadNavigation,
+      isAdoptedThreadNavigation,
+      markAdoptedThreadNavigation,
+    ],
   );
 
   return (
@@ -51,7 +65,7 @@ export function ChatRouteAdoptionProvider({
 }
 
 export function useChatRouteAdoption() {
-  const context = useContext(ChatRouteAdoptionContext);
+  const context = use(ChatRouteAdoptionContext);
 
   if (!context) {
     throw new Error(

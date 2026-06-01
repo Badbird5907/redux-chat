@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { ConvexQueryClient } from "@convex-dev/react-query";
 import * as Sentry from "@sentry/tanstackstart-react";
 import { notifyManager, QueryClient } from "@tanstack/react-query";
@@ -6,16 +5,10 @@ import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import SuperJSON from "superjson";
 
+import { DefaultRouterError } from "./components/default-router-error";
 import { DefaultNotFoundPage } from "./components/not-found-page";
 import { env, getSentryPublicDsn } from "./env";
 import { routeTree } from "./routeTree.gen";
-
-function DefaultRouterError({ error }: { error: Error }) {
-  useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
-  return <p>{error.stack}</p>;
-}
 
 export function getRouter() {
   if (typeof document !== "undefined") {

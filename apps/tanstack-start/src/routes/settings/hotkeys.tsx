@@ -11,10 +11,6 @@ import { Kbd } from "@redux/ui/components/kbd";
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { appHotkeyDefinitions, useHotkeySettings } from "@/lib/hotkeys";
 
-export const Route = createFileRoute("/settings/hotkeys")({
-  component: HotkeysRouteComponent,
-});
-
 function HotkeysRouteComponent() {
   const { bindings, isCustomized, resetAll, resetBinding, setBinding } =
     useHotkeySettings();
@@ -222,3 +218,7 @@ function HotkeysRouteComponent() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/settings/hotkeys")({
+  component: HotkeysRouteComponent,
+});

@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -41,6 +42,46 @@ interface HighlightedCodeState {
   html: string;
 }
 
+type HighlightedCodeAction =
+  | { type: "apply"; highlightedCode: HighlightedCodeState }
+  | { type: "clear" };
+
+function highlightedCodeReducer(
+  previousHighlight: HighlightedCodeState | null,
+  action: HighlightedCodeAction,
+): HighlightedCodeState | null {
+  if (action.type === "clear") {
+    return null;
+  }
+
+  const nextHighlightedCode = action.highlightedCode;
+  if (
+    previousHighlight?.cacheKey === nextHighlightedCode.cacheKey &&
+    previousHighlight.html === nextHighlightedCode.html
+  ) {
+    return previousHighlight;
+  }
+
+  return nextHighlightedCode;
+}
+
+function HighlightedHtml({ html }: { html: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.innerHTML = html;
+
+    return () => {
+      container.innerHTML = "";
+    };
+  }, [html]);
+
+  return <div ref={containerRef} />;
+}
+
 const STREAMING_CODE_TEXT_DELAY_MS = 64;
 
 let hasPrewarmedShikiWorker = false;
@@ -63,7 +104,7 @@ export function ShikiCodeBlock({
     () => normalizeMarkdownLanguage(info),
     [info],
   );
-  const [displayedCode, setDisplayedCode] = useState(code);
+  const [displayedCode, setDisplayedCode] = useState(() => code);
   const shikiTheme = getShikiTheme(resolvedTheme);
   const request = useMemo<HighlightRequest>(
     () => ({
@@ -75,8 +116,10 @@ export function ShikiCodeBlock({
     [displayedCode, normalizedLanguage, shikiTheme],
   );
 
-  const [highlightedCode, setHighlightedCode] =
-    useState<HighlightedCodeState | null>(null);
+  const [highlightedCode, dispatchHighlightedCode] = useReducer(
+    highlightedCodeReducer,
+    null,
+  );
 
   const latestCodeRef = useRef(code);
   const latestRequestRef = useRef(request);
@@ -101,15 +144,9 @@ export function ShikiCodeBlock({
   const applyHighlightedCode = useCallback(
     (nextHighlightedCode: HighlightedCodeState) => {
       startTransition(() => {
-        setHighlightedCode((previousHighlight) => {
-          if (
-            previousHighlight?.cacheKey === nextHighlightedCode.cacheKey &&
-            previousHighlight.html === nextHighlightedCode.html
-          ) {
-            return previousHighlight;
-          }
-
-          return nextHighlightedCode;
+        dispatchHighlightedCode({
+          type: "apply",
+          highlightedCode: nextHighlightedCode,
         });
       });
     },
@@ -190,7 +227,7 @@ export function ShikiCodeBlock({
 
           latestResolvedCacheKeyRef.current = null;
           startTransition(() => {
-            setHighlightedCode(null);
+            dispatchHighlightedCode({ type: "clear" });
           });
         });
     },
@@ -271,7 +308,7 @@ export function ShikiCodeBlock({
 
       if (highlightedCodeRef.current !== null) {
         startTransition(() => {
-          setHighlightedCode(null);
+          dispatchHighlightedCode({ type: "clear" });
         });
       }
       return;
@@ -304,7 +341,7 @@ export function ShikiCodeBlock({
   return (
     <div className="chat-markdown__code-block">
       {shouldRenderHighlighted ? (
-        <div dangerouslySetInnerHTML={{ __html: highlightedCode.html }} />
+        <HighlightedHtml html={highlightedCode.html} />
       ) : (
         <pre className="chat-markdown__pre">
           <code

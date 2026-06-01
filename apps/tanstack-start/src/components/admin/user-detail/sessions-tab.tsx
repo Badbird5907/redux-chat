@@ -63,7 +63,7 @@ function sessionFingerprint(token: string) {
 }
 
 function sortSessions(list: ListedSessionRow[]) {
-  return [...list].sort((a, b) => {
+  return list.toSorted((a, b) => {
     const ea = isExpired(a.expiresAt);
     const eb = isExpired(b.expiresAt);
     if (ea !== eb) {
@@ -327,7 +327,7 @@ export function AdminUserSessionsTab({
         </p>
       </div>
       {sessionsQuery.isPending ? (
-        <div className="space-y-2 px-5 py-5">
+        <div className="space-y-2 p-5">
           <Skeleton className="h-20 w-full rounded-lg" />
           <Skeleton className="h-20 w-full rounded-lg" />
         </div>

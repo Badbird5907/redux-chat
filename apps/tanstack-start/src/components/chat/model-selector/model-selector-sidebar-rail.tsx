@@ -1,5 +1,5 @@
 import { Star } from "lucide-react";
-import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { AnimatePresence, LayoutGroup, m } from "motion/react";
 
 import { cn } from "@redux/ui/lib/utils";
 
@@ -39,7 +39,7 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
   return (
     <AnimatePresence initial={false} mode="popLayout">
       {!isSearchActive ? (
-        <motion.aside
+        <m.aside
           key="model-selector-sidebar"
           variants={sidebarAsideVariants}
           initial="closed"
@@ -50,7 +50,7 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
           data-model-selector-sidebar
         >
           <div className="flex w-14 shrink-0 flex-col items-center">
-            <motion.button
+            <m.button
               type="button"
               title="Favorite models"
               variants={sidebarRailItemVariants}
@@ -77,8 +77,8 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
                   activeSidebar === "favorites" && "fill-current",
                 )}
               />
-            </motion.button>
-            <motion.div
+            </m.button>
+            <m.div
               variants={sidebarRailItemVariants}
               className="bg-border/60 mb-1.5 h-px w-8 shrink-0"
               aria-hidden
@@ -86,7 +86,7 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
             <LayoutGroup id={sidebarRailLayoutGroupId}>
               <div className="flex w-full flex-col items-center gap-0.5">
                 {sidebarProviders.map((p, providerIdx) => (
-                  <motion.button
+                  <m.button
                     key={p.slug}
                     type="button"
                     title={p.name}
@@ -110,19 +110,19 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
                   >
                     <ProviderGlyph maker={p.slug} className="size-5" />
                     {activeSidebar === p.slug ? (
-                      <motion.span
+                      <m.span
                         layoutId="model-selector-sidebar-provider-marker"
                         className="bg-primary absolute top-1.5 right-0 h-8 w-0.5 rounded-l"
                         transition={panelSpring}
                         aria-hidden
                       />
                     ) : null}
-                  </motion.button>
+                  </m.button>
                 ))}
               </div>
             </LayoutGroup>
           </div>
-        </motion.aside>
+        </m.aside>
       ) : null}
     </AnimatePresence>
   );

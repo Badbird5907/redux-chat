@@ -48,37 +48,56 @@ export class SignedIdQueueAllocator {
   async prefetch(minimumCount = this.options.defaultCacheSize): Promise<void> {
     assertPositiveInteger(minimumCount, "minimumCount");
 
-    while (this.queue.length < minimumCount) {
-      if (this.inFlightFetch) {
-        await this.inFlightFetch;
-        continue;
-      }
-
-      const missingCount = minimumCount - this.queue.length;
-      const batchSize = Math.min(this.options.maxBatchSize, missingCount);
-
-      const fetchPromise = (async () => {
-        try {
-          const newIds = await this.fetchSignedIds(batchSize);
-          if (newIds.length !== batchSize) {
-            console.error("Signed ID generator returned unexpected count", {
-              requested: batchSize,
-              received: newIds.length,
-            });
-            throw new Error(
-              `Signed ID generator returned ${newIds.length} IDs for request of ${batchSize}`,
-            );
-          }
-
-          this.queue.push(...newIds);
-        } finally {
-          this.inFlightFetch = null;
-        }
-      })();
-
-      this.inFlightFetch = fetchPromise;
-      await fetchPromise;
+    if (this.queue.length >= minimumCount) {
+      return;
     }
+
+    if (this.inFlightFetch) {
+      await this.inFlightFetch;
+      return this.prefetch(minimumCount);
+    }
+
+    const missingCount = minimumCount - this.queue.length;
+    const batchSizes: number[] = [];
+    for (
+      let remainingCount = missingCount;
+      remainingCount > 0;
+      remainingCount -= this.options.maxBatchSize
+    ) {
+      batchSizes.push(Math.min(this.options.maxBatchSize, remainingCount));
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const batches = await Promise.all(
+          batchSizes.map(async (batchSize) => {
+            const newIds = await this.fetchSignedIds(batchSize);
+            if (newIds.length !== batchSize) {
+              console.error("Signed ID generator returned unexpected count", {
+                requested: batchSize,
+                received: newIds.length,
+              });
+              throw new Error(
+                `Signed ID generator returned ${newIds.length} IDs for request of ${batchSize}`,
+              );
+            }
+
+            return newIds;
+          }),
+        );
+
+        this.queue.push(...batches.flat());
+      } finally {
+        this.inFlightFetch = null;
+      }
+    })();
+
+    this.inFlightFetch = fetchPromise;
+    return fetchPromise.then(() =>
+      this.queue.length < minimumCount
+        ? this.prefetch(minimumCount)
+        : undefined,
+    );
   }
 
   async allocate(count: number): Promise<AllocatedSignedId[]> {

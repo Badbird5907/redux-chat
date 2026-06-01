@@ -1,24 +1,24 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { memo, useMemo } from "react";
-import { motion } from "motion/react";
+import { memo } from "react";
+import { m } from "motion/react";
 
 import { cn } from "@redux/ui/lib/utils";
 
 const shimmerMotionComponents = {
-  div: motion.div,
-  em: motion.em,
-  h1: motion.h1,
-  h2: motion.h2,
-  h3: motion.h3,
-  h4: motion.h4,
-  h5: motion.h5,
-  h6: motion.h6,
-  label: motion.label,
-  p: motion.p,
-  span: motion.span,
-  strong: motion.strong,
+  div: m.div,
+  em: m.em,
+  h1: m.h1,
+  h2: m.h2,
+  h3: m.h3,
+  h4: m.h4,
+  h5: m.h5,
+  h6: m.h6,
+  label: m.label,
+  p: m.p,
+  span: m.span,
+  strong: m.strong,
 };
 
 type ShimmerElement = keyof typeof shimmerMotionComponents;
@@ -40,10 +40,7 @@ const ShimmerComponent = ({
 }: TextShimmerProps) => {
   const MotionComponent = shimmerMotionComponents[Component];
 
-  const dynamicSpread = useMemo(
-    () => children.length * spread,
-    [children, spread],
-  );
+  const dynamicSpread = children.length * spread;
 
   return (
     <MotionComponent

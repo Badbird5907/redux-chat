@@ -41,11 +41,7 @@ import { Separator } from "@redux/ui/components/separator";
 import Spinner from "@redux/ui/components/spinner";
 import GithubIcon from "@redux/ui/icons/github";
 
-export const Route = createFileRoute("/components")({
-  component: RouteComponent,
-});
-
-function RouteComponent() {
+function ComponentsRouteComponent() {
   return (
     <div className="container mx-auto space-y-10 py-10">
       <div className="space-y-4">
@@ -103,7 +99,7 @@ function RouteComponent() {
           <Label htmlFor="disabled">Disabled</Label>
           <Input disabled id="disabled" placeholder="Disabled" />
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-x-2">
           <Checkbox id="terms" />
           <Label htmlFor="terms">Accept terms and conditions</Label>
         </div>
@@ -253,3 +249,7 @@ function RouteComponent() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/components")({
+  component: ComponentsRouteComponent,
+});

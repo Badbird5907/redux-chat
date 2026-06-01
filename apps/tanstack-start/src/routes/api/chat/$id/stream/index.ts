@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
 import { UI_MESSAGE_STREAM_HEADERS } from "ai";
-import { createResumableStreamContext } from "resumable-stream";
+import { createResumableStreamContext } from "resumable-stream/generic";
 
 import { api } from "@redux/backend/convex/_generated/api";
 

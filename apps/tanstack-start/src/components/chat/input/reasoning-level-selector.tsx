@@ -92,7 +92,7 @@ export function ReasoningLevelSelector({
         <span className="font-medium">
           {THINKING_LEVEL_LABELS[thinkingLevel]}
         </span>
-        <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+        <ChevronDown className="size-3 shrink-0 opacity-70" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" sideOffset={8}>
         <DropdownMenuRadioGroup

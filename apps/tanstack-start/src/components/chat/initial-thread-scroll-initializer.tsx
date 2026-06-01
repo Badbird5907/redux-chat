@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import { useEffectEvent, useLayoutEffect } from "react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
 export function InitialThreadScrollInitializer({
@@ -11,6 +11,7 @@ export function InitialThreadScrollInitializer({
   onReady: () => void;
 }) {
   const { scrollRef } = useStickToBottomContext();
+  const onReadyEvent = useEffectEvent(onReady);
 
   useLayoutEffect(() => {
     if (!enabled) {
@@ -22,7 +23,7 @@ export function InitialThreadScrollInitializer({
     const revealAfterPaint = () => {
       requestAnimationFrame(() => {
         if (!cancelled) {
-          onReady();
+          onReadyEvent();
         }
       });
     };
@@ -52,7 +53,7 @@ export function InitialThreadScrollInitializer({
     return () => {
       cancelled = true;
     };
-  }, [enabled, onReady, scrollRef]);
+  }, [enabled, scrollRef]);
 
   return null;
 }

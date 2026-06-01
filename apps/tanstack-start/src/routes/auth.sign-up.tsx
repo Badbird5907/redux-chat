@@ -3,7 +3,7 @@ import {
   createFileRoute,
   Link,
   redirect,
-  useNavigate,
+  useSearch,
 } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
@@ -29,29 +29,12 @@ import { sanitizeAuthRedirect } from "@/lib/auth/redirect";
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
+  email: z.email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-export const Route = createFileRoute("/auth/sign-up")({
-  validateSearch: (search): { next?: string } => {
-    if (typeof search.next !== "string") {
-      return {};
-    }
-    return { next: sanitizeAuthRedirect(search.next) };
-  },
-  beforeLoad: ({ context, search }) => {
-    if (context.isAuthenticated) {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: sanitizeAuthRedirect(search.next) });
-    }
-  },
-  component: SignUpPage,
-});
-
 function SignUpPage() {
-  const navigate = useNavigate();
-  const { next } = Route.useSearch();
+  const { next } = useSearch({ from: "/auth/sign-up" });
   const redirectTo = sanitizeAuthRedirect(next);
   const posthog = usePostHog();
 
@@ -76,7 +59,7 @@ function SignUpPage() {
               name: value.name,
             });
             posthog.capture("user_signed_up", { method: "email" });
-            void navigate({ to: redirectTo });
+            window.location.assign(redirectTo);
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);
@@ -102,16 +85,13 @@ function SignUpPage() {
           />
 
           <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            action={async () => {
               await form.handleSubmit();
             }}
             className="space-y-4"
           >
-            <form.Field
-              name="name"
-              children={(field) => (
+            <form.Field name="name">
+              {(field) => (
                 <Field>
                   <FieldLabel>Name</FieldLabel>
                   <Input
@@ -126,10 +106,9 @@ function SignUpPage() {
                   )}
                 </Field>
               )}
-            />
-            <form.Field
-              name="email"
-              children={(field) => (
+            </form.Field>
+            <form.Field name="email">
+              {(field) => (
                 <Field>
                   <FieldLabel>Email</FieldLabel>
                   <Input
@@ -144,10 +123,9 @@ function SignUpPage() {
                   )}
                 </Field>
               )}
-            />
-            <form.Field
-              name="password"
-              children={(field) => (
+            </form.Field>
+            <form.Field name="password">
+              {(field) => (
                 <Field>
                   <FieldLabel>Password</FieldLabel>
                   <Input
@@ -163,14 +141,14 @@ function SignUpPage() {
                   )}
                 </Field>
               )}
-            />
+            </form.Field>
             <Button
               className="w-full"
               type="submit"
               disabled={form.state.isSubmitting}
             >
               {form.state.isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin" />
               ) : null}
               Sign Up
             </Button>
@@ -192,3 +170,19 @@ function SignUpPage() {
     </>
   );
 }
+
+export const Route = createFileRoute("/auth/sign-up")({
+  validateSearch: (search): { next?: string } => {
+    if (typeof search.next !== "string") {
+      return {};
+    }
+    return { next: sanitizeAuthRedirect(search.next) };
+  },
+  beforeLoad: ({ context, search }) => {
+    if (context.isAuthenticated) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw redirect({ to: sanitizeAuthRedirect(search.next) });
+    }
+  },
+  component: SignUpPage,
+});

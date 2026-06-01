@@ -73,8 +73,11 @@ function AppLayout() {
         settingsJson?: ChatPreload["settingsJson"];
       }
     | undefined;
+  const isPendingChatRoute =
+    desiredChatThreadId !== undefined && chatMatchThreadId !== chatThreadId;
   const shouldRenderChatSurface =
-    chatThreadId !== undefined || homeLoaderData !== undefined;
+    !isPendingChatRoute &&
+    (chatThreadId !== undefined || homeLoaderData !== undefined);
   const chatPreload: ChatPreload | undefined =
     chatMatchThreadId === chatThreadId
       ? chatMatch?.loaderData

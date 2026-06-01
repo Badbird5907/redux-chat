@@ -90,7 +90,7 @@ export function SettingsSidebarPanel() {
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
               render={<Link to="/settings/mcp" />}
             >
-              <McpLogo className="h-6 w-6 flex-shrink-0" />
+              <McpLogo className="size-6 flex-shrink-0" />
               <span>MCP Servers</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

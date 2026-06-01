@@ -1,6 +1,13 @@
 "use client";
 
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { Chat } from ".";
 import { useChatRouteAdoption } from "@/components/chat/chat-route-adoption";
@@ -14,14 +21,36 @@ type AppChatRouteProps = Pick<
 >;
 
 export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
-  const [chatResetKey, setChatResetKey] = useState(0);
-  const [routeSessionKey, setRouteSessionKey] = useState(0);
+  const [routeSession, setRouteSession] = useState(() => ({
+    key: 0,
+    threadId: initialThreadId,
+  }));
   const previousThreadIdRef = useRef(initialThreadId);
-  const { consumeAdoptedThreadNavigation } = useChatRouteAdoption();
+  const initialThreadIdRef = useRef(initialThreadId);
+  const { consumeAdoptedThreadNavigation, isAdoptedThreadNavigation } =
+    useChatRouteAdoption();
+  const isAdoptedNavigation = isAdoptedThreadNavigation(initialThreadId);
+  const isWaitingForRouteSession =
+    routeSession.threadId !== initialThreadId && !isAdoptedNavigation;
+
+  useLayoutEffect(() => {
+    initialThreadIdRef.current = initialThreadId;
+  }, [initialThreadId]);
 
   useEffect(() => {
     const handleChatReset = () => {
-      setChatResetKey((current) => current + 1);
+      // Only force a remount when we're already on the home page. When a
+      // thread is active, an accompanying navigation to "/" will change
+      // initialThreadId and trigger the remount in the effect below — so
+      // bumping the key here would cause a redundant remount (visible as a
+      // flicker of the old thread before the navigation commits).
+      if (initialThreadIdRef.current !== undefined) {
+        return;
+      }
+      setRouteSession((current) => ({
+        key: current.key + 1,
+        threadId: initialThreadIdRef.current,
+      }));
     };
 
     window.addEventListener(RESET_CHAT_EVENT, handleChatReset);
@@ -31,7 +60,7 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (previousThreadIdRef.current === initialThreadId) {
       return;
     }
@@ -39,15 +68,28 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
     previousThreadIdRef.current = initialThreadId;
 
     if (consumeAdoptedThreadNavigation(initialThreadId)) {
+      queueMicrotask(() => {
+        setRouteSession((current) => ({
+          key: current.key,
+          threadId: initialThreadId,
+        }));
+      });
       return;
     }
 
     queueMicrotask(() => {
-      setRouteSessionKey((current) => current + 1);
+      setRouteSession((current) => ({
+        key: current.key + 1,
+        threadId: initialThreadId,
+      }));
     });
   }, [consumeAdoptedThreadNavigation, initialThreadId]);
 
-  const chatPanelKey = `${chatResetKey}:${routeSessionKey}`;
+  if (isWaitingForRouteSession) {
+    return null;
+  }
+
+  const chatPanelKey = `${routeSession.key}`;
 
   return (
     <div key={chatPanelKey} className="h-full">

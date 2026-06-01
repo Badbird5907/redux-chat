@@ -1,14 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { cn } from "@redux/ui/lib/utils";
 
 import type { ChatPreload } from "./preload";
-import type { ThreadExportInput } from "./thread-export";
+import type { ThreadExportInput } from "./thread-export-utils";
 import {
   Conversation,
   ConversationContent,
@@ -18,10 +24,8 @@ import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { ChatMessageList } from "./chat-message-list";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
 import { ChatInput } from "./input";
-import {
-  REQUEST_THREAD_PDF_EXPORT_EVENT,
-  ThreadPrintExport,
-} from "./thread-export";
+import { ThreadPrintExport } from "./thread-export";
+import { REQUEST_THREAD_PDF_EXPORT_EVENT } from "./thread-export-utils";
 import { useChatSession } from "./use-chat-session";
 
 async function waitForPrintableImages(root: HTMLElement) {
@@ -100,11 +104,12 @@ export function Chat({
   const startPdfExport = useCallback((input: ThreadExportInput) => {
     setPrintExportInput(input);
   }, []);
+  const startPdfExportEvent = useEffectEvent(startPdfExport);
 
   useEffect(() => {
     const handlePdfExportRequest = (event: Event) => {
       const customEvent = event as CustomEvent<ThreadExportInput>;
-      startPdfExport(customEvent.detail);
+      startPdfExportEvent(customEvent.detail);
     };
 
     window.addEventListener(
@@ -118,7 +123,7 @@ export function Chat({
         handlePdfExportRequest,
       );
     };
-  }, [startPdfExport]);
+  }, []);
 
   useEffect(() => {
     const handlePrintHotkey = (event: KeyboardEvent) => {
@@ -134,7 +139,7 @@ export function Chat({
       }
 
       event.preventDefault();
-      startPdfExport({
+      startPdfExportEvent({
         threadId: currentThreadId,
         threadName: currentThreadName ?? "Thread",
         messages: finalMessages,
@@ -152,7 +157,6 @@ export function Chat({
     currentThreadName,
     finalMessages,
     resolvedMessageAttachments,
-    startPdfExport,
   ]);
 
   useEffect(() => {
@@ -190,9 +194,11 @@ export function Chat({
         window.addEventListener("afterprint", cleanup);
 
         await waitForNextFrame();
-        await waitForNextFrame();
-        await document.fonts.ready;
-        await waitForPrintableImages(printRoot);
+        await Promise.all([
+          waitForNextFrame(),
+          document.fonts.ready,
+          waitForPrintableImages(printRoot),
+        ]);
 
         if (cancelled) {
           return;

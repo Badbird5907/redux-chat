@@ -1,5 +1,3 @@
-"use no memo";
-
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { usePaginatedQuery } from "convex/react";
@@ -15,15 +13,9 @@ import { ProjectCard } from "@/components/projects/project-card";
 
 const PAGE_SIZE = 50;
 
-export const Route = createFileRoute("/_app/projects/")({
-  ssr: false,
-  component: ProjectsIndexPage,
-  head: () => ({
-    meta: [{ title: "Projects | Redux Chat" }],
-  }),
-});
-
 function ProjectsIndexPage() {
+  "use no memo";
+
   const [createOpen, setCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -106,3 +98,11 @@ function ProjectsIndexPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/_app/projects/")({
+  ssr: false,
+  component: ProjectsIndexPage,
+  head: () => ({
+    meta: [{ title: "Projects | Redux Chat" }],
+  }),
+});

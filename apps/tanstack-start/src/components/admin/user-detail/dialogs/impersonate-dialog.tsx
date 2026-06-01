@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ export function ImpersonateDialog({
   userId,
   displayName,
 }: DialogBaseProps) {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async () => {
       const res = await authClient.admin.impersonateUser({ userId });
@@ -35,7 +36,8 @@ export function ImpersonateDialog({
       await authClient.getSession({ fetchOptions: { cache: "no-store" } });
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(`Now impersonating ${displayName}`);
       onClose();
       window.location.assign("/");

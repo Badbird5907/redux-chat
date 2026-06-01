@@ -14,7 +14,7 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
-import { createResumableStreamContext } from "resumable-stream";
+import { createResumableStreamContext } from "resumable-stream/generic";
 import { z } from "zod";
 
 import type { ThinkingLevel } from "@redux/shared/models";
@@ -243,29 +243,31 @@ async function resolveModelAttachments(attachmentIds: string[]) {
   );
 
   return Promise.all(
-    servingAttachments
-      .filter((attachment) => !attachment.expired)
-      .map(
-        async (attachment): Promise<ModelAttachment> => ({
-          attachmentId: attachment.attachmentId,
-          fileName: attachment.fileName,
-          mimeType: attachment.mimeType,
-          size: attachment.size,
-          url: await buildAttachmentUrl({
-            accessKey: attachment.accessKey,
-            fileName: attachment.fileName,
-            mimeType: attachment.mimeType,
-            isPublic: attachment.isPublic,
-            serveImage: attachment.serveImage,
-          }),
-          accessKey: attachment.accessKey,
-          fileKeyId: attachment.fileKeyId,
-          isPublic: attachment.isPublic,
-          serveImage: attachment.serveImage,
-          projectId: attachment.projectId,
-          environmentId: attachment.environmentId,
-        }),
-      ),
+    servingAttachments.flatMap((attachment) =>
+      attachment.expired
+        ? []
+        : [
+            (async (): Promise<ModelAttachment> => ({
+              attachmentId: attachment.attachmentId,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              size: attachment.size,
+              url: await buildAttachmentUrl({
+                accessKey: attachment.accessKey,
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+                isPublic: attachment.isPublic,
+                serveImage: attachment.serveImage,
+              }),
+              accessKey: attachment.accessKey,
+              fileKeyId: attachment.fileKeyId,
+              isPublic: attachment.isPublic,
+              serveImage: attachment.serveImage,
+              projectId: attachment.projectId,
+              environmentId: attachment.environmentId,
+            }))(),
+          ],
+    ),
   );
 }
 
@@ -326,7 +328,7 @@ function extractTextFromMessage(
 ): string {
   if (!message) return "";
   return message.parts
-    .map((part) => {
+    .flatMap((part) => {
       if (
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         part &&
@@ -336,11 +338,10 @@ function extractTextFromMessage(
         "text" in part &&
         typeof part.text === "string"
       ) {
-        return part.text;
+        return part.text ? [part.text] : [];
       }
-      return "";
+      return [];
     })
-    .filter(Boolean)
     .join("\n")
     .trim();
 }

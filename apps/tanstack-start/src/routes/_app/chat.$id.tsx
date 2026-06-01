@@ -7,6 +7,10 @@ import { api } from "@redux/backend/convex/_generated/api";
 
 import { fetchAuthQuery } from "@/lib/auth/server";
 
+function ChatPage() {
+  return null;
+}
+
 const loadChat = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
@@ -36,8 +40,8 @@ const loadChat = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/chat/$id")({
-  ssr: "data-only",
   params: z.object({ id: z.string() }),
+  ssr: "data-only",
   loader: ({ params }) => loadChat({ data: { id: params.id } }),
   head: ({ loaderData }) => {
     const name = (loaderData as { threadName?: string | null } | undefined)
@@ -52,7 +56,3 @@ export const Route = createFileRoute("/_app/chat/$id")({
   },
   component: ChatPage,
 });
-
-function ChatPage() {
-  return null;
-}

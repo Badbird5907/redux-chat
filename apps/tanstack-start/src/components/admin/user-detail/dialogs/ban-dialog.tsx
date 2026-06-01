@@ -95,8 +95,7 @@ function BanForm({
 
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault();
+      action={() => {
         mutation.mutate();
       }}
       className="grid gap-6"
