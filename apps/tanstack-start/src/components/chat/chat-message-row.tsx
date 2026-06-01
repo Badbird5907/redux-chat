@@ -283,7 +283,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           {(!message.parts.length || showStreamingPlaceholder) &&
             !isFailedMessage &&
             !isStoppedMessage && <Spinner className="size-4" />}
-          {isFailedMessage ? (
+          {isFailedMessage && !message.parts.length ? (
             <Card
               size="sm"
               className="border-destructive/40 bg-destructive/10 text-destructive ring-destructive/20 w-full gap-2 py-3 shadow-none"
@@ -316,6 +316,26 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   <CardContent className="flex items-center gap-2 px-3 text-sm">
                     <Square className="size-3 fill-current" />
                     <span>Generation stopped by user</span>
+                  </CardContent>
+                </Card>
+              )}
+              {isFailedMessage && message.parts.length > 0 && (
+                <Card
+                  size="sm"
+                  className="border-destructive/40 bg-destructive/10 text-destructive ring-destructive/20 mt-3 w-full gap-2 py-3 shadow-none"
+                >
+                  <CardContent className="flex items-start gap-3 px-3">
+                    <CircleAlert className="mt-0.5 size-4 shrink-0" />
+                    <div className="min-w-0 space-y-1">
+                      <p className="font-medium">
+                        A tool call encountered an error
+                      </p>
+                      {message.error && (
+                        <p className="text-destructive/80 wrap-break-word">
+                          {message.error}
+                        </p>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               )}

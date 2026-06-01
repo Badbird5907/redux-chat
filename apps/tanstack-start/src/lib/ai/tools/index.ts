@@ -16,6 +16,7 @@ import { isImageGenerationToolModel } from "@redux/shared/models";
 import { getEnabledMessageTools, getEnabledToolSettings } from "@redux/types";
 
 import { createBashWorkspaceRuntime } from "@/lib/ai/tools/bash-workspace";
+import { createPresentFileTool } from "@/lib/ai/tools/present-file";
 import {
   createSandboxRuntime,
   SANDBOX_UPLOADS_DIR,
@@ -321,18 +322,28 @@ export async function createToolRuntime(
 
     tools.analysis_workspace = instrumentTool(
       tool({
-        description: uploadsEnabled
-          ? [
-              "Execute Python code in a Jupyter notebook cell and return the result.",
-              "Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
-              `Uploaded chat file metadata is available in the tool result as uploadManifest.`,
-              `To sync uploaded files into ${SANDBOX_UPLOADS_DIR}, pass the specific attachmentIds needed for this analysis call.`,
-            ].join(" ")
-          : "Execute Python code in a Jupyter notebook cell and return the result. Use this for calculations, tabular analysis, charting, parsing files, or validating outputs.",
+        description: [
+          "Run Python or bash in a full Linux sandbox (cloud VM) with internet access, and return the result.",
+          "Use this when you need Python, plotting, package installs, system tools, or network access. Set language to 'bash' to run shell commands here.",
+          "This sandbox has its own filesystem that is separate from the Bash tool — files do not transfer between them.",
+          uploadsEnabled
+            ? `Uploaded chat file metadata is available in the tool result as uploadManifest. To sync uploaded files into ${SANDBOX_UPLOADS_DIR}, pass the specific attachmentIds needed for this call.`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
         inputSchema: z.object({
           code: z
             .string()
-            .describe("The Python code to execute in a single notebook cell."),
+            .describe(
+              "The Python (or bash, when language is 'bash') code to execute in a single cell.",
+            ),
+          language: z
+            .enum(["python", "bash"])
+            .optional()
+            .describe(
+              "Language to execute. Defaults to 'python'. Use 'bash' to run shell commands in this sandbox.",
+            ),
           attachmentIds: z
             .array(z.string())
             .optional()
@@ -340,10 +351,13 @@ export async function createToolRuntime(
               "Optional uploaded attachment IDs to sync into the analysis workspace before execution.",
             ),
         }),
-        execute: async ({ code, attachmentIds }) => {
+        execute: async ({ code, language, attachmentIds }) => {
           const sandbox = await getSandbox();
           const uploadedFiles = await syncUploadsToSandbox(attachmentIds);
-          const execution = await sandbox.runCode(code);
+          const execution = await sandbox.runCode(
+            code,
+            language ? { language } : undefined,
+          );
 
           return {
             error: toConvexSafeValue(execution.error) ?? null,
@@ -359,6 +373,21 @@ export async function createToolRuntime(
         },
       }),
       "analysis_workspace",
+      toolUsageCounts,
+    );
+  }
+
+  if (generationContext && (bashWorkspaceRuntime || sandboxRuntime)) {
+    tools.present_file = instrumentTool(
+      createPresentFileTool({
+        generationContext,
+        modelId: settings.model,
+        sandboxes: {
+          bashFs: bashWorkspaceRuntime?.fs,
+          readE2bFileBytes: sandboxRuntime?.readFileBytes,
+        },
+      }),
+      "present_file",
       toolUsageCounts,
     );
   }

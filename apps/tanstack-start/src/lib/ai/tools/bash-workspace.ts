@@ -37,16 +37,18 @@ export async function createBashWorkspaceRuntime({
     sandbox: bash,
     destination: BASH_WORKSPACE_DIR,
     extraInstructions: [
-      "Use this lightweight Bash workspace for shell commands and filesystem tasks.",
+      "Use this fast, in-memory Bash workspace for shell commands and filesystem tasks.",
       `Uploaded file metadata is available at ${BASH_UPLOADS_MANIFEST_PATH}.`,
       `Uploaded files are already available at their listed path and idPath under ${BASH_UPLOADS_DIR}.`,
-      "Network access is disabled; use other available tools only when the user explicitly needs that capability.",
+      "Network access and Python are disabled here; use the analysis_workspace tool when you need internet, Python, or system packages.",
+      "This filesystem is separate from the analysis_workspace sandbox — files do not transfer between them.",
     ].join(" "),
     maxFiles: 0,
   });
 
   return {
     tools: toolkit.tools,
+    fs,
     cleanup: () => Promise.resolve(),
   };
 }

@@ -7,6 +7,12 @@ import type { ChatMessageWithThreadMetadata } from "../chat-types";
 export interface ChatInputProps {
   threadId?: string;
   /**
+   * Width of the adjacent preview panel when open (e.g. a CSS length). When set,
+   * the fixed composer is offset from the right edge so it stays beside the
+   * panel instead of underneath it.
+   */
+  adjacentPanelWidth?: string;
+  /**
    * When set, new threads created from this input are scoped to the given
    * project. Existing threads ignore this prop (project membership is fixed
    * at thread creation time).

@@ -26,6 +26,7 @@ import type * as functions_internal from "../functions/internal.js";
 import type * as functions_mcpServers from "../functions/mcpServers.js";
 import type * as functions_migrations from "../functions/migrations.js";
 import type * as functions_modelFavorites from "../functions/modelFavorites.js";
+import type * as functions_modelGeneratedFiles from "../functions/modelGeneratedFiles.js";
 import type * as functions_projects from "../functions/projects.js";
 import type * as functions_promotions from "../functions/promotions.js";
 import type * as functions_threadShares from "../functions/threadShares.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   "functions/mcpServers": typeof functions_mcpServers;
   "functions/migrations": typeof functions_migrations;
   "functions/modelFavorites": typeof functions_modelFavorites;
+  "functions/modelGeneratedFiles": typeof functions_modelGeneratedFiles;
   "functions/projects": typeof functions_projects;
   "functions/promotions": typeof functions_promotions;
   "functions/threadShares": typeof functions_threadShares;

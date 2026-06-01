@@ -56,6 +56,7 @@ import { isAttachmentExpired } from "./utils";
 
 export function ChatInput({
   threadId,
+  adjacentPanelWidth,
   chatProjectId,
   setThreadId,
   sendMessage,
@@ -1034,6 +1035,11 @@ export function ChatInput({
             ? "inset-4 z-50"
             : cn("right-0 bottom-6 left-0 px-4", fixedInputDesktopLeft),
         )}
+        style={
+          !isExpanded && adjacentPanelWidth
+            ? { right: adjacentPanelWidth }
+            : undefined
+        }
       >
         <div
           className={cn(
