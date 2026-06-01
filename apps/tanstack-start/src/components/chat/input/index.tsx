@@ -23,6 +23,7 @@ import {
 } from "@redux/shared/models";
 import { getEnabledToolSettings, isToolEnabled } from "@redux/types";
 import { useSidebar } from "@redux/ui/components/sidebar";
+import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { ChatInputProps, PreviewableFile } from "./types";
@@ -105,6 +106,7 @@ export function ChatInput({
   const visualizationRef = useRef<HTMLButtonElement>(null);
   const { allocate: allocateSignedIds } = useSignedCid();
   const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
+  const isMobile = useIsMobile();
   const {
     instructions,
     instructionsById,
@@ -961,12 +963,12 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !isMobile) {
         e.preventDefault();
         void handleSubmit();
       }
     },
-    [handleSubmit],
+    [handleSubmit, isMobile],
   );
 
   const hasUploadingFiles = attachments.some(
