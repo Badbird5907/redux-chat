@@ -1,10 +1,18 @@
+import type {
+  ChatMessageWithThreadMetadata,
+  ResolvedAttachment,
+} from "@/components/chat/chat-types";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { isToolUIPart } from "ai";
-import { DownloadIcon, ExternalLinkIcon, FileIcon, ImageIcon } from "lucide-react";
+import {
+  DownloadIcon,
+  ExternalLinkIcon,
+  FileIcon,
+  ImageIcon,
+} from "lucide-react";
 
 import { api } from "@redux/backend/convex/_generated/api";
-import { cn } from "@redux/ui/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -12,11 +20,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@redux/ui/components/sheet";
+import { cn } from "@redux/ui/lib/utils";
 
-import type {
-  ChatMessageWithThreadMetadata,
-  ResolvedAttachment,
-} from "@/components/chat/chat-types";
 import { getVisibleBranchMessages } from "@/components/chat/chat-branching";
 import { toChatUIMessage } from "@/components/chat/chat-message-utils";
 import { useQuery } from "@/lib/hooks/convex";
@@ -204,9 +209,7 @@ function formatFileSize(size: number | undefined) {
 }
 
 function FileRow({ entry }: { entry: FileEntry }) {
-  const subtitle = entry.expired
-    ? "Expired"
-    : formatFileSize(entry.size);
+  const subtitle = entry.expired ? "Expired" : formatFileSize(entry.size);
 
   return (
     <div className="border-border/60 hover:bg-muted/40 flex items-center gap-3 rounded-lg border px-3 py-2">
@@ -238,7 +241,8 @@ function FileRow({ entry }: { entry: FileEntry }) {
         <a
           className={cn(
             "hover:bg-muted rounded-md p-1.5",
-            !entry.downloadUrl && "text-muted-foreground/40 pointer-events-none",
+            !entry.downloadUrl &&
+              "text-muted-foreground/40 pointer-events-none",
           )}
           href={entry.downloadUrl ?? undefined}
           download={entry.fileName}
@@ -377,8 +381,7 @@ export function FilesSheet({
     [scopedMessages],
   );
 
-  const isEmpty =
-    attachmentEntries.length === 0 && modelEntries.length === 0;
+  const isEmpty = attachmentEntries.length === 0 && modelEntries.length === 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -425,7 +428,10 @@ export function FilesSheet({
           ) : (
             <>
               <FileSection title="Attachments" entries={attachmentEntries} />
-              <FileSection title="Generated & presented" entries={modelEntries} />
+              <FileSection
+                title="Generated & presented"
+                entries={modelEntries}
+              />
             </>
           )}
         </div>

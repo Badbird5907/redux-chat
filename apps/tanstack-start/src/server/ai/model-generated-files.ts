@@ -124,27 +124,30 @@ export async function persistModelGeneratedFile(input: {
   storage: ModelFileStorage;
   fileName: string;
 }): Promise<void> {
-  await fetchAuthMutation(modelGeneratedFilesApi.modelGeneratedFiles.internal_create, {
-    secret: env.INTERNAL_CONVEX_SECRET,
-    userId: input.userId,
-    modelGeneratedFileId: input.modelGeneratedFileId,
-    threadId: input.threadId,
-    messageId: input.messageId,
-    kind: input.kind,
-    source: input.source,
-    modelId: input.modelId,
-    provider: input.provider,
-    toolCallId: input.toolCallId,
-    prompt: input.prompt,
-    mimeType: input.mimeType,
-    size: input.size,
-    image: input.image,
-    projectId: input.storage.projectId,
-    environmentId: input.storage.environmentId,
-    accessKey: input.storage.accessKey,
-    fileKeyId: input.storage.fileKeyId,
-    fileName: input.fileName,
-  });
+  await fetchAuthMutation(
+    modelGeneratedFilesApi.modelGeneratedFiles.internal_create,
+    {
+      secret: env.INTERNAL_CONVEX_SECRET,
+      userId: input.userId,
+      modelGeneratedFileId: input.modelGeneratedFileId,
+      threadId: input.threadId,
+      messageId: input.messageId,
+      kind: input.kind,
+      source: input.source,
+      modelId: input.modelId,
+      provider: input.provider,
+      toolCallId: input.toolCallId,
+      prompt: input.prompt,
+      mimeType: input.mimeType,
+      size: input.size,
+      image: input.image,
+      projectId: input.storage.projectId,
+      environmentId: input.storage.environmentId,
+      accessKey: input.storage.accessKey,
+      fileKeyId: input.storage.fileKeyId,
+      fileName: input.fileName,
+    },
+  );
 }
 
 interface StoreModelPresentedFileInput {

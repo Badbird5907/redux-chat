@@ -689,9 +689,9 @@ function ModelFileBlock({ file }: { file: ModelFilePart }) {
   const isImage = file.kind === "image";
   const caption = isImage
     ? file.fileName
-    : (formatFileSize(file.size)
-        ? `${file.fileName} \u00b7 ${formatFileSize(file.size)}`
-        : file.fileName);
+    : formatFileSize(file.size)
+      ? `${file.fileName} \u00b7 ${formatFileSize(file.size)}`
+      : file.fileName;
 
   return (
     <MediaBlock

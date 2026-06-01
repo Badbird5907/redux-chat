@@ -1,8 +1,8 @@
+import type { ModelFilePart } from "@/server/ai/model-generated-files";
 import type { InMemoryFs } from "just-bash";
 import { tool } from "ai";
 import { z } from "zod";
 
-import type { ModelFilePart } from "@/server/ai/model-generated-files";
 import { storeModelPresentedFile } from "@/server/ai/model-generated-files";
 
 // Presented files are uploaded to public Silo storage; cap matches the value
