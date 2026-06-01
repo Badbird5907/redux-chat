@@ -92,7 +92,7 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
   const chatPanelKey = `${routeSession.key}`;
 
   return (
-    <div key={chatPanelKey} className="h-full min-w-0">
+    <div key={chatPanelKey} className="h-full min-h-0 min-w-0">
       <Suspense fallback={null}>
         <ChatRouteClient initialThreadId={initialThreadId} preload={preload} />
       </Suspense>

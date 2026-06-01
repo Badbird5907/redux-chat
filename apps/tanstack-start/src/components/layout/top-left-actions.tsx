@@ -11,14 +11,14 @@ import {
 import { useCurrentProject } from "@/lib/hooks/use-current-project";
 
 export function TopLeftActions() {
-  const { open: sidebarOpen, isMobile } = useSidebar();
+  const { open: sidebarOpen, openMobile, isMobile } = useSidebar();
   const { project, isChatRoute } = useCurrentProject();
 
   const projectBack =
     project && isChatRoute
       ? { id: project.projectId, name: project.name }
       : null;
-  const showSidebarTrigger = !isMobile && !sidebarOpen;
+  const showSidebarTrigger = isMobile ? !openMobile : !sidebarOpen;
   const showProjectBack = projectBack !== null;
 
   if (!showSidebarTrigger && !showProjectBack) {

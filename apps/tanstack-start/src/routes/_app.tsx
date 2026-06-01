@@ -1,4 +1,5 @@
 import type { ChatPreload } from "@/components/chat/preload";
+import { useLayoutEffect } from "react";
 import {
   createFileRoute,
   Outlet,
@@ -50,7 +51,36 @@ function getChatThreadIdFromPathname(pathname: string) {
   return threadId.length > 0 ? decodeURIComponent(threadId) : undefined;
 }
 
+function useAppDocumentScrollLock() {
+  useLayoutEffect(() => {
+    const { body, documentElement } = document;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousHtmlOverscrollBehavior =
+      documentElement.style.overscrollBehavior;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
+    const previousBodyHeight = body.style.height;
+
+    window.scrollTo(0, 0);
+    documentElement.style.overflow = "hidden";
+    documentElement.style.overscrollBehavior = "none";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    body.style.height = "100dvh";
+
+    return () => {
+      documentElement.style.overflow = previousHtmlOverflow;
+      documentElement.style.overscrollBehavior = previousHtmlOverscrollBehavior;
+      body.style.overflow = previousBodyOverflow;
+      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
+      body.style.height = previousBodyHeight;
+    };
+  }, []);
+}
+
 function AppLayout() {
+  useAppDocumentScrollLock();
+
   const { defaultOpen, defaultWidth } = Route.useRouteContext();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -90,7 +120,7 @@ function AppLayout() {
   return (
     <ChatRouteAdoptionProvider>
       <SidebarProvider
-        className="h-svh max-h-svh overflow-hidden"
+        className="h-dvh max-h-dvh min-h-0 overflow-hidden overscroll-none"
         defaultOpen={defaultOpen}
         defaultWidth={defaultWidth}
       >
@@ -99,8 +129,8 @@ function AppLayout() {
         <ReasoningLevelSelectorHotkeyRegistration />
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
-        <main className="bg-muted/35 dark:bg-background flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2">
-          <div className="bg-page-card border-border/60 relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-4xl border p-4">
+        <main className="bg-muted/35 dark:bg-background flex h-dvh min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none p-2">
+          <div className="bg-page-card border-border/60 relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none rounded-4xl border p-4">
             <TopLeftActions />
             <TopRightActions />
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">

@@ -167,9 +167,11 @@ export const EmptyChat = ({
   }, []);
 
   return (
-    <div className="flex h-full flex-col items-center px-4 pt-36 pb-36">
-      <div className="flex flex-1 flex-col items-center justify-center">
-        <h1 className="mb-8 text-center text-4xl font-bold">{greeting}</h1>
+    <div className="flex flex-col items-center px-4 pt-16 sm:pt-36">
+      <div className="flex flex-col items-center justify-center">
+        <h1 className="mb-6 text-center text-4xl font-bold sm:mb-8">
+          {greeting}
+        </h1>
 
         <div className="grid w-full max-w-2xl grid-cols-1 gap-3 md:grid-cols-2">
           {SUGGESTIONS.map((text) => (
