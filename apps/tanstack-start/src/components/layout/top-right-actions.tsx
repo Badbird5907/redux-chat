@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMatch } from "@tanstack/react-router";
-import { Share2 } from "lucide-react";
+import { FolderOpen, Share2 } from "lucide-react";
 
 import {
   Tooltip,
@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@redux/ui/components/tooltip";
 
+import { FilesSheet } from "@/components/files/files-sheet";
 import { ThreadShareDialog } from "@/components/share/thread-share-dialog";
 
 export function TopRightActions() {
@@ -16,6 +17,7 @@ export function TopRightActions() {
     shouldThrow: false,
   });
   const [shareOpen, setShareOpen] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
   const threadId = chatMatch?.params.id;
 
   if (!threadId) {
@@ -24,6 +26,21 @@ export function TopRightActions() {
 
   return (
     <div className="bg-card/80 absolute top-4 right-4 z-10 flex w-fit items-center justify-between gap-1 rounded-md p-1">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              aria-label="View files"
+              className="hover:bg-muted text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-md transition-colors"
+              onClick={() => setFilesOpen(true)}
+            />
+          }
+        >
+          <FolderOpen className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent side="left">View files</TooltipContent>
+      </Tooltip>
       <Tooltip>
         <TooltipTrigger
           render={
@@ -43,6 +60,11 @@ export function TopRightActions() {
         open={shareOpen}
         threadId={threadId}
         onOpenChange={setShareOpen}
+      />
+      <FilesSheet
+        open={filesOpen}
+        threadId={threadId}
+        onOpenChange={setFilesOpen}
       />
     </div>
   );

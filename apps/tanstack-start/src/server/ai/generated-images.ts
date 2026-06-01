@@ -1,16 +1,15 @@
 import type { GeneratedFile } from "ai";
-import type { FunctionReference } from "convex/server";
 
 import type { ModelRouteInfo } from "@redux/shared/models";
-import { api } from "@redux/backend/convex/_generated/api";
 
-import { env } from "@/env";
-import { fetchAuthMutation } from "@/lib/auth/server";
 import {
   buildAttachmentDownloadUrl,
   buildAttachmentUrl,
-  getSiloCore,
 } from "@/lib/silo/core.server";
+import {
+  persistModelGeneratedFile,
+  uploadToSilo,
+} from "@/server/ai/model-generated-files";
 
 export interface GeneratedImagePart {
   type: "data-generated-image";
@@ -49,64 +48,6 @@ function extensionForMimeType(mimeType: string) {
   return "png";
 }
 
-async function uploadToSilo(input: {
-  bytes: Uint8Array;
-  fileName: string;
-  mimeType: string;
-  metadata: Record<string, unknown>;
-}) {
-  const siloCore = getSiloCore();
-  const prepared = await siloCore.prepareUpload({
-    file: {
-      fileName: input.fileName,
-      size: input.bytes.byteLength,
-      mimeType: input.mimeType,
-      isPublic: true,
-      serveImage: true,
-      metadata: input.metadata,
-    },
-    uploadStrategy: "server",
-    uploadMethod: "put",
-  });
-
-  const uploadResponse = await fetch(prepared.file.uploadUrl, {
-    method:
-      prepared.file.uploadMethod === "put" ? "PUT" : prepared.file.uploadMethod,
-    headers: {
-      "Content-Type": input.mimeType,
-    },
-    body: input.bytes.buffer.slice(
-      input.bytes.byteOffset,
-      input.bytes.byteOffset + input.bytes.byteLength,
-    ) as ArrayBuffer,
-  });
-
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text().catch(() => "");
-    throw new Error(
-      `Silo upload failed: ${uploadResponse.status}${
-        errorText ? ` ${errorText.slice(0, 300)}` : ""
-      }`,
-    );
-  }
-
-  const files = await siloCore.listFiles({});
-  const file = files.files.find(
-    (candidate) => candidate.id === prepared.file.fileKeyId,
-  );
-
-  if (!file) {
-    throw new Error("Uploaded Silo file metadata was not found.");
-  }
-
-  return {
-    accessKey: prepared.file.accessKey,
-    fileKeyId: prepared.file.fileKeyId,
-    projectId: file.projectId,
-    environmentId: file.environmentId,
-  };
-}
-
 export async function storeGeneratedImage(
   input: StoreGeneratedImageInput,
 ): Promise<GeneratedImagePart> {
@@ -130,28 +71,20 @@ export async function storeGeneratedImage(
     },
   });
 
-  const functionsApi = api.functions as typeof api.functions & {
-    generatedImages: {
-      internal_create: FunctionReference<"mutation">;
-    };
-  };
-
-  await fetchAuthMutation(functionsApi.generatedImages.internal_create, {
-    secret: env.INTERNAL_CONVEX_SECRET,
+  await persistModelGeneratedFile({
     userId: input.userId,
-    generatedImageId,
     threadId: input.threadId,
     messageId: input.messageId,
+    modelGeneratedFileId: generatedImageId,
+    kind: "image",
+    source: "image_generation",
     modelId: input.modelId,
     provider: input.route.provider,
     toolCallId: input.toolCallId,
     prompt: input.prompt,
     mimeType,
     size: bytes.byteLength,
-    projectId: storage.projectId,
-    environmentId: storage.environmentId,
-    accessKey: storage.accessKey,
-    fileKeyId: storage.fileKeyId,
+    storage,
     fileName,
   });
 

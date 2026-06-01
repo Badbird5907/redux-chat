@@ -7,6 +7,7 @@ import {
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
+  FileIcon,
   ImageIcon,
 } from "lucide-react";
 
@@ -103,6 +104,7 @@ export function AssistantMessageParts({
   const generatedImagesByUrl = getGeneratedImagesByUrl(message);
   const completedGeneratedImageKeys = getCompletedGeneratedImageKeys(message);
   const renderedGeneratedImageUrls = new Set<string>();
+  const renderedModelFileUrls = new Set<string>();
 
   return (
     <>
@@ -222,6 +224,26 @@ export function AssistantMessageParts({
               <GeneratedImageBlock
                 image={generatedImage}
                 key={`${message.id}:generated-image:${getGeneratedImageKey(generatedImage)}`}
+              />
+            );
+          }
+
+          const modelFile =
+            normalizeModelFilePart(part) ??
+            (isToolUIPart(part)
+              ? normalizeModelFilePart(getToolOutput(part))
+              : null);
+          if (modelFile) {
+            if (modelFile.url && renderedModelFileUrls.has(modelFile.url)) {
+              return null;
+            }
+            if (modelFile.url) {
+              renderedModelFileUrls.add(modelFile.url);
+            }
+            return (
+              <ModelFileBlock
+                file={modelFile}
+                key={`${message.id}:model-file:${index}:${modelFile.url ?? modelFile.fileName}`}
               />
             );
           }
@@ -437,8 +459,7 @@ function getGeneratedImageFilename(image: GeneratedImagePart) {
   return `${slug}.${ext}`;
 }
 
-async function downloadGeneratedImage(image: GeneratedImagePart) {
-  const src = image.downloadUrl ?? image.url;
+async function downloadFromUrl(src: string | undefined, fileName: string) {
   if (!src) return;
   try {
     const response = await fetch(src);
@@ -447,36 +468,149 @@ async function downloadGeneratedImage(image: GeneratedImagePart) {
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = objectUrl;
-    link.download = getGeneratedImageFilename(image);
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(objectUrl);
   } catch (error) {
-    console.error("Failed to download image", error);
+    console.error("Failed to download file", error);
     window.open(src, "_blank", "noopener,noreferrer");
   }
 }
 
-function GeneratedImageBlock({ image }: { image: GeneratedImagePart }) {
-  const isGenerating = image.status === "generating" || !image.url;
+function formatFileSize(size: number | undefined) {
+  if (!size || size <= 0) {
+    return undefined;
+  }
+  const units = ["B", "KB", "MB", "GB"];
+  let value = size;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const rounded = unitIndex === 0 ? value : Math.round(value * 10) / 10;
+  return `${rounded} ${units[unitIndex]}`;
+}
+
+function MediaActions({
+  url,
+  downloadUrl,
+  downloadName,
+  copyLabel,
+  downloadLabel,
+  openLabel,
+}: {
+  url?: string;
+  downloadUrl?: string;
+  downloadName: string;
+  copyLabel: string;
+  downloadLabel: string;
+  openLabel: string;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <button
+        type="button"
+        className="hover:bg-muted disabled:text-muted-foreground/40 rounded-md p-1.5 disabled:pointer-events-none"
+        title={copyLabel}
+        disabled={!url}
+        onClick={() =>
+          url ? void navigator.clipboard.writeText(url) : undefined
+        }
+      >
+        <CopyIcon className="size-4" />
+      </button>
+      <button
+        type="button"
+        className="hover:bg-muted disabled:text-muted-foreground/40 rounded-md p-1.5 disabled:pointer-events-none"
+        title={downloadLabel}
+        disabled={!downloadUrl && !url}
+        onClick={() => void downloadFromUrl(downloadUrl ?? url, downloadName)}
+      >
+        <DownloadIcon className="size-4" />
+      </button>
+      {url ? (
+        <a
+          className="hover:bg-muted rounded-md p-1.5"
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          title={openLabel}
+        >
+          <ExternalLinkIcon className="size-4" />
+        </a>
+      ) : (
+        <span className="text-muted-foreground/40 rounded-md p-1.5">
+          <ExternalLinkIcon className="size-4" />
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Shared renderer for model-produced media. Images render inline with a caption
+ * footer (generated images caption the model id, presented files caption the
+ * file name); non-image files render as a download card.
+ */
+function MediaBlock({
+  alt,
+  caption,
+  downloadName,
+  downloadUrl,
+  isImage,
+  isLoading,
+  loadingLabel,
+  url,
+}: {
+  alt: string;
+  caption: string;
+  downloadName: string;
+  downloadUrl?: string;
+  isImage: boolean;
+  isLoading?: boolean;
+  loadingLabel?: string;
+  url?: string;
+}) {
+  if (!isImage) {
+    return (
+      <div className="border-border bg-card flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <FileIcon className="text-muted-foreground size-5 shrink-0" />
+          <span className="min-w-0 truncate text-sm font-medium">
+            {caption}
+          </span>
+        </div>
+        <MediaActions
+          url={url}
+          downloadUrl={downloadUrl}
+          downloadName={downloadName}
+          copyLabel="Copy file URL"
+          downloadLabel="Download file"
+          openLabel="Open file"
+        />
+      </div>
+    );
+  }
 
   return (
     <figure className="border-border bg-card overflow-hidden rounded-lg border">
-      {isGenerating ? (
+      {isLoading || !url ? (
         <div className="bg-muted/20 relative aspect-video w-full overflow-hidden">
           <Skeleton className="absolute inset-0 h-full w-full rounded-none" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-muted-foreground text-sm">
-              Generating image&hellip;
+              {loadingLabel ?? "Loading\u2026"}
             </div>
           </div>
         </div>
       ) : (
-        <a href={image.url} target="_blank" rel="noreferrer">
+        <a href={url} target="_blank" rel="noreferrer">
           <img
-            src={image.url}
-            alt={image.prompt}
+            src={url}
+            alt={alt}
             className="max-h-[640px] w-full object-contain"
             loading="lazy"
           />
@@ -484,48 +618,89 @@ function GeneratedImageBlock({ image }: { image: GeneratedImagePart }) {
       )}
       <figcaption className="border-border bg-muted/40 flex items-center justify-between gap-3 border-t px-3 py-2">
         <span className="text-muted-foreground min-w-0 truncate text-xs">
-          {image.modelId}
+          {caption}
         </span>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            className="hover:bg-muted disabled:text-muted-foreground/40 rounded-md p-1.5 disabled:pointer-events-none"
-            title="Copy image URL"
-            disabled={!image.url}
-            onClick={() =>
-              image.url
-                ? void navigator.clipboard.writeText(image.url)
-                : undefined
-            }
-          >
-            <CopyIcon className="size-4" />
-          </button>
-          <button
-            type="button"
-            className="hover:bg-muted disabled:text-muted-foreground/40 rounded-md p-1.5 disabled:pointer-events-none"
-            title="Download image"
-            disabled={!image.downloadUrl && !image.url}
-            onClick={() => void downloadGeneratedImage(image)}
-          >
-            <DownloadIcon className="size-4" />
-          </button>
-          {image.url ? (
-            <a
-              className="hover:bg-muted rounded-md p-1.5"
-              href={image.url}
-              target="_blank"
-              rel="noreferrer"
-              title="Open image"
-            >
-              <ExternalLinkIcon className="size-4" />
-            </a>
-          ) : (
-            <span className="text-muted-foreground/40 rounded-md p-1.5">
-              <ExternalLinkIcon className="size-4" />
-            </span>
-          )}
-        </div>
+        <MediaActions
+          url={url}
+          downloadUrl={downloadUrl}
+          downloadName={downloadName}
+          copyLabel="Copy image URL"
+          downloadLabel="Download image"
+          openLabel="Open image"
+        />
       </figcaption>
     </figure>
+  );
+}
+
+function GeneratedImageBlock({ image }: { image: GeneratedImagePart }) {
+  return (
+    <MediaBlock
+      alt={image.prompt}
+      caption={image.modelId}
+      downloadName={getGeneratedImageFilename(image)}
+      downloadUrl={image.downloadUrl}
+      isImage
+      isLoading={image.status === "generating" || !image.url}
+      loadingLabel={"Generating image\u2026"}
+      url={image.url}
+    />
+  );
+}
+
+interface ModelFilePart {
+  type: "data-model-file";
+  kind: "image" | "file";
+  url?: string;
+  downloadUrl?: string;
+  mimeType?: string;
+  fileName: string;
+  size?: number;
+  source?: "image_generation" | "shell" | "e2b";
+  createdAt?: number;
+}
+
+function normalizeModelFilePart(part: unknown): ModelFilePart | null {
+  if (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "data-model-file" &&
+    "fileName" in part &&
+    typeof part.fileName === "string"
+  ) {
+    return part as ModelFilePart;
+  }
+
+  if (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "data-model-file" &&
+    "data" in part
+  ) {
+    return normalizeModelFilePart(part.data);
+  }
+
+  return null;
+}
+
+function ModelFileBlock({ file }: { file: ModelFilePart }) {
+  const isImage = file.kind === "image";
+  const caption = isImage
+    ? file.fileName
+    : (formatFileSize(file.size)
+        ? `${file.fileName} \u00b7 ${formatFileSize(file.size)}`
+        : file.fileName);
+
+  return (
+    <MediaBlock
+      alt={file.fileName}
+      caption={caption}
+      downloadName={file.fileName}
+      downloadUrl={file.downloadUrl}
+      isImage={isImage}
+      url={file.url}
+    />
   );
 }

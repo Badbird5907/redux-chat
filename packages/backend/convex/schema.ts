@@ -351,6 +351,9 @@ export default defineSchema({
     .index("by_accessKey", ["accessKey"])
     .index("by_fileKeyId", ["fileKeyId"]),
 
+  // DEPRECATED: superseded by `modelGeneratedFiles`. Kept so existing rows stay
+  // valid until the `migrations:backfillModelGeneratedFiles` migration has
+  // copied them into `modelGeneratedFiles`; drop this table afterwards.
   generatedImages: defineTable({
     generatedImageId: v.string(),
     userId: v.string(),
@@ -373,6 +376,45 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_generatedImageId", ["generatedImageId"])
+    .index("by_threadId", ["threadId"])
+    .index("by_messageId", ["messageId"])
+    .index("by_fileKeyId", ["fileKeyId"]),
+
+  // Generic record of files a model produced for a thread: generated images,
+  // and files the model "presents" to the user from a sandbox (Bash or the E2B
+  // analysis workspace). Image-specific dimensions live under the optional
+  // `image` object so non-image files don't carry empty width/height columns.
+  modelGeneratedFiles: defineTable({
+    modelGeneratedFileId: v.string(),
+    userId: v.string(),
+    threadId: v.string(),
+    messageId: v.string(),
+    kind: v.union(v.literal("image"), v.literal("file")),
+    source: v.union(
+      v.literal("image_generation"),
+      v.literal("shell"),
+      v.literal("e2b"),
+    ),
+    modelId: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    toolCallId: v.optional(v.string()),
+    prompt: v.optional(v.string()),
+    mimeType: v.string(),
+    size: v.number(),
+    image: v.optional(
+      v.object({
+        width: v.optional(v.number()),
+        height: v.optional(v.number()),
+      }),
+    ),
+    projectId: v.string(),
+    environmentId: v.string(),
+    accessKey: v.string(),
+    fileKeyId: v.string(),
+    fileName: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_modelGeneratedFileId", ["modelGeneratedFileId"])
     .index("by_threadId", ["threadId"])
     .index("by_messageId", ["messageId"])
     .index("by_fileKeyId", ["fileKeyId"]),
