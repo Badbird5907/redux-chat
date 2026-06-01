@@ -66,7 +66,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   const totalCount = finalMessages.length;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-3xl">
+    <div className="mx-auto w-full max-w-3xl min-w-0">
       {!currentThreadId && finalMessages.length === 0 ? (
         (emptyContent ?? (
           <EmptyChat

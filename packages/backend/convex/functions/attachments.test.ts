@@ -89,9 +89,9 @@ describe("functions/attachments", () => {
       "permanent",
       "active",
     ]);
-    expect(result.page.every((attachment) => attachment.expired === false)).toBe(
-      true,
-    );
+    expect(
+      result.page.every((attachment) => attachment.expired === false),
+    ).toBe(true);
   });
 
   it("sweeps expired active attachments without changing unexpired files", async () => {

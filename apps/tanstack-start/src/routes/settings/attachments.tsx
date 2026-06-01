@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
 import type { ComponentProps } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { usePaginatedQuery } from "convex/react";
@@ -109,15 +109,31 @@ function AttachmentsRouteComponent() {
             typeLabel = "Audio";
           } else if (mimeType.includes("application/pdf")) {
             typeLabel = "PDF";
-          } else if (mimeType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+          } else if (
+            mimeType.includes(
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+          ) {
             typeLabel = "Word Document";
-          } else if (mimeType.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+          } else if (
+            mimeType.includes(
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+          ) {
             typeLabel = "Spreadsheet";
-          } else if (mimeType.includes("application/vnd.openxmlformats-officedocument.presentationml.presentation")) {
+          } else if (
+            mimeType.includes(
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            )
+          ) {
             typeLabel = "Presentation";
-          } else if (mimeType.includes("application/vnd.oasis.opendocument.text")) {
+          } else if (
+            mimeType.includes("application/vnd.oasis.opendocument.text")
+          ) {
             typeLabel = "OpenDocument Text";
-          } else if (mimeType.includes("application/vnd.oasis.opendocument.spreadsheet")) {
+          } else if (
+            mimeType.includes("application/vnd.oasis.opendocument.spreadsheet")
+          ) {
             typeLabel = "OpenDocument Spreadsheet";
           }
           return (
@@ -144,8 +160,10 @@ function AttachmentsRouteComponent() {
         cell: ({ row }) => {
           const scope = getAttachmentScope(row.original);
           return (
-            <Badge variant="secondary" color={scope.color}>{scope.label}</Badge>
-          )
+            <Badge variant="secondary" color={scope.color}>
+              {scope.label}
+            </Badge>
+          );
         },
       },
       {
@@ -154,8 +172,10 @@ function AttachmentsRouteComponent() {
         cell: ({ row }) => {
           const status = getAttachmentStatus(row.original);
           return (
-            <Badge variant="secondary" color={status.color}>{status.label}</Badge>
-          )
+            <Badge variant="secondary" color={status.color}>
+              {status.label}
+            </Badge>
+          );
         },
       },
       {
