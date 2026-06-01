@@ -15,6 +15,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useAction, useConvexAuth } from "convex/react";
+import { domMax, LazyMotion } from "motion/react";
 import { PostHogProvider } from "posthog-js/react";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -107,20 +108,22 @@ function RootDocument({ children }: { children: ReactNode }) {
   const posthogProjectToken = env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
   const posthogUiHost = getPostHogUiHost(env.VITE_PUBLIC_POSTHOG_HOST);
   const appShell = (
-    <ThemeProvider>
-      <HotkeySettingsProvider>
-        {children}
-        {AppTanStackDevtools ? (
-          <ClientOnly>
-            <Suspense fallback={null}>
-              <AppTanStackDevtools />
-            </Suspense>
-          </ClientOnly>
-        ) : null}
-        {/* <ThemeToggle /> */}
-        <Toaster />
-      </HotkeySettingsProvider>
-    </ThemeProvider>
+    <LazyMotion features={domMax}>
+      <ThemeProvider>
+        <HotkeySettingsProvider>
+          {children}
+          {AppTanStackDevtools ? (
+            <ClientOnly>
+              <Suspense fallback={null}>
+                <AppTanStackDevtools />
+              </Suspense>
+            </ClientOnly>
+          ) : null}
+          {/* <ThemeToggle /> */}
+          <Toaster />
+        </HotkeySettingsProvider>
+      </ThemeProvider>
+    </LazyMotion>
   );
 
   return (
