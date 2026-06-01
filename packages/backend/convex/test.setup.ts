@@ -7,6 +7,7 @@ export const modules: Record<string, () => Promise<unknown>> = {
   "./functions/migrations.ts": () => import("./functions/migrations"),
   "./functions/modelFavorites.ts": () => import("./functions/modelFavorites"),
   "./functions/projects.ts": () => import("./functions/projects"),
+  "./functions/attachments.ts": () => import("./functions/attachments"),
   "./functions/billing.ts": () => import("./functions/billing"),
   "./functions/credits.ts": () => import("./functions/credits"),
   "./functions/promotions.ts": () => import("./functions/promotions"),

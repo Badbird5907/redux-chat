@@ -54,6 +54,7 @@
     "@ai-sdk/google-vertex": "5.0.0-beta.66",
     "@better-auth/core": "^1.6.9",
     "@convex-dev/better-auth": "^0.12.1",
+    "@convex-dev/crons": "^0.2.0",
     "@convex-dev/stripe": "^0.1.4",
     "@openrouter/ai-sdk-provider": "6.0.0-alpha.1",
     "@redux/shared": "workspace:*",

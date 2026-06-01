@@ -18,6 +18,7 @@ const ATTACHED_ATTACHMENT_TTL_DAYS = 60;
 const ATTACHED_ATTACHMENT_TTL_MS =
   ATTACHED_ATTACHMENT_TTL_DAYS * 24 * 60 * 60 * 1000;
 const MAX_ATTACHMENTS_PER_MESSAGE = 15;
+const EXPIRED_ATTACHMENT_SWEEP_BATCH_SIZE = 100;
 
 export function createBackendSiloCore() {
   const env = backendEnv();
@@ -30,6 +31,13 @@ export function createBackendSiloCore() {
 
 function isAttachmentExpired(expiresAt: number | undefined, now = Date.now()) {
   return expiresAt !== undefined && expiresAt <= now;
+}
+
+function getAttachmentExpiryStatus(
+  expiresAt: number | undefined,
+  now = Date.now(),
+) {
+  return isAttachmentExpired(expiresAt, now) ? "expired" : "active";
 }
 
 async function deleteAttachmentEmbeddings(
@@ -214,6 +222,7 @@ export const internal_createUploadedAttachment = backendMutation({
         isPublic: args.isPublic,
         serveImage: args.serveImage,
         expiresAt,
+        expiryStatus: getAttachmentExpiryStatus(expiresAt, now),
         updatedAt: now,
       });
       await updateUserUsageStats(ctx, args.userId, {
@@ -256,6 +265,7 @@ export const internal_createUploadedAttachment = backendMutation({
       isPublic: args.isPublic,
       serveImage: args.serveImage,
       expiresAt,
+      expiryStatus: getAttachmentExpiryStatus(expiresAt, now),
       createdAt: now,
       updatedAt: now,
     });
@@ -314,10 +324,11 @@ export const listByIds = query({
 export const listForSettings = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
-    const now = Date.now();
     const results = await ctx.db
       .query("attachments")
-      .withIndex("by_userId_createdAt", (q) => q.eq("userId", ctx.userId))
+      .withIndex("by_userId_expiryStatus_createdAt", (q) =>
+        q.eq("userId", ctx.userId).eq("expiryStatus", "active"),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
 
@@ -331,7 +342,7 @@ export const listForSettings = query({
       messageId: attachment.messageId,
       chatProjectId: attachment.chatProjectId,
       expiresAt: attachment.expiresAt,
-      expired: isAttachmentExpired(attachment.expiresAt, now),
+      expired: false,
       createdAt: attachment.createdAt,
       updatedAt: attachment.updatedAt,
       embeddingStatus: attachment.embeddingStatus,
@@ -363,10 +374,55 @@ export const internal_syncAttachmentExpiry = internalMutation({
       return;
     }
 
+    const now = Date.now();
     await ctx.db.patch(attachment._id, {
       expiresAt: args.expiresAt,
-      updatedAt: Date.now(),
+      expiryStatus: getAttachmentExpiryStatus(args.expiresAt, now),
+      updatedAt: now,
     });
+  },
+});
+
+export const internal_sweepExpiredAttachments = internalMutation({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const limit = Math.max(
+      1,
+      Math.min(
+        EXPIRED_ATTACHMENT_SWEEP_BATCH_SIZE,
+        Math.floor(args.limit ?? EXPIRED_ATTACHMENT_SWEEP_BATCH_SIZE),
+      ),
+    );
+    const expiredAttachments = await ctx.db
+      .query("attachments")
+      .withIndex("by_expiryStatus_expiresAt", (q) =>
+        q.eq("expiryStatus", "active").gt("expiresAt", 0).lt("expiresAt", now),
+      )
+      .take(limit);
+
+    let expiredCount = 0;
+    for (const attachment of expiredAttachments) {
+      if (!isAttachmentExpired(attachment.expiresAt, now)) {
+        continue;
+      }
+
+      await ctx.db.patch(attachment._id, {
+        expiryStatus: "expired",
+        updatedAt: now,
+      });
+      expiredCount += 1;
+    }
+
+    if (expiredAttachments.length === limit) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.functions.attachments.internal_sweepExpiredAttachments,
+        { limit },
+      );
+    }
+
+    return { expiredCount };
   },
 });
 

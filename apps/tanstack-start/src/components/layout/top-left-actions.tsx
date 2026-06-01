@@ -18,7 +18,7 @@ export function TopLeftActions() {
     project && isChatRoute
       ? { id: project.projectId, name: project.name }
       : null;
-  const showSidebarTrigger = isMobile ? !openMobile : !sidebarOpen;
+  const showSidebarTrigger = !isMobile && !sidebarOpen;
   const showProjectBack = projectBack !== null;
 
   if (!showSidebarTrigger && !showProjectBack) {

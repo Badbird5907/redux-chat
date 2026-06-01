@@ -96,7 +96,7 @@ function AppLayout() {
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
         <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">
-          <div className="bg-card/80 border-border/60 relative w-full flex-1 overflow-hidden rounded-4xl border p-4">
+          <div className="bg-page-card border-border/60 relative w-full flex-1 overflow-hidden rounded-4xl border p-4">
             <TopLeftActions />
             <TopRightActions />
             <div className="h-full overflow-hidden">

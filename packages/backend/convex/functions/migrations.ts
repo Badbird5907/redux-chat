@@ -1,8 +1,11 @@
+import type { GenericMutationCtx } from "convex/server";
 import { v } from "convex/values";
 
 import type { PlanTier } from "@redux/shared";
 import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
 
+import type { DataModel } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 import {
   getMonthlyExpiresAt,
   getMonthlyPeriodKey,
@@ -10,6 +13,60 @@ import {
 } from "../credits";
 import { usageStatsDayKey } from "../usageStats";
 import { backendMutation, backendQuery } from "./index";
+import { internalMutation } from "./internal";
+
+const ATTACHMENT_EXPIRY_BACKFILL_BATCH_SIZE = 100;
+
+function getAttachmentExpiryStatus(expiresAt: number | undefined, now: number) {
+  return expiresAt !== undefined && expiresAt <= now ? "expired" : "active";
+}
+
+async function backfillAttachmentExpiryStatusBatch(
+  ctx: GenericMutationCtx<DataModel>,
+  args: { cursor?: string | null; limit?: number },
+) {
+  const now = Date.now();
+  const limit = Math.max(
+    1,
+    Math.min(
+      ATTACHMENT_EXPIRY_BACKFILL_BATCH_SIZE,
+      Math.floor(args.limit ?? ATTACHMENT_EXPIRY_BACKFILL_BATCH_SIZE),
+    ),
+  );
+  const results = await ctx.db.query("attachments").paginate({
+    numItems: limit,
+    cursor: args.cursor ?? null,
+  });
+
+  let updated = 0;
+  for (const attachment of results.page) {
+    const expiryStatus = getAttachmentExpiryStatus(attachment.expiresAt, now);
+    if (attachment.expiryStatus === expiryStatus) {
+      continue;
+    }
+
+    await ctx.db.patch(attachment._id, {
+      expiryStatus,
+      updatedAt: now,
+    });
+    updated += 1;
+  }
+
+  if (!results.isDone) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.functions.migrations.internal_backfillAttachmentExpiryStatus,
+      { cursor: results.continueCursor, limit },
+    );
+  }
+
+  return {
+    scanned: results.page.length,
+    updated,
+    isDone: results.isDone,
+    continueCursor: results.continueCursor,
+  };
+}
 
 export const getLegacyMessageSettingsCounts = backendQuery({
   args: {
@@ -37,6 +94,27 @@ export const backfillLegacyMessageSettingsTools = backendMutation({
       updatedDefaultMessageSettings: 0,
       completedAt: Date.now(),
     };
+  },
+});
+
+export const backfillAttachmentExpiryStatus = backendMutation({
+  args: {
+    secret: v.string(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await backfillAttachmentExpiryStatusBatch(ctx, args);
+  },
+});
+
+export const internal_backfillAttachmentExpiryStatus = internalMutation({
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await backfillAttachmentExpiryStatusBatch(ctx, args);
   },
 });
 

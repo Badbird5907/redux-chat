@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { ComponentProps } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { usePaginatedQuery } from "convex/react";
@@ -15,6 +16,7 @@ import { Button } from "@redux/ui/components/button";
 import { Card, CardContent } from "@redux/ui/components/card";
 import { DataTable } from "@redux/ui/components/data-table";
 
+import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { deleteSettingsAttachments } from "@/server/attachments";
 
 const PAGE_SIZE = 25;
@@ -43,24 +45,32 @@ function formatDate(timestamp: number | undefined) {
   return attachmentDateFormatter.format(new Date(timestamp));
 }
 
-function getAttachmentScope(attachment: AttachmentRow) {
+type BadgeColor = NonNullable<ComponentProps<typeof Badge>["color"]>;
+
+function getAttachmentScope(attachment: AttachmentRow): {
+  label: string;
+  color: BadgeColor;
+} {
   if (attachment.chatProjectId) {
-    return "Project file";
+    return { label: "Project file", color: "orange" };
   }
   if (attachment.status === "draft") {
-    return "Draft";
+    return { label: "Draft", color: "muted" };
   }
-  return "Chat";
+  return { label: "Chat", color: "green" };
 }
 
-function getAttachmentStatus(attachment: AttachmentRow) {
+function getAttachmentStatus(attachment: AttachmentRow): {
+  label: string;
+  color: BadgeColor;
+} {
   if (attachment.expired) {
-    return "Expired";
+    return { label: "Expired", color: "red" };
   }
   if (attachment.expiresAt === undefined) {
-    return "Unexpired";
+    return { label: "No Expiry", color: "yellow" };
   }
-  return "Active";
+  return { label: "Active", color: "green" };
 }
 
 function getAttachmentId(attachment: AttachmentRow) {
@@ -88,35 +98,65 @@ function AttachmentsRouteComponent() {
       {
         accessorKey: "fileName",
         header: "File",
-        cell: ({ row }) => (
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="truncate font-medium">
-              {row.original.fileName}
-            </span>
-            <span className="text-muted-foreground truncate text-xs">
-              {row.original.mimeType}
-            </span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const { mimeType } = row.original;
+          let typeLabel: string = mimeType;
+          if (mimeType.includes("image/")) {
+            typeLabel = "Image";
+          } else if (mimeType.includes("video/")) {
+            typeLabel = "Video";
+          } else if (mimeType.includes("audio/")) {
+            typeLabel = "Audio";
+          } else if (mimeType.includes("application/pdf")) {
+            typeLabel = "PDF";
+          } else if (mimeType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+            typeLabel = "Word Document";
+          } else if (mimeType.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+            typeLabel = "Spreadsheet";
+          } else if (mimeType.includes("application/vnd.openxmlformats-officedocument.presentationml.presentation")) {
+            typeLabel = "Presentation";
+          } else if (mimeType.includes("application/vnd.oasis.opendocument.text")) {
+            typeLabel = "OpenDocument Text";
+          } else if (mimeType.includes("application/vnd.oasis.opendocument.spreadsheet")) {
+            typeLabel = "OpenDocument Spreadsheet";
+          }
+          return (
+            <div className="flex min-w-0 flex-col gap-1">
+              <span
+                className="block min-w-0 truncate font-medium"
+                title={row.original.fileName}
+              >
+                {row.original.fileName}
+              </span>
+              <span className="text-muted-foreground block min-w-0 truncate text-xs">
+                {typeLabel}
+              </span>
+            </div>
+          );
+        },
         meta: {
-          cellClassName: "max-w-[22rem]",
+          cellClassName: "max-w-[12rem] whitespace-normal overflow-hidden",
         },
       },
       {
         id: "scope",
         header: "Scope",
-        cell: ({ row }) => (
-          <Badge variant="secondary">{getAttachmentScope(row.original)}</Badge>
-        ),
+        cell: ({ row }) => {
+          const scope = getAttachmentScope(row.original);
+          return (
+            <Badge variant="secondary" color={scope.color}>{scope.label}</Badge>
+          )
+        },
       },
       {
         id: "status",
         header: "Status",
-        cell: ({ row }) => (
-          <Badge variant={row.original.expired ? "outline" : "secondary"}>
-            {getAttachmentStatus(row.original)}
-          </Badge>
-        ),
+        cell: ({ row }) => {
+          const status = getAttachmentStatus(row.original);
+          return (
+            <Badge variant="secondary" color={status.color}>{status.label}</Badge>
+          )
+        },
       },
       {
         accessorKey: "size",
@@ -219,9 +259,14 @@ function AttachmentsRouteComponent() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Attachments</h1>
+        <div className="flex min-w-0 items-center gap-2">
+          <SettingsMobileSidebarTrigger />
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+            Attachments
+          </h1>
+        </div>
         <p className="text-muted-foreground max-w-3xl text-sm">
           Review uploaded attachments and delete files that have not expired.
           Deleting an attachment also removes generated derivatives.

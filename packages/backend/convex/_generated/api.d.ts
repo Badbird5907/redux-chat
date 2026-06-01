@@ -32,6 +32,7 @@ import type * as functions_threadShares from "../functions/threadShares.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
+import type * as init from "../init.js";
 import type * as promotions from "../promotions.js";
 import type * as stripe from "../stripe.js";
 import type * as usageStats from "../usageStats.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;
   http: typeof http;
+  init: typeof init;
   promotions: typeof promotions;
   stripe: typeof stripe;
   usageStats: typeof usageStats;
@@ -102,5 +104,6 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("../betterAuth/_generated/component.js").ComponentApi<"betterAuth">;
+  crons: import("@convex-dev/crons/_generated/component.js").ComponentApi<"crons">;
   stripe: import("@convex-dev/stripe/_generated/component.js").ComponentApi<"stripe">;
 };

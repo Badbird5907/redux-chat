@@ -399,6 +399,9 @@ importers:
       '@convex-dev/better-auth':
         specifier: ^0.12.1
         version: 0.12.1(@standard-schema/spec@1.1.0)(better-auth@1.6.9(@opentelemetry/api@1.9.1)(@tanstack/react-start@1.167.43(@rsbuild/core@2.0.1(core-js@3.49.0))(@rspack/core@2.0.0(@swc/helpers@0.5.21))(crossws@0.4.5(srvx@0.11.15))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)))(next@16.1.7(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(solid-js@1.9.10)(vitest@4.1.5))(convex@1.36.1(react@19.2.5))(react@19.2.5)(typescript@5.9.3)
+      '@convex-dev/crons':
+        specifier: ^0.2.0
+        version: 0.2.0(convex@1.36.1(react@19.2.5))
       '@convex-dev/stripe':
         specifier: ^0.1.4
         version: 0.1.4(@types/node@25.6.0)(convex@1.36.1(react@19.2.5))(react@19.2.5)
@@ -1198,6 +1201,11 @@ packages:
       better-auth: '>=1.6.9 <1.7.0'
       convex: ^1.25.0
       react: ^18.3.1 || ^19.0.0
+
+  '@convex-dev/crons@0.2.0':
+    resolution: {integrity: sha512-JowF/DDPl8FuhXml2/0jmEa6uIKr/UK1UwP+FdbPt2BRVxACRX4CNlzDQEtHbO2p2FVKiJh4zEg8p5/YM27PEA==}
+    peerDependencies:
+      convex: ^1.24.8
 
   '@convex-dev/react-query@0.1.0':
     resolution: {integrity: sha512-ULmBZCtAQDUePdBhUv7hj1Yy4QiCelhi6uEIOtMpjW8db6W9CFKvQwLt9heLngccFyMFfAZdOfSrT+cP4AH0Jw==}
@@ -6122,6 +6130,10 @@ packages:
     engines: {node: '>=0.8'}
     hasBin: true
 
+  cron-parser@4.9.0:
+    resolution: {integrity: sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==}
+    engines: {node: '>=12.0.0'}
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -7546,6 +7558,10 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   lucide-react@1.11.0:
     resolution: {integrity: sha512-UOhjdztXCgdBReRcIhsvz2siIBogfv/lhJEIViCpLt924dO+GDms9T7DNoucI23s6kEPpe988m5N0D2ajnzb2g==}
@@ -9907,6 +9923,11 @@ snapshots:
       - '@standard-schema/spec'
       - hono
       - typescript
+
+  '@convex-dev/crons@0.2.0(convex@1.36.1(react@19.2.5))':
+    dependencies:
+      convex: 1.36.1(react@19.2.5)
+      cron-parser: 4.9.0
 
   '@convex-dev/react-query@0.1.0(@tanstack/react-query@5.100.1(react@19.2.5))(convex@1.36.1(react@19.2.5))':
     dependencies:
@@ -14377,6 +14398,10 @@ snapshots:
 
   crc-32@1.2.2: {}
 
+  cron-parser@4.9.0:
+    dependencies:
+      luxon: 3.7.2
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -16159,6 +16184,8 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  luxon@3.7.2: {}
 
   lucide-react@1.11.0(react@19.2.5):
     dependencies:

@@ -30,6 +30,10 @@ const mutationInfo = v.union(
 );
 
 const attachmentStatus = v.union(v.literal("draft"), v.literal("attached"));
+const attachmentExpiryStatus = v.union(
+  v.literal("active"),
+  v.literal("expired"),
+);
 
 const embeddingStatus = v.union(
   v.literal("queued"),
@@ -323,6 +327,7 @@ export default defineSchema({
     isPublic: v.boolean(),
     serveImage: v.boolean(),
     expiresAt: v.optional(v.number()),
+    expiryStatus: v.optional(attachmentExpiryStatus),
     // RAG indexing state for project files (only set when chatProjectId is set).
     embeddingStatus: v.optional(embeddingStatus),
     embeddingError: v.optional(v.string()),
@@ -333,6 +338,12 @@ export default defineSchema({
     .index("by_attachmentId", ["attachmentId"])
     .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_userId_expiryStatus_createdAt", [
+      "userId",
+      "expiryStatus",
+      "createdAt",
+    ])
+    .index("by_expiryStatus_expiresAt", ["expiryStatus", "expiresAt"])
     .index("by_userId_status", ["userId", "status"])
     .index("by_threadId", ["threadId"])
     .index("by_messageId", ["messageId"])
