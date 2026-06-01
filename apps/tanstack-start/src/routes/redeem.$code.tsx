@@ -31,7 +31,6 @@ import { formatCurrencyFromMinorUnits } from "@/components/billing/plan-tier-mar
 import { RedeemShell } from "@/components/redeem/redeem-shell";
 import { StatusPanel } from "@/components/redeem/status-panel";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
-
 import { loadPublicPromotion } from "./redeem.$code-loader";
 
 const billingConfig = DEFAULT_BILLING_CONFIG;

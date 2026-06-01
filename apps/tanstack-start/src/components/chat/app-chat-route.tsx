@@ -27,10 +27,8 @@ export function AppChatRoute({ initialThreadId, preload }: AppChatRouteProps) {
   }));
   const previousThreadIdRef = useRef(initialThreadId);
   const initialThreadIdRef = useRef(initialThreadId);
-  const {
-    consumeAdoptedThreadNavigation,
-    isAdoptedThreadNavigation,
-  } = useChatRouteAdoption();
+  const { consumeAdoptedThreadNavigation, isAdoptedThreadNavigation } =
+    useChatRouteAdoption();
   const isAdoptedNavigation = isAdoptedThreadNavigation(initialThreadId);
   const isWaitingForRouteSession =
     routeSession.threadId !== initialThreadId && !isAdoptedNavigation;

@@ -1,9 +1,5 @@
 import { lazy, Suspense, useMemo } from "react";
-import {
-  createFileRoute,
-  Link,
-  useParams,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { ArrowLeft } from "lucide-react";
 import z from "zod";

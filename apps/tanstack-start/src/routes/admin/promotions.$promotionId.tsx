@@ -1,8 +1,4 @@
-import {
-  createFileRoute,
-  Link,
-  useParams,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import {
   useAction,
   useMutation,
@@ -90,11 +86,7 @@ type PromotionRedemptionRow = RedemptionStripeFields & {
   failureReason?: string;
 };
 
-function StripeIds({
-  redemption,
-}: {
-  redemption: RedemptionStripeFields;
-}) {
+function StripeIds({ redemption }: { redemption: RedemptionStripeFields }) {
   const reversalTransactionId = metadataString(
     redemption.metadata,
     "reversalTransactionId",

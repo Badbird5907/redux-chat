@@ -72,7 +72,6 @@ export default defineConfig({
     tanstackStart({
       srcDirectory: "src",
       router: {
-        autoCodeSplitting: true,
         routeFileIgnorePattern: "-loader\\.tsx?$",
       },
     }),

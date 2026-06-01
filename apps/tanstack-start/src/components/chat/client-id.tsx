@@ -50,7 +50,7 @@ export const SignedCidProvider = ({ children }: { children: ReactNode }) => {
     async (minimumCount = DEFAULT_CACHE_SIZE) => {
       await getAllocator().prefetch(minimumCount);
     },
-    [getAllocator, DEFAULT_CACHE_SIZE],
+    [getAllocator],
   );
 
   const allocate = useCallback(
