@@ -14,6 +14,7 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
+import { checkBotId } from "botid/server";
 import { createResumableStreamContext } from "resumable-stream/generic";
 import { z } from "zod";
 
@@ -468,6 +469,11 @@ export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const botVerification = await checkBotId();
+        if (botVerification.isBot) {
+          return new Response("Access denied", { status: 403 });
+        }
+
         const requestUserId = await getRequestUserIdFromHeaders(
           request.headers,
         );

@@ -61,6 +61,7 @@
     "ai": "7.0.0-beta.116",
     "bash-tool": "^1.3.16",
     "better-auth": "catalog:",
+    "botid": "^1.5.11",
     "convex": "^1.36.1",
     "just-bash": "^3.0.1",
     "katex": "^0.16.45",
