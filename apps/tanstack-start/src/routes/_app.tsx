@@ -9,6 +9,7 @@ import {
 
 import { SidebarProvider } from "@redux/ui/components/sidebar";
 
+import { AdjacentAttachmentPanelLayout } from "@/components/chat/adjacent-attachment-panel-context";
 import { AppChatRoute } from "@/components/chat/app-chat-route";
 import { ChatRouteAdoptionProvider } from "@/components/chat/chat-route-adoption";
 import { ChatTopBar } from "@/components/layout/chat-top-bar";
@@ -130,25 +131,27 @@ function AppLayout() {
         <SidebarToggleHotkeyRegistration />
         <AppSidebarPanel />
         <main className="bg-muted/35 dark:bg-background flex h-dvh min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none p-2">
-          <div className="bg-page-card border-border/60 relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none rounded-4xl border p-4">
-            {chatThreadId !== undefined ? (
-              <ChatTopBar threadId={chatThreadId} />
-            ) : (
-              <TopLeftActions />
-            )}
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              {isChatSurfaceRoute ? (
-                shouldRenderChatSurface ? (
-                  <AppChatRoute
-                    initialThreadId={chatThreadId}
-                    preload={chatPreload}
-                  />
-                ) : null
+          <AdjacentAttachmentPanelLayout>
+            <div className="bg-page-card border-border/60 relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-none rounded-4xl border p-4">
+              {chatThreadId !== undefined ? (
+                <ChatTopBar threadId={chatThreadId} />
               ) : (
-                <Outlet />
+                <TopLeftActions />
               )}
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                {isChatSurfaceRoute ? (
+                  shouldRenderChatSurface ? (
+                    <AppChatRoute
+                      initialThreadId={chatThreadId}
+                      preload={chatPreload}
+                    />
+                  ) : null
+                ) : (
+                  <Outlet />
+                )}
+              </div>
             </div>
-          </div>
+          </AdjacentAttachmentPanelLayout>
         </main>
       </SidebarProvider>
     </ChatRouteAdoptionProvider>

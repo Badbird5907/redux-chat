@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { FileText, Loader2, X } from "lucide-react";
 
 import { Button } from "@redux/ui/components/button";
+import { Tabs, TabsList, TabsTrigger } from "@redux/ui/components/tabs";
 import { cn } from "@redux/ui/lib/utils";
 
 import { StaticMarkdown } from "@/components/markdown/static-markdown";
 
-const PANEL_MIN_WIDTH = 280;
-const PANEL_MAX_WIDTH = 720;
-const PANEL_DEFAULT_WIDTH = 440;
-const PANEL_WIDTH_KEY = "redux:adjacent-panel-width";
+export const ADJACENT_PANEL_MIN_WIDTH = 280;
+export const ADJACENT_PANEL_MAX_WIDTH = 720;
+export const ADJACENT_PANEL_DEFAULT_WIDTH = 440;
+const ADJACENT_PANEL_LAYOUT_KEY = "redux:adjacent-panel-layout";
+const ADJACENT_PANEL_WIDTH_KEY = "redux:adjacent-panel-width";
 
 const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".mdx"];
 
@@ -306,16 +308,55 @@ function FileTabContent({ file }: { file: AdjacentPanelFile }) {
 
 function getInitialWidth() {
   if (typeof window === "undefined") {
-    return PANEL_DEFAULT_WIDTH;
+    return ADJACENT_PANEL_DEFAULT_WIDTH;
   }
-  const stored = window.localStorage.getItem(PANEL_WIDTH_KEY);
+  const stored = window.localStorage.getItem(ADJACENT_PANEL_WIDTH_KEY);
   if (stored) {
     const parsed = Number(stored);
     if (Number.isFinite(parsed)) {
-      return Math.min(Math.max(parsed, PANEL_MIN_WIDTH), PANEL_MAX_WIDTH);
+      return Math.min(
+        Math.max(parsed, ADJACENT_PANEL_MIN_WIDTH),
+        ADJACENT_PANEL_MAX_WIDTH,
+      );
     }
   }
-  return PANEL_DEFAULT_WIDTH;
+  return ADJACENT_PANEL_DEFAULT_WIDTH;
+}
+
+export function getStoredAdjacentPanelLayout():
+  | Record<string, number>
+  | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  try {
+    const storedLayout = window.localStorage.getItem(ADJACENT_PANEL_LAYOUT_KEY);
+    if (storedLayout) {
+      const parsed = JSON.parse(storedLayout) as Record<string, number>;
+      if (
+        typeof parsed === "object" &&
+        typeof parsed.attachment === "number"
+      ) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore invalid layout
+  }
+
+  return undefined;
+}
+
+export function persistAdjacentPanelLayout(layout: Record<string, number>) {
+  try {
+    window.localStorage.setItem(
+      ADJACENT_PANEL_LAYOUT_KEY,
+      JSON.stringify(layout),
+    );
+  } catch {
+    // storage full or unavailable
+  }
 }
 
 export function AttachmentSidePanel({
@@ -325,7 +366,6 @@ export function AttachmentSidePanel({
   onClose,
   onCloseAll,
   onSelectTab,
-  onWidthChange,
 }: {
   activeFileId: string;
   className?: string;
@@ -333,72 +373,7 @@ export function AttachmentSidePanel({
   onClose: (fileId: string) => void;
   onCloseAll: () => void;
   onSelectTab: (fileId: string) => void;
-  onWidthChange?: (width: number) => void;
 }) {
-  const [width, setWidth] = useState(getInitialWidth);
-  const draggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(0);
-
-  const persistWidth = useCallback((w: number) => {
-    try {
-      window.localStorage.setItem(PANEL_WIDTH_KEY, String(w));
-    } catch {
-      // storage full or unavailable
-    }
-  }, []);
-
-  const handleMouseDown = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault();
-      draggingRef.current = true;
-      startXRef.current = event.clientX;
-      startWidthRef.current = width;
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-    },
-    [width],
-  );
-
-  useEffect(() => {
-    onWidthChange?.(width);
-  }, [width, onWidthChange]);
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!draggingRef.current) {
-        return;
-      }
-      const delta = startXRef.current - event.clientX;
-      const next = Math.min(
-        Math.max(startWidthRef.current + delta, PANEL_MIN_WIDTH),
-        PANEL_MAX_WIDTH,
-      );
-      setWidth(next);
-    };
-
-    const handleMouseUp = () => {
-      if (!draggingRef.current) {
-        return;
-      }
-      draggingRef.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      setWidth((w) => {
-        persistWidth(w);
-        return w;
-      });
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [persistWidth]);
-
   const activeFile = files.find((f) => f.id === activeFileId) ?? files[0];
   if (!activeFile) {
     return null;
@@ -409,74 +384,70 @@ export function AttachmentSidePanel({
   return (
     <aside
       className={cn(
-        "border-border bg-background relative flex h-full min-h-0 shrink-0 flex-col border-l",
+        "border-border bg-background relative flex h-full min-h-0 w-full flex-col border-l",
         className,
       )}
-      style={{ width }}
     >
-      {/* Resize handle */}
-      <div
-        className="hover:bg-primary/20 active:bg-primary/30 absolute top-0 bottom-0 left-0 z-10 w-1 cursor-col-resize"
-        onMouseDown={handleMouseDown}
-        role="separator"
-        aria-orientation="vertical"
-      />
-
       {/* Tab bar / header */}
       {hasTabs ? (
-        <div className="border-border flex min-h-0 items-end border-b">
-          <div className="flex min-w-0 flex-1 overflow-x-auto">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className={cn(
-                  "group border-border flex max-w-48 items-center gap-1.5 border-r px-3 py-2 text-sm",
-                  file.id === activeFile.id
-                    ? "bg-background text-foreground"
-                    : "bg-muted/40 text-muted-foreground hover:bg-muted/60 cursor-pointer",
-                )}
-              >
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 truncate text-left"
-                  title={file.name}
-                  onClick={() => onSelectTab(file.id)}
-                >
-                  {file.name}
-                </button>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground -mr-1 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-                  title="Close tab"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose(file.id);
-                  }}
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-            ))}
+        <Tabs
+          className="border-border/60 flex h-12 shrink-0 flex-row gap-0 overflow-hidden border-b"
+          value={activeFileId}
+          onValueChange={(value) => {
+            if (typeof value === "string") {
+              onSelectTab(value);
+            }
+          }}
+        >
+          <div className="flex h-full w-full min-w-0 items-center gap-2 px-4">
+            <div
+              className="scrollbar-none min-w-0 flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              <TabsList className="w-max">
+                {files.map((file) => (
+                  <TabsTrigger
+                    key={file.id}
+                    className="group/tab max-w-48 shrink-0 flex-none gap-1.5 pr-1 after:hidden data-active:[&_button]:opacity-100"
+                    value={file.id}
+                  >
+                    <span className="min-w-0 truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      aria-label={`Close ${file.name}`}
+                      className="text-muted-foreground hover:text-foreground shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/tab:opacity-100"
+                      title="Close tab"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onClose(file.id);
+                      }}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+            <Button
+              aria-label="Close all tabs"
+              className="size-8 shrink-0"
+              onClick={onCloseAll}
+              size="icon"
+              variant="ghost"
+            >
+              <X className="size-4" />
+            </Button>
           </div>
-          <Button
-            aria-label="Close all tabs"
-            className="shrink-0"
-            onClick={onCloseAll}
-            size="icon"
-            variant="ghost"
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
+        </Tabs>
       ) : (
-        <div className="border-border flex items-center gap-2 border-b px-4 py-3">
+        <div className="border-border/60 flex h-12 shrink-0 items-center gap-2 border-b px-4">
           <FileText className="text-muted-foreground size-4 shrink-0" />
           <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
             {activeFile.name}
           </span>
           <Button
             aria-label="Close preview"
-            className="shrink-0"
+            className="size-8 shrink-0"
             onClick={onCloseAll}
             size="icon"
             variant="ghost"

@@ -11,22 +11,17 @@ import {
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
-import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import { cn } from "@redux/ui/lib/utils";
 
-import type { AdjacentPanelFile } from "./attachment-side-panel";
 import type { PreviewableFile } from "./input/types";
 import type { ChatPreload } from "./preload";
 import type { ThreadExportInput } from "./thread-export-utils";
+import { useAdjacentAttachmentPanel } from "@/components/chat/adjacent-attachment-panel-context";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai/conversation";
-import {
-  AttachmentSidePanel,
-  isAdjacentPreviewSupported,
-} from "@/components/chat/attachment-side-panel";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { ChatMessageList } from "./chat-message-list";
 import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
@@ -73,10 +68,8 @@ export function Chat({
 }) {
   const [printExportInput, setPrintExportInput] =
     useState<ThreadExportInput | null>(null);
-  const [openFiles, setOpenFiles] = useState<AdjacentPanelFile[]>([]);
-  const [activeFileId, setActiveFileId] = useState<string | null>(null);
-  const [panelWidth, setPanelWidth] = useState(0);
-  const isMobile = useIsMobile();
+  const { isOpen: isAdjacentPanelOpen, openAdjacentPreview, panelWidth } =
+    useAdjacentAttachmentPanel();
   const printRootRef = useRef<HTMLDivElement | null>(null);
   const printInProgressRef = useRef(false);
   const {
@@ -115,51 +108,14 @@ export function Chat({
 
   const handleAttachmentPreview = useCallback(
     (file: PreviewableFile | null) => {
-      if (file && !isMobile && isAdjacentPreviewSupported(file)) {
-        const panelFile: AdjacentPanelFile = {
-          id: file.id,
-          name: file.name,
-          type: file.type,
-          url: file.url,
-        };
-        setOpenFiles((prev) => {
-          if (prev.some((f) => f.id === panelFile.id)) {
-            return prev;
-          }
-          return [...prev, panelFile];
-        });
-        setActiveFileId(panelFile.id);
+      if (file && openAdjacentPreview(file)) {
         setPreviewFile(null);
         return;
       }
       setPreviewFile(file);
     },
-    [isMobile, setPreviewFile],
+    [openAdjacentPreview, setPreviewFile],
   );
-
-  const handleCloseTab = useCallback(
-    (fileId: string) => {
-      setOpenFiles((prev) => {
-        const next = prev.filter((f) => f.id !== fileId);
-        if (next.length === 0) {
-          setActiveFileId(null);
-        } else if (activeFileId === fileId) {
-          const closedIndex = prev.findIndex((f) => f.id === fileId);
-          const nextActive = next[Math.min(closedIndex, next.length - 1)];
-          setActiveFileId(nextActive?.id ?? null);
-        }
-        return next;
-      });
-    },
-    [activeFileId],
-  );
-
-  const handleCloseAllTabs = useCallback(() => {
-    setOpenFiles([]);
-    setActiveFileId(null);
-  }, []);
-
-  const isAdjacentPanelOpen = openFiles.length > 0 && !isMobile;
 
   const handleFilePreviewRequest = useEffectEvent((file: PreviewableFile) => {
     handleAttachmentPreview(file);
@@ -298,89 +254,77 @@ export function Chat({
 
   return (
     <>
-      <div className="flex h-full min-h-0 min-w-0 overflow-hidden print:hidden">
-        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <Conversation className="relative size-full">
-            <InitialThreadScrollInitializer
-              enabled={shouldInitializeInitialThreadScroll}
-              onReady={handleInitialThreadScrollReady}
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden print:hidden">
+        <Conversation className="relative size-full">
+          <InitialThreadScrollInitializer
+            enabled={shouldInitializeInitialThreadScroll}
+            onReady={handleInitialThreadScrollReady}
+          />
+          <ConversationContent
+            className={cn(
+              "pt-0 pb-36 transition-opacity duration-200 ease-out",
+              shouldInitializeInitialThreadScroll
+                ? "pointer-events-none opacity-0"
+                : "opacity-100",
+            )}
+          >
+            <ChatMessageList
+              assistantModelByParentMessageId={
+                assistantModelByParentMessageId
+              }
+              allBranchMessages={allBranchMessages}
+              chatSessionId={chatSessionId}
+              convexUIMessages={convexUIMessages}
+              currentThreadId={currentThreadId}
+              effectiveChatProjectId={effectiveChatProjectId}
+              emptyContent={emptyContent}
+              finalMessages={finalMessages}
+              handleThreadIdChange={handleThreadIdChange}
+              messageAttachmentsByMessageId={messageAttachmentsByMessageId}
+              messageStatsMap={messageStatsMap}
+              resolvedMessageAttachments={resolvedMessageAttachments}
+              onRegenerateMessage={regenerateMessage}
+              sendMessageWithTracking={sendMessageWithTracking}
+              onSelectBranch={selectBranch}
+              onStartEditMessage={startEditMessage}
+              setOptimisticMessage={setOptimisticMessage}
+              setPreviewFile={handleAttachmentPreview}
+              settings={settings}
+              status={status}
             />
-            <ConversationContent
-              className={cn(
-                "pt-0 pb-36 transition-opacity duration-200 ease-out",
-                shouldInitializeInitialThreadScroll
-                  ? "pointer-events-none opacity-0"
-                  : "opacity-100",
-              )}
-            >
-              <ChatMessageList
-                assistantModelByParentMessageId={
-                  assistantModelByParentMessageId
-                }
-                allBranchMessages={allBranchMessages}
-                chatSessionId={chatSessionId}
-                convexUIMessages={convexUIMessages}
-                currentThreadId={currentThreadId}
-                effectiveChatProjectId={effectiveChatProjectId}
-                emptyContent={emptyContent}
-                finalMessages={finalMessages}
-                handleThreadIdChange={handleThreadIdChange}
-                messageAttachmentsByMessageId={messageAttachmentsByMessageId}
-                messageStatsMap={messageStatsMap}
-                resolvedMessageAttachments={resolvedMessageAttachments}
-                onRegenerateMessage={regenerateMessage}
-                sendMessageWithTracking={sendMessageWithTracking}
-                onSelectBranch={selectBranch}
-                onStartEditMessage={startEditMessage}
-                setOptimisticMessage={setOptimisticMessage}
-                setPreviewFile={handleAttachmentPreview}
-                settings={settings}
-                status={status}
-              />
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
 
-          <ChatInput
-            threadId={currentThreadId}
-            adjacentPanelWidth={
-              isAdjacentPanelOpen && panelWidth > 0
-                ? `${panelWidth}px`
-                : undefined
-            }
-            chatProjectId={effectiveChatProjectId}
-            setThreadId={handleThreadIdChange}
-            sendMessage={sendMessageWithTracking}
-            onStopGeneration={stopGeneration}
-            setOptimisticMessage={setOptimisticMessage}
-            messages={messages}
-            status={status}
-            clientId={chatSessionId}
-            convexMessages={convexUIMessages}
-            settings={settings}
-            settingsReady={settingsReady}
-            onModelChange={setModel}
-            onSettingsChange={updateSettings}
-            editMessage={editMessage}
-            onCancelEdit={cancelEditMessage}
-            onSubmitEdit={submitEditedMessage}
-          />
+        <ChatInput
+          threadId={currentThreadId}
+          adjacentPanelWidth={
+            isAdjacentPanelOpen && panelWidth > 0
+              ? `${panelWidth}px`
+              : undefined
+          }
+          chatProjectId={effectiveChatProjectId}
+          setThreadId={handleThreadIdChange}
+          sendMessage={sendMessageWithTracking}
+          onStopGeneration={stopGeneration}
+          setOptimisticMessage={setOptimisticMessage}
+          messages={messages}
+          status={status}
+          clientId={chatSessionId}
+          convexMessages={convexUIMessages}
+          settings={settings}
+          settingsReady={settingsReady}
+          onModelChange={setModel}
+          onSettingsChange={updateSettings}
+          editMessage={editMessage}
+          onCancelEdit={cancelEditMessage}
+          onSubmitEdit={submitEditedMessage}
+        />
 
-          <FilePreviewDialog
-            file={previewFile}
-            onClose={() => setPreviewFile(null)}
-          />
-        </div>
-        {isAdjacentPanelOpen && activeFileId ? (
-          <AttachmentSidePanel
-            activeFileId={activeFileId}
-            files={openFiles}
-            onClose={handleCloseTab}
-            onCloseAll={handleCloseAllTabs}
-            onSelectTab={setActiveFileId}
-            onWidthChange={setPanelWidth}
-          />
-        ) : null}
+        <FilePreviewDialog
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
       </div>
       {printExportInput
         ? createPortal(

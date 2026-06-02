@@ -468,6 +468,15 @@ function getErrorMessage(error: unknown) {
   }
 }
 
+function isPersistableAssistantPart(part: unknown) {
+  return !(
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "error"
+  );
+}
+
 export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
@@ -556,10 +565,9 @@ export const Route = createFileRoute("/api/chat/")({
         }
 
         let cleanupTools: (() => Promise<void>) | undefined;
-        let streamFailureMessage: string | undefined;
+        let lastStreamErrorMessage: string | undefined;
         const reportStreamFailure = async (error: unknown) => {
           const errorMessage = getErrorMessage(error).slice(0, 1000);
-          streamFailureMessage = errorMessage;
           try {
             await fetchAuthMutation(api.functions.threads.internal_failStream, {
               secret: env.INTERNAL_CONVEX_SECRET,
@@ -741,7 +749,6 @@ export const Route = createFileRoute("/api/chat/")({
               generateId: () => assistantMessageId,
               onError: (error) => {
                 const errorMessage = getErrorMessage(error).slice(0, 1000);
-                streamFailureMessage = errorMessage;
                 void reportStreamFailure(error);
                 return errorMessage;
               },
@@ -953,7 +960,7 @@ export const Route = createFileRoute("/api/chat/")({
             }),
             stopWhen: stepCountIs(20), // we need to tune this
             onError: async ({ error }) => {
-              await reportStreamFailure(error);
+              console.error("Chat stream error", error);
             },
             onFinish: async ({ usage }) => {
               try {
@@ -1078,8 +1085,7 @@ export const Route = createFileRoute("/api/chat/")({
             generateMessageId: () => assistantMessageId,
             onError: (error) => {
               const errorMessage = getErrorMessage(error).slice(0, 1000);
-              streamFailureMessage = errorMessage;
-              void reportStreamFailure(error);
+              lastStreamErrorMessage = errorMessage;
               void cleanupTools?.();
               return errorMessage;
             },
@@ -1089,14 +1095,16 @@ export const Route = createFileRoute("/api/chat/")({
               }
             },
             onFinish: async ({ messages: finishedMessages }) => {
-              if (streamFailureMessage) {
-                await reportStreamFailure(streamFailureMessage);
+              const last = finishedMessages[finishedMessages.length - 1];
+              const parts = last?.parts ?? [];
+              if (!parts.some(isPersistableAssistantPart)) {
+                await reportStreamFailure(
+                  lastStreamErrorMessage ?? "Chat stream failed",
+                );
                 await cleanupTools?.();
                 return;
               }
 
-              const last = finishedMessages[finishedMessages.length - 1];
-              const parts = last?.parts ?? [];
               await fetchAuthMutation(
                 api.functions.threads.internal_completeStream,
                 {
