@@ -939,9 +939,7 @@ export function PromotionFormDialog({
                     </RadioGroup>
                     {appCreditExpiryMode === "after_days" ? (
                       <div className="grid gap-2 sm:max-w-xs">
-                        <Label
-                          htmlFor={`promotion-credit-expiry-days-${mode}`}
-                        >
+                        <Label htmlFor={`promotion-credit-expiry-days-${mode}`}>
                           Days after redemption
                         </Label>
                         <Input
@@ -959,9 +957,7 @@ export function PromotionFormDialog({
                     ) : null}
                     {appCreditExpiryMode === "fixed_date" ? (
                       <div className="grid gap-2 sm:max-w-xs">
-                        <Label
-                          htmlFor={`promotion-credit-expiry-date-${mode}`}
-                        >
+                        <Label htmlFor={`promotion-credit-expiry-date-${mode}`}>
                           Expiration date (local)
                         </Label>
                         <Input

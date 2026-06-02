@@ -434,7 +434,7 @@ describe("functions/promotions", () => {
       code: "PUBLIC-PROMO",
       name: "Test promotion",
       kind: "app_credits",
-      configSummary: "250 gifted credits",
+      configSummary: "250 gifted credits (never expires)",
       requiresTargetTierSelection: false,
     });
   });
