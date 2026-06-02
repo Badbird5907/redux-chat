@@ -128,9 +128,7 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <BotIdClient
-          protect={[{ path: "/api/chat", method: "POST" }]}
-        />
+        <BotIdClient protect={[{ path: "/api/chat", method: "POST" }]} />
       </head>
       <body
         className={cn(

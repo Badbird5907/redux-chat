@@ -4,7 +4,6 @@ import type { OpenAILanguageModelResponsesOptions } from "@ai-sdk/openai";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
-import { checkBotId } from "botid/server";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -15,6 +14,7 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
+import { checkBotId } from "botid/server";
 import { createResumableStreamContext } from "resumable-stream/generic";
 import { z } from "zod";
 
