@@ -30,7 +30,8 @@ export async function serializeBashFs(
   // Filter to real files outside /uploads
   const filePaths: string[] = [];
   for (const p of allPaths) {
-    if (p === "/" || p === UPLOADS_PREFIX || p.startsWith(`${UPLOADS_PREFIX}/`)) continue;
+    if (p === "/" || p === UPLOADS_PREFIX || p.startsWith(`${UPLOADS_PREFIX}/`))
+      continue;
     try {
       const st = await fs.stat(p);
       if (st.isFile) filePaths.push(p);
