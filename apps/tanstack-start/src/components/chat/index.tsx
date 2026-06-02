@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { cn } from "@redux/ui/lib/utils";
 
+import type { PreviewableFile } from "./input/types";
 import type { ChatPreload } from "./preload";
 import type { ThreadExportInput } from "./thread-export-utils";
 import {
@@ -20,8 +21,10 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai/conversation";
+import { useAdjacentAttachmentPanel } from "@/components/chat/adjacent-attachment-panel-context";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { ChatMessageList } from "./chat-message-list";
+import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
 import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
 import { ChatInput } from "./input";
 import { ThreadPrintExport } from "./thread-export";
@@ -65,6 +68,11 @@ export function Chat({
 }) {
   const [printExportInput, setPrintExportInput] =
     useState<ThreadExportInput | null>(null);
+  const {
+    isOpen: isAdjacentPanelOpen,
+    openAdjacentPreview,
+    panelWidth,
+  } = useAdjacentAttachmentPanel();
   const printRootRef = useRef<HTMLDivElement | null>(null);
   const printInProgressRef = useRef(false);
   const {
@@ -100,6 +108,34 @@ export function Chat({
     setModel,
     updateSettings,
   } = useChatSession({ initialThreadId, chatProjectId, preload });
+
+  const handleAttachmentPreview = useCallback(
+    (file: PreviewableFile | null) => {
+      if (file && openAdjacentPreview(file)) {
+        setPreviewFile(null);
+        return;
+      }
+      setPreviewFile(file);
+    },
+    [openAdjacentPreview, setPreviewFile],
+  );
+
+  const handleFilePreviewRequest = useEffectEvent((file: PreviewableFile) => {
+    handleAttachmentPreview(file);
+  });
+
+  useEffect(() => {
+    const handleRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<PreviewableFile>;
+      handleFilePreviewRequest(customEvent.detail);
+    };
+
+    window.addEventListener(OPEN_FILE_PREVIEW_EVENT, handleRequest);
+
+    return () => {
+      window.removeEventListener(OPEN_FILE_PREVIEW_EVENT, handleRequest);
+    };
+  }, []);
 
   const startPdfExport = useCallback((input: ThreadExportInput) => {
     setPrintExportInput(input);
@@ -253,7 +289,7 @@ export function Chat({
               onSelectBranch={selectBranch}
               onStartEditMessage={startEditMessage}
               setOptimisticMessage={setOptimisticMessage}
-              setPreviewFile={setPreviewFile}
+              setPreviewFile={handleAttachmentPreview}
               settings={settings}
               status={status}
             />
@@ -263,6 +299,11 @@ export function Chat({
 
         <ChatInput
           threadId={currentThreadId}
+          adjacentPanelWidth={
+            isAdjacentPanelOpen && panelWidth > 0
+              ? `${panelWidth}px`
+              : undefined
+          }
           chatProjectId={effectiveChatProjectId}
           setThreadId={handleThreadIdChange}
           sendMessage={sendMessageWithTracking}

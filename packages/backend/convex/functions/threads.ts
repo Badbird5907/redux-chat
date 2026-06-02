@@ -635,6 +635,23 @@ export const internal_updateMessageUsage = backendMutation({
   },
 });
 
+export const internal_updateBashFsState = backendMutation({
+  args: {
+    userId: v.string(),
+    threadId: v.string(),
+    bashFsState: v.optional(
+      v.object({
+        accessKey: v.string(),
+        fileKeyId: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const thread = await getThreadForOwner(ctx, args.threadId, args.userId);
+    await ctx.db.patch(thread._id, { bashFsState: args.bashFsState });
+  },
+});
+
 // Set the active stream ID for resumable streams
 export const internal_setActiveStreamId = backendMutation({
   args: {
@@ -1477,6 +1494,10 @@ export const deleteThread = mutation({
       .query("generatedImages")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
+    const modelGeneratedFiles = await ctx.db
+      .query("modelGeneratedFiles")
+      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+      .collect();
     const uniqueFiles = new Map<
       string,
       {
@@ -1518,6 +1539,17 @@ export const deleteThread = mutation({
       await ctx.db.delete(generatedImage._id);
     }
 
+    for (const modelGeneratedFile of modelGeneratedFiles) {
+      uniqueFiles.set(modelGeneratedFile.fileKeyId, {
+        projectId: modelGeneratedFile.projectId,
+        environmentId: modelGeneratedFile.environmentId,
+        fileKeyId: modelGeneratedFile.fileKeyId,
+        accessKey: modelGeneratedFile.accessKey,
+        size: modelGeneratedFile.size,
+      });
+      await ctx.db.delete(modelGeneratedFile._id);
+    }
+
     for (const file of uniqueFiles.values()) {
       const remainingRefs = await ctx.db
         .query("attachments")
@@ -1527,7 +1559,15 @@ export const deleteThread = mutation({
         .query("generatedImages")
         .withIndex("by_fileKeyId", (q) => q.eq("fileKeyId", file.fileKeyId))
         .first();
-      if (remainingRefs || remainingGeneratedImageRefs) {
+      const remainingModelGeneratedFileRefs = await ctx.db
+        .query("modelGeneratedFiles")
+        .withIndex("by_fileKeyId", (q) => q.eq("fileKeyId", file.fileKeyId))
+        .first();
+      if (
+        remainingRefs ||
+        remainingGeneratedImageRefs ||
+        remainingModelGeneratedFileRefs
+      ) {
         continue;
       }
 

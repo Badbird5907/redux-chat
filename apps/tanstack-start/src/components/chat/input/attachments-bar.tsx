@@ -19,6 +19,8 @@ import {
 import { cn } from "@redux/ui/lib/utils";
 
 import type { PreviewableFile } from "./types";
+import { isAdjacentPreviewSupported } from "@/components/chat/attachment-side-panel";
+import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { isAttachmentExpired } from "./utils";
 
 type AttachmentTileKind =
@@ -180,6 +182,12 @@ export function ChatInputAttachmentsBar({
         const ext = fileExtensionLower(file.fileName);
         const badge = tileBadgeLabel(kind, ext);
         const Icon = tileIconForKind(kind);
+        const showFileTypeIcon =
+          !isImage &&
+          isAdjacentPreviewSupported({
+            name: file.fileName,
+            type: file.mimeType,
+          });
         const docTileClass =
           kind !== "image" ? DOCUMENT_TILE_STYLES[kind] : undefined;
         const isRemoving = Boolean(removingById[file.attachmentId]);
@@ -227,10 +235,17 @@ export function ChatInputAttachmentsBar({
                           docTileClass,
                         )}
                       >
-                        <Icon
-                          className="size-[22px] shrink-0 opacity-90"
-                          aria-hidden
-                        />
+                        {showFileTypeIcon ? (
+                          <FileTypeIcon
+                            className="size-[22px] shrink-0 opacity-90"
+                            fileName={file.fileName}
+                          />
+                        ) : (
+                          <Icon
+                            className="size-[22px] shrink-0 opacity-90"
+                            aria-hidden
+                          />
+                        )}
                         <span className="max-w-full truncate px-px text-[9px] leading-none font-semibold tracking-wide">
                           {badge}
                         </span>

@@ -355,6 +355,10 @@ function getToolDescription(
     return getWriteFileToolDescription(part);
   }
 
+  if (normalizedToolName === "present_file") {
+    return getPresentFileToolDescription(part);
+  }
+
   if (part.state === "output-available") {
     const outputText = summarizeUnknown(part.output);
     if (outputText) {
@@ -414,6 +418,16 @@ function getToolSummary(
 
   if (normalizedToolName === "writefile") {
     return part.state === "output-available" ? "Wrote file" : "Writing file";
+  }
+
+  if (normalizedToolName === "present_file") {
+    const fileName = getPresentedFileName(part);
+
+    if (part.state === "output-available") {
+      return fileName ? `Presented ${fileName}` : "Presented file";
+    }
+
+    return fileName ? `Presenting ${fileName}` : "Presenting file";
   }
 
   switch (part.state) {
@@ -506,6 +520,17 @@ function getWriteFileToolDescription(
     : `Writing ${pathText}`;
 }
 
+function getPresentFileToolDescription(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const fileName = getPresentedFileName(part);
+  const fileText = fileName ?? "file";
+
+  return part.state === "output-available"
+    ? `Presented ${fileText}.`
+    : `Presenting ${fileText}`;
+}
+
 function getToolInput(
   part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
 ) {
@@ -541,6 +566,29 @@ function getToolPath(
   return isRecord(input) && typeof input.path === "string"
     ? input.path
     : undefined;
+}
+
+function getPresentedFileName(
+  part: Extract<UIMessagePart<UIDataTypes, UITools>, { state: string }>,
+) {
+  const output = part.state === "output-available" ? part.output : undefined;
+  if (isRecord(output) && typeof output.fileName === "string") {
+    return output.fileName;
+  }
+
+  const input = getToolInput(part);
+  if (isRecord(input) && typeof input.displayName === "string") {
+    return input.displayName;
+  }
+
+  const path = getToolPath(part);
+  if (!path) {
+    return undefined;
+  }
+
+  const normalizedPath = path.replace(/[\\/]+$/, "");
+  const segments = normalizedPath.split(/[\\/]/);
+  return segments.at(-1) ?? undefined;
 }
 
 function getToolSearchResults(

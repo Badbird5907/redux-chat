@@ -1,6 +1,6 @@
 import { Sandbox } from "@e2b/code-interpreter";
 
-export const SANDBOX_UPLOADS_DIR = "/home/user/uploads";
+export const SANDBOX_UPLOADS_DIR = "/uploads";
 
 export interface ChatToolAttachment {
   attachmentId: string;
@@ -111,6 +111,11 @@ export function createSandboxRuntime(options: {
     );
   };
 
+  const readFileBytes = async (path: string): Promise<Uint8Array> => {
+    const sandbox = await getSandbox();
+    return sandbox.files.read(path, { format: "bytes" });
+  };
+
   const cleanup = async () => {
     if (!sandboxPromise) {
       return;
@@ -120,7 +125,13 @@ export function createSandboxRuntime(options: {
     await sandbox.kill();
   };
 
-  return { getSandbox, getUploadManifest, syncUploadsToSandbox, cleanup };
+  return {
+    getSandbox,
+    getUploadManifest,
+    syncUploadsToSandbox,
+    readFileBytes,
+    cleanup,
+  };
 }
 
 function formatSandboxSyncError(
@@ -184,9 +195,14 @@ function buildSandboxUploadCode(
     url: string;
   })[],
 ) {
+  const uploadsDir = shellQuote(SANDBOX_UPLOADS_DIR);
   const lines = [
     "set -euo pipefail",
-    `mkdir -p ${shellQuote(SANDBOX_UPLOADS_DIR)}`,
+    // SANDBOX_UPLOADS_DIR lives at the filesystem root, which the sandbox user
+    // cannot create without elevated permissions; fall back to sudo and make it
+    // user-writable so the per-file downloads below run unprivileged.
+    `mkdir -p ${uploadsDir} 2>/dev/null || sudo mkdir -p ${uploadsDir}`,
+    `[ -w ${uploadsDir} ] || sudo chown -R "$(id -un)":"$(id -gn)" ${uploadsDir}`,
   ];
 
   for (const download of downloads) {

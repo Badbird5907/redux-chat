@@ -28,6 +28,11 @@ import {
 
 import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
+import {
+  downloadBashFsState,
+  serializeBashFs,
+  uploadBashFsState,
+} from "@/lib/ai/tools/bash-fs-persistence";
 import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
 import {
@@ -210,7 +215,11 @@ const BASE_SYSTEM_PROMPT = `You are Redux.chat.
 You can use Markdown for clear formatting, including fenced code blocks for code.
 For math, use LaTeX with $...$ for inline math and $$...$$ for display math.
 
-When available, use the Bash tools for lightweight shell and filesystem work. Uploaded file metadata is listed at /uploads/MANIFEST.json in Bash, and uploaded files are already available at their listed /uploads paths. If a user asks about an uploaded text, markdown, code, CSV, or document file, read it from /uploads rather than assuming it was pasted into the chat. Use analysis_workspace only when you explicitly need a heavier Python/system analysis environment; pass specific attachmentIds when you need uploaded files there.`;
+You may have access to two separate sandbox environments. They have separate filesystems — files do NOT transfer between them, so pick one per task:
+- Bash: a fast, in-memory shell and filesystem. No internet and no Python. Use it for quick reading, searching, and transforming uploaded files and other lightweight shell work. Uploaded file metadata is listed at /uploads/MANIFEST.json and uploaded files are already available at their listed /uploads paths. If a user asks about an uploaded text, markdown, code, CSV, or document file, read it from /uploads rather than assuming it was pasted into the chat.
+- analysis_workspace: a full Linux sandbox (cloud VM) with internet access that runs Python or bash (set language: "bash" for shell). Use it when you need Python, plotting, package installs, system tools, or network access. Pass specific attachmentIds when you need uploaded files there; they sync into /uploads.
+
+To make a file from a sandbox available to the user, call present_file with its path (and source when both sandboxes are enabled). Images are embedded inline; other files appear as download cards.`;
 
 interface ModelAttachment {
   attachmentId: string;
@@ -464,6 +473,15 @@ function getErrorMessage(error: unknown) {
   }
 }
 
+function isPersistableAssistantPart(part: unknown) {
+  return !(
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "error"
+  );
+}
+
 export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
@@ -552,10 +570,9 @@ export const Route = createFileRoute("/api/chat/")({
         }
 
         let cleanupTools: (() => Promise<void>) | undefined;
-        let streamFailureMessage: string | undefined;
+        let lastStreamErrorMessage: string | undefined;
         const reportStreamFailure = async (error: unknown) => {
           const errorMessage = getErrorMessage(error).slice(0, 1000);
-          streamFailureMessage = errorMessage;
           try {
             await fetchAuthMutation(api.functions.threads.internal_failStream, {
               secret: env.INTERNAL_CONVEX_SECRET,
@@ -585,11 +602,13 @@ export const Route = createFileRoute("/api/chat/")({
           let projectToolInstruction: string | undefined;
           let chatProjectId: string | undefined;
           let threadUserId: string | undefined;
+          let bashFsState: { accessKey: string; fileKeyId: string } | undefined;
           try {
             const thread = await fetchAuthQuery(
               api.functions.threads.getThread,
               { threadId },
             );
+            bashFsState = thread?.bashFsState ?? undefined;
             if (thread?.chatProjectId) {
               threadUserId = thread.userId;
               chatProjectId = thread.chatProjectId;
@@ -687,6 +706,17 @@ export const Route = createFileRoute("/api/chat/")({
                 })
               : [];
 
+          // Restore previous bash FS state if available
+          let previousBashFiles: Record<string, string> | undefined;
+          if (isBashWorkspaceEnabled && bashFsState) {
+            try {
+              previousBashFiles =
+                (await downloadBashFsState(bashFsState)) ?? undefined;
+            } catch (error) {
+              console.warn("[bash-fs] Failed to restore FS state", error);
+            }
+          }
+
           const toolRuntime = await createToolRuntime(settings, {
             attachments: getToolAttachments(attachmentsByMessageId),
             mcpServers: enabledMcpServers,
@@ -702,6 +732,7 @@ export const Route = createFileRoute("/api/chat/")({
               threadId,
               messageId: assistantMessageId,
             },
+            previousBashFiles,
           });
           let didCleanupTools = false;
           cleanupTools = async () => {
@@ -710,6 +741,42 @@ export const Route = createFileRoute("/api/chat/")({
             }
 
             didCleanupTools = true;
+
+            // Persist bash FS state to Silo (fire-and-forget via waitUntil)
+            if (isBashWorkspaceEnabled) {
+              const bashFs = toolRuntime.getBashFs();
+              if (bashFs) {
+                waitUntil(
+                  (async () => {
+                    try {
+                      const serialized = await serializeBashFs(bashFs);
+                      if (serialized) {
+                        const ref = await uploadBashFsState(serialized.bytes, {
+                          threadId,
+                          userId: requestUserId,
+                          fileCount: serialized.fileCount,
+                        });
+                        await fetchAuthMutation(
+                          api.functions.threads.internal_updateBashFsState,
+                          {
+                            secret: env.INTERNAL_CONVEX_SECRET,
+                            userId: requestUserId,
+                            threadId,
+                            bashFsState: ref,
+                          },
+                        );
+                      }
+                    } catch (error) {
+                      console.error(
+                        "[bash-fs] Failed to persist FS state",
+                        error,
+                      );
+                    }
+                  })(),
+                );
+              }
+            }
+
             await toolRuntime.cleanup();
           };
 
@@ -737,7 +804,6 @@ export const Route = createFileRoute("/api/chat/")({
               generateId: () => assistantMessageId,
               onError: (error) => {
                 const errorMessage = getErrorMessage(error).slice(0, 1000);
-                streamFailureMessage = errorMessage;
                 void reportStreamFailure(error);
                 return errorMessage;
               },
@@ -948,8 +1014,8 @@ export const Route = createFileRoute("/api/chat/")({
               chunking: "word",
             }),
             stopWhen: stepCountIs(20), // we need to tune this
-            onError: async ({ error }) => {
-              await reportStreamFailure(error);
+            onError: ({ error }) => {
+              console.error("Chat stream error", error);
             },
             onFinish: async ({ usage }) => {
               try {
@@ -1074,8 +1140,7 @@ export const Route = createFileRoute("/api/chat/")({
             generateMessageId: () => assistantMessageId,
             onError: (error) => {
               const errorMessage = getErrorMessage(error).slice(0, 1000);
-              streamFailureMessage = errorMessage;
-              void reportStreamFailure(error);
+              lastStreamErrorMessage = errorMessage;
               void cleanupTools?.();
               return errorMessage;
             },
@@ -1085,14 +1150,16 @@ export const Route = createFileRoute("/api/chat/")({
               }
             },
             onFinish: async ({ messages: finishedMessages }) => {
-              if (streamFailureMessage) {
-                await reportStreamFailure(streamFailureMessage);
+              const last = finishedMessages[finishedMessages.length - 1];
+              const parts = last?.parts ?? [];
+              if (!parts.some(isPersistableAssistantPart)) {
+                await reportStreamFailure(
+                  lastStreamErrorMessage ?? "Chat stream failed",
+                );
                 await cleanupTools?.();
                 return;
               }
 
-              const last = finishedMessages[finishedMessages.length - 1];
-              const parts = last?.parts ?? [];
               await fetchAuthMutation(
                 api.functions.threads.internal_completeStream,
                 {

@@ -68,6 +68,107 @@ async function backfillAttachmentExpiryStatusBatch(
   };
 }
 
+const MODEL_GENERATED_FILES_BACKFILL_BATCH_SIZE = 100;
+
+// Copies legacy `generatedImages` rows into the generic `modelGeneratedFiles`
+// table (kind: "image", source: "image_generation", dimensions nested under
+// `image`). Idempotent: rows already present (matched by
+// modelGeneratedFileId === generatedImageId) are skipped, so it is safe to
+// re-run and resume. Drop the `generatedImages` table once this completes.
+async function backfillModelGeneratedFilesBatch(
+  ctx: GenericMutationCtx<DataModel>,
+  args: { cursor?: string | null; limit?: number },
+) {
+  const limit = Math.max(
+    1,
+    Math.min(
+      MODEL_GENERATED_FILES_BACKFILL_BATCH_SIZE,
+      Math.floor(args.limit ?? MODEL_GENERATED_FILES_BACKFILL_BATCH_SIZE),
+    ),
+  );
+  const results = await ctx.db.query("generatedImages").paginate({
+    numItems: limit,
+    cursor: args.cursor ?? null,
+  });
+
+  let migrated = 0;
+  for (const image of results.page) {
+    const existing = await ctx.db
+      .query("modelGeneratedFiles")
+      .withIndex("by_modelGeneratedFileId", (q) =>
+        q.eq("modelGeneratedFileId", image.generatedImageId),
+      )
+      .first();
+    if (existing !== null) {
+      continue;
+    }
+
+    const image_ =
+      image.width !== undefined || image.height !== undefined
+        ? { width: image.width, height: image.height }
+        : undefined;
+
+    await ctx.db.insert("modelGeneratedFiles", {
+      modelGeneratedFileId: image.generatedImageId,
+      userId: image.userId,
+      threadId: image.threadId,
+      messageId: image.messageId,
+      kind: "image",
+      source: image.source,
+      modelId: image.modelId,
+      provider: image.provider,
+      toolCallId: image.toolCallId,
+      prompt: image.prompt,
+      mimeType: image.mimeType,
+      size: image.size,
+      image: image_,
+      projectId: image.projectId,
+      environmentId: image.environmentId,
+      accessKey: image.accessKey,
+      fileKeyId: image.fileKeyId,
+      fileName: image.fileName,
+      createdAt: image.createdAt,
+    });
+    migrated += 1;
+  }
+
+  if (!results.isDone) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.functions.migrations.internal_backfillModelGeneratedFiles,
+      { cursor: results.continueCursor, limit },
+    );
+  }
+
+  return {
+    scanned: results.page.length,
+    migrated,
+    isDone: results.isDone,
+    continueCursor: results.continueCursor,
+  };
+}
+
+export const backfillModelGeneratedFiles = backendMutation({
+  args: {
+    secret: v.string(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await backfillModelGeneratedFilesBatch(ctx, args);
+  },
+});
+
+export const internal_backfillModelGeneratedFiles = internalMutation({
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await backfillModelGeneratedFilesBatch(ctx, args);
+  },
+});
+
 export const getLegacyMessageSettingsCounts = backendQuery({
   args: {
     secret: v.string(),
