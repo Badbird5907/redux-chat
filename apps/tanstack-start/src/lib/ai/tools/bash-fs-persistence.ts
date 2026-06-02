@@ -28,8 +28,6 @@ interface SerializedFsV2 {
   files: Record<string, string | { b64: string }>;
 }
 
-type SerializedFs = SerializedFsV1 | SerializedFsV2;
-
 const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
 
 function isExcludedPath(path: string): boolean {
@@ -163,11 +161,16 @@ export async function downloadBashFsState(
     }
 
     const jsonStr = new TextDecoder().decode(jsonBytes);
-    const payload = JSON.parse(jsonStr) as SerializedFs;
+    const payload = JSON.parse(jsonStr) as Record<string, unknown>;
+    const { version, files } = payload;
 
-    if (payload.version === 2) {
+    if (typeof files !== "object" || files === null) return null;
+
+    if (version === 2) {
       const result: Record<string, string | Uint8Array> = {};
-      for (const [path, value] of Object.entries(payload.files)) {
+      for (const [path, value] of Object.entries(
+        files as SerializedFsV2["files"],
+      )) {
         if (typeof value === "string") {
           result[path] = value;
         } else {
@@ -177,14 +180,20 @@ export async function downloadBashFsState(
       return result;
     }
 
-    // v1 fallback: all strings, filter out system paths on read
-    const result: Record<string, string> = {};
-    for (const [path, value] of Object.entries(payload.files)) {
-      if (!isExcludedPath(path)) {
-        result[path] = value;
+    if (version === 1) {
+      const result: Record<string, string> = {};
+      for (const [path, value] of Object.entries(
+        files as SerializedFsV1["files"],
+      )) {
+        if (!isExcludedPath(path)) {
+          result[path] = value;
+        }
       }
+      return result;
     }
-    return result;
+
+    console.warn(`[bash-fs] Unknown FS state version: ${String(version)}`);
+    return null;
   } catch {
     console.warn("[bash-fs] Failed to parse FS state");
     return null;
