@@ -1,6 +1,6 @@
-import type { InMemoryFs } from "just-bash";
-import { gzip, gunzip } from "node:zlib";
 import { promisify } from "node:util";
+import { gunzip, gzip } from "node:zlib";
+import type { InMemoryFs } from "just-bash";
 
 import { uploadToSilo } from "@/server/ai/model-generated-files";
 
