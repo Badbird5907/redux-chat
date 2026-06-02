@@ -14,6 +14,7 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { BotIdClient } from "botid/client";
 import { useAction, useConvexAuth } from "convex/react";
 import { domMax, LazyMotion } from "motion/react";
 import { PostHogProvider } from "posthog-js/react";
@@ -130,6 +131,7 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <BotIdClient protect={[{ path: "/api/chat", method: "POST" }]} />
       </head>
       <body
         className={cn(
