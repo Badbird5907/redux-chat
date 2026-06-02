@@ -18,9 +18,9 @@ import {
 } from "@redux/ui/components/tooltip";
 import { cn } from "@redux/ui/lib/utils";
 
+import type { PreviewableFile } from "./types";
 import { isAdjacentPreviewSupported } from "@/components/chat/attachment-side-panel";
 import { FileTypeIcon } from "@/components/chat/file-type-icon";
-import type { PreviewableFile } from "./types";
 import { isAttachmentExpired } from "./utils";
 
 type AttachmentTileKind =

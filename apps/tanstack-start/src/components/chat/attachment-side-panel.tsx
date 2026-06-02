@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 
+import {
+  isMarkdownFile,
+  isTextPreviewSupported,
+  languageForFile,
+} from "@redux/shared";
 import { Button } from "@redux/ui/components/button";
 import { Tabs, TabsList, TabsTrigger } from "@redux/ui/components/tabs";
 import { cn } from "@redux/ui/lib/utils";
@@ -16,149 +21,6 @@ export const ADJACENT_PANEL_DEFAULT_WIDTH = 440;
 const ADJACENT_PANEL_LAYOUT_KEY = "redux:adjacent-panel-layout";
 const ADJACENT_PANEL_WIDTH_KEY = "redux:adjacent-panel-width";
 
-const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".mdx"];
-
-const TEXT_EXTENSIONS = [
-  ".txt",
-  ".text",
-  ".log",
-  ".csv",
-  ".tsv",
-  ".json",
-  ".jsonc",
-  ".json5",
-  ".yaml",
-  ".yml",
-  ".toml",
-  ".ini",
-  ".cfg",
-  ".conf",
-  ".env",
-  ".properties",
-  ".xml",
-  ".svg",
-  ".html",
-  ".htm",
-  ".css",
-  ".scss",
-  ".sass",
-  ".less",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".cjs",
-  ".ts",
-  ".tsx",
-  ".mts",
-  ".cts",
-  ".py",
-  ".rb",
-  ".go",
-  ".rs",
-  ".java",
-  ".kt",
-  ".kts",
-  ".c",
-  ".h",
-  ".cpp",
-  ".cc",
-  ".cxx",
-  ".hpp",
-  ".cs",
-  ".php",
-  ".swift",
-  ".scala",
-  ".sh",
-  ".bash",
-  ".zsh",
-  ".fish",
-  ".ps1",
-  ".bat",
-  ".sql",
-  ".graphql",
-  ".gql",
-  ".proto",
-  ".vue",
-  ".svelte",
-  ".astro",
-  ".lua",
-  ".pl",
-  ".r",
-  ".dart",
-  ".ex",
-  ".exs",
-  ".clj",
-  ".hs",
-  ".elm",
-  ".jl",
-  ".nim",
-  ".zig",
-  ".tf",
-  ".hcl",
-  ".gradle",
-  ".diff",
-  ".patch",
-];
-
-const TEXT_MIME_TYPES = new Set([
-  "application/json",
-  "application/xml",
-  "application/javascript",
-  "application/typescript",
-  "application/x-sh",
-  "application/x-yaml",
-  "application/yaml",
-  "image/svg+xml",
-]);
-
-const EXTENSIONLESS_TEXT_FILENAMES = new Set([
-  "dockerfile",
-  "makefile",
-  "license",
-  "readme",
-  ".gitignore",
-  ".gitattributes",
-  ".npmrc",
-  ".prettierrc",
-  ".eslintrc",
-  ".editorconfig",
-]);
-
-const EXTENSION_LANGUAGE: Record<string, string> = {
-  mjs: "javascript",
-  cjs: "javascript",
-  js: "javascript",
-  jsx: "jsx",
-  ts: "typescript",
-  mts: "typescript",
-  cts: "typescript",
-  tsx: "tsx",
-  py: "python",
-  rb: "ruby",
-  rs: "rust",
-  kt: "kotlin",
-  kts: "kotlin",
-  yml: "yaml",
-  h: "c",
-  hpp: "cpp",
-  cc: "cpp",
-  cxx: "cpp",
-  cs: "csharp",
-  sh: "bash",
-  bash: "bash",
-  zsh: "bash",
-  htm: "html",
-  gql: "graphql",
-  pl: "perl",
-  ex: "elixir",
-  exs: "elixir",
-  clj: "clojure",
-  hs: "haskell",
-  jl: "julia",
-  tf: "hcl",
-  patch: "diff",
-};
-
 export interface AdjacentPanelFile {
   id: string;
   name: string;
@@ -166,47 +28,7 @@ export interface AdjacentPanelFile {
   url?: string;
 }
 
-function getExtension(name: string) {
-  const lower = name.toLowerCase();
-  const lastDot = lower.lastIndexOf(".");
-  return lastDot >= 0 ? lower.slice(lastDot) : "";
-}
-
-function isMarkdownFile(file: { name: string; type: string }) {
-  return (
-    file.type === "text/markdown" ||
-    MARKDOWN_EXTENSIONS.includes(getExtension(file.name))
-  );
-}
-
-export function isAdjacentPreviewSupported(file: {
-  name: string;
-  type: string;
-}) {
-  const name = file.name.toLowerCase();
-  const extension = getExtension(name);
-  return (
-    file.type.startsWith("text/") ||
-    TEXT_MIME_TYPES.has(file.type) ||
-    isMarkdownFile(file) ||
-    TEXT_EXTENSIONS.includes(extension) ||
-    EXTENSIONLESS_TEXT_FILENAMES.has(name)
-  );
-}
-
-function languageForFile(name: string) {
-  const extension = getExtension(name).replace(/^\./, "");
-  if (extension) {
-    return EXTENSION_LANGUAGE[extension] ?? extension;
-  }
-  if (name.toLowerCase() === "dockerfile") {
-    return "dockerfile";
-  }
-  if (name.toLowerCase() === "makefile") {
-    return "makefile";
-  }
-  return "text";
-}
+export { isTextPreviewSupported as isAdjacentPreviewSupported };
 
 function toFencedCodeBlock(content: string, language: string) {
   const longestBacktickRun = (content.match(/`+/g) ?? []).reduce(

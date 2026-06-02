@@ -31,8 +31,8 @@ import {
 } from "@/components/ai/reasoning";
 import { Shimmer } from "@/components/ai/shimmer";
 import { isAdjacentPreviewSupported } from "@/components/chat/attachment-side-panel";
-import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { requestFilePreview } from "@/components/chat/file-preview-events";
+import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { AnalysisDetailsButton } from "@/components/chat/tools/analysis";
 import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 import {

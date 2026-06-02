@@ -7,26 +7,12 @@ import type {
   ModelRouteBehavior,
   ModelRouteInfo,
 } from "./types";
+import { TEXT_EXTENSIONS, TEXT_MIME_TYPES } from "../file-types";
 
 interface RouteProviderDefaults {
   runtimeProviderKey: string;
   attachmentPolicy: ChatAttachmentPolicy;
 }
-
-const TEXT_ATTACHMENT_MIME_TYPES = [
-  "text/plain",
-  "text/markdown",
-  "text/html",
-  "text/xml",
-  "text/csv",
-  "text/tab-separated-values",
-  "application/json",
-  "application/xml",
-  "application/javascript",
-  "application/typescript",
-  "application/sql",
-  "application/x-sh",
-] as const;
 
 const OFFICE_DOCUMENT_MIME_TYPES = [
   "application/msword",
@@ -54,7 +40,7 @@ const CHAT_ATTACHMENT_KIND_MIME_TYPES: Record<
 > = {
   image: ["image"],
   pdf: ["application/pdf"],
-  plain_text: TEXT_ATTACHMENT_MIME_TYPES,
+  plain_text: TEXT_MIME_TYPES,
   office_document: OFFICE_DOCUMENT_MIME_TYPES,
   spreadsheet: SPREADSHEET_MIME_TYPES,
   presentation: PRESENTATION_MIME_TYPES,
@@ -66,37 +52,7 @@ const CHAT_ATTACHMENT_KIND_EXTENSIONS: Record<
 > = {
   image: [".png", ".jpg", ".jpeg", ".gif", ".webp"],
   pdf: [".pdf"],
-  plain_text: [
-    ".txt",
-    ".md",
-    ".mdx",
-    ".json",
-    ".xml",
-    ".html",
-    ".csv",
-    ".tsv",
-    ".js",
-    ".ts",
-    ".jsx",
-    ".tsx",
-    ".py",
-    ".rb",
-    ".go",
-    ".rs",
-    ".java",
-    ".c",
-    ".cpp",
-    ".css",
-    ".sql",
-    ".yaml",
-    ".yml",
-    ".toml",
-    ".sh",
-    ".bash",
-    ".ps1",
-    ".bat",
-    ".cmd",
-  ],
+  plain_text: TEXT_EXTENSIONS,
   office_document: [".doc", ".docx", ".rtf"],
   spreadsheet: [".csv", ".tsv", ".xls", ".xlsx"],
   presentation: [".ppt", ".pptx"],
@@ -248,11 +204,7 @@ export function classifyChatAttachment(input: {
     return "presentation";
   }
 
-  if (
-    TEXT_ATTACHMENT_MIME_TYPES.includes(
-      mimeType as (typeof TEXT_ATTACHMENT_MIME_TYPES)[number],
-    )
-  ) {
+  if (TEXT_MIME_TYPES.includes(mimeType as (typeof TEXT_MIME_TYPES)[number])) {
     return "plain_text";
   }
 

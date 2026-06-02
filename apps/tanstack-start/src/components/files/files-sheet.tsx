@@ -5,11 +5,7 @@ import type {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { isToolUIPart } from "ai";
-import {
-  DownloadIcon,
-  ExternalLinkIcon,
-  ImageIcon,
-} from "lucide-react";
+import { DownloadIcon, ExternalLinkIcon, ImageIcon } from "lucide-react";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import {
@@ -23,8 +19,8 @@ import { cn } from "@redux/ui/lib/utils";
 
 import { getVisibleBranchMessages } from "@/components/chat/chat-branching";
 import { toChatUIMessage } from "@/components/chat/chat-message-utils";
-import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { requestFilePreview } from "@/components/chat/file-preview-events";
+import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
 
