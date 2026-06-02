@@ -1014,7 +1014,7 @@ export const Route = createFileRoute("/api/chat/")({
               chunking: "word",
             }),
             stopWhen: stepCountIs(20), // we need to tune this
-            onError: async ({ error }) => {
+            onError: ({ error }) => {
               console.error("Chat stream error", error);
             },
             onFinish: async ({ usage }) => {

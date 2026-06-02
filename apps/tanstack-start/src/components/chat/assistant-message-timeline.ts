@@ -588,7 +588,7 @@ function getPresentedFileName(
 
   const normalizedPath = path.replace(/[\\/]+$/, "");
   const segments = normalizedPath.split(/[\\/]/);
-  return segments.at(-1) || undefined;
+  return segments.at(-1) ?? undefined;
 }
 
 function getToolSearchResults(
