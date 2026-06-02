@@ -8,7 +8,6 @@ import { isToolUIPart } from "ai";
 import {
   DownloadIcon,
   ExternalLinkIcon,
-  FileIcon,
   ImageIcon,
 } from "lucide-react";
 
@@ -24,6 +23,7 @@ import { cn } from "@redux/ui/lib/utils";
 
 import { getVisibleBranchMessages } from "@/components/chat/chat-branching";
 import { toChatUIMessage } from "@/components/chat/chat-message-utils";
+import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { requestFilePreview } from "@/components/chat/file-preview-events";
 import { useQuery } from "@/lib/hooks/convex";
 import { resolveAttachments } from "@/server/attachments";
@@ -245,11 +245,11 @@ function FileRow({
           loading="lazy"
         />
       ) : (
-        <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded">
+        <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded">
           {entry.kind === "image" ? (
-            <ImageIcon className="size-5" />
+            <ImageIcon className="text-muted-foreground size-5" />
           ) : (
-            <FileIcon className="size-5" />
+            <FileTypeIcon className="size-5" fileName={entry.fileName} />
           )}
         </div>
       )}

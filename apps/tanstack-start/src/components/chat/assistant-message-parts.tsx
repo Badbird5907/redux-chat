@@ -9,7 +9,6 @@ import {
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
-  FileIcon,
   ImageIcon,
 } from "lucide-react";
 
@@ -32,6 +31,7 @@ import {
 } from "@/components/ai/reasoning";
 import { Shimmer } from "@/components/ai/shimmer";
 import { isAdjacentPreviewSupported } from "@/components/chat/attachment-side-panel";
+import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { requestFilePreview } from "@/components/chat/file-preview-events";
 import { AnalysisDetailsButton } from "@/components/chat/tools/analysis";
 import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
@@ -586,6 +586,7 @@ function MediaBlock({
   caption,
   downloadName,
   downloadUrl,
+  fileName,
   isImage,
   isLoading,
   loadingLabel,
@@ -596,6 +597,7 @@ function MediaBlock({
   caption: string;
   downloadName: string;
   downloadUrl?: string;
+  fileName?: string;
   isImage: boolean;
   isLoading?: boolean;
   loadingLabel?: string;
@@ -605,7 +607,7 @@ function MediaBlock({
   if (!isImage) {
     const label = (
       <>
-        <FileIcon className="text-muted-foreground size-5 shrink-0" />
+        <FileTypeIcon fileName={fileName} />
         <span className="min-w-0 truncate text-sm font-medium">{caption}</span>
       </>
     );
@@ -745,6 +747,7 @@ function ModelFileBlock({ file }: { file: ModelFilePart }) {
     <MediaBlock
       alt={file.fileName}
       caption={caption}
+      fileName={file.fileName}
       downloadName={file.fileName}
       downloadUrl={file.downloadUrl}
       isImage={isImage}

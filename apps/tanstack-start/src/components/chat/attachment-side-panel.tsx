@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, Loader2, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 import { Button } from "@redux/ui/components/button";
 import { Tabs, TabsList, TabsTrigger } from "@redux/ui/components/tabs";
 import { cn } from "@redux/ui/lib/utils";
 
+import { FileTypeIcon } from "@/components/chat/file-type-icon";
 import { StaticMarkdown } from "@/components/markdown/static-markdown";
 
 export const ADJACENT_PANEL_MIN_WIDTH = 280;
@@ -281,7 +282,7 @@ function FileTabContent({ file }: { file: AdjacentPanelFile }) {
   if (state.status === "error") {
     return (
       <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-center text-sm">
-        <FileText className="size-8" />
+        <FileTypeIcon className="size-8" fileName={file.name} />
         {state.error}
       </div>
     );
@@ -408,6 +409,7 @@ export function AttachmentSidePanel({
                     className="group/tab max-w-48 flex-none shrink-0 gap-1.5 pr-1 after:hidden data-active:[&_button]:opacity-100"
                     value={file.id}
                   >
+                    <FileTypeIcon className="size-4" fileName={file.name} />
                     <span className="min-w-0 truncate">{file.name}</span>
                     <button
                       type="button"
@@ -438,7 +440,7 @@ export function AttachmentSidePanel({
         </Tabs>
       ) : (
         <div className="border-border/60 flex h-12 shrink-0 items-center gap-2 border-b px-4">
-          <FileText className="text-muted-foreground size-4 shrink-0" />
+          <FileTypeIcon className="size-4" fileName={activeFile.name} />
           <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
             {activeFile.name}
           </span>

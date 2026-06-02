@@ -34,6 +34,7 @@ const EXTENSION_MIME_TYPES: Record<string, string> = {
   htm: "text/html",
   css: "text/css",
   js: "text/javascript",
+  java: "text/x-java-source",
   ts: "text/plain",
   py: "text/x-python",
   yaml: "application/yaml",
