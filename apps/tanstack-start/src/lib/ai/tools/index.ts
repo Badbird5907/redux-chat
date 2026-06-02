@@ -48,7 +48,7 @@ interface ToolRuntimeOptions {
     threadId: string;
     messageId: string;
   };
-  previousBashFiles?: Record<string, string>;
+  previousBashFiles?: Record<string, string | Uint8Array>;
 }
 
 interface ToolRuntime {

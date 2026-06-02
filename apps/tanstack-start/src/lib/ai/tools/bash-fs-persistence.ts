@@ -1,37 +1,59 @@
 import type { InMemoryFs } from "just-bash";
+import { gzip, gunzip } from "node:zlib";
+import { promisify } from "node:util";
 
 import { uploadToSilo } from "@/server/ai/model-generated-files";
 
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
+
 const UPLOADS_PREFIX = "/uploads";
-const MAX_SERIALIZED_BYTES = 5 * 1024 * 1024; // 5 MB
+const EXCLUDED_PREFIXES = ["/dev/", "/bin/", "/usr/", "/proc/"];
+const MAX_PRE_COMPRESSION_BYTES = 5 * 1024 * 1024; // 5 MB
 const FS_STATE_FILENAME = "bash-fs-state.json";
-const FS_STATE_MIME = "application/json";
+const FS_STATE_MIME = "application/gzip";
 
 export interface BashFsStateRef {
   accessKey: string;
   fileKeyId: string;
 }
 
-interface SerializedFs {
+interface SerializedFsV1 {
   version: 1;
   files: Record<string, string>;
 }
 
+interface SerializedFsV2 {
+  version: 2;
+  files: Record<string, string | { b64: string }>;
+}
+
+type SerializedFs = SerializedFsV1 | SerializedFsV2;
+
+const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
+
+function isExcludedPath(path: string): boolean {
+  return EXCLUDED_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 /**
- * Serialize all user-created files from the in-memory FS into a JSON blob.
- * Skips the `/uploads` directory (those are re-synced from attachments each
- * turn) and any directories.
+ * Serialize all user-created files from the in-memory FS into a
+ * gzip-compressed JSON blob (v2 format).
+ *
+ * Skips system directories (`/dev`, `/bin`, `/usr`, `/proc`), the `/uploads`
+ * directory (re-synced from attachments each turn), and any directories.
+ * Binary file contents are base64-encoded for safe JSON transport.
  */
 export async function serializeBashFs(
   fs: InMemoryFs,
 ): Promise<{ bytes: Uint8Array; fileCount: number } | null> {
   const allPaths = fs.getAllPaths();
 
-  // Filter to real files outside /uploads
   const filePaths: string[] = [];
   for (const p of allPaths) {
     if (p === "/" || p === UPLOADS_PREFIX || p.startsWith(`${UPLOADS_PREFIX}/`))
       continue;
+    if (isExcludedPath(p)) continue;
     try {
       const st = await fs.stat(p);
       if (st.isFile) filePaths.push(p);
@@ -42,19 +64,24 @@ export async function serializeBashFs(
 
   if (filePaths.length === 0) return null;
 
-  // Read all files in parallel
   const entries = await Promise.all(
     filePaths.map(async (p) => {
       try {
-        const content = await fs.readFile(p);
-        return [p, content] as const;
+        const buffer = await fs.readFileBuffer(p);
+        let value: string | { b64: string };
+        try {
+          value = utf8Decoder.decode(buffer);
+        } catch {
+          value = { b64: Buffer.from(buffer).toString("base64") };
+        }
+        return [p, value] as const;
       } catch {
         return null;
       }
     }),
   );
 
-  const files: Record<string, string> = {};
+  const files: Record<string, string | { b64: string }> = {};
   for (const entry of entries) {
     if (entry) files[entry[0]] = entry[1];
   }
@@ -62,18 +89,19 @@ export async function serializeBashFs(
   const fileCount = Object.keys(files).length;
   if (fileCount === 0) return null;
 
-  const payload: SerializedFs = { version: 1, files };
+  const payload: SerializedFsV2 = { version: 2, files };
   const json = JSON.stringify(payload);
-  const bytes = new TextEncoder().encode(json);
+  const jsonBytes = new TextEncoder().encode(json);
 
-  if (bytes.byteLength > MAX_SERIALIZED_BYTES) {
+  if (jsonBytes.byteLength > MAX_PRE_COMPRESSION_BYTES) {
     console.warn(
-      `[bash-fs] Serialized FS exceeds ${MAX_SERIALIZED_BYTES} bytes (${bytes.byteLength}), skipping persistence`,
+      `[bash-fs] Serialized FS exceeds ${MAX_PRE_COMPRESSION_BYTES} bytes (${jsonBytes.byteLength}), skipping persistence`,
     );
     return null;
   }
 
-  return { bytes, fileCount };
+  const compressed = await gzipAsync(jsonBytes);
+  return { bytes: new Uint8Array(compressed), fileCount };
 }
 
 /**
@@ -105,10 +133,11 @@ export async function uploadBashFsState(
 /**
  * Download previously-persisted FS state from Silo and return the file map
  * suitable for passing as `initialFiles` to the InMemoryFs constructor.
+ * Handles both legacy uncompressed v1 and gzip-compressed v2 formats.
  */
 export async function downloadBashFsState(
   ref: BashFsStateRef,
-): Promise<Record<string, string> | null> {
+): Promise<Record<string, string | Uint8Array> | null> {
   const { buildAttachmentDownloadUrl } = await import("@/lib/silo/core.server");
   const url = await buildAttachmentDownloadUrl({
     accessKey: ref.accessKey,
@@ -124,16 +153,40 @@ export async function downloadBashFsState(
   }
 
   try {
-    const payload = (await res.json()) as Record<string, unknown>;
-    if (
-      payload.version !== 1 ||
-      typeof payload.files !== "object" ||
-      payload.files === null
-    )
-      return null;
-    return payload.files as Record<string, string>;
+    const rawBytes = new Uint8Array(await res.arrayBuffer());
+
+    let jsonBytes: Uint8Array;
+    if (rawBytes.length >= 2 && rawBytes[0] === 0x1f && rawBytes[1] === 0x8b) {
+      jsonBytes = new Uint8Array(await gunzipAsync(rawBytes));
+    } else {
+      jsonBytes = rawBytes;
+    }
+
+    const jsonStr = new TextDecoder().decode(jsonBytes);
+    const payload = JSON.parse(jsonStr) as SerializedFs;
+
+    if (payload.version === 2) {
+      const result: Record<string, string | Uint8Array> = {};
+      for (const [path, value] of Object.entries(payload.files)) {
+        if (typeof value === "string") {
+          result[path] = value;
+        } else {
+          result[path] = Buffer.from(value.b64, "base64");
+        }
+      }
+      return result;
+    }
+
+    // v1 fallback: all strings, filter out system paths on read
+    const result: Record<string, string> = {};
+    for (const [path, value] of Object.entries(payload.files)) {
+      if (!isExcludedPath(path)) {
+        result[path] = value;
+      }
+    }
+    return result;
   } catch {
-    console.warn("[bash-fs] Failed to parse FS state JSON");
+    console.warn("[bash-fs] Failed to parse FS state");
     return null;
   }
 }

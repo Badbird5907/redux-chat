@@ -13,7 +13,7 @@ const BASH_WORKSPACE_DIR = "/workspace";
 
 interface BashWorkspaceRuntimeOptions {
   attachments: ChatToolAttachment[];
-  previousFiles?: Record<string, string>;
+  previousFiles?: Record<string, string | Uint8Array>;
 }
 
 export async function createBashWorkspaceRuntime({
