@@ -51,6 +51,7 @@ type SubscriptionDuration = "once" | "repeating" | "forever";
 type DiscountType = "percent" | "amount";
 type TargetTierMode = "all" | "plus" | "pro";
 type AppCreditPlanEligibilityMode = "all" | "selected";
+type AppCreditExpiryMode = "never" | "after_days" | "fixed_date";
 
 export type PromotionFormDialogPromotion = {
   promotionId: string;
@@ -303,6 +304,24 @@ export function PromotionFormDialog({
     );
   const [appCreditSelectedPlanTiers, setAppCreditSelectedPlanTiers] =
     useReducerState<PlanTier[]>(initialAppCreditSelectedPlanTiers);
+  const [appCreditExpiryMode, setAppCreditExpiryMode] =
+    useReducerState<AppCreditExpiryMode>(
+      typeof config.expiresAfterDays === "number"
+        ? "after_days"
+        : typeof config.expiresAt === "number"
+          ? "fixed_date"
+          : "never",
+    );
+  const [appCreditExpiryDays, setAppCreditExpiryDays] = useReducerState(
+    typeof config.expiresAfterDays === "number"
+      ? config.expiresAfterDays.toString()
+      : "30",
+  );
+  const [appCreditExpiryDate, setAppCreditExpiryDate] = useReducerState(() =>
+    formatDateInput(
+      typeof config.expiresAt === "number" ? config.expiresAt : undefined,
+    ),
+  );
   const [invoiceCreditUsd, setInvoiceCreditUsd] = useReducerState(
     typeof config.amountCents === "number"
       ? (config.amountCents / 100).toFixed(2)
@@ -365,6 +384,23 @@ export function PromotionFormDialog({
     );
     setAppCreditPlanEligibilityMode(initialAppCreditPlanEligibilityMode);
     setAppCreditSelectedPlanTiers(initialAppCreditSelectedPlanTiers);
+    setAppCreditExpiryMode(
+      typeof config.expiresAfterDays === "number"
+        ? "after_days"
+        : typeof config.expiresAt === "number"
+          ? "fixed_date"
+          : "never",
+    );
+    setAppCreditExpiryDays(
+      typeof config.expiresAfterDays === "number"
+        ? config.expiresAfterDays.toString()
+        : "30",
+    );
+    setAppCreditExpiryDate(
+      formatDateInput(
+        typeof config.expiresAt === "number" ? config.expiresAt : undefined,
+      ),
+    );
     setInvoiceCreditUsd(
       typeof config.amountCents === "number"
         ? (config.amountCents / 100).toFixed(2)
@@ -434,6 +470,24 @@ export function PromotionFormDialog({
       toast.error("Credit amount must be a positive integer.");
       return;
     }
+    const expiryDays = Number(appCreditExpiryDays);
+    if (
+      promotionType === "app_credits" &&
+      appCreditExpiryMode === "after_days" &&
+      (!Number.isInteger(expiryDays) || expiryDays <= 0)
+    ) {
+      toast.error("Expiration days must be a positive integer.");
+      return;
+    }
+    const expiryDateMs = parseDate(appCreditExpiryDate);
+    if (
+      promotionType === "app_credits" &&
+      appCreditExpiryMode === "fixed_date" &&
+      expiryDateMs === undefined
+    ) {
+      toast.error("Expiration date is invalid.");
+      return;
+    }
     if (
       promotionType === "subscription_discount" &&
       discountType === "percent" &&
@@ -497,7 +551,12 @@ export function PromotionFormDialog({
           : "subscription_discount";
 
     let config:
-      | { amount: number; eligiblePlanTiers?: "all" | PlanTier[] }
+      | {
+          amount: number;
+          eligiblePlanTiers?: "all" | PlanTier[];
+          expiresAfterDays?: number;
+          expiresAt?: number;
+        }
       | { amountCents: number; currency: "usd" }
       | {
           mode: "gifted_subscription" | "discount";
@@ -524,6 +583,11 @@ export function PromotionFormDialog({
           appCreditPlanEligibilityMode === "all"
             ? "all"
             : appCreditSelectedPlanTiers,
+        ...(appCreditExpiryMode === "after_days"
+          ? { expiresAfterDays: expiryDays }
+          : appCreditExpiryMode === "fixed_date"
+            ? { expiresAt: expiryDateMs }
+            : {}),
       };
     } else if (promotionType === "stripe_invoice_credit") {
       if (invoiceAmountCents === null) {
@@ -820,6 +884,94 @@ export function PromotionFormDialog({
                             </Label>
                           ),
                         )}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Credit expiration</Label>
+                    <RadioGroup
+                      value={appCreditExpiryMode}
+                      onValueChange={(next) => {
+                        const value = typeof next === "string" ? next : "";
+                        if (
+                          value === "never" ||
+                          value === "after_days" ||
+                          value === "fixed_date"
+                        ) {
+                          setAppCreditExpiryMode(value);
+                        }
+                      }}
+                      aria-label="Gifted credit expiration policy"
+                    >
+                      <Label className={perUserRadioTileClass}>
+                        <RadioGroupItem value="never" />
+                        <span className="min-w-0 flex-1 leading-snug">
+                          <span className="block text-sm font-medium">
+                            Never expire
+                          </span>
+                          <span className="text-muted-foreground block text-xs font-normal">
+                            Credits remain until spent
+                          </span>
+                        </span>
+                      </Label>
+                      <Label className={perUserRadioTileClass}>
+                        <RadioGroupItem value="after_days" />
+                        <span className="min-w-0 flex-1 leading-snug">
+                          <span className="block text-sm font-medium">
+                            Expire after days
+                          </span>
+                          <span className="text-muted-foreground block text-xs font-normal">
+                            X days from the moment of redemption
+                          </span>
+                        </span>
+                      </Label>
+                      <Label className={perUserRadioTileClass}>
+                        <RadioGroupItem value="fixed_date" />
+                        <span className="min-w-0 flex-1 leading-snug">
+                          <span className="block text-sm font-medium">
+                            Expire on date
+                          </span>
+                          <span className="text-muted-foreground block text-xs font-normal">
+                            All grants expire on the same fixed date
+                          </span>
+                        </span>
+                      </Label>
+                    </RadioGroup>
+                    {appCreditExpiryMode === "after_days" ? (
+                      <div className="grid gap-2 sm:max-w-xs">
+                        <Label
+                          htmlFor={`promotion-credit-expiry-days-${mode}`}
+                        >
+                          Days after redemption
+                        </Label>
+                        <Input
+                          id={`promotion-credit-expiry-days-${mode}`}
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={appCreditExpiryDays}
+                          onChange={(e) =>
+                            setAppCreditExpiryDays(e.target.value)
+                          }
+                          placeholder="30"
+                        />
+                      </div>
+                    ) : null}
+                    {appCreditExpiryMode === "fixed_date" ? (
+                      <div className="grid gap-2 sm:max-w-xs">
+                        <Label
+                          htmlFor={`promotion-credit-expiry-date-${mode}`}
+                        >
+                          Expiration date (local)
+                        </Label>
+                        <Input
+                          id={`promotion-credit-expiry-date-${mode}`}
+                          type="datetime-local"
+                          value={appCreditExpiryDate}
+                          onChange={(e) =>
+                            setAppCreditExpiryDate(e.target.value)
+                          }
+                        />
                       </div>
                     ) : null}
                   </div>

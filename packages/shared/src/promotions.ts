@@ -170,10 +170,21 @@ export function discountedPriceCentsFromList(
   return Math.max(0, listAmountCents - discount.amountOffCents);
 }
 
+export function formatCreditExpiry(config: AppCreditsPromotionConfig): string {
+  if (config.expiresAfterDays !== undefined) {
+    return `expires ${config.expiresAfterDays}d after redeem`;
+  }
+  if (config.expiresAt !== undefined) {
+    return `expires ${new Date(config.expiresAt).toLocaleDateString()}`;
+  }
+  return "never expires";
+}
+
 export function formatPromotionBenefit(promotion: PromotionConfig): string {
   if (promotion.kind === "app_credits") {
     const tiers = formatEligiblePlanTiers(promotion.config.eligiblePlanTiers);
-    return `${promotion.config.amount.toLocaleString()} gifted credits${tiers}`;
+    const expiry = formatCreditExpiry(promotion.config);
+    return `${promotion.config.amount.toLocaleString()} gifted credits${tiers} (${expiry})`;
   }
   if (promotion.kind === "stripe_invoice_credit") {
     return `${formatUsdCents(promotion.config.amountCents)} invoice credit`;

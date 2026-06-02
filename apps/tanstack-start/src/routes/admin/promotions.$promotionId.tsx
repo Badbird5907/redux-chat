@@ -513,6 +513,12 @@ function AdminPromotionDetailPage() {
               {promotion.perUserRedemptionLabel}
             </dd>
           </div>
+          <div className="col-span-2 min-w-0">
+            <dt className="text-muted-foreground text-xs">Benefit</dt>
+            <dd className="text-foreground mt-0.5 text-sm leading-snug font-semibold">
+              {promotion.configSummary}
+            </dd>
+          </div>
         </dl>
       </div>
 
