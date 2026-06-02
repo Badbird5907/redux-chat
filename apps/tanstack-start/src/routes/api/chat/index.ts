@@ -4,6 +4,7 @@ import type { OpenAILanguageModelResponsesOptions } from "@ai-sdk/openai";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
+import { checkBotId } from "botid/server";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -468,6 +469,11 @@ export const Route = createFileRoute("/api/chat/")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const botVerification = await checkBotId();
+        if (botVerification.isBot) {
+          return new Response("Access denied", { status: 403 });
+        }
+
         const requestUserId = await getRequestUserIdFromHeaders(
           request.headers,
         );
