@@ -28,6 +28,11 @@ import {
 
 import { env } from "@/env";
 import { createToolRuntime } from "@/lib/ai/tools";
+import {
+  downloadBashFsState,
+  serializeBashFs,
+  uploadBashFsState,
+} from "@/lib/ai/tools/bash-fs-persistence";
 import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
 import {
@@ -597,11 +602,13 @@ export const Route = createFileRoute("/api/chat/")({
           let projectToolInstruction: string | undefined;
           let chatProjectId: string | undefined;
           let threadUserId: string | undefined;
+          let bashFsState: { accessKey: string; fileKeyId: string } | undefined;
           try {
             const thread = await fetchAuthQuery(
               api.functions.threads.getThread,
               { threadId },
             );
+            bashFsState = thread?.bashFsState ?? undefined;
             if (thread?.chatProjectId) {
               threadUserId = thread.userId;
               chatProjectId = thread.chatProjectId;
@@ -699,6 +706,17 @@ export const Route = createFileRoute("/api/chat/")({
                 })
               : [];
 
+          // Restore previous bash FS state if available
+          let previousBashFiles: Record<string, string> | undefined;
+          if (isBashWorkspaceEnabled && bashFsState) {
+            try {
+              previousBashFiles =
+                (await downloadBashFsState(bashFsState)) ?? undefined;
+            } catch (error) {
+              console.warn("[bash-fs] Failed to restore FS state", error);
+            }
+          }
+
           const toolRuntime = await createToolRuntime(settings, {
             attachments: getToolAttachments(attachmentsByMessageId),
             mcpServers: enabledMcpServers,
@@ -714,6 +732,7 @@ export const Route = createFileRoute("/api/chat/")({
               threadId,
               messageId: assistantMessageId,
             },
+            previousBashFiles,
           });
           let didCleanupTools = false;
           cleanupTools = async () => {
@@ -722,6 +741,42 @@ export const Route = createFileRoute("/api/chat/")({
             }
 
             didCleanupTools = true;
+
+            // Persist bash FS state to Silo (fire-and-forget via waitUntil)
+            if (isBashWorkspaceEnabled) {
+              const bashFs = toolRuntime.getBashFs();
+              if (bashFs) {
+                waitUntil(
+                  (async () => {
+                    try {
+                      const serialized = await serializeBashFs(bashFs);
+                      if (serialized) {
+                        const ref = await uploadBashFsState(serialized.bytes, {
+                          threadId,
+                          userId: requestUserId,
+                          fileCount: serialized.fileCount,
+                        });
+                        await fetchAuthMutation(
+                          api.functions.threads.internal_updateBashFsState,
+                          {
+                            secret: env.INTERNAL_CONVEX_SECRET,
+                            userId: requestUserId,
+                            threadId,
+                            bashFsState: ref,
+                          },
+                        );
+                      }
+                    } catch (error) {
+                      console.error(
+                        "[bash-fs] Failed to persist FS state",
+                        error,
+                      );
+                    }
+                  })(),
+                );
+              }
+            }
+
             await toolRuntime.cleanup();
           };
 

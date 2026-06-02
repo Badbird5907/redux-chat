@@ -334,10 +334,7 @@ export function getStoredAdjacentPanelLayout():
     const storedLayout = window.localStorage.getItem(ADJACENT_PANEL_LAYOUT_KEY);
     if (storedLayout) {
       const parsed = JSON.parse(storedLayout) as Record<string, number>;
-      if (
-        typeof parsed === "object" &&
-        typeof parsed.attachment === "number"
-      ) {
+      if (typeof parsed === "object" && typeof parsed.attachment === "number") {
         return parsed;
       }
     }
@@ -408,7 +405,7 @@ export function AttachmentSidePanel({
                 {files.map((file) => (
                   <TabsTrigger
                     key={file.id}
-                    className="group/tab max-w-48 shrink-0 flex-none gap-1.5 pr-1 after:hidden data-active:[&_button]:opacity-100"
+                    className="group/tab max-w-48 flex-none shrink-0 gap-1.5 pr-1 after:hidden data-active:[&_button]:opacity-100"
                     value={file.id}
                   >
                     <span className="min-w-0 truncate">{file.name}</span>

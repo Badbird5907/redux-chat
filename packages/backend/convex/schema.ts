@@ -250,6 +250,14 @@ export default defineSchema({
     updatedAt: v.number(),
     // Optional FK to user-facing projects table (distinct from Silo's projectId on attachments)
     chatProjectId: v.optional(v.string()),
+    // Silo storage reference for persisted in-memory bash filesystem state.
+    // Stored per-thread so the bash workspace can restore files between turns.
+    bashFsState: v.optional(
+      v.object({
+        accessKey: v.string(),
+        fileKeyId: v.string(),
+      }),
+    ),
   })
     .index("by_threadId", ["threadId"])
     .index("by_userId", ["userId", "updatedAt"])

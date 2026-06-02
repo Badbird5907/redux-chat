@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   createContext,
   useCallback,
@@ -8,15 +9,15 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ReactNode } from "react";
 
-import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@redux/ui/components/resizable";
+import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 
+import type { AdjacentPanelFile } from "./attachment-side-panel";
 import type { PreviewableFile } from "./input/types";
 import {
   ADJACENT_PANEL_DEFAULT_WIDTH,
@@ -27,7 +28,6 @@ import {
   isAdjacentPreviewSupported,
   persistAdjacentPanelLayout,
 } from "./attachment-side-panel";
-import type { AdjacentPanelFile } from "./attachment-side-panel";
 
 type AdjacentAttachmentPanelContextValue = {
   closeAllTabs: () => void;

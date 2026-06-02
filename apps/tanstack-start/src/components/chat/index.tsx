@@ -16,12 +16,12 @@ import { cn } from "@redux/ui/lib/utils";
 import type { PreviewableFile } from "./input/types";
 import type { ChatPreload } from "./preload";
 import type { ThreadExportInput } from "./thread-export-utils";
-import { useAdjacentAttachmentPanel } from "@/components/chat/adjacent-attachment-panel-context";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai/conversation";
+import { useAdjacentAttachmentPanel } from "@/components/chat/adjacent-attachment-panel-context";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { ChatMessageList } from "./chat-message-list";
 import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
@@ -68,8 +68,11 @@ export function Chat({
 }) {
   const [printExportInput, setPrintExportInput] =
     useState<ThreadExportInput | null>(null);
-  const { isOpen: isAdjacentPanelOpen, openAdjacentPreview, panelWidth } =
-    useAdjacentAttachmentPanel();
+  const {
+    isOpen: isAdjacentPanelOpen,
+    openAdjacentPreview,
+    panelWidth,
+  } = useAdjacentAttachmentPanel();
   const printRootRef = useRef<HTMLDivElement | null>(null);
   const printInProgressRef = useRef(false);
   const {
@@ -269,9 +272,7 @@ export function Chat({
             )}
           >
             <ChatMessageList
-              assistantModelByParentMessageId={
-                assistantModelByParentMessageId
-              }
+              assistantModelByParentMessageId={assistantModelByParentMessageId}
               allBranchMessages={allBranchMessages}
               chatSessionId={chatSessionId}
               convexUIMessages={convexUIMessages}

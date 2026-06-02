@@ -635,6 +635,23 @@ export const internal_updateMessageUsage = backendMutation({
   },
 });
 
+export const internal_updateBashFsState = backendMutation({
+  args: {
+    userId: v.string(),
+    threadId: v.string(),
+    bashFsState: v.optional(
+      v.object({
+        accessKey: v.string(),
+        fileKeyId: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const thread = await getThreadForOwner(ctx, args.threadId, args.userId);
+    await ctx.db.patch(thread._id, { bashFsState: args.bashFsState });
+  },
+});
+
 // Set the active stream ID for resumable streams
 export const internal_setActiveStreamId = backendMutation({
   args: {

@@ -13,13 +13,16 @@ const BASH_WORKSPACE_DIR = "/workspace";
 
 interface BashWorkspaceRuntimeOptions {
   attachments: ChatToolAttachment[];
+  previousFiles?: Record<string, string>;
 }
 
 export async function createBashWorkspaceRuntime({
   attachments,
+  previousFiles,
 }: BashWorkspaceRuntimeOptions) {
   const manifest = buildBashUploadManifest(attachments);
   const fs = new InMemoryFs({
+    ...previousFiles,
     [BASH_UPLOADS_MANIFEST_PATH]: JSON.stringify(manifest, null, 2),
   });
   await fs.mkdir(BASH_WORKSPACE_DIR, { recursive: true });
@@ -42,6 +45,7 @@ export async function createBashWorkspaceRuntime({
       `Uploaded files are already available at their listed path and idPath under ${BASH_UPLOADS_DIR}.`,
       "Network access and Python are disabled here; use the analysis_workspace tool when you need internet, Python, or system packages.",
       "This filesystem is separate from the analysis_workspace sandbox — files do not transfer between them.",
+      "Files you create in /workspace persist between turns — they will still be there when the user sends another message.",
     ].join(" "),
     maxFiles: 0,
   });

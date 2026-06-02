@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import type { ToolSet } from "ai";
 import type { Value } from "convex/values";
+import type { InMemoryFs } from "just-bash";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { webSearch } from "@exalabs/ai-sdk";
 import { generateImage, tool } from "ai";
@@ -47,12 +48,14 @@ interface ToolRuntimeOptions {
     threadId: string;
     messageId: string;
   };
+  previousBashFiles?: Record<string, string>;
 }
 
 interface ToolRuntime {
   cleanup: () => Promise<void>;
   getBillableToolCalls: () => BillableToolCall[];
   tools: ToolSet;
+  getBashFs: () => InMemoryFs | undefined;
 }
 
 function toToolKeyPrefix(name: string) {
@@ -272,6 +275,7 @@ export async function createToolRuntime(
     mcpServers = [],
     projectContext,
     generationContext,
+    previousBashFiles,
   }: ToolRuntimeOptions = {},
 ): Promise<ToolRuntime> {
   const enabledTools = getEnabledMessageTools(settings.tools);
@@ -289,7 +293,10 @@ export async function createToolRuntime(
   }
 
   if (enabledTools.includes("bashWorkspace")) {
-    bashWorkspaceRuntime = await createBashWorkspaceRuntime({ attachments });
+    bashWorkspaceRuntime = await createBashWorkspaceRuntime({
+      attachments,
+      previousFiles: previousBashFiles,
+    });
     tools.bash = instrumentTool(
       bashWorkspaceRuntime.tools.bash,
       "bash_workspace",
@@ -495,6 +502,7 @@ export async function createToolRuntime(
         }),
       ),
     tools,
+    getBashFs: () => bashWorkspaceRuntime?.fs,
     cleanup: async () => {
       await Promise.allSettled(mcpClients.map((client) => client.close()));
       await sandboxRuntime?.cleanup();
