@@ -147,9 +147,9 @@ function RootDocument({ children }: { children: ReactNode }) {
           <PostHogProvider
             apiKey={posthogProjectToken}
             options={{
-              api_host: "/ingest",
+              api_host: "https://rx.redux.chat",
               ui_host: posthogUiHost,
-              defaults: "2025-05-24",
+              defaults: "2026-05-30",
               capture_exceptions: true,
               debug: isDev,
             }}
