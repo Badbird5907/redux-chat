@@ -713,7 +713,9 @@ export const Route = createFileRoute("/api/chat/")({
               : [];
 
           // Restore previous bash FS state if available
-          let previousBashFiles: Record<string, string> | undefined;
+          let previousBashFiles:
+            | Record<string, string | Uint8Array>
+            | undefined;
           if (isBashWorkspaceEnabled && bashFsState) {
             try {
               previousBashFiles =
