@@ -1,21 +1,7 @@
-import type { ReactNode } from "react";
-import { useMutation } from "convex/react";
 import { Pencil, Plus } from "lucide-react";
-import { toast } from "sonner";
 
-import type {
-  PlanTier,
-  PromotionKind,
-  PromotionStatus,
-  SubscriptionPromotionConfig,
-} from "@redux/shared";
-import { api } from "@redux/backend/convex/_generated/api";
-import {
-  generatePromotionCode,
-  UNLIMITED_PER_USER_REDEMPTIONS,
-} from "@redux/shared";
+import { generatePromotionCode } from "@redux/shared";
 import { Button } from "@redux/ui/components/button";
-import { Checkbox } from "@redux/ui/components/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -39,210 +25,22 @@ import {
 import { Separator } from "@redux/ui/components/separator";
 import { Textarea } from "@redux/ui/components/textarea";
 
-import { useReducerState } from "@/lib/hooks/use-reducer-state";
+import type { PromotionFormDialogPromotion } from "./promotion-form-helpers";
+import {
+  AppCreditsConfigFields,
+  FormSection,
+  RedemptionLimitsFields,
+  SubscriptionConfigFields,
+} from "./promotion-form-fields";
+import {
+  isPromotionFormType,
+  isPromotionStatus,
+  PROMOTION_TYPE_OPTIONS,
+  promotionTypeRadioTileClass,
+} from "./promotion-form-helpers";
+import { usePromotionForm } from "./use-promotion-form";
 
-type PerUserMode = "once" | "limited" | "unlimited";
-type PromotionFormType =
-  | "app_credits"
-  | "subscription_discount"
-  | "gifted_subscription"
-  | "stripe_invoice_credit";
-type SubscriptionDuration = "once" | "repeating" | "forever";
-type DiscountType = "percent" | "amount";
-type TargetTierMode = "all" | "plus" | "pro";
-type AppCreditPlanEligibilityMode = "all" | "selected";
-type AppCreditExpiryMode = "never" | "after_days" | "fixed_date";
-
-export type PromotionFormDialogPromotion = {
-  promotionId: string;
-  code: string;
-  name: string;
-  description?: string;
-  status: PromotionStatus;
-  kind: PromotionKind;
-  maxRedemptions?: number;
-  perUserRedemptionLimit?: number;
-  pauseOnRedemptionLimit?: boolean;
-  startsAt?: number;
-  endsAt?: number;
-  metadata?: unknown;
-};
-
-const promotionTypeRadioTileClass =
-  "flex min-w-[11rem] flex-1 cursor-pointer gap-3 rounded-lg border bg-card/50 p-3.5 text-left shadow-sm outline-none transition-colors hover:bg-accent/35 focus-visible:ring-[3px] focus-visible:ring-ring/55 [&:has([data-checked])]:border-primary [&:has([data-checked])]:bg-primary/5";
-
-const perUserRadioTileClass =
-  "flex min-h-[4.25rem] min-w-[7.75rem] flex-1 cursor-pointer gap-3 rounded-lg border bg-card/50 p-3 text-left shadow-sm outline-none transition-colors hover:bg-accent/35 focus-visible:ring-[3px] focus-visible:ring-ring/55 [&:has([data-checked])]:border-primary [&:has([data-checked])]:bg-primary/5";
-
-const PROMOTION_TYPE_OPTIONS: {
-  value: PromotionFormType;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: "app_credits",
-    label: "Gifted credits",
-    hint: "Add in-app credits to the recipient wallet.",
-  },
-  {
-    value: "subscription_discount",
-    label: "Subscription discount",
-    hint: "Percent or fixed USD off subscription invoices.",
-  },
-  {
-    value: "gifted_subscription",
-    label: "Gifted subscription",
-    hint: "100% off targeted tier until duration ends.",
-  },
-  {
-    value: "stripe_invoice_credit",
-    label: "Invoice credit",
-    hint: "Apply USD to Stripe customer balance toward future invoices.",
-  },
-];
-
-function isPromotionFormType(value: string | null): value is PromotionFormType {
-  return (
-    value === "app_credits" ||
-    value === "subscription_discount" ||
-    value === "gifted_subscription" ||
-    value === "stripe_invoice_credit"
-  );
-}
-
-function isPromotionStatus(value: string | null): value is PromotionStatus {
-  return (
-    value === "draft" ||
-    value === "active" ||
-    value === "paused" ||
-    value === "archived"
-  );
-}
-
-function isPerUserMode(value: string | null): value is PerUserMode {
-  return value === "once" || value === "limited" || value === "unlimited";
-}
-
-function isSubscriptionDuration(
-  value: string | null,
-): value is SubscriptionDuration {
-  return value === "once" || value === "repeating" || value === "forever";
-}
-
-function isDiscountType(value: string | null): value is DiscountType {
-  return value === "percent" || value === "amount";
-}
-
-function metadataConfig(metadata: unknown): unknown {
-  if (!metadata || typeof metadata !== "object") return undefined;
-  return (metadata as { config?: unknown }).config;
-}
-
-function objectValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object"
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function parseDate(value: string): number | undefined {
-  if (value.trim() === "") return undefined;
-  const ms = Date.parse(value);
-  return Number.isNaN(ms) ? undefined : ms;
-}
-
-function formatDateInput(value: number | undefined): string {
-  if (value === undefined) return "";
-  const date = new Date(value);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-}
-
-function storedPerUserLimit(
-  mode: PerUserMode,
-  limit: string,
-): number | undefined {
-  if (mode === "once") return undefined;
-  if (mode === "unlimited") return UNLIMITED_PER_USER_REDEMPTIONS;
-  const parsed = Number(limit);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function perUserModeFromStored(limit: number | undefined): PerUserMode {
-  if (limit === undefined) return "once";
-  if (limit === UNLIMITED_PER_USER_REDEMPTIONS) return "unlimited";
-  return "limited";
-}
-
-function targetTierModeFromStored(
-  targetTiers: SubscriptionPromotionConfig["targetTiers"] | undefined,
-): TargetTierMode {
-  if (targetTiers === "all") return "all";
-  const targetTier = Array.isArray(targetTiers) ? targetTiers[0] : undefined;
-  return targetTier === "plus" || targetTier === "pro" ? targetTier : "all";
-}
-
-function appCreditPlanEligibilityModeFromStored(
-  eligiblePlanTiers: unknown,
-): AppCreditPlanEligibilityMode {
-  return Array.isArray(eligiblePlanTiers) ? "selected" : "all";
-}
-
-function appCreditSelectedPlanTiersFromStored(
-  eligiblePlanTiers: unknown,
-): PlanTier[] {
-  if (!Array.isArray(eligiblePlanTiers)) return ["free", "plus", "pro"];
-  const tiers = eligiblePlanTiers.filter(
-    (tier): tier is PlanTier =>
-      tier === "free" || tier === "plus" || tier === "pro",
-  );
-  return tiers.length > 0 ? tiers : ["free"];
-}
-
-function usdDollarsStringToCents(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  const dollars = Number(trimmed);
-  if (!Number.isFinite(dollars) || dollars <= 0) return null;
-  const cents = Math.round(dollars * 100);
-  return cents > 0 ? cents : null;
-}
-
-function promotionTypeFromPromotion(
-  promotion: PromotionFormDialogPromotion | undefined,
-): PromotionFormType {
-  if (!promotion) return "app_credits";
-  if (promotion.kind === "app_credits") return "app_credits";
-  if (promotion.kind === "stripe_invoice_credit")
-    return "stripe_invoice_credit";
-  const config = objectValue(metadataConfig(promotion.metadata));
-  return config.mode === "gifted_subscription"
-    ? "gifted_subscription"
-    : "subscription_discount";
-}
-
-function FormSection({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="space-y-4">
-      <div className="space-y-1">
-        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-        {description ? (
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            {description}
-          </p>
-        ) : null}
-      </div>
-      {children}
-    </section>
-  );
-}
+export type { PromotionFormDialogPromotion };
 
 export function PromotionFormDialog({
   mode,
@@ -251,431 +49,14 @@ export function PromotionFormDialog({
   mode: "create" | "edit";
   promotion?: PromotionFormDialogPromotion;
 }) {
-  const createPromotion = useMutation(
-    api.functions.promotions.adminCreatePromotion,
-  );
-  const updatePromotion = useMutation(
-    api.functions.promotions.adminUpdatePromotion,
-  );
-  const config = objectValue(metadataConfig(promotion?.metadata));
-  const subscriptionConfig =
-    promotion?.kind === "subscription_discount"
-      ? (config as SubscriptionPromotionConfig)
-      : undefined;
-  const subscriptionDiscount = objectValue(subscriptionConfig?.discount);
-  const subscriptionDuration = objectValue(subscriptionConfig?.duration);
-  const initialPromotionType = promotionTypeFromPromotion(promotion);
-  const initialTargetTierMode = targetTierModeFromStored(
-    subscriptionConfig?.targetTiers,
-  );
-  const initialAppCreditPlanEligibilityMode =
-    appCreditPlanEligibilityModeFromStored(config.eligiblePlanTiers);
-  const initialAppCreditSelectedPlanTiers =
-    appCreditSelectedPlanTiersFromStored(config.eligiblePlanTiers);
-  const initialDuration =
-    subscriptionDuration.type === "repeating" ||
-    subscriptionDuration.type === "forever"
-      ? subscriptionDuration.type
-      : "once";
-  const initialPerUserMode = perUserModeFromStored(
-    promotion?.perUserRedemptionLimit,
-  );
-
-  const [open, setOpen] = useReducerState(false);
-  const [submitting, setSubmitting] = useReducerState(false);
-  const [code, setCode] = useReducerState(
-    promotion?.code ?? generatePromotionCode(),
-  );
-  const [name, setName] = useReducerState(promotion?.name ?? "");
-  const [description, setDescription] = useReducerState(
-    promotion?.description ?? "",
-  );
-  const [status, setStatus] = useReducerState<PromotionStatus>(
-    promotion?.status ?? "active",
-  );
-  const [promotionType, setPromotionType] =
-    useReducerState<PromotionFormType>(initialPromotionType);
-  const [amount, setAmount] = useReducerState(
-    typeof config.amount === "number" ? config.amount.toString() : "",
-  );
-  const [appCreditPlanEligibilityMode, setAppCreditPlanEligibilityMode] =
-    useReducerState<AppCreditPlanEligibilityMode>(
-      initialAppCreditPlanEligibilityMode,
-    );
-  const [appCreditSelectedPlanTiers, setAppCreditSelectedPlanTiers] =
-    useReducerState<PlanTier[]>(initialAppCreditSelectedPlanTiers);
-  const [appCreditExpiryMode, setAppCreditExpiryMode] =
-    useReducerState<AppCreditExpiryMode>(
-      typeof config.expiresAfterDays === "number"
-        ? "after_days"
-        : typeof config.expiresAt === "number"
-          ? "fixed_date"
-          : "never",
-    );
-  const [appCreditExpiryDays, setAppCreditExpiryDays] = useReducerState(
-    typeof config.expiresAfterDays === "number"
-      ? config.expiresAfterDays.toString()
-      : "30",
-  );
-  const [appCreditExpiryDate, setAppCreditExpiryDate] = useReducerState(() =>
-    formatDateInput(
-      typeof config.expiresAt === "number" ? config.expiresAt : undefined,
-    ),
-  );
-  const [invoiceCreditUsd, setInvoiceCreditUsd] = useReducerState(
-    typeof config.amountCents === "number"
-      ? (config.amountCents / 100).toFixed(2)
-      : "",
-  );
-  const [targetTierMode, setTargetTierMode] = useReducerState<TargetTierMode>(
-    initialTargetTierMode,
-  );
-  const [freeUsersOnly, setFreeUsersOnly] = useReducerState(
-    subscriptionConfig?.freeUsersOnly !== false,
-  );
-  const [discountType, setDiscountType] = useReducerState<DiscountType>(
-    subscriptionDiscount.type === "amount" ? "amount" : "percent",
-  );
-  const [percentOff, setPercentOff] = useReducerState(
-    typeof subscriptionDiscount.percentOff === "number"
-      ? subscriptionDiscount.percentOff.toString()
-      : "",
-  );
-  const [amountOffCents, setAmountOffCents] = useReducerState(
-    typeof subscriptionDiscount.amountOffCents === "number"
-      ? subscriptionDiscount.amountOffCents.toString()
-      : "",
-  );
-  const [duration, setDuration] =
-    useReducerState<SubscriptionDuration>(initialDuration);
-  const [durationMonths, setDurationMonths] = useReducerState(
-    typeof subscriptionDuration.months === "number"
-      ? subscriptionDuration.months.toString()
-      : "3",
-  );
-  const [maxRedemptions, setMaxRedemptions] = useReducerState(
-    promotion?.maxRedemptions?.toString() ?? "",
-  );
-  const [pauseOnRedemptionLimit, setPauseOnRedemptionLimit] = useReducerState(
-    promotion?.pauseOnRedemptionLimit === true,
-  );
-  const [perUserMode, setPerUserMode] =
-    useReducerState<PerUserMode>(initialPerUserMode);
-  const [perUserLimit, setPerUserLimit] = useReducerState(
-    initialPerUserMode === "limited"
-      ? (promotion?.perUserRedemptionLimit ?? 2).toString()
-      : "2",
-  );
-  const [startsAt, setStartsAt] = useReducerState(() =>
-    formatDateInput(promotion?.startsAt),
-  );
-  const [endsAt, setEndsAt] = useReducerState(() =>
-    formatDateInput(promotion?.endsAt),
-  );
-
-  const reset = () => {
-    setCode(promotion?.code ?? generatePromotionCode());
-    setName(promotion?.name ?? "");
-    setDescription(promotion?.description ?? "");
-    setStatus(promotion?.status ?? "active");
-    setPromotionType(initialPromotionType);
-    setAmount(
-      typeof config.amount === "number" ? config.amount.toString() : "",
-    );
-    setAppCreditPlanEligibilityMode(initialAppCreditPlanEligibilityMode);
-    setAppCreditSelectedPlanTiers(initialAppCreditSelectedPlanTiers);
-    setAppCreditExpiryMode(
-      typeof config.expiresAfterDays === "number"
-        ? "after_days"
-        : typeof config.expiresAt === "number"
-          ? "fixed_date"
-          : "never",
-    );
-    setAppCreditExpiryDays(
-      typeof config.expiresAfterDays === "number"
-        ? config.expiresAfterDays.toString()
-        : "30",
-    );
-    setAppCreditExpiryDate(
-      formatDateInput(
-        typeof config.expiresAt === "number" ? config.expiresAt : undefined,
-      ),
-    );
-    setInvoiceCreditUsd(
-      typeof config.amountCents === "number"
-        ? (config.amountCents / 100).toFixed(2)
-        : "",
-    );
-    setTargetTierMode(initialTargetTierMode);
-    setFreeUsersOnly(subscriptionConfig?.freeUsersOnly !== false);
-    setDiscountType(
-      subscriptionDiscount.type === "amount" ? "amount" : "percent",
-    );
-    setPercentOff(
-      typeof subscriptionDiscount.percentOff === "number"
-        ? subscriptionDiscount.percentOff.toString()
-        : "",
-    );
-    setAmountOffCents(
-      typeof subscriptionDiscount.amountOffCents === "number"
-        ? subscriptionDiscount.amountOffCents.toString()
-        : "",
-    );
-    setDuration(initialDuration);
-    setDurationMonths(
-      typeof subscriptionDuration.months === "number"
-        ? subscriptionDuration.months.toString()
-        : "3",
-    );
-    setMaxRedemptions(promotion?.maxRedemptions?.toString() ?? "");
-    setPauseOnRedemptionLimit(promotion?.pauseOnRedemptionLimit === true);
-    setPerUserMode(initialPerUserMode);
-    setPerUserLimit(
-      initialPerUserMode === "limited"
-        ? (promotion?.perUserRedemptionLimit ?? 2).toString()
-        : "2",
-    );
-    setStartsAt(formatDateInput(promotion?.startsAt));
-    setEndsAt(formatDateInput(promotion?.endsAt));
-  };
-
-  const submit = async () => {
-    if (submitting) {
-      return;
-    }
-
-    if (name.trim() === "") {
-      toast.error("Promotion name is required.");
-      return;
-    }
-
-    const creditAmount = Number(amount);
-    const invoiceAmountCents = usdDollarsStringToCents(invoiceCreditUsd);
-    const percent = Number(percentOff);
-    const amountDiscount = Number(amountOffCents);
-    const repeatingMonths = Number(durationMonths);
-    const max =
-      maxRedemptions.trim() === "" ? undefined : Number(maxRedemptions);
-    const perUserRedemptionLimit = storedPerUserLimit(
-      perUserMode,
-      perUserLimit,
-    );
-    const starts = parseDate(startsAt);
-    const ends = parseDate(endsAt);
-
-    if (
-      promotionType === "app_credits" &&
-      (!Number.isInteger(creditAmount) || creditAmount <= 0)
-    ) {
-      toast.error("Credit amount must be a positive integer.");
-      return;
-    }
-    const expiryDays = Number(appCreditExpiryDays);
-    if (
-      promotionType === "app_credits" &&
-      appCreditExpiryMode === "after_days" &&
-      (!Number.isInteger(expiryDays) || expiryDays <= 0)
-    ) {
-      toast.error("Expiration days must be a positive integer.");
-      return;
-    }
-    const expiryDateMs = parseDate(appCreditExpiryDate);
-    if (
-      promotionType === "app_credits" &&
-      appCreditExpiryMode === "fixed_date" &&
-      expiryDateMs === undefined
-    ) {
-      toast.error("Expiration date is invalid.");
-      return;
-    }
-    if (
-      promotionType === "subscription_discount" &&
-      discountType === "percent" &&
-      (!Number.isFinite(percent) || percent <= 0 || percent > 100)
-    ) {
-      toast.error("Percent discount must be between 1 and 100.");
-      return;
-    }
-    if (
-      promotionType === "subscription_discount" &&
-      discountType === "amount" &&
-      (!Number.isInteger(amountDiscount) || amountDiscount <= 0)
-    ) {
-      toast.error("Amount discount must be a positive cent amount.");
-      return;
-    }
-    if (
-      duration === "repeating" &&
-      (!Number.isInteger(repeatingMonths) || repeatingMonths <= 0)
-    ) {
-      toast.error("Repeating duration must be a positive month count.");
-      return;
-    }
-    if (
-      maxRedemptions.trim() !== "" &&
-      (!Number.isInteger(max) || (max ?? 0) <= 0)
-    ) {
-      toast.error("Global redemption limit must be positive.");
-      return;
-    }
-    if (perUserMode === "limited" && perUserRedemptionLimit === undefined) {
-      toast.error("Per-user limit must be positive.");
-      return;
-    }
-    if (
-      promotionType === "app_credits" &&
-      appCreditPlanEligibilityMode === "selected" &&
-      appCreditSelectedPlanTiers.length === 0
-    ) {
-      toast.error("Select at least one eligible plan.");
-      return;
-    }
-    if (startsAt.trim() !== "" && starts === undefined) {
-      toast.error("Start date is invalid.");
-      return;
-    }
-    if (endsAt.trim() !== "" && ends === undefined) {
-      toast.error("End date is invalid.");
-      return;
-    }
-    if (starts !== undefined && ends !== undefined && ends <= starts) {
-      toast.error("End date must be after start date.");
-      return;
-    }
-
-    const kind: PromotionKind =
-      promotionType === "stripe_invoice_credit"
-        ? "stripe_invoice_credit"
-        : promotionType === "app_credits"
-          ? "app_credits"
-          : "subscription_discount";
-
-    let config:
-      | {
-          amount: number;
-          eligiblePlanTiers?: "all" | PlanTier[];
-          expiresAfterDays?: number;
-          expiresAt?: number;
-        }
-      | { amountCents: number; currency: "usd" }
-      | {
-          mode: "gifted_subscription" | "discount";
-          freeUsersOnly: boolean;
-          targetTiers: "all" | readonly ["plus"] | readonly ["pro"];
-          discount:
-            | { type: "percent"; percentOff: number }
-            | {
-                type: "amount";
-                amountOffCents: number;
-                currency: "usd";
-              };
-          duration:
-            | { type: "once" | "forever" }
-            | { type: "repeating"; months: number };
-          requirePaymentMethod: boolean;
-          cancelIfMissingPaymentMethodAtEnd: boolean;
-        };
-
-    if (promotionType === "app_credits") {
-      config = {
-        amount: creditAmount,
-        eligiblePlanTiers:
-          appCreditPlanEligibilityMode === "all"
-            ? "all"
-            : appCreditSelectedPlanTiers,
-        ...(appCreditExpiryMode === "after_days"
-          ? { expiresAfterDays: expiryDays }
-          : appCreditExpiryMode === "fixed_date"
-            ? { expiresAt: expiryDateMs }
-            : {}),
-      };
-    } else if (promotionType === "stripe_invoice_credit") {
-      if (invoiceAmountCents === null) {
-        toast.error("Invoice credit must be a positive USD amount.");
-        return;
-      }
-      config = { amountCents: invoiceAmountCents, currency: "usd" };
-    } else {
-      config = {
-        mode:
-          promotionType === "gifted_subscription"
-            ? "gifted_subscription"
-            : "discount",
-        freeUsersOnly,
-        targetTiers:
-          targetTierMode === "all" ? "all" : ([targetTierMode] as const),
-        discount:
-          promotionType === "gifted_subscription"
-            ? { type: "percent", percentOff: 100 }
-            : discountType === "percent"
-              ? { type: "percent", percentOff: percent }
-              : {
-                  type: "amount",
-                  amountOffCents: amountDiscount,
-                  currency: "usd",
-                },
-        duration:
-          duration === "repeating"
-            ? { type: "repeating", months: repeatingMonths }
-            : { type: duration },
-        requirePaymentMethod: promotionType !== "gifted_subscription",
-        cancelIfMissingPaymentMethodAtEnd:
-          promotionType === "gifted_subscription",
-      };
-    }
-
-    try {
-      setSubmitting(true);
-      if (mode === "create") {
-        await createPromotion({
-          code,
-          name,
-          description: description.trim() || undefined,
-          kind,
-          status,
-          maxRedemptions: max,
-          perUserRedemptionLimit,
-          pauseOnRedemptionLimit,
-          startsAt: starts,
-          endsAt: ends,
-          config,
-        });
-        toast.success("Promotion created");
-      } else {
-        if (!promotion) return;
-        await updatePromotion({
-          promotionId: promotion.promotionId,
-          code,
-          name,
-          description,
-          kind,
-          status,
-          maxRedemptions: max ?? null,
-          perUserRedemptionLimit: perUserRedemptionLimit ?? null,
-          pauseOnRedemptionLimit,
-          startsAt: starts ?? null,
-          endsAt: ends ?? null,
-          config,
-        });
-        toast.success("Promotion updated");
-      }
-      reset();
-      setOpen(false);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : `Failed to ${mode} promotion.`,
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const f = usePromotionForm(mode, promotion);
 
   return (
     <Dialog
-      open={open}
+      open={f.open}
       onOpenChange={(next) => {
-        if (next) reset();
-        setOpen(next);
+        if (next) f.reset();
+        f.setOpen(next);
       }}
     >
       <DialogTrigger
@@ -718,14 +99,14 @@ export function PromotionFormDialog({
                     <Input
                       id={`promotion-code-${mode}`}
                       className="font-mono text-xs sm:text-sm"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
+                      value={f.code}
+                      onChange={(e) => f.setCode(e.target.value)}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       className="shrink-0"
-                      onClick={() => setCode(generatePromotionCode())}
+                      onClick={() => f.setCode(generatePromotionCode())}
                     >
                       Generate
                     </Button>
@@ -735,8 +116,8 @@ export function PromotionFormDialog({
                   <Label htmlFor={`promotion-name-${mode}`}>Name</Label>
                   <Input
                     id={`promotion-name-${mode}`}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={f.name}
+                    onChange={(e) => f.setName(e.target.value)}
                     placeholder="Launch gift"
                   />
                 </div>
@@ -747,17 +128,17 @@ export function PromotionFormDialog({
                   <Textarea
                     id={`promotion-description-${mode}`}
                     rows={2}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    value={f.description}
+                    onChange={(e) => f.setDescription(e.target.value)}
                     placeholder="Internal campaign note (optional)"
                   />
                 </div>
                 <div className="grid gap-2 sm:max-w-xs">
                   <Label>Status</Label>
                   <Select
-                    value={status}
+                    value={f.status}
                     onValueChange={(value) => {
-                      if (isPromotionStatus(value)) setStatus(value);
+                      if (isPromotionStatus(value)) f.setStatus(value);
                     }}
                   >
                     <SelectTrigger>
@@ -784,10 +165,10 @@ export function PromotionFormDialog({
                 <span className="sr-only">Promotion type</span>
                 <RadioGroup
                   orientation="horizontal"
-                  value={promotionType}
+                  value={f.promotionType}
                   onValueChange={(next) => {
                     const value = typeof next === "string" ? next : "";
-                    if (isPromotionFormType(value)) setPromotionType(value);
+                    if (isPromotionFormType(value)) f.setPromotionType(value);
                   }}
                   aria-label="Promotion type"
                   className="gap-3"
@@ -809,172 +190,25 @@ export function PromotionFormDialog({
                 </RadioGroup>
               </div>
 
-              {promotionType === "app_credits" ? (
-                <div className="border-border/80 bg-muted/15 grid gap-4 rounded-xl border px-4 py-3">
-                  <Label htmlFor={`promotion-credits-${mode}`}>
-                    Gifted credits
-                  </Label>
-                  <Input
-                    id={`promotion-credits-${mode}`}
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="100000"
-                  />
-                  <div className="grid gap-2">
-                    <Label>Eligible plans</Label>
-                    <RadioGroup
-                      value={appCreditPlanEligibilityMode}
-                      onValueChange={(next) => {
-                        const value = typeof next === "string" ? next : "";
-                        if (value === "all" || value === "selected") {
-                          setAppCreditPlanEligibilityMode(value);
-                        }
-                      }}
-                      aria-label="Gifted credit eligible plans"
-                    >
-                      <Label className={perUserRadioTileClass}>
-                        <RadioGroupItem value="all" />
-                        <span className="min-w-0 flex-1 leading-snug">
-                          <span className="block text-sm font-medium">
-                            Any plan
-                          </span>
-                          <span className="text-muted-foreground block text-xs font-normal">
-                            Free, Plus, and Pro users can redeem
-                          </span>
-                        </span>
-                      </Label>
-                      <Label className={perUserRadioTileClass}>
-                        <RadioGroupItem value="selected" />
-                        <span className="min-w-0 flex-1 leading-snug">
-                          <span className="block text-sm font-medium">
-                            Selected plans
-                          </span>
-                          <span className="text-muted-foreground block text-xs font-normal">
-                            Restrict redemption by current plan
-                          </span>
-                        </span>
-                      </Label>
-                    </RadioGroup>
-                    {appCreditPlanEligibilityMode === "selected" ? (
-                      <div className="bg-card/50 grid gap-2 rounded-lg border p-3">
-                        {(["free", "plus", "pro"] satisfies PlanTier[]).map(
-                          (tier) => (
-                            <Label
-                              key={tier}
-                              className="flex items-center gap-3 text-sm"
-                            >
-                              <Checkbox
-                                checked={appCreditSelectedPlanTiers.includes(
-                                  tier,
-                                )}
-                                onCheckedChange={(checked) => {
-                                  setAppCreditSelectedPlanTiers((current) =>
-                                    checked === true
-                                      ? [...new Set([...current, tier])]
-                                      : current.filter(
-                                          (currentTier) => currentTier !== tier,
-                                        ),
-                                  );
-                                }}
-                              />
-                              <span className="capitalize">{tier}</span>
-                            </Label>
-                          ),
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Credit expiration</Label>
-                    <RadioGroup
-                      value={appCreditExpiryMode}
-                      onValueChange={(next) => {
-                        const value = typeof next === "string" ? next : "";
-                        if (
-                          value === "never" ||
-                          value === "after_days" ||
-                          value === "fixed_date"
-                        ) {
-                          setAppCreditExpiryMode(value);
-                        }
-                      }}
-                      aria-label="Gifted credit expiration policy"
-                    >
-                      <Label className={perUserRadioTileClass}>
-                        <RadioGroupItem value="never" />
-                        <span className="min-w-0 flex-1 leading-snug">
-                          <span className="block text-sm font-medium">
-                            Never expire
-                          </span>
-                          <span className="text-muted-foreground block text-xs font-normal">
-                            Credits remain until spent
-                          </span>
-                        </span>
-                      </Label>
-                      <Label className={perUserRadioTileClass}>
-                        <RadioGroupItem value="after_days" />
-                        <span className="min-w-0 flex-1 leading-snug">
-                          <span className="block text-sm font-medium">
-                            Expire after days
-                          </span>
-                          <span className="text-muted-foreground block text-xs font-normal">
-                            X days from the moment of redemption
-                          </span>
-                        </span>
-                      </Label>
-                      <Label className={perUserRadioTileClass}>
-                        <RadioGroupItem value="fixed_date" />
-                        <span className="min-w-0 flex-1 leading-snug">
-                          <span className="block text-sm font-medium">
-                            Expire on date
-                          </span>
-                          <span className="text-muted-foreground block text-xs font-normal">
-                            All grants expire on the same fixed date
-                          </span>
-                        </span>
-                      </Label>
-                    </RadioGroup>
-                    {appCreditExpiryMode === "after_days" ? (
-                      <div className="grid gap-2 sm:max-w-xs">
-                        <Label htmlFor={`promotion-credit-expiry-days-${mode}`}>
-                          Days after redemption
-                        </Label>
-                        <Input
-                          id={`promotion-credit-expiry-days-${mode}`}
-                          type="number"
-                          min={1}
-                          step={1}
-                          value={appCreditExpiryDays}
-                          onChange={(e) =>
-                            setAppCreditExpiryDays(e.target.value)
-                          }
-                          placeholder="30"
-                        />
-                      </div>
-                    ) : null}
-                    {appCreditExpiryMode === "fixed_date" ? (
-                      <div className="grid gap-2 sm:max-w-xs">
-                        <Label htmlFor={`promotion-credit-expiry-date-${mode}`}>
-                          Expiration date (local)
-                        </Label>
-                        <Input
-                          id={`promotion-credit-expiry-date-${mode}`}
-                          type="datetime-local"
-                          value={appCreditExpiryDate}
-                          onChange={(e) =>
-                            setAppCreditExpiryDate(e.target.value)
-                          }
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+              {f.promotionType === "app_credits" ? (
+                <AppCreditsConfigFields
+                  mode={mode}
+                  amount={f.amount}
+                  setAmount={f.setAmount}
+                  planEligibilityMode={f.appCreditPlanEligibilityMode}
+                  setPlanEligibilityMode={f.setAppCreditPlanEligibilityMode}
+                  selectedPlanTiers={f.appCreditSelectedPlanTiers}
+                  setSelectedPlanTiers={f.setAppCreditSelectedPlanTiers}
+                  expiryMode={f.appCreditExpiryMode}
+                  setExpiryMode={f.setAppCreditExpiryMode}
+                  expiryDays={f.appCreditExpiryDays}
+                  setExpiryDays={f.setAppCreditExpiryDays}
+                  expiryDate={f.appCreditExpiryDate}
+                  setExpiryDate={f.setAppCreditExpiryDate}
+                />
               ) : null}
 
-              {promotionType === "stripe_invoice_credit" ? (
+              {f.promotionType === "stripe_invoice_credit" ? (
                 <div className="border-border/80 bg-muted/15 grid gap-2 rounded-xl border px-4 py-3">
                   <Label htmlFor={`promotion-invoice-credit-${mode}`}>
                     Invoice credit (USD)
@@ -984,268 +218,49 @@ export function PromotionFormDialog({
                     type="number"
                     min={0}
                     step="0.01"
-                    value={invoiceCreditUsd}
-                    onChange={(e) => setInvoiceCreditUsd(e.target.value)}
+                    value={f.invoiceCreditUsd}
+                    onChange={(e) => f.setInvoiceCreditUsd(e.target.value)}
                     placeholder="25.32"
                   />
                 </div>
               ) : null}
 
-              {promotionType === "subscription_discount" ||
-              promotionType === "gifted_subscription" ? (
-                <div className="border-border/80 bg-muted/15 grid gap-5 rounded-xl border p-4">
-                  <div className="grid min-w-0 gap-2">
-                    <Label>Promotion applies to</Label>
-                    <Select
-                      value={targetTierMode}
-                      onValueChange={(value) => {
-                        if (
-                          value === "all" ||
-                          value === "plus" ||
-                          value === "pro"
-                        ) {
-                          setTargetTierMode(value);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full min-w-0">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">
-                          All paid subscription tiers
-                        </SelectItem>
-                        <SelectItem value="plus">Plus only</SelectItem>
-                        <SelectItem value="pro">Pro only</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Label className="bg-card/50 flex items-start gap-3 rounded-lg border p-3">
-                    <Checkbox
-                      checked={freeUsersOnly}
-                      onCheckedChange={(checked) =>
-                        setFreeUsersOnly(checked === true)
-                      }
-                      className="mt-0.5"
-                    />
-                    <span className="grid gap-1">
-                      <span className="text-sm font-medium">
-                        Free users only
-                      </span>
-                      <span className="text-muted-foreground text-xs font-normal">
-                        When disabled, existing paid subscribers can claim
-                        same-tier full-discount promos as free subscription
-                        time.
-                      </span>
-                    </span>
-                  </Label>
-
-                  {promotionType === "subscription_discount" ? (
-                    <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
-                      <div className="grid min-w-0 gap-2">
-                        <Label>Discount shape</Label>
-                        <Select
-                          value={discountType}
-                          onValueChange={(value) => {
-                            if (isDiscountType(value)) setDiscountType(value);
-                          }}
-                        >
-                          <SelectTrigger className="w-full min-w-0">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="percent">Percentage</SelectItem>
-                            <SelectItem value="amount">Fixed cents</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid min-w-0 gap-2">
-                        <Label htmlFor={`promotion-discount-value-${mode}`}>
-                          {discountType === "percent"
-                            ? "Percent off"
-                            : "Amount (cents USD)"}
-                        </Label>
-                        <Input
-                          id={`promotion-discount-value-${mode}`}
-                          type="number"
-                          min={1}
-                          step={1}
-                          max={discountType === "percent" ? 100 : undefined}
-                          value={
-                            discountType === "percent"
-                              ? percentOff
-                              : amountOffCents
-                          }
-                          onChange={(e) =>
-                            discountType === "percent"
-                              ? setPercentOff(e.target.value)
-                              : setAmountOffCents(e.target.value)
-                          }
-                          placeholder={
-                            discountType === "percent" ? "25" : "500"
-                          }
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div
-                    className={
-                      duration === "repeating"
-                        ? "grid gap-x-5 gap-y-4 sm:grid-cols-2"
-                        : "grid gap-x-5 gap-y-4"
-                    }
-                  >
-                    <div className="grid min-w-0 gap-2">
-                      <Label>How long the discount lasts</Label>
-                      <Select
-                        value={duration}
-                        onValueChange={(value) => {
-                          if (isSubscriptionDuration(value)) {
-                            setDuration(value);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-full min-w-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="once">
-                            First invoice only
-                          </SelectItem>
-                          <SelectItem value="repeating">
-                            A set number of months
-                          </SelectItem>
-                          <SelectItem value="forever">Forever</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {duration === "repeating" ? (
-                      <div className="grid min-w-0 gap-2">
-                        <Label htmlFor={`promotion-duration-months-${mode}`}>
-                          Months
-                        </Label>
-                        <Input
-                          id={`promotion-duration-months-${mode}`}
-                          type="number"
-                          min={1}
-                          step={1}
-                          value={durationMonths}
-                          onChange={(e) => setDurationMonths(e.target.value)}
-                          className="w-full max-w-32"
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+              {f.promotionType === "subscription_discount" ||
+              f.promotionType === "gifted_subscription" ? (
+                <SubscriptionConfigFields
+                  mode={mode}
+                  promotionType={f.promotionType}
+                  targetTierMode={f.targetTierMode}
+                  setTargetTierMode={f.setTargetTierMode}
+                  freeUsersOnly={f.freeUsersOnly}
+                  setFreeUsersOnly={f.setFreeUsersOnly}
+                  discountType={f.discountType}
+                  setDiscountType={f.setDiscountType}
+                  percentOff={f.percentOff}
+                  setPercentOff={f.setPercentOff}
+                  amountOffCents={f.amountOffCents}
+                  setAmountOffCents={f.setAmountOffCents}
+                  duration={f.duration}
+                  setDuration={f.setDuration}
+                  durationMonths={f.durationMonths}
+                  setDurationMonths={f.setDurationMonths}
+                />
               ) : null}
             </FormSection>
 
             <Separator />
 
-            <FormSection
-              title="Redemption limits"
-              description="Control how widely a code may be redeemed before it expires."
-            >
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label className="text-sm">Per customer</Label>
-                  <RadioGroup
-                    orientation="horizontal"
-                    value={perUserMode}
-                    onValueChange={(next) => {
-                      const value = typeof next === "string" ? next : "";
-                      if (isPerUserMode(value)) setPerUserMode(value);
-                    }}
-                    aria-label="Per-user redemption policy"
-                  >
-                    <Label className={perUserRadioTileClass}>
-                      <RadioGroupItem value="once" />
-                      <span className="min-w-0 flex-1 leading-snug">
-                        <span className="block text-sm font-medium">Once</span>
-                        <span className="text-muted-foreground block text-xs font-normal">
-                          Single use per user
-                        </span>
-                      </span>
-                    </Label>
-                    <Label className={perUserRadioTileClass}>
-                      <RadioGroupItem value="limited" />
-                      <span className="min-w-0 flex-1 leading-snug">
-                        <span className="block text-sm font-medium">
-                          Limited
-                        </span>
-                        <span className="text-muted-foreground block text-xs font-normal">
-                          Cap repeat redemptions
-                        </span>
-                      </span>
-                    </Label>
-                    <Label className={perUserRadioTileClass}>
-                      <RadioGroupItem value="unlimited" />
-                      <span className="min-w-0 flex-1 leading-snug">
-                        <span className="block text-sm font-medium">
-                          Unlimited
-                        </span>
-                        <span className="text-muted-foreground block text-xs font-normal">
-                          No ceiling per user
-                        </span>
-                      </span>
-                    </Label>
-                  </RadioGroup>
-                  {perUserMode === "limited" ? (
-                    <div className="grid gap-2 sm:max-w-xs">
-                      <Label htmlFor={`promotion-per-user-cap-${mode}`}>
-                        Cap per customer
-                      </Label>
-                      <Input
-                        id={`promotion-per-user-cap-${mode}`}
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={perUserLimit}
-                        onChange={(e) => setPerUserLimit(e.target.value)}
-                        placeholder="2"
-                      />
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor={`promotion-max-${mode}`}>
-                    Total redemptions (global)
-                  </Label>
-                  <Input
-                    id={`promotion-max-${mode}`}
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={maxRedemptions}
-                    onChange={(e) => setMaxRedemptions(e.target.value)}
-                    placeholder="Unlimited across all users"
-                  />
-                </div>
-
-                <Label className="bg-card/50 flex items-start gap-3 rounded-lg border p-3">
-                  <Checkbox
-                    checked={pauseOnRedemptionLimit}
-                    onCheckedChange={(checked) =>
-                      setPauseOnRedemptionLimit(checked === true)
-                    }
-                    className="mt-0.5"
-                  />
-                  <span className="grid gap-1">
-                    <span className="text-sm font-medium">
-                      Pause instead of archive when limit is hit
-                    </span>
-                    <span className="text-muted-foreground text-xs font-normal">
-                      By default, the promotion is auto-archived once total
-                      redemptions reach the global cap. Enable to pause it
-                      instead so it can be resumed later.
-                    </span>
-                  </span>
-                </Label>
-              </div>
-            </FormSection>
+            <RedemptionLimitsFields
+              mode={mode}
+              perUserMode={f.perUserMode}
+              setPerUserMode={f.setPerUserMode}
+              perUserLimit={f.perUserLimit}
+              setPerUserLimit={f.setPerUserLimit}
+              maxRedemptions={f.maxRedemptions}
+              setMaxRedemptions={f.setMaxRedemptions}
+              pauseOnRedemptionLimit={f.pauseOnRedemptionLimit}
+              setPauseOnRedemptionLimit={f.setPauseOnRedemptionLimit}
+            />
 
             <Separator />
 
@@ -1261,8 +276,8 @@ export function PromotionFormDialog({
                   <Input
                     id={`promotion-start-${mode}`}
                     type="datetime-local"
-                    value={startsAt}
-                    onChange={(e) => setStartsAt(e.target.value)}
+                    value={f.startsAt}
+                    onChange={(e) => f.setStartsAt(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -1270,8 +285,8 @@ export function PromotionFormDialog({
                   <Input
                     id={`promotion-end-${mode}`}
                     type="datetime-local"
-                    value={endsAt}
-                    onChange={(e) => setEndsAt(e.target.value)}
+                    value={f.endsAt}
+                    onChange={(e) => f.setEndsAt(e.target.value)}
                   />
                 </div>
               </div>
@@ -1282,14 +297,14 @@ export function PromotionFormDialog({
         <DialogFooter className="border-border/60 bg-background/95 supports-backdrop-filter:bg-background/80 shrink-0 border-t px-6 py-4 backdrop-blur-sm">
           <DialogClose
             render={<Button type="button" variant="outline" />}
-            disabled={submitting}
+            disabled={f.submitting}
           >
             Cancel
           </DialogClose>
           <Button
             type="button"
-            onClick={() => void submit()}
-            disabled={submitting}
+            onClick={() => void f.submit()}
+            disabled={f.submitting}
           >
             {mode === "create" ? "Create promotion" : "Save changes"}
           </Button>
