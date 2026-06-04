@@ -5,6 +5,7 @@ import {
   assertSubscriptionPromotionConfig,
   canRedeemForUserCount,
   discountedPriceCentsFromList,
+  formatCreditExpiry,
   formatPerUserRedemptionPolicy,
   formatPromotionBenefit,
   getPromotionRedeemableTiers,
@@ -127,7 +128,23 @@ describe("promotion helpers", () => {
         kind: "app_credits",
         config: { amount: 500, eligiblePlanTiers: ["plus", "pro"] },
       }),
-    ).toBe("500 gifted credits for Plus, Pro");
+    ).toBe("500 gifted credits for Plus, Pro (never expires)");
+  });
+
+  it("formats gifted credit expiry modes", () => {
+    expect(formatCreditExpiry({ amount: 100 })).toBe("never expires");
+    expect(formatCreditExpiry({ amount: 100, expiresAfterDays: 30 })).toBe(
+      "expires 30d after redeem",
+    );
+    expect(
+      formatCreditExpiry({ amount: 100, expiresAt: 1735689600000 }),
+    ).toMatch(/expires \d/);
+    expect(
+      formatPromotionBenefit({
+        kind: "app_credits",
+        config: { amount: 1000, expiresAfterDays: 14 },
+      }),
+    ).toBe("1,000 gifted credits (expires 14d after redeem)");
   });
 
   it("rejects invalid gifted subscription configs", () => {
