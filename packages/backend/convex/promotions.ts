@@ -103,9 +103,13 @@ export function resolveAppCreditExpiry(args: {
   expiresAfterDays?: number;
   nowMs?: number;
 }): number | undefined {
-  if (args.expiresAt !== undefined) return args.expiresAt;
-  if (args.expiresAfterDays === undefined) return undefined;
-  return (args.nowMs ?? Date.now()) + args.expiresAfterDays * 86_400_000;
+  const relativeExpiry =
+    args.expiresAfterDays === undefined
+      ? undefined
+      : (args.nowMs ?? Date.now()) + args.expiresAfterDays * 86_400_000;
+  if (args.expiresAt === undefined) return relativeExpiry;
+  if (relativeExpiry === undefined) return args.expiresAt;
+  return Math.min(args.expiresAt, relativeExpiry);
 }
 
 export function computePaidSubscriberPromotionFreeUntil(args: {

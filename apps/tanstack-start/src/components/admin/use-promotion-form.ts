@@ -156,11 +156,14 @@ export function usePromotionForm(
     useReducerState<PlanTier[]>(initialAppCreditSelectedPlanTiers);
   const [appCreditExpiryMode, setAppCreditExpiryMode] =
     useReducerState<AppCreditExpiryMode>(
-      typeof config.expiresAfterDays === "number"
-        ? "after_days"
-        : typeof config.expiresAt === "number"
-          ? "fixed_date"
-          : "never",
+      typeof config.expiresAfterDays === "number" &&
+        typeof config.expiresAt === "number"
+        ? "earliest"
+        : typeof config.expiresAfterDays === "number"
+          ? "after_days"
+          : typeof config.expiresAt === "number"
+            ? "fixed_date"
+            : "never",
     );
   const [appCreditExpiryDays, setAppCreditExpiryDays] = useReducerState(
     typeof config.expiresAfterDays === "number"
@@ -235,11 +238,14 @@ export function usePromotionForm(
     setAppCreditPlanEligibilityMode(initialAppCreditPlanEligibilityMode);
     setAppCreditSelectedPlanTiers(initialAppCreditSelectedPlanTiers);
     setAppCreditExpiryMode(
-      typeof config.expiresAfterDays === "number"
-        ? "after_days"
-        : typeof config.expiresAt === "number"
-          ? "fixed_date"
-          : "never",
+      typeof config.expiresAfterDays === "number" &&
+        typeof config.expiresAt === "number"
+        ? "earliest"
+        : typeof config.expiresAfterDays === "number"
+          ? "after_days"
+          : typeof config.expiresAt === "number"
+            ? "fixed_date"
+            : "never",
     );
     setAppCreditExpiryDays(
       typeof config.expiresAfterDays === "number"

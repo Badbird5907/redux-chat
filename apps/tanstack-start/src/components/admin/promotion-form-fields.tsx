@@ -98,6 +98,7 @@ export function AppCreditsConfigFields({
       <div className="grid gap-2">
         <Label>Eligible plans</Label>
         <RadioGroup
+          orientation="horizontal"
           value={planEligibilityMode}
           onValueChange={(next) => {
             const value = typeof next === "string" ? next : "";
@@ -149,21 +150,23 @@ export function AppCreditsConfigFields({
       <div className="grid gap-2">
         <Label>Credit expiration</Label>
         <RadioGroup
+          orientation="horizontal"
           value={expiryMode}
           onValueChange={(next) => {
             const value = typeof next === "string" ? next : "";
             if (
               value === "never" ||
               value === "after_days" ||
-              value === "fixed_date"
+              value === "fixed_date" ||
+              value === "earliest"
             ) {
               setExpiryMode(value);
             }
           }}
           aria-label="Gifted credit expiration policy"
         >
-          <Label className={perUserRadioTileClass}>
-            <RadioGroupItem value="never" />
+          <Label className={`${perUserRadioTileClass} relative`}>
+            <RadioGroupItem value="never" className="absolute opacity-0" />
             <span className="min-w-0 flex-1 leading-snug">
               <span className="block text-sm font-medium">Never expire</span>
               <span className="text-muted-foreground block text-xs font-normal">
@@ -171,8 +174,11 @@ export function AppCreditsConfigFields({
               </span>
             </span>
           </Label>
-          <Label className={perUserRadioTileClass}>
-            <RadioGroupItem value="after_days" />
+          <Label className={`${perUserRadioTileClass} relative`}>
+            <RadioGroupItem
+              value="after_days"
+              className="absolute opacity-0"
+            />
             <span className="min-w-0 flex-1 leading-snug">
               <span className="block text-sm font-medium">
                 Expire after days
@@ -182,8 +188,11 @@ export function AppCreditsConfigFields({
               </span>
             </span>
           </Label>
-          <Label className={perUserRadioTileClass}>
-            <RadioGroupItem value="fixed_date" />
+          <Label className={`${perUserRadioTileClass} relative`}>
+            <RadioGroupItem
+              value="fixed_date"
+              className="absolute opacity-0"
+            />
             <span className="min-w-0 flex-1 leading-snug">
               <span className="block text-sm font-medium">Expire on date</span>
               <span className="text-muted-foreground block text-xs font-normal">
@@ -191,8 +200,19 @@ export function AppCreditsConfigFields({
               </span>
             </span>
           </Label>
+          <Label className={`${perUserRadioTileClass} relative`}>
+            <RadioGroupItem value="earliest" className="absolute opacity-0" />
+            <span className="min-w-0 flex-1 leading-snug">
+              <span className="block text-sm font-medium">
+                Earliest of both
+              </span>
+              <span className="text-muted-foreground block text-xs font-normal">
+                Expire after X days or on a fixed date
+              </span>
+            </span>
+          </Label>
         </RadioGroup>
-        {expiryMode === "after_days" ? (
+        {expiryMode === "after_days" || expiryMode === "earliest" ? (
           <div className="grid gap-2 sm:max-w-xs">
             <Label htmlFor={`promotion-credit-expiry-days-${mode}`}>
               Days after redemption
@@ -208,7 +228,7 @@ export function AppCreditsConfigFields({
             />
           </div>
         ) : null}
-        {expiryMode === "fixed_date" ? (
+        {expiryMode === "fixed_date" || expiryMode === "earliest" ? (
           <div className="grid gap-2 sm:max-w-xs">
             <Label htmlFor={`promotion-credit-expiry-date-${mode}`}>
               Expiration date (local)

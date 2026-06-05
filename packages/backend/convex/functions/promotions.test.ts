@@ -2,7 +2,10 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, internal } from "../_generated/api";
-import { computePaidSubscriberPromotionFreeUntil } from "../promotions";
+import {
+  computePaidSubscriberPromotionFreeUntil,
+  resolveAppCreditExpiry,
+} from "../promotions";
 import schema from "../schema";
 import { modules } from "../test.setup";
 import {
@@ -20,6 +23,26 @@ const NOW = 1_700_000_000_000;
 function testDb() {
   return convexTest(schema, modules);
 }
+
+describe("resolveAppCreditExpiry", () => {
+  it("uses the earlier expiry when relative and fixed expiries are configured", () => {
+    expect(
+      resolveAppCreditExpiry({
+        expiresAfterDays: 30,
+        expiresAt: NOW + 10 * 86_400_000,
+        nowMs: NOW,
+      }),
+    ).toBe(NOW + 10 * 86_400_000);
+
+    expect(
+      resolveAppCreditExpiry({
+        expiresAfterDays: 7,
+        expiresAt: NOW + 10 * 86_400_000,
+        nowMs: NOW,
+      }),
+    ).toBe(NOW + 7 * 86_400_000);
+  });
+});
 
 async function insertAppCreditPromotion(
   t: ReturnType<typeof testDb>,

@@ -16,7 +16,11 @@ export type SubscriptionDuration = "once" | "repeating" | "forever";
 export type DiscountType = "percent" | "amount";
 export type TargetTierMode = "all" | "plus" | "pro";
 export type AppCreditPlanEligibilityMode = "all" | "selected";
-export type AppCreditExpiryMode = "never" | "after_days" | "fixed_date";
+export type AppCreditExpiryMode =
+  | "never"
+  | "after_days"
+  | "fixed_date"
+  | "earliest";
 
 export type PromotionFormDialogPromotion = {
   promotionId: string;
@@ -223,7 +227,8 @@ export function validatePromotionForm(args: {
   const expiryDays = Number(args.appCreditExpiryDays);
   if (
     args.promotionType === "app_credits" &&
-    args.appCreditExpiryMode === "after_days" &&
+    (args.appCreditExpiryMode === "after_days" ||
+      args.appCreditExpiryMode === "earliest") &&
     (!Number.isInteger(expiryDays) || expiryDays <= 0)
   ) {
     return "Expiration days must be a positive integer.";
@@ -232,7 +237,8 @@ export function validatePromotionForm(args: {
   const expiryDateMs = parseDate(args.appCreditExpiryDate);
   if (
     args.promotionType === "app_credits" &&
-    args.appCreditExpiryMode === "fixed_date" &&
+    (args.appCreditExpiryMode === "fixed_date" ||
+      args.appCreditExpiryMode === "earliest") &&
     expiryDateMs === undefined
   ) {
     return "Expiration date is invalid.";
@@ -349,11 +355,14 @@ export function buildPromotionConfig(args: {
           args.appCreditPlanEligibilityMode === "all"
             ? "all"
             : args.appCreditSelectedPlanTiers,
-        ...(args.appCreditExpiryMode === "after_days"
+        ...(args.appCreditExpiryMode === "after_days" ||
+        args.appCreditExpiryMode === "earliest"
           ? { expiresAfterDays: expiryDays }
-          : args.appCreditExpiryMode === "fixed_date"
-            ? { expiresAt: expiryDateMs }
-            : {}),
+          : {}),
+        ...(args.appCreditExpiryMode === "fixed_date" ||
+        args.appCreditExpiryMode === "earliest"
+          ? { expiresAt: expiryDateMs }
+          : {}),
       },
     };
   }
