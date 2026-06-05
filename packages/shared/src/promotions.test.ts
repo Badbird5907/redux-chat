@@ -140,6 +140,13 @@ describe("promotion helpers", () => {
       formatCreditExpiry({ amount: 100, expiresAt: 1735689600000 }),
     ).toMatch(/expires \d/);
     expect(
+      formatCreditExpiry({
+        amount: 100,
+        expiresAfterDays: 30,
+        expiresAt: 1735689600000,
+      }),
+    ).toMatch(/expires 30d after redeem or \d.*whichever comes first/);
+    expect(
       formatPromotionBenefit({
         kind: "app_credits",
         config: { amount: 1000, expiresAfterDays: 14 },

@@ -171,6 +171,9 @@ export function discountedPriceCentsFromList(
 }
 
 export function formatCreditExpiry(config: AppCreditsPromotionConfig): string {
+  if (config.expiresAfterDays !== undefined && config.expiresAt !== undefined) {
+    return `expires ${config.expiresAfterDays}d after redeem or ${new Date(config.expiresAt).toLocaleDateString()}, whichever comes first`;
+  }
   if (config.expiresAfterDays !== undefined) {
     return `expires ${config.expiresAfterDays}d after redeem`;
   }
