@@ -231,7 +231,7 @@ describe("credit ledger helpers", () => {
     expect(balance.spendableCredits).toBe(70);
   });
 
-  it("debit throws INSUFFICIENT_CREDITS when overage disallowed and balance is too low", async () => {
+  it("debit drains balance when overage disallowed and balance is too low", async () => {
     const t = convexTest(schema, modules);
 
     await t.run(async (ctx) => {
@@ -244,22 +244,25 @@ describe("credit ledger helpers", () => {
       });
     });
 
-    await expect(
-      t.run(async (ctx) =>
-        debitCreditsTx(ctx, {
-          userId: USER_ID,
-          requestKey: "msg-too-big",
-          amount: 1000,
-          overageAllowed: false,
-        }),
-      ),
-    ).rejects.toThrow(/INSUFFICIENT_CREDITS/);
+    const debit = await t.run(async (ctx) =>
+      debitCreditsTx(ctx, {
+        userId: USER_ID,
+        requestKey: "msg-too-big",
+        amount: 1000,
+        overageAllowed: false,
+      }),
+    );
 
-    // Failed debit must not consume any grant.
+    // Drains available balance instead of throwing.
+    expect(debit.insufficientFunds).toBe(true);
+    expect(debit.allocatedAmount).toBe(5);
+    expect(debit.overdraftAmount).toBe(995);
+
+    // Balance is now zero.
     const balance = await t.run(async (ctx) =>
       getCreditBalanceForUser(ctx, USER_ID),
     );
-    expect(balance.spendableCredits).toBe(5);
+    expect(balance.spendableCredits).toBe(0);
   });
 
   it("debit records overdraft when overage is allowed", async () => {

@@ -369,10 +369,10 @@ export interface DebitCreditsResult {
  * earliest-expiry order. Repeat calls with the same `requestKey` short-circuit
  * and return the original allocation.
  *
- * - If `overageAllowed` is false and the user lacks balance, we throw
- *   `INSUFFICIENT_CREDITS` and do not write a debit row.
- * - If `overageAllowed` is true, the debit always succeeds; the shortfall is
- *   recorded as `overdraftAmount`.
+ * When the user lacks sufficient balance the debit drains whatever remains
+ * (the shortfall is recorded as `overdraftAmount`) and returns with
+ * `insufficientFunds: true`. This ensures generations are never completely
+ * free even when the balance cannot cover the full charge.
  */
 export async function debitCreditsTx(
   ctx: LedgerMutationCtx,
@@ -443,9 +443,9 @@ export async function debitCreditsTx(
   const plan = allocateDebit({ amount, grants: eligibleGrants, nowMs });
 
   if (plan.shortfall > 0 && !args.overageAllowed) {
-    const error = new Error("INSUFFICIENT_CREDITS");
-    (error as { code?: string }).code = "INSUFFICIENT_CREDITS";
-    throw error;
+    // Drain whatever balance remains instead of rejecting the debit entirely.
+    // The shortfall is recorded as overdraft so we have an audit trail, but the
+    // user's available credits are zeroed out and the generation is not free.
   }
 
   // Apply allocations: decrement grants and write per-grant audit rows.
@@ -520,7 +520,7 @@ export async function debitCreditsTx(
     allocatedAmount,
     overdraftAmount,
     allocations: allocationsToWrite,
-    insufficientFunds: false,
+    insufficientFunds: plan.shortfall > 0,
   };
 }
 
