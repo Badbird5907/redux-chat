@@ -4,8 +4,10 @@ import {
   calculateCreditsFromUsd,
   calculatePurchasedCreditsFromCents,
   calculateToolUsdCost,
+  calculateUsageCharge,
   DEFAULT_BILLING_CONFIG,
   getToolBillingConfig,
+  getUsageTokenEquivalent,
 } from "./billing";
 
 describe("billing helpers", () => {
@@ -64,5 +66,38 @@ describe("billing helpers", () => {
   it("blocks paid plans at zero credits instead of allowing overages", () => {
     expect(DEFAULT_BILLING_CONFIG.plans.plus.overageAllowed).toBe(false);
     expect(DEFAULT_BILLING_CONFIG.plans.pro.overageAllowed).toBe(false);
+  });
+
+  it("returns 0 credits when provider reports zero usage tokens", () => {
+    // This documents the known issue: when a provider (e.g. OpenRouter) reports
+    // all-zero tokens because the upstream model didn't return usage data,
+    // calculateUsageCharge computes 0 credits. The recordUsageEvent handler
+    // compensates by enforcing a minimum charge of 1 credit.
+    const charge = calculateUsageCharge(
+      {
+        routeId: "openrouter:deepseek/deepseek-v4-flash",
+        usage: { inputTokens: 0, outputTokens: 0 },
+        tier: "plus",
+      },
+      DEFAULT_BILLING_CONFIG,
+    );
+
+    expect(charge.credits).toBe(0);
+    expect(getUsageTokenEquivalent({ inputTokens: 0, outputTokens: 0 })).toBe(
+      0,
+    );
+  });
+
+  it("charges credits correctly when provider reports actual usage", () => {
+    const charge = calculateUsageCharge(
+      {
+        routeId: "openrouter:deepseek/deepseek-v4-flash",
+        usage: { inputTokens: 1000, outputTokens: 500 },
+        tier: "plus",
+      },
+      DEFAULT_BILLING_CONFIG,
+    );
+
+    expect(charge.credits).toBeGreaterThan(0);
   });
 });
