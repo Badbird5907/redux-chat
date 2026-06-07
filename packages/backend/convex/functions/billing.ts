@@ -7,6 +7,7 @@ import {
   calculatePurchasedCreditsFromCents,
   calculateUsageCharge,
   getPlanConfig,
+  getUsageTokenEquivalent,
   MAX_CREDIT_TOP_UP_USD_CENTS,
   MIN_CREDIT_TOP_UP_USD_CENTS,
 } from "@redux/shared";
@@ -851,6 +852,25 @@ export const recordUsageEvent = action({
       });
     }
 
+    // Some providers (e.g. OpenRouter Responses API) report 0 tokens when
+    // the upstream model doesn't return usage data. A successful generation
+    // always produces >0 output tokens, so all-zero means "not reported".
+    // Enforce a minimum of 1 credit so no generation is completely free.
+    const creditsToDebit =
+      charge.credits > 0 || getUsageTokenEquivalent(args.usage) > 0
+        ? charge.credits
+        : 1;
+
+    if (creditsToDebit !== charge.credits) {
+      billingDebugWarn("billing_zero_usage_minimum_applied", {
+        routeId: args.routeId,
+        requestId: args.requestId,
+        userId: ctx.userId,
+        originalCredits: charge.credits,
+        appliedCredits: creditsToDebit,
+      });
+    }
+
     const eventId = crypto.randomUUID();
     const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
     const debit = await ctx.runMutation(
@@ -858,7 +878,7 @@ export const recordUsageEvent = action({
       {
         userId: ctx.userId,
         requestKey: args.messageId,
-        amount: charge.credits,
+        amount: creditsToDebit,
         overageAllowed: plan.overageAllowed,
         routeId: args.routeId,
         threadId: args.threadId,
@@ -878,7 +898,7 @@ export const recordUsageEvent = action({
 
     return {
       eventId,
-      credits: charge.credits,
+      credits: creditsToDebit,
       tier: subscriptionState.tier,
       debitId: debit.debitId,
       overdraftAmount: debit.overdraftAmount,
