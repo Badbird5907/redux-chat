@@ -175,10 +175,7 @@ export function AppCreditsConfigFields({
             </span>
           </Label>
           <Label className={`${perUserRadioTileClass} relative`}>
-            <RadioGroupItem
-              value="after_days"
-              className="absolute opacity-0"
-            />
+            <RadioGroupItem value="after_days" className="absolute opacity-0" />
             <span className="min-w-0 flex-1 leading-snug">
               <span className="block text-sm font-medium">
                 Expire after days
@@ -189,10 +186,7 @@ export function AppCreditsConfigFields({
             </span>
           </Label>
           <Label className={`${perUserRadioTileClass} relative`}>
-            <RadioGroupItem
-              value="fixed_date"
-              className="absolute opacity-0"
-            />
+            <RadioGroupItem value="fixed_date" className="absolute opacity-0" />
             <span className="min-w-0 flex-1 leading-snug">
               <span className="block text-sm font-medium">Expire on date</span>
               <span className="text-muted-foreground block text-xs font-normal">
