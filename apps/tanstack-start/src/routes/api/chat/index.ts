@@ -577,6 +577,7 @@ export const Route = createFileRoute("/api/chat/")({
 
         let cleanupTools: (() => Promise<void>) | undefined;
         let lastStreamErrorMessage: string | undefined;
+        let streamRefused = false;
         const reportStreamFailure = async (error: unknown) => {
           const errorMessage = getErrorMessage(error).slice(0, 1000);
           try {
@@ -1025,7 +1026,13 @@ export const Route = createFileRoute("/api/chat/")({
             onError: ({ error }) => {
               console.error("Chat stream error", error);
             },
-            onFinish: async ({ usage }) => {
+            onFinish: async ({ usage, finishReason }) => {
+              if (finishReason === "content-filter") {
+                streamRefused = true;
+                await reportStreamFailure(
+                  "The model refused to generate a response for this request.",
+                );
+              }
               try {
                 const usageData =
                   usage.inputTokens !== undefined &&
@@ -1158,6 +1165,11 @@ export const Route = createFileRoute("/api/chat/")({
               }
             },
             onFinish: async ({ messages: finishedMessages }) => {
+              if (streamRefused) {
+                await cleanupTools?.();
+                return;
+              }
+
               const last = finishedMessages[finishedMessages.length - 1];
               const parts = last?.parts ?? [];
               if (!parts.some(isPersistableAssistantPart)) {
