@@ -8,6 +8,11 @@ export const ANTHROPIC_PROVIDER: CuratedProviderDefinition = {
   },
   models: [
     {
+      id: "claude-fable-5",
+      name: "Claude Fable 5 (Mythos)",
+      providerIds: ["anthropic:claude-fable-5"],
+    },
+    {
       id: "claude-sonnet-4-6",
       name: "Claude Sonnet 4.6",
       providerIds: ["anthropic:claude-sonnet-4-6"],
