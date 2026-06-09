@@ -417,7 +417,7 @@ export function ChatInputToolbar({
             type="button"
             onClick={onTokenCountClick}
             className={cn(
-              "rounded-md px-2 py-1 text-xs tabular-nums transition-colors",
+              "hidden rounded-md px-2 py-1 text-xs tabular-nums transition-colors md:inline",
               showTokenVisualization
                 ? "bg-primary/10 text-primary font-medium"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted",
