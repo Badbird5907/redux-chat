@@ -599,7 +599,7 @@ export function useChatSession({
       activeStreamInfo?.streamId ||
       convexUIMessages.length === 0 ||
       (locallyStartedStreamRef.current && !hasFailedConvexMessage) ||
-      locallyCompletedStreamRef.current
+      (locallyCompletedStreamRef.current && !hasFailedConvexMessage)
     ) {
       return;
     }
