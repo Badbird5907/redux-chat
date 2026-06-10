@@ -185,7 +185,8 @@ function supportsAdaptiveAnthropicThinking(vendorId: string): boolean {
   return (
     vendorId.includes("claude-sonnet-4-6") ||
     vendorId.includes("claude-opus-4-6") ||
-    vendorId.includes("claude-opus-4-7")
+    vendorId.includes("claude-opus-4-7") ||
+    vendorId.includes("claude-opus-4-8")
   );
 }
 
