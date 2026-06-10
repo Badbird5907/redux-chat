@@ -13,6 +13,16 @@ export const ANTHROPIC_PROVIDER: CuratedProviderDefinition = {
       providerIds: ["anthropic:claude-fable-5"],
     },
     {
+      id: "claude-opus-4-8",
+      name: "Claude Opus 4.8",
+      providerIds: ["anthropic:claude-opus-4-8"],
+    },
+    {
+      id: "claude-opus-4-7",
+      name: "Claude Opus 4.7",
+      providerIds: ["anthropic:claude-opus-4-7"],
+    },
+    {
       id: "claude-sonnet-4-6",
       name: "Claude Sonnet 4.6",
       providerIds: ["anthropic:claude-sonnet-4-6"],
