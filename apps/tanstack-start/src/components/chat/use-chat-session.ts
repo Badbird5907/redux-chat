@@ -232,38 +232,57 @@ export function useChatSession({
       // shaped { error: "out_of_credits", tier, availableCredits }; the AI SDK
       // surfaces it in the Error message.
       const message = error instanceof Error ? error.message : String(error);
-      const assistantMessageId = pendingAssistantMessageIdRef.current;
-      if (assistantMessageId) {
-        setMessages((currentMessages) => {
-          const failedMessage = {
-            id: assistantMessageId,
-            role: "assistant" as const,
-            parts: [],
-            status: "failed" as const,
-            error: message,
-          };
 
-          if (
-            !currentMessages.some(
-              (currentMessage) => currentMessage.id === assistantMessageId,
-            )
-          ) {
-            return [...currentMessages, failedMessage];
-          }
+      // Always mark the in-flight assistant message as failed so the error
+      // cleanup effect can detect it and transition status back to "ready".
+      // `pendingAssistantMessageIdRef` is the primary pointer, but it may
+      // already have been cleared (the cleanup effect clears it as soon as
+      // the assistant message appears in the SDK's `messages` array, which
+      // happens at the start of streaming — well before any mid-stream
+      // error). When the ref is gone, fall back to the last assistant
+      // message that isn't already completed.
+      setMessages((currentMessages) => {
+        const targetId =
+          pendingAssistantMessageIdRef.current ??
+          currentMessages
+            .slice()
+            .reverse()
+            .find(
+              (m) =>
+                m.role === "assistant" &&
+                m.status !== "completed",
+            )?.id;
 
-          return currentMessages.map((currentMessage) =>
-            currentMessage.id === assistantMessageId &&
-            currentMessage.role === "assistant"
-              ? {
-                  ...currentMessage,
-                  status: "failed" as const,
-                  error: message,
-                }
-              : currentMessage,
-          );
-        });
-        setTrackedPendingAssistantMessageId(undefined);
-      }
+        if (!targetId) return currentMessages;
+
+        const failedMessage = {
+          id: targetId,
+          role: "assistant" as const,
+          parts: [],
+          status: "failed" as const,
+          error: message,
+        };
+
+        if (
+          !currentMessages.some(
+            (currentMessage) => currentMessage.id === targetId,
+          )
+        ) {
+          return [...currentMessages, failedMessage];
+        }
+
+        return currentMessages.map((currentMessage) =>
+          currentMessage.id === targetId &&
+          currentMessage.role === "assistant"
+            ? {
+                ...currentMessage,
+                status: "failed" as const,
+                error: message,
+              }
+            : currentMessage,
+        );
+      });
+      setTrackedPendingAssistantMessageId(undefined);
 
       if (message.includes("out_of_credits")) {
         toast.error("You are out of credits.");
@@ -642,7 +661,20 @@ export function useChatSession({
           message.role === "assistant" && message.status === "failed",
       );
 
-    if (!hasFailedMessage) {
+    // Safety net: if the server completed the response successfully but the
+    // client stream errored (and onError could not mark the message as
+    // failed for any reason), we still need to recover from the stuck
+    // "error" status so the Convex sync effect can reconcile messages.
+    const serverRecoverable =
+      !hasFailedMessage &&
+      !activeStreamInfo?.streamId &&
+      convexUIMessages.some(
+        (message) =>
+          message.role === "assistant" &&
+          message.status === "completed",
+      );
+
+    if (!hasFailedMessage && !serverRecoverable) {
       return;
     }
 
@@ -657,7 +689,7 @@ export function useChatSession({
     return () => {
       cancelled = true;
     };
-  }, [clearError, convexUIMessages, messages, status]);
+  }, [activeStreamInfo?.streamId, clearError, convexUIMessages, messages, status]);
 
   const messageStatsMap = useMemo(() => {
     const map = new Map<string, MessageStats>();
