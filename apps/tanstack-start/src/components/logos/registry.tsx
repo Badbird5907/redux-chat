@@ -15,6 +15,7 @@ import { MetaLogo, MetaLogoWhite } from "./meta";
 import { MoonshotLogo, MoonshotLogoWhite } from "./moonshot";
 import { KimiLogo, KimiLogoWhite } from "./moonshot/kimi";
 import { OpenAILogo, OpenAILogoWhite } from "./openai";
+import { QwenLogo, QwenLogoWhite } from "./qwen";
 import { xAILogo, xAILogoWhite } from "./xai";
 import { GrokLogo, GrokLogoWhite } from "./xai/grok";
 import { XiaomiLogo, XiaomiLogoWhite } from "./xiaomi";
@@ -91,6 +92,13 @@ const openaiLogo: LogoRegistryItem = {
   surface: "dark",
 };
 
+const qwenLogo: LogoRegistryItem = {
+  name: "Qwen",
+  Logo: QwenLogo,
+  LogoWhite: QwenLogoWhite,
+  surface: "light",
+};
+
 const xaiLogo: LogoRegistryItem = {
   name: "xAI",
   Logo: xAILogo,
@@ -115,6 +123,7 @@ export const LOGO_REGISTRY = {
   meta: metaLogo,
   moonshot: moonshotLogo,
   openai: openaiLogo,
+  qwen: qwenLogo,
   xai: xaiLogo,
   xiaomi: xiaomiLogo,
 } as const satisfies Record<string, LogoRegistryItem>;
@@ -125,6 +134,7 @@ const sharedProviderLogos = {
   google: LOGO_REGISTRY.google,
   moonshot: LOGO_REGISTRY.moonshot,
   openai: LOGO_REGISTRY.openai,
+  qwen: LOGO_REGISTRY.qwen,
   xai: LOGO_REGISTRY.xai,
   xiaomi: LOGO_REGISTRY.xiaomi,
 } satisfies Record<(typeof PROVIDERS)[number]["slug"], LogoRegistryItem>;
@@ -151,6 +161,7 @@ export const LOGO_SHOWCASE = [
   LOGO_REGISTRY.meta,
   LOGO_REGISTRY.moonshot,
   LOGO_REGISTRY.openai,
+  LOGO_REGISTRY.qwen,
   LOGO_REGISTRY.xai,
   LOGO_REGISTRY.xiaomi,
 ] as const;
