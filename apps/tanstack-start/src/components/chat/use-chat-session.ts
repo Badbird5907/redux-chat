@@ -247,11 +247,8 @@ export function useChatSession({
           currentMessages
             .slice()
             .reverse()
-            .find(
-              (m) =>
-                m.role === "assistant" &&
-                m.status !== "completed",
-            )?.id;
+            .find((m) => m.role === "assistant" && m.status !== "completed")
+            ?.id;
 
         if (!targetId) return currentMessages;
 
@@ -272,8 +269,7 @@ export function useChatSession({
         }
 
         return currentMessages.map((currentMessage) =>
-          currentMessage.id === targetId &&
-          currentMessage.role === "assistant"
+          currentMessage.id === targetId && currentMessage.role === "assistant"
             ? {
                 ...currentMessage,
                 status: "failed" as const,
@@ -670,8 +666,7 @@ export function useChatSession({
       !activeStreamInfo?.streamId &&
       convexUIMessages.some(
         (message) =>
-          message.role === "assistant" &&
-          message.status === "completed",
+          message.role === "assistant" && message.status === "completed",
       );
 
     if (!hasFailedMessage && !serverRecoverable) {
@@ -689,7 +684,13 @@ export function useChatSession({
     return () => {
       cancelled = true;
     };
-  }, [activeStreamInfo?.streamId, clearError, convexUIMessages, messages, status]);
+  }, [
+    activeStreamInfo?.streamId,
+    clearError,
+    convexUIMessages,
+    messages,
+    status,
+  ]);
 
   const messageStatsMap = useMemo(() => {
     const map = new Map<string, MessageStats>();
