@@ -104,8 +104,7 @@ export async function materializeAttachmentsForRoute<
           const plan = planChatAttachment(route, attachment);
           if (
             plan.deliveryMode === "native" &&
-            (plan.kind === "image" ||
-              (plan.kind === "pdf" && supportsPdfFiles))
+            (plan.kind === "image" || (plan.kind === "pdf" && supportsPdfFiles))
           ) {
             extraParts.push({
               type: "file",
