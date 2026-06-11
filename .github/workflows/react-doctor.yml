@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: millionco/react-doctor@main
+      - uses: millionco/react-doctor@de0795fbeacc1b9992fe2f88140efcd7c4c87d1c
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          diff: main
+          version: 0.5.1

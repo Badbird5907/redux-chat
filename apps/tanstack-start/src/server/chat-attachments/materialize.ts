@@ -90,18 +90,33 @@ export async function materializeAttachmentsForRoute<
       }
 
       if (options.useBashUploadReferences) {
+        const extraParts: UIMessagePart<UIDataTypes, UITools>[] = [];
+
+        // Always include the bash upload summary so tools can reference files
         const uploadSummary = formatBashUploadSummary(attachments);
-        return uploadSummary
-          ? {
-              ...message,
-              parts: [
-                ...message.parts,
-                {
-                  type: "text",
-                  text: uploadSummary,
-                },
-              ],
-            }
+        if (uploadSummary) {
+          extraParts.push({ type: "text", text: uploadSummary });
+        }
+
+        // Also send natively-supported images and PDFs as multimodal parts
+        // so the model can "see" them without needing to invoke a tool
+        for (const attachment of attachments) {
+          const plan = planChatAttachment(route, attachment);
+          if (
+            plan.deliveryMode === "native" &&
+            (plan.kind === "image" || (plan.kind === "pdf" && supportsPdfFiles))
+          ) {
+            extraParts.push({
+              type: "file",
+              mediaType: attachment.mimeType,
+              url: attachment.url,
+              filename: attachment.fileName,
+            } satisfies UIMessagePart<UIDataTypes, UITools>);
+          }
+        }
+
+        return extraParts.length > 0
+          ? { ...message, parts: [...message.parts, ...extraParts] }
           : message;
       }
 
