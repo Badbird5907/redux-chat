@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import type { ChatModelConfig } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
+import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import {
   CHAT_MODELS,
   compareChatModelsByReleaseDateNewestFirst,
@@ -446,8 +447,10 @@ export function useModelSelectorState({
     );
   }, []);
 
+  const isMobile = useIsMobile();
+
   useEffect(() => {
-    if (!open) return;
+    if (!open || isMobile) return;
     let alive = true;
     const id = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
@@ -458,7 +461,7 @@ export function useModelSelectorState({
       alive = false;
       cancelAnimationFrame(id);
     };
-  }, [open]);
+  }, [open, isMobile]);
 
   const currentModel =
     CHAT_MODELS.find((m) => m.id === selectedModel) ?? CHAT_MODELS[0];
