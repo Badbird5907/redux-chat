@@ -467,16 +467,40 @@ async function ensureAttachmentDownloadUrl(attachment: ModelAttachment) {
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
   if (typeof error === "string") {
     return error;
   }
 
   if (typeof error === "object" && error !== null) {
     const record = error as Record<string, unknown>;
+    if (typeof record.responseBody === "string") {
+      const responseBodyText = record.responseBody;
+      try {
+        const responseBody = JSON.parse(responseBodyText) as unknown;
+        const responseMessage = getErrorMessage(responseBody);
+        if (responseMessage !== "Unknown chat stream error") {
+          return responseMessage;
+        }
+      } catch {
+        return responseBodyText;
+      }
+    }
+    if (Array.isArray(record.errors)) {
+      const messages = record.errors
+        .map((item): string | undefined => {
+          if (typeof item !== "object" || item === null) {
+            return undefined;
+          }
+          const errorRecord = item as Record<string, unknown>;
+          return typeof errorRecord.message === "string"
+            ? errorRecord.message
+            : undefined;
+        })
+        .filter((message): message is string => Boolean(message));
+      if (messages.length > 0) {
+        return messages.join("\n");
+      }
+    }
     if (typeof record.message === "string") {
       return record.message;
     }
@@ -486,6 +510,10 @@ function getErrorMessage(error: unknown): string {
         return nestedMessage;
       }
     }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
   }
 
   try {

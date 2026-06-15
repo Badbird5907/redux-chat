@@ -109,9 +109,6 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
         apiKey: env.CLOUDFLARE_API_KEY,
         baseURL: `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
         includeUsage: true,
-        supportedUrls: () => ({
-          "image/*": [/^https?:\/\/.*$/],
-        }),
       });
 
       return provider.chatModel(route.vendorId);
