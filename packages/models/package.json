@@ -23,6 +23,10 @@
     "./openrouter": {
       "types": "./dist/generated/openrouter.d.ts",
       "default": "./src/generated/openrouter.ts"
+    },
+    "./workersai": {
+      "types": "./dist/generated/workersai.d.ts",
+      "default": "./src/generated/workersai.ts"
     }
   },
   "license": "MIT",

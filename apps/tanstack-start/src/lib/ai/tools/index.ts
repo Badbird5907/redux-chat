@@ -58,6 +58,10 @@ interface ToolRuntime {
   getBashFs: () => InMemoryFs | undefined;
 }
 
+const MAX_TOOL_RESULT_STRING_CHARS = 100_000;
+const MAX_TOOL_RESULT_ARRAY_ITEMS = 200;
+const BINARY_SAMPLE_SIZE = 256;
+
 function toToolKeyPrefix(name: string) {
   const normalized = name
     .trim()
@@ -545,11 +549,15 @@ function toConvexSafeValue(
     return null;
   }
 
-  if (
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    typeof value === "bigint"
-  ) {
+  if (typeof value === "string") {
+    if (value.length <= MAX_TOOL_RESULT_STRING_CHARS) {
+      return value;
+    }
+
+    return `${value.slice(0, MAX_TOOL_RESULT_STRING_CHARS)}\n\n[Tool output truncated: ${value.length - MAX_TOOL_RESULT_STRING_CHARS} additional characters omitted.]`;
+  }
+
+  if (typeof value === "boolean" || typeof value === "bigint") {
     return value;
   }
 
@@ -562,11 +570,11 @@ function toConvexSafeValue(
   }
 
   if (value instanceof ArrayBuffer) {
-    return value;
+    return omittedBinaryToolResult(value.byteLength);
   }
 
   if (ArrayBuffer.isView(value)) {
-    return Array.from(new Uint8Array(value.buffer.slice(0)));
+    return omittedBinaryToolResult(value.byteLength);
   }
 
   if (value instanceof Date) {
@@ -574,7 +582,32 @@ function toConvexSafeValue(
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => toConvexSafeValue(item, seen) ?? null);
+    if (
+      value.length > BINARY_SAMPLE_SIZE &&
+      value
+        .slice(0, BINARY_SAMPLE_SIZE)
+        .every(
+          (item) =>
+            typeof item === "number" &&
+            Number.isInteger(item) &&
+            item >= 0 &&
+            item <= 255,
+        )
+    ) {
+      return omittedBinaryToolResult(value.length);
+    }
+
+    const items = value
+      .slice(0, MAX_TOOL_RESULT_ARRAY_ITEMS)
+      .map((item) => toConvexSafeValue(item, seen) ?? null);
+    if (value.length > MAX_TOOL_RESULT_ARRAY_ITEMS) {
+      items.push({
+        omitted: true,
+        omittedItems: value.length - MAX_TOOL_RESULT_ARRAY_ITEMS,
+        reason: "Additional tool result items were omitted.",
+      });
+    }
+    return items;
   }
 
   if (typeof value !== "object") {
@@ -595,4 +628,13 @@ function toConvexSafeValue(
   }
 
   return output;
+}
+
+function omittedBinaryToolResult(byteLength: number): Value {
+  return {
+    omitted: true,
+    byteLength,
+    reason:
+      "Binary file contents are not returned inline. Use a text extraction tool or present_file instead.",
+  };
 }

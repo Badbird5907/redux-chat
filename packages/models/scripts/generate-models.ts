@@ -8,6 +8,7 @@ const PROVIDER_ALLOWLIST = [
   "openai",
   "openrouter",
   "vertex",
+  "workersai",
 ] as const;
 
 type ProviderId = (typeof PROVIDER_ALLOWLIST)[number];
@@ -15,6 +16,7 @@ type ProviderId = (typeof PROVIDER_ALLOWLIST)[number];
 // these are ailases, so `vertex` -> `google-vertex` in models.dev
 const PROVIDER_MODELS_DEV_KEYS = {
   vertex: "google-vertex",
+  workersai: "cloudflare-workers-ai",
 } as const satisfies Partial<Record<ProviderId, string>>;
 
 interface ModelsDevModelCost {
@@ -218,12 +220,16 @@ async function main() {
       doc: normalizedCatalog.doc,
     };
 
-    const constantName = `${providerId}Models`;
+    const safeProviderId = providerId.replace(/-([a-z])/g, (_, letter: string) =>
+      letter.toUpperCase(),
+    );
+
+    const constantName = `${safeProviderId}Models`;
     const fileContents =
       `${generatedNotice}` +
       `import type { ModelsDevProviderCatalog } from "../types";\n\n` +
       `export const ${constantName} = ${serialize(normalizedCatalog)} as const satisfies ModelsDevProviderCatalog;\n` +
-      `export const ${providerId}Catalog = ${constantName};\n`;
+      `export const ${safeProviderId}Catalog = ${constantName};\n`;
 
     await fs.writeFile(path.join(outputDir, `${providerId}.ts`), fileContents);
   }

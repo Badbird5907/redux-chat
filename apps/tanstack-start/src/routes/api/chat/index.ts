@@ -132,6 +132,10 @@ interface GoogleReasoningProviderOptions {
   };
 }
 
+interface WorkersAiReasoningProviderOptions {
+  reasoning_effort: EnabledAiSdkReasoning | null;
+}
+
 function isEnabledReasoning(
   reasoning: AiSdkReasoning | undefined,
 ): reasoning is EnabledAiSdkReasoning {
@@ -143,6 +147,14 @@ function resolveProviderOptions(
   vendorId: string,
   reasoning: AiSdkReasoning | undefined,
 ): StreamTextProviderOptions | undefined {
+  if (runtimeProviderKey === "workersai" && reasoning !== undefined) {
+    return {
+      workersai: {
+        reasoning_effort: reasoning === "none" ? null : reasoning,
+      } satisfies WorkersAiReasoningProviderOptions,
+    };
+  }
+
   if (!isEnabledReasoning(reasoning)) {
     return undefined;
   }
@@ -182,12 +194,7 @@ function resolveProviderOptions(
 }
 
 function supportsAdaptiveAnthropicThinking(vendorId: string): boolean {
-  return (
-    vendorId.includes("claude-sonnet-4-6") ||
-    vendorId.includes("claude-opus-4-6") ||
-    vendorId.includes("claude-opus-4-7") ||
-    vendorId.includes("claude-opus-4-8")
-  );
+  return vendorId.includes("claude-");
 }
 
 function resolveReasoningParam(
@@ -459,7 +466,7 @@ async function ensureAttachmentDownloadUrl(attachment: ModelAttachment) {
   });
 }
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -468,8 +475,22 @@ function getErrorMessage(error: unknown) {
     return error;
   }
 
+  if (typeof error === "object" && error !== null) {
+    const record = error as Record<string, unknown>;
+    if (typeof record.message === "string") {
+      return record.message;
+    }
+    if (record.error !== error) {
+      const nestedMessage = getErrorMessage(record.error);
+      if (nestedMessage !== "Unknown chat stream error") {
+        return nestedMessage;
+      }
+    }
+  }
+
   try {
-    return JSON.stringify(error);
+    const serialized = JSON.stringify(error) as string | undefined;
+    return serialized ?? "Unknown chat stream error";
   } catch {
     return "Unknown chat stream error";
   }
@@ -482,6 +503,176 @@ function isPersistableAssistantPart(part: unknown) {
     "type" in part &&
     part.type === "error"
   );
+}
+
+const MAX_PERSISTED_ASSISTANT_PARTS_BYTES = 900 * 1024;
+const MAX_PERSISTED_TEXT_CHARS = 200_000;
+const MAX_PERSISTED_TOOL_STRING_CHARS = 16_000;
+const MAX_COMPACT_TOOL_STRING_CHARS = 1_000;
+const MAX_PERSISTED_ARRAY_ITEMS = 50;
+const MAX_COMPACT_ARRAY_ITEMS = 10;
+const BYTE_ARRAY_SAMPLE_SIZE = 256;
+
+interface SanitizePersistenceOptions {
+  compact?: boolean;
+  inToolPart?: boolean;
+  key?: string;
+  seen?: WeakSet<object>;
+}
+
+function sanitizeAssistantPartsForPersistence(
+  parts: UIMessagePart<UIDataTypes, UITools>[],
+) {
+  const sanitized = parts.map((part) =>
+    sanitizePersistedValue(part),
+  ) as UIMessagePart<UIDataTypes, UITools>[];
+
+  if (getJsonByteLength(sanitized) <= MAX_PERSISTED_ASSISTANT_PARTS_BYTES) {
+    return sanitized;
+  }
+
+  return parts.map((part) =>
+    sanitizePersistedValue(part, { compact: true }),
+  ) as UIMessagePart<UIDataTypes, UITools>[];
+}
+
+function sanitizePersistedValue(
+  value: unknown,
+  options: SanitizePersistenceOptions = {},
+): unknown {
+  if (value == null) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return sanitizePersistedString(value, options);
+  }
+
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return value;
+  }
+
+  if (value instanceof ArrayBuffer) {
+    return omittedBinaryValue(value.byteLength);
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    return omittedBinaryValue(value.byteLength);
+  }
+
+  if (Array.isArray(value)) {
+    if (isLikelyByteArray(value)) {
+      return omittedBinaryValue(value.length);
+    }
+
+    const maxItems = options.compact
+      ? MAX_COMPACT_ARRAY_ITEMS
+      : MAX_PERSISTED_ARRAY_ITEMS;
+    const items = value
+      .slice(0, maxItems)
+      .map((item) =>
+        sanitizePersistedValue(item, {
+          ...options,
+          key: undefined,
+        }),
+      );
+
+    if (value.length > maxItems) {
+      items.push({
+        omitted: true,
+        omittedItems: value.length - maxItems,
+        reason: "Additional tool result items are not stored in chat history.",
+      });
+    }
+
+    return items;
+  }
+
+  if (typeof value !== "object") {
+    return undefined;
+  }
+
+  const seen = options.seen ?? new WeakSet<object>();
+  if (seen.has(value)) {
+    return "[Circular]";
+  }
+  seen.add(value);
+
+  const record = value as Record<string, unknown>;
+  const inToolPart =
+    options.inToolPart ??
+    (typeof record.type === "string" && record.type.startsWith("tool-"));
+  const output: Record<string, unknown> = {};
+
+  for (const [key, item] of Object.entries(record)) {
+    const sanitized = sanitizePersistedValue(item, {
+      ...options,
+      inToolPart,
+      key,
+      seen,
+    });
+    if (sanitized !== undefined) {
+      output[key] = sanitized;
+    }
+  }
+
+  return output;
+}
+
+function sanitizePersistedString(
+  value: string,
+  options: SanitizePersistenceOptions,
+) {
+  const maxLength = options.compact
+    ? options.inToolPart
+      ? MAX_COMPACT_TOOL_STRING_CHARS
+      : MAX_PERSISTED_TOOL_STRING_CHARS
+    : options.inToolPart
+      ? MAX_PERSISTED_TOOL_STRING_CHARS
+      : MAX_PERSISTED_TEXT_CHARS;
+
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const keyText = options.key ? ` for \`${options.key}\`` : "";
+  return `[Large value omitted from saved chat history${keyText}: ${value.length.toLocaleString()} characters. Re-run the tool or use present_file for downloadable files.]`;
+}
+
+function isLikelyByteArray(value: unknown[]) {
+  if (value.length <= BYTE_ARRAY_SAMPLE_SIZE) {
+    return false;
+  }
+
+  return value
+    .slice(0, BYTE_ARRAY_SAMPLE_SIZE)
+    .every(
+      (item) =>
+        typeof item === "number" &&
+        Number.isInteger(item) &&
+        item >= 0 &&
+        item <= 255,
+    );
+}
+
+function omittedBinaryValue(byteLength: number) {
+  return {
+    omitted: true,
+    byteLength,
+    reason:
+      "Binary tool output is not stored in chat history. Use present_file for downloadable files.",
+  };
+}
+
+function getJsonByteLength(value: unknown) {
+  const json = JSON.stringify(value, (_key, item: unknown) =>
+    typeof item === "bigint" ? item.toString() : item,
+  );
+  return new TextEncoder().encode(json).byteLength;
 }
 
 export const Route = createFileRoute("/api/chat/")({
@@ -927,6 +1118,7 @@ export const Route = createFileRoute("/api/chat/")({
               },
             });
           }
+          console.log("resolving model", settings.model);
           const resolvedModel = resolveAiSdkModel(settings.model);
           const reasoning = resolveReasoningParam(
             resolvedModel.route.supports.reasoning,
@@ -950,10 +1142,19 @@ export const Route = createFileRoute("/api/chat/")({
               useBashUploadReferences: isBashWorkspaceEnabled,
             },
           );
+          const sanitizedModelMessages = messagesWithAttachments.map(
+            (message) =>
+              message.role === "assistant"
+                ? {
+                    ...message,
+                    parts: sanitizeAssistantPartsForPersistence(message.parts),
+                  }
+                : message,
+          );
 
           // Convert to model messages format
           const modelMessages = await convertToModelMessages(
-            messagesWithAttachments,
+            sanitizedModelMessages,
           );
 
           const systemPrompt = [
@@ -1171,8 +1372,15 @@ export const Route = createFileRoute("/api/chat/")({
                 return;
               }
 
+              if (lastStreamErrorMessage) {
+                await reportStreamFailure(lastStreamErrorMessage);
+                await cleanupTools?.();
+                return;
+              }
+
               const last = finishedMessages[finishedMessages.length - 1];
               const parts = last?.parts ?? [];
+              const persistedParts = sanitizeAssistantPartsForPersistence(parts);
               if (!parts.some(isPersistableAssistantPart)) {
                 await reportStreamFailure(
                   lastStreamErrorMessage ?? "Chat stream failed",
@@ -1188,7 +1396,7 @@ export const Route = createFileRoute("/api/chat/")({
                   userId: requestUserId,
                   threadId: threadId,
                   assistantMessageId: assistantMessageId,
-                  parts,
+                  parts: persistedParts,
                 },
               );
             },

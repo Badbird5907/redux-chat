@@ -52,6 +52,8 @@ export function backendEnv() {
       OPENAI_API_KEY: z.string().min(1),
       OPENROUTER_API_KEY: z.string().min(1),
       GOOGLE_VERTEX_API_KEY: z.string().min(1),
+      CLOUDFLARE_ACCOUNT_ID: optionalNonEmptyStringSchema,
+      CLOUDFLARE_API_KEY: optionalNonEmptyStringSchema,
       AA_API_KEY: z.string().min(1),
     },
     runtimeEnv: {
@@ -77,6 +79,8 @@ export function backendEnv() {
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
       GOOGLE_VERTEX_API_KEY: process.env.GOOGLE_VERTEX_API_KEY,
+      CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+      CLOUDFLARE_API_KEY: process.env.CLOUDFLARE_API_KEY,
       AA_API_KEY: process.env.AA_API_KEY,
     },
     skipValidation: shouldSkipValidation,

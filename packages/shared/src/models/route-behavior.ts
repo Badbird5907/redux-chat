@@ -130,6 +130,15 @@ export const ROUTE_PROVIDER_DEFAULTS: Record<string, RouteProviderDefaults> = {
       },
     },
   },
+  workersai: {
+    runtimeProviderKey: "workersai",
+    attachmentPolicy: {
+      defaults: {
+        image: "native",
+        pdf: "native",
+      },
+    },
+  },
 };
 
 export function mergeModelRouteBehavior(

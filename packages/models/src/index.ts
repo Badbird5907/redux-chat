@@ -14,6 +14,7 @@ export { anthropicModels } from "./generated/anthropic";
 export { googleModels } from "./generated/google";
 export { openaiModels } from "./generated/openai";
 export { openrouterModels } from "./generated/openrouter";
+export { workersaiModels } from "./generated/workersai";
 export {
   getModelSpec,
   toContext,

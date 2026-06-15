@@ -643,6 +643,20 @@ export function useChatSession({
   }, [activeStreamInfo?.streamId, convexUIMessages, messages, status]);
 
   useEffect(() => {
+    if (
+      (status !== "submitted" && status !== "streaming") ||
+      activeStreamInfo?.streamId ||
+      !convexUIMessages.some((message) => message.status === "failed")
+    ) {
+      return;
+    }
+
+    // A provider or resumable-stream failure can leave the HTTP reader open.
+    // Convex is authoritative once the server has marked the message failed.
+    void stop();
+  }, [activeStreamInfo?.streamId, convexUIMessages, status, stop]);
+
+  useEffect(() => {
     if (status !== "error") {
       return;
     }

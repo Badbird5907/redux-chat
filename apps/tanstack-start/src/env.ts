@@ -31,6 +31,8 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1),
     GOOGLE_VERTEX_API_KEY: z.string().min(1),
+    CLOUDFLARE_ACCOUNT_ID: z.string().min(1),
+    CLOUDFLARE_API_KEY: z.string().min(1),
     DOCUMENT_CONVERTER_URL: z.string().min(1),
     DOCUMENT_CONVERTER_BASIC_AUTH: z.string().min(1),
     DOCUMENT_CONVERTER_TIMEOUT_MS: z.coerce

@@ -3,685 +3,837 @@
 import type { ModelsDevProviderCatalog } from "../types";
 
 export const anthropicModels = {
-  id: "anthropic",
-  name: "Anthropic",
-  npm: "@ai-sdk/anthropic",
-  doc: "https://docs.anthropic.com/en/docs/about-claude/models",
-  env: ["ANTHROPIC_API_KEY"],
-  models: {
+  "id": "anthropic",
+  "name": "Anthropic",
+  "npm": "@ai-sdk/anthropic",
+  "doc": "https://docs.anthropic.com/en/docs/about-claude/models",
+  "env": [
+    "ANTHROPIC_API_KEY"
+  ],
+  "models": {
     "claude-3-5-haiku-20241022": {
-      id: "claude-3-5-haiku-20241022",
-      name: "Claude Haiku 3.5",
-      family: "claude-haiku",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2024-07-31",
-      release_date: "2024-10-22",
-      last_updated: "2024-10-22",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-5-haiku-20241022",
+      "name": "Claude Haiku 3.5",
+      "family": "claude-haiku",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2024-07-31",
+      "release_date": "2024-10-22",
+      "last_updated": "2024-10-22",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.08,
-        cache_write: 1,
-        input: 0.8,
-        output: 4,
+      "cost": {
+        "cache_read": 0.08,
+        "cache_write": 1,
+        "input": 0.8,
+        "output": 4
       },
-      limit: {
-        context: 200000,
-        output: 8192,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 8192
+      }
     },
     "claude-3-5-haiku-latest": {
-      id: "claude-3-5-haiku-latest",
-      name: "Claude Haiku 3.5 (latest)",
-      family: "claude-haiku",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2024-07-31",
-      release_date: "2024-10-22",
-      last_updated: "2024-10-22",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-5-haiku-latest",
+      "name": "Claude Haiku 3.5 (latest)",
+      "family": "claude-haiku",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2024-07-31",
+      "release_date": "2024-10-22",
+      "last_updated": "2024-10-22",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.08,
-        cache_write: 1,
-        input: 0.8,
-        output: 4,
+      "cost": {
+        "cache_read": 0.08,
+        "cache_write": 1,
+        "input": 0.8,
+        "output": 4
       },
-      limit: {
-        context: 200000,
-        output: 8192,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 8192
+      }
     },
     "claude-3-5-sonnet-20240620": {
-      id: "claude-3-5-sonnet-20240620",
-      name: "Claude Sonnet 3.5",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2024-04-30",
-      release_date: "2024-06-20",
-      last_updated: "2024-06-20",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-5-sonnet-20240620",
+      "name": "Claude Sonnet 3.5",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2024-04-30",
+      "release_date": "2024-06-20",
+      "last_updated": "2024-06-20",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 8192,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 8192
+      }
     },
     "claude-3-5-sonnet-20241022": {
-      id: "claude-3-5-sonnet-20241022",
-      name: "Claude Sonnet 3.5 v2",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2024-04-30",
-      release_date: "2024-10-22",
-      last_updated: "2024-10-22",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-5-sonnet-20241022",
+      "name": "Claude Sonnet 3.5 v2",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2024-04-30",
+      "release_date": "2024-10-22",
+      "last_updated": "2024-10-22",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 8192,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 8192
+      }
     },
     "claude-3-7-sonnet-20250219": {
-      id: "claude-3-7-sonnet-20250219",
-      name: "Claude Sonnet 3.7",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2024-10-31",
-      release_date: "2025-02-19",
-      last_updated: "2025-02-19",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-7-sonnet-20250219",
+      "name": "Claude Sonnet 3.7",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2024-10-31",
+      "release_date": "2025-02-19",
+      "last_updated": "2025-02-19",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-3-haiku-20240307": {
-      id: "claude-3-haiku-20240307",
-      name: "Claude Haiku 3",
-      family: "claude-haiku",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2023-08-31",
-      release_date: "2024-03-13",
-      last_updated: "2024-03-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-haiku-20240307",
+      "name": "Claude Haiku 3",
+      "family": "claude-haiku",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2023-08-31",
+      "release_date": "2024-03-13",
+      "last_updated": "2024-03-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.03,
-        cache_write: 0.3,
-        input: 0.25,
-        output: 1.25,
+      "cost": {
+        "cache_read": 0.03,
+        "cache_write": 0.3,
+        "input": 0.25,
+        "output": 1.25
       },
-      limit: {
-        context: 200000,
-        output: 4096,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 4096
+      }
     },
     "claude-3-opus-20240229": {
-      id: "claude-3-opus-20240229",
-      name: "Claude Opus 3",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2023-08-31",
-      release_date: "2024-02-29",
-      last_updated: "2024-02-29",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-opus-20240229",
+      "name": "Claude Opus 3",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2023-08-31",
+      "release_date": "2024-02-29",
+      "last_updated": "2024-02-29",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.5,
-        cache_write: 18.75,
-        input: 15,
-        output: 75,
+      "cost": {
+        "cache_read": 1.5,
+        "cache_write": 18.75,
+        "input": 15,
+        "output": 75
       },
-      limit: {
-        context: 200000,
-        output: 4096,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 4096
+      }
     },
     "claude-3-sonnet-20240229": {
-      id: "claude-3-sonnet-20240229",
-      name: "Claude Sonnet 3",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: false,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2023-08-31",
-      release_date: "2024-03-04",
-      last_updated: "2024-03-04",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-3-sonnet-20240229",
+      "name": "Claude Sonnet 3",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": false,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2023-08-31",
+      "release_date": "2024-03-04",
+      "last_updated": "2024-03-04",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 0.3,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 0.3,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 4096,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 4096
+      }
     },
     "claude-fable-5": {
-      id: "claude-fable-5",
-      name: "Claude Fable 5",
-      family: "claude-fable",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: false,
-      release_date: "2026-06-09",
-      last_updated: "2026-06-09",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-fable-5",
+      "name": "Claude Fable 5",
+      "family": "claude-fable",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": false,
+      "release_date": "2026-06-09",
+      "last_updated": "2026-06-09",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1,
-        cache_write: 12.5,
-        input: 10,
-        output: 50,
+      "cost": {
+        "cache_read": 1,
+        "cache_write": 12.5,
+        "input": 10,
+        "output": 50
       },
-      limit: {
-        context: 1000000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 1000000,
+        "output": 128000
+      }
     },
     "claude-haiku-4-5": {
-      id: "claude-haiku-4-5",
-      name: "Claude Haiku 4.5 (latest)",
-      family: "claude-haiku",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-02-28",
-      release_date: "2025-10-15",
-      last_updated: "2025-10-15",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-haiku-4-5",
+      "name": "Claude Haiku 4.5 (latest)",
+      "family": "claude-haiku",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-02-28",
+      "release_date": "2025-10-15",
+      "last_updated": "2025-10-15",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.1,
-        cache_write: 1.25,
-        input: 1,
-        output: 5,
+      "cost": {
+        "cache_read": 0.1,
+        "cache_write": 1.25,
+        "input": 1,
+        "output": 5
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-haiku-4-5-20251001": {
-      id: "claude-haiku-4-5-20251001",
-      name: "Claude Haiku 4.5",
-      family: "claude-haiku",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-02-28",
-      release_date: "2025-10-15",
-      last_updated: "2025-10-15",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-haiku-4-5-20251001",
+      "name": "Claude Haiku 4.5",
+      "family": "claude-haiku",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-02-28",
+      "release_date": "2025-10-15",
+      "last_updated": "2025-10-15",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.1,
-        cache_write: 1.25,
-        input: 1,
-        output: 5,
+      "cost": {
+        "cache_read": 0.1,
+        "cache_write": 1.25,
+        "input": 1,
+        "output": 5
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-opus-4-0": {
-      id: "claude-opus-4-0",
-      name: "Claude Opus 4 (latest)",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-05-22",
-      last_updated: "2025-05-22",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-0",
+      "name": "Claude Opus 4 (latest)",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-05-22",
+      "last_updated": "2025-05-22",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.5,
-        cache_write: 18.75,
-        input: 15,
-        output: 75,
+      "cost": {
+        "cache_read": 1.5,
+        "cache_write": 18.75,
+        "input": 15,
+        "output": 75
       },
-      limit: {
-        context: 200000,
-        output: 32000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 32000
+      }
     },
     "claude-opus-4-1": {
-      id: "claude-opus-4-1",
-      name: "Claude Opus 4.1 (latest)",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-08-05",
-      last_updated: "2025-08-05",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-1",
+      "name": "Claude Opus 4.1 (latest)",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-08-05",
+      "last_updated": "2025-08-05",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.5,
-        cache_write: 18.75,
-        input: 15,
-        output: 75,
+      "cost": {
+        "cache_read": 1.5,
+        "cache_write": 18.75,
+        "input": 15,
+        "output": 75
       },
-      limit: {
-        context: 200000,
-        output: 32000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 32000
+      }
     },
     "claude-opus-4-1-20250805": {
-      id: "claude-opus-4-1-20250805",
-      name: "Claude Opus 4.1",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-08-05",
-      last_updated: "2025-08-05",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-1-20250805",
+      "name": "Claude Opus 4.1",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-08-05",
+      "last_updated": "2025-08-05",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.5,
-        cache_write: 18.75,
-        input: 15,
-        output: 75,
+      "cost": {
+        "cache_read": 1.5,
+        "cache_write": 18.75,
+        "input": 15,
+        "output": 75
       },
-      limit: {
-        context: 200000,
-        output: 32000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 32000
+      }
     },
     "claude-opus-4-20250514": {
-      id: "claude-opus-4-20250514",
-      name: "Claude Opus 4",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-05-22",
-      last_updated: "2025-05-22",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-20250514",
+      "name": "Claude Opus 4",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-05-22",
+      "last_updated": "2025-05-22",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 1.5,
-        cache_write: 18.75,
-        input: 15,
-        output: 75,
+      "cost": {
+        "cache_read": 1.5,
+        "cache_write": 18.75,
+        "input": 15,
+        "output": 75
       },
-      limit: {
-        context: 200000,
-        output: 32000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 32000
+      }
     },
     "claude-opus-4-5": {
-      id: "claude-opus-4-5",
-      name: "Claude Opus 4.5 (latest)",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-11-24",
-      last_updated: "2025-11-24",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-5",
+      "name": "Claude Opus 4.5 (latest)",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-11-24",
+      "last_updated": "2025-11-24",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        cache_write: 6.25,
-        input: 5,
-        output: 25,
+      "cost": {
+        "cache_read": 0.5,
+        "cache_write": 6.25,
+        "input": 5,
+        "output": 25
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-opus-4-5-20251101": {
-      id: "claude-opus-4-5-20251101",
-      name: "Claude Opus 4.5",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-11-01",
-      last_updated: "2025-11-01",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-5-20251101",
+      "name": "Claude Opus 4.5",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-11-01",
+      "last_updated": "2025-11-01",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        cache_write: 6.25,
-        input: 5,
-        output: 25,
+      "cost": {
+        "cache_read": 0.5,
+        "cache_write": 6.25,
+        "input": 5,
+        "output": 25
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-opus-4-6": {
-      id: "claude-opus-4-6",
-      name: "Claude Opus 4.6",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-05-31",
-      release_date: "2026-02-05",
-      last_updated: "2026-03-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-6",
+      "name": "Claude Opus 4.6",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-05-31",
+      "release_date": "2026-02-05",
+      "last_updated": "2026-03-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        cache_write: 6.25,
-        input: 5,
-        output: 25,
+      "cost": {
+        "cache_read": 0.5,
+        "cache_write": 6.25,
+        "input": 5,
+        "output": 25
       },
-      limit: {
-        context: 1000000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 1000000,
+        "output": 128000
+      }
     },
     "claude-opus-4-7": {
-      id: "claude-opus-4-7",
-      name: "Claude Opus 4.7",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: false,
-      knowledge: "2026-01-31",
-      release_date: "2026-04-16",
-      last_updated: "2026-04-16",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-7",
+      "name": "Claude Opus 4.7",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": false,
+      "knowledge": "2026-01-31",
+      "release_date": "2026-04-16",
+      "last_updated": "2026-04-16",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        cache_write: 6.25,
-        input: 5,
-        output: 25,
+      "cost": {
+        "cache_read": 0.5,
+        "cache_write": 6.25,
+        "input": 5,
+        "output": 25
       },
-      limit: {
-        context: 1000000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 1000000,
+        "output": 128000
+      }
     },
     "claude-opus-4-8": {
-      id: "claude-opus-4-8",
-      name: "Claude Opus 4.8",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: false,
-      release_date: "2026-05-28",
-      last_updated: "2026-05-28",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-opus-4-8",
+      "name": "Claude Opus 4.8",
+      "family": "claude-opus",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": false,
+      "release_date": "2026-05-28",
+      "last_updated": "2026-05-28",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.5,
-        cache_write: 6.25,
-        input: 5,
-        output: 25,
+      "cost": {
+        "cache_read": 0.5,
+        "cache_write": 6.25,
+        "input": 5,
+        "output": 25
       },
-      limit: {
-        context: 1000000,
-        output: 128000,
-      },
+      "limit": {
+        "context": 1000000,
+        "output": 128000
+      }
     },
     "claude-sonnet-4-0": {
-      id: "claude-sonnet-4-0",
-      name: "Claude Sonnet 4 (latest)",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-05-22",
-      last_updated: "2025-05-22",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-sonnet-4-0",
+      "name": "Claude Sonnet 4 (latest)",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-05-22",
+      "last_updated": "2025-05-22",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-sonnet-4-20250514": {
-      id: "claude-sonnet-4-20250514",
-      name: "Claude Sonnet 4",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-03-31",
-      release_date: "2025-05-22",
-      last_updated: "2025-05-22",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-sonnet-4-20250514",
+      "name": "Claude Sonnet 4",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-03-31",
+      "release_date": "2025-05-22",
+      "last_updated": "2025-05-22",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-sonnet-4-5": {
-      id: "claude-sonnet-4-5",
-      name: "Claude Sonnet 4.5 (latest)",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-07-31",
-      release_date: "2025-09-29",
-      last_updated: "2025-09-29",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5 (latest)",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-07-31",
+      "release_date": "2025-09-29",
+      "last_updated": "2025-09-29",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-sonnet-4-5-20250929": {
-      id: "claude-sonnet-4-5-20250929",
-      name: "Claude Sonnet 4.5",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-07-31",
-      release_date: "2025-09-29",
-      last_updated: "2025-09-29",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-sonnet-4-5-20250929",
+      "name": "Claude Sonnet 4.5",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-07-31",
+      "release_date": "2025-09-29",
+      "last_updated": "2025-09-29",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 200000,
-        output: 64000,
-      },
+      "limit": {
+        "context": 200000,
+        "output": 64000
+      }
     },
     "claude-sonnet-4-6": {
-      id: "claude-sonnet-4-6",
-      name: "Claude Sonnet 4.6",
-      family: "claude-sonnet",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      temperature: true,
-      knowledge: "2025-08-31",
-      release_date: "2026-02-17",
-      last_updated: "2026-03-13",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+      "id": "claude-sonnet-4-6",
+      "name": "Claude Sonnet 4.6",
+      "family": "claude-sonnet",
+      "attachment": true,
+      "reasoning": true,
+      "tool_call": true,
+      "temperature": true,
+      "knowledge": "2025-08-31",
+      "release_date": "2026-02-17",
+      "last_updated": "2026-03-13",
+      "open_weights": false,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+      "cost": {
+        "cache_read": 0.3,
+        "cache_write": 3.75,
+        "input": 3,
+        "output": 15
       },
-      limit: {
-        context: 1000000,
-        output: 64000,
-      },
-    },
-  },
+      "limit": {
+        "context": 1000000,
+        "output": 64000
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const anthropicCatalog = anthropicModels;
