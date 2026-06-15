@@ -1,0 +1,23 @@
+{
+  "name": "@redux/workers-ai-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "deploy": "wrangler deploy",
+    "dev-worker": "wrangler dev",
+    "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workerd-windows-64": "1.20260611.1",
+    "@redux/prettier-config": "workspace:*",
+    "@redux/tsconfig": "workspace:*",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "^4.100.0"
+  },
+  "prettier": "@redux/prettier-config"
+}
