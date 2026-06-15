@@ -6,7 +6,7 @@ export const DEFAULT_IMAGE_GENERATION_MODEL_ID: CanonicalModelId =
 
 export const defaultFavorites = [
   "moonshot/kimi-k2.5",
-  "openai/gpt-5-mini",
-  "anthropic/claude-sonnet-4-20250514",
-  "google/gemini-2.5-pro",
+  "openai/gpt-5.5-mini",
+  "anthropic/claude-sonnet-4-6",
+  "google/gemini-3.1-pro-preview",
 ] as const satisfies readonly CanonicalModelId[];
