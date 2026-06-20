@@ -71,7 +71,10 @@ export function useDeploymentDrift() {
 
   useEffect(() => {
     void checkDeployment();
-    const interval = setInterval(() => void checkDeployment(), POLL_INTERVAL_MS);
+    const interval = setInterval(
+      () => void checkDeployment(),
+      POLL_INTERVAL_MS,
+    );
     return () => clearInterval(interval);
   }, [checkDeployment]);
 }
