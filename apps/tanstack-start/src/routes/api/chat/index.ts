@@ -155,6 +155,21 @@ function resolveProviderOptions(
     };
   }
 
+  if (runtimeProviderKey === "anthropic") {
+    return {
+      anthropic: {
+        cacheControl: { type: "ephemeral" },
+        ...(isEnabledReasoning(reasoning) &&
+          supportsAdaptiveAnthropicThinking(vendorId) && {
+            thinking: {
+              type: "adaptive" as const,
+              display: "summarized" as const,
+            },
+          }),
+      } satisfies AnthropicLanguageModelOptions,
+    };
+  }
+
   if (!isEnabledReasoning(reasoning)) {
     return undefined;
   }
@@ -175,17 +190,6 @@ function resolveProviderOptions(
           },
         } satisfies GoogleReasoningProviderOptions,
       };
-    case "anthropic":
-      return supportsAdaptiveAnthropicThinking(vendorId)
-        ? {
-            anthropic: {
-              thinking: {
-                type: "adaptive",
-                display: "summarized",
-              },
-            } satisfies AnthropicLanguageModelOptions,
-          }
-        : undefined;
     case "openrouter":
       return undefined;
     default:
@@ -1345,7 +1349,8 @@ export const Route = createFileRoute("/api/chat/")({
                         outputTokens: usage.outputTokens,
                         reasoningTokens: usage.reasoningTokens,
                         cacheReadTokens: usage.cachedInputTokens,
-                        cacheWriteTokens: undefined,
+                        cacheWriteTokens:
+                          usage.inputTokenDetails.cacheWriteTokens,
                         inputAudioTokens: undefined,
                         outputAudioTokens: undefined,
                       },
