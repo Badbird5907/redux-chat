@@ -157,7 +157,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   const handleMessageTap = useCallback((e: React.MouseEvent) => {
     if (window.matchMedia("(hover: hover)").matches) return;
-    if ((e.target as HTMLElement).closest("button, a, [role=\"button\"]")) return;
+    if ((e.target as HTMLElement).closest('button, a, [role="button"]')) return;
     setMobileActionsVisible((prev) => !prev);
   }, []);
 
