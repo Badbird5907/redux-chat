@@ -51,8 +51,8 @@ export function useDeploymentDrift() {
         currentId !== initialDeploymentId.current
       ) {
         toastShown.current = true;
-        toast("A new version has been deployed", {
-          description: "Refresh to get the latest updates.",
+        toast("Update available", {
+          description: "Please refresh to continue with the latest version.",
           duration: Infinity,
           action: {
             label: "Refresh",
