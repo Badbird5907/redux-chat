@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 60_000;
 const DISMISS_DURATION_MS = 30 * 60 * 1000;
 const STORAGE_KEY = "deployment-drift-dismissed-at";
 
