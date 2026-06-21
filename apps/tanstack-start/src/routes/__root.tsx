@@ -27,6 +27,7 @@ import { cn } from "@redux/ui/lib/utils";
 import { env } from "@/env";
 import { authClient } from "@/lib/auth/client";
 import { getToken } from "@/lib/auth/server";
+import { useDeploymentDrift } from "@/lib/hooks/use-deployment-drift";
 import { HotkeySettingsProvider } from "@/lib/hotkeys";
 import appCss from "@/styles.css?url";
 
@@ -60,6 +61,7 @@ function getPostHogUiHost(posthogHost: string | undefined): string {
 
 function RootComponent() {
   const context = useRouteContext({ from: "__root__" });
+  useDeploymentDrift();
   return (
     <ConvexBetterAuthProvider
       client={context.convexQueryClient.convexClient}
