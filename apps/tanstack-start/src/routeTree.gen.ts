@@ -8,784 +8,781 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as AppRouteImport } from "./routes/_app";
-import { Route as AppChatIdRouteImport } from "./routes/_app/chat.$id";
-import { Route as AppIndexRouteImport } from "./routes/_app/index";
-import { Route as AppProjectsIdRouteImport } from "./routes/_app/projects.$id";
-import { Route as AppProjectsIndexRouteImport } from "./routes/_app/projects.index";
-import { Route as AppShareShareIdRouteImport } from "./routes/_app/share.$shareId";
-import { Route as AdminRouteImport } from "./routes/admin";
-import { Route as AdminIndexRouteImport } from "./routes/admin/index";
-import { Route as AdminPromotionsRouteImport } from "./routes/admin/promotions";
-import { Route as AdminPromotionsPromotionIdRouteImport } from "./routes/admin/promotions.$promotionId";
-import { Route as AdminPromotionsIndexRouteImport } from "./routes/admin/promotions/index";
-import { Route as AdminUsersRouteImport } from "./routes/admin/users";
-import { Route as AdminUsersUserIdRouteImport } from "./routes/admin/users.$userId";
-import { Route as AdminUsersIndexRouteImport } from "./routes/admin/users/index";
-import { Route as ApiAuthSplatRouteImport } from "./routes/api/auth/$";
-import { Route as ApiChatIdStreamIndexRouteImport } from "./routes/api/chat/$id/stream/index";
-import { Route as ApiChatIndexRouteImport } from "./routes/api/chat/index";
-import { Route as ApiDeploymentIdRouteImport } from "./routes/api/deployment-id";
-import { Route as ApiUploadRouteImport } from "./routes/api/upload";
-import { Route as ApiWebhookStripeRouteImport } from "./routes/api/webhook/stripe";
-import { Route as AuthRouteImport } from "./routes/auth";
-import { Route as AuthForgotPasswordRouteImport } from "./routes/auth.forgot-password";
-import { Route as AuthSignInRouteImport } from "./routes/auth.sign-in";
-import { Route as AuthSignOutRouteImport } from "./routes/auth.sign-out";
-import { Route as AuthSignUpRouteImport } from "./routes/auth.sign-up";
-import { Route as ComponentsRouteImport } from "./routes/components";
-import { Route as IngestSplatRouteImport } from "./routes/ingest/$";
-import { Route as LogosIndexRouteImport } from "./routes/logos/index";
-import { Route as ReasoningRouteImport } from "./routes/reasoning";
-import { Route as RedeemCodeRouteImport } from "./routes/redeem.$code";
-import { Route as SettingsRouteImport } from "./routes/settings";
-import { Route as SettingsAppearanceRouteImport } from "./routes/settings/appearance";
-import { Route as SettingsAttachmentsRouteImport } from "./routes/settings/attachments";
-import { Route as SettingsHotkeysRouteImport } from "./routes/settings/hotkeys";
-import { Route as SettingsIndexRouteImport } from "./routes/settings/index";
-import { Route as SettingsInstructionsRouteImport } from "./routes/settings/instructions";
-import { Route as SettingsMcpRouteImport } from "./routes/settings/mcp";
-import { Route as SettingsSecurityRouteImport } from "./routes/settings/security";
-import { Route as TestIndexRouteImport } from "./routes/test/index";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReasoningRouteImport } from './routes/reasoning'
+import { Route as ComponentsRouteImport } from './routes/components'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as TestIndexRouteImport } from './routes/test/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as LogosIndexRouteImport } from './routes/logos/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
+import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
+import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
+import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
+import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as RedeemCodeRouteImport } from './routes/redeem.$code'
+import { Route as IngestSplatRouteImport } from './routes/ingest/$'
+import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
+import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
+import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as ApiDeploymentIdRouteImport } from './routes/api/deployment-id'
+import { Route as ApiUploadRouteImport } from './routes/api/upload'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
+import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
+import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminPromotionsIndexRouteImport } from './routes/admin/promotions/index'
+import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
+import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook/stripe'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
+import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/promotions.$promotionId'
+import { Route as AppShareShareIdRouteImport } from './routes/_app/share.$shareId'
+import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
+import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
+import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
 
 const SettingsRoute = SettingsRouteImport.update({
-  id: "/settings",
-  path: "/settings",
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ReasoningRoute = ReasoningRouteImport.update({
-  id: "/reasoning",
-  path: "/reasoning",
+  id: '/reasoning',
+  path: '/reasoning',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ComponentsRoute = ComponentsRouteImport.update({
-  id: "/components",
-  path: "/components",
+  id: '/components',
+  path: '/components',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthRoute = AuthRouteImport.update({
-  id: "/auth",
-  path: "/auth",
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AdminRoute = AdminRouteImport.update({
-  id: "/admin",
-  path: "/admin",
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AppRoute = AppRouteImport.update({
-  id: "/_app",
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const TestIndexRoute = TestIndexRouteImport.update({
-  id: "/test/",
-  path: "/test/",
+  id: '/test/',
+  path: '/test/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const LogosIndexRoute = LogosIndexRouteImport.update({
-  id: "/logos/",
-  path: "/logos/",
+  id: '/logos/',
+  path: '/logos/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AdminRoute,
-} as any);
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AppRoute,
-} as any);
+} as any)
 const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
-  id: "/security",
-  path: "/security",
+  id: '/security',
+  path: '/security',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsMcpRoute = SettingsMcpRouteImport.update({
-  id: "/mcp",
-  path: "/mcp",
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsInstructionsRoute = SettingsInstructionsRouteImport.update({
-  id: "/instructions",
-  path: "/instructions",
+  id: '/instructions',
+  path: '/instructions',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsHotkeysRoute = SettingsHotkeysRouteImport.update({
-  id: "/hotkeys",
-  path: "/hotkeys",
+  id: '/hotkeys',
+  path: '/hotkeys',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsAttachmentsRoute = SettingsAttachmentsRouteImport.update({
-  id: "/attachments",
-  path: "/attachments",
+  id: '/attachments',
+  path: '/attachments',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
-  id: "/appearance",
-  path: "/appearance",
+  id: '/appearance',
+  path: '/appearance',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const RedeemCodeRoute = RedeemCodeRouteImport.update({
-  id: "/redeem/$code",
-  path: "/redeem/$code",
+  id: '/redeem/$code',
+  path: '/redeem/$code',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const IngestSplatRoute = IngestSplatRouteImport.update({
-  id: "/ingest/$",
-  path: "/ingest/$",
+  id: '/ingest/$',
+  path: '/ingest/$',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
-  id: "/sign-up",
-  path: "/sign-up",
+  id: '/sign-up',
+  path: '/sign-up',
   getParentRoute: () => AuthRoute,
-} as any);
+} as any)
 const AuthSignOutRoute = AuthSignOutRouteImport.update({
-  id: "/sign-out",
-  path: "/sign-out",
+  id: '/sign-out',
+  path: '/sign-out',
   getParentRoute: () => AuthRoute,
-} as any);
+} as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
-  id: "/sign-in",
-  path: "/sign-in",
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => AuthRoute,
-} as any);
+} as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: "/forgot-password",
-  path: "/forgot-password",
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => AuthRoute,
-} as any);
-const ApiUploadRoute = ApiUploadRouteImport.update({
-  id: "/api/upload",
-  path: "/api/upload",
-  getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiDeploymentIdRoute = ApiDeploymentIdRouteImport.update({
-  id: "/api/deployment-id",
-  path: "/api/deployment-id",
+  id: '/api/deployment-id',
+  path: '/api/deployment-id',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
+const ApiUploadRoute = ApiUploadRouteImport.update({
+  id: '/api/upload',
+  path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: "/users",
-  path: "/users",
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AdminRoute,
-} as any);
+} as any)
 const AdminPromotionsRoute = AdminPromotionsRouteImport.update({
-  id: "/promotions",
-  path: "/promotions",
+  id: '/promotions',
+  path: '/promotions',
   getParentRoute: () => AdminRoute,
-} as any);
+} as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
-  id: "/api/chat/",
-  path: "/api/chat/",
+  id: '/api/chat/',
+  path: '/api/chat/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AdminUsersRoute,
-} as any);
+} as any)
 const AdminPromotionsIndexRoute = AdminPromotionsIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AdminPromotionsRoute,
-} as any);
+} as any)
 const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
-  id: "/projects/",
-  path: "/projects/",
+  id: '/projects/',
+  path: '/projects/',
   getParentRoute: () => AppRoute,
-} as any);
+} as any)
 const ApiWebhookStripeRoute = ApiWebhookStripeRouteImport.update({
-  id: "/api/webhook/stripe",
-  path: "/api/webhook/stripe",
+  id: '/api/webhook/stripe',
+  path: '/api/webhook/stripe',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
-  id: "/api/auth/$",
-  path: "/api/auth/$",
+  id: '/api/auth/$',
+  path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
-  id: "/$userId",
-  path: "/$userId",
+  id: '/$userId',
+  path: '/$userId',
   getParentRoute: () => AdminUsersRoute,
-} as any);
+} as any)
 const AdminPromotionsPromotionIdRoute =
   AdminPromotionsPromotionIdRouteImport.update({
-    id: "/$promotionId",
-    path: "/$promotionId",
+    id: '/$promotionId',
+    path: '/$promotionId',
     getParentRoute: () => AdminPromotionsRoute,
-  } as any);
+  } as any)
 const AppShareShareIdRoute = AppShareShareIdRouteImport.update({
-  id: "/share/$shareId",
-  path: "/share/$shareId",
+  id: '/share/$shareId',
+  path: '/share/$shareId',
   getParentRoute: () => AppRoute,
-} as any);
+} as any)
 const AppProjectsIdRoute = AppProjectsIdRouteImport.update({
-  id: "/projects/$id",
-  path: "/projects/$id",
+  id: '/projects/$id',
+  path: '/projects/$id',
   getParentRoute: () => AppRoute,
-} as any);
+} as any)
 const AppChatIdRoute = AppChatIdRouteImport.update({
-  id: "/chat/$id",
-  path: "/chat/$id",
+  id: '/chat/$id',
+  path: '/chat/$id',
   getParentRoute: () => AppRoute,
-} as any);
+} as any)
 const ApiChatIdStreamIndexRoute = ApiChatIdStreamIndexRouteImport.update({
-  id: "/api/chat/$id/stream/",
-  path: "/api/chat/$id/stream/",
+  id: '/api/chat/$id/stream/',
+  path: '/api/chat/$id/stream/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof AppIndexRoute;
-  "/admin": typeof AdminRouteWithChildren;
-  "/auth": typeof AuthRouteWithChildren;
-  "/components": typeof ComponentsRoute;
-  "/reasoning": typeof ReasoningRoute;
-  "/settings": typeof SettingsRouteWithChildren;
-  "/admin/promotions": typeof AdminPromotionsRouteWithChildren;
-  "/admin/users": typeof AdminUsersRouteWithChildren;
-  "/api/deployment-id": typeof ApiDeploymentIdRoute;
-  "/api/upload": typeof ApiUploadRoute;
-  "/auth/forgot-password": typeof AuthForgotPasswordRoute;
-  "/auth/sign-in": typeof AuthSignInRoute;
-  "/auth/sign-out": typeof AuthSignOutRoute;
-  "/auth/sign-up": typeof AuthSignUpRoute;
-  "/ingest/$": typeof IngestSplatRoute;
-  "/redeem/$code": typeof RedeemCodeRoute;
-  "/settings/appearance": typeof SettingsAppearanceRoute;
-  "/settings/attachments": typeof SettingsAttachmentsRoute;
-  "/settings/hotkeys": typeof SettingsHotkeysRoute;
-  "/settings/instructions": typeof SettingsInstructionsRoute;
-  "/settings/mcp": typeof SettingsMcpRoute;
-  "/settings/security": typeof SettingsSecurityRoute;
-  "/admin/": typeof AdminIndexRoute;
-  "/logos/": typeof LogosIndexRoute;
-  "/settings/": typeof SettingsIndexRoute;
-  "/test/": typeof TestIndexRoute;
-  "/chat/$id": typeof AppChatIdRoute;
-  "/projects/$id": typeof AppProjectsIdRoute;
-  "/share/$shareId": typeof AppShareShareIdRoute;
-  "/admin/promotions/$promotionId": typeof AdminPromotionsPromotionIdRoute;
-  "/admin/users/$userId": typeof AdminUsersUserIdRoute;
-  "/api/auth/$": typeof ApiAuthSplatRoute;
-  "/api/webhook/stripe": typeof ApiWebhookStripeRoute;
-  "/projects/": typeof AppProjectsIndexRoute;
-  "/admin/promotions/": typeof AdminPromotionsIndexRoute;
-  "/admin/users/": typeof AdminUsersIndexRoute;
-  "/api/chat/": typeof ApiChatIndexRoute;
-  "/api/chat/$id/stream/": typeof ApiChatIdStreamIndexRoute;
+  '/': typeof AppIndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/auth': typeof AuthRouteWithChildren
+  '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
+  '/admin/users': typeof AdminUsersRouteWithChildren
+  '/api/deployment-id': typeof ApiDeploymentIdRoute
+  '/api/upload': typeof ApiUploadRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/sign-in': typeof AuthSignInRoute
+  '/auth/sign-out': typeof AuthSignOutRoute
+  '/auth/sign-up': typeof AuthSignUpRoute
+  '/ingest/$': typeof IngestSplatRoute
+  '/redeem/$code': typeof RedeemCodeRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/hotkeys': typeof SettingsHotkeysRoute
+  '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/security': typeof SettingsSecurityRoute
+  '/admin/': typeof AdminIndexRoute
+  '/logos/': typeof LogosIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/test/': typeof TestIndexRoute
+  '/chat/$id': typeof AppChatIdRoute
+  '/projects/$id': typeof AppProjectsIdRoute
+  '/share/$shareId': typeof AppShareShareIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
+  '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
+  '/projects/': typeof AppProjectsIndexRoute
+  '/admin/promotions/': typeof AdminPromotionsIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
+  '/api/chat/': typeof ApiChatIndexRoute
+  '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRoutesByTo {
-  "/auth": typeof AuthRouteWithChildren;
-  "/components": typeof ComponentsRoute;
-  "/reasoning": typeof ReasoningRoute;
-  "/api/deployment-id": typeof ApiDeploymentIdRoute;
-  "/api/upload": typeof ApiUploadRoute;
-  "/auth/forgot-password": typeof AuthForgotPasswordRoute;
-  "/auth/sign-in": typeof AuthSignInRoute;
-  "/auth/sign-out": typeof AuthSignOutRoute;
-  "/auth/sign-up": typeof AuthSignUpRoute;
-  "/ingest/$": typeof IngestSplatRoute;
-  "/redeem/$code": typeof RedeemCodeRoute;
-  "/settings/appearance": typeof SettingsAppearanceRoute;
-  "/settings/attachments": typeof SettingsAttachmentsRoute;
-  "/settings/hotkeys": typeof SettingsHotkeysRoute;
-  "/settings/instructions": typeof SettingsInstructionsRoute;
-  "/settings/mcp": typeof SettingsMcpRoute;
-  "/settings/security": typeof SettingsSecurityRoute;
-  "/": typeof AppIndexRoute;
-  "/admin": typeof AdminIndexRoute;
-  "/logos": typeof LogosIndexRoute;
-  "/settings": typeof SettingsIndexRoute;
-  "/test": typeof TestIndexRoute;
-  "/chat/$id": typeof AppChatIdRoute;
-  "/projects/$id": typeof AppProjectsIdRoute;
-  "/share/$shareId": typeof AppShareShareIdRoute;
-  "/admin/promotions/$promotionId": typeof AdminPromotionsPromotionIdRoute;
-  "/admin/users/$userId": typeof AdminUsersUserIdRoute;
-  "/api/auth/$": typeof ApiAuthSplatRoute;
-  "/api/webhook/stripe": typeof ApiWebhookStripeRoute;
-  "/projects": typeof AppProjectsIndexRoute;
-  "/admin/promotions": typeof AdminPromotionsIndexRoute;
-  "/admin/users": typeof AdminUsersIndexRoute;
-  "/api/chat": typeof ApiChatIndexRoute;
-  "/api/chat/$id/stream": typeof ApiChatIdStreamIndexRoute;
+  '/auth': typeof AuthRouteWithChildren
+  '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
+  '/api/deployment-id': typeof ApiDeploymentIdRoute
+  '/api/upload': typeof ApiUploadRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/sign-in': typeof AuthSignInRoute
+  '/auth/sign-out': typeof AuthSignOutRoute
+  '/auth/sign-up': typeof AuthSignUpRoute
+  '/ingest/$': typeof IngestSplatRoute
+  '/redeem/$code': typeof RedeemCodeRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/hotkeys': typeof SettingsHotkeysRoute
+  '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/security': typeof SettingsSecurityRoute
+  '/': typeof AppIndexRoute
+  '/admin': typeof AdminIndexRoute
+  '/logos': typeof LogosIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/test': typeof TestIndexRoute
+  '/chat/$id': typeof AppChatIdRoute
+  '/projects/$id': typeof AppProjectsIdRoute
+  '/share/$shareId': typeof AppShareShareIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
+  '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
+  '/projects': typeof AppProjectsIndexRoute
+  '/admin/promotions': typeof AdminPromotionsIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
+  '/api/chat': typeof ApiChatIndexRoute
+  '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/_app": typeof AppRouteWithChildren;
-  "/admin": typeof AdminRouteWithChildren;
-  "/auth": typeof AuthRouteWithChildren;
-  "/components": typeof ComponentsRoute;
-  "/reasoning": typeof ReasoningRoute;
-  "/settings": typeof SettingsRouteWithChildren;
-  "/admin/promotions": typeof AdminPromotionsRouteWithChildren;
-  "/admin/users": typeof AdminUsersRouteWithChildren;
-  "/api/deployment-id": typeof ApiDeploymentIdRoute;
-  "/api/upload": typeof ApiUploadRoute;
-  "/auth/forgot-password": typeof AuthForgotPasswordRoute;
-  "/auth/sign-in": typeof AuthSignInRoute;
-  "/auth/sign-out": typeof AuthSignOutRoute;
-  "/auth/sign-up": typeof AuthSignUpRoute;
-  "/ingest/$": typeof IngestSplatRoute;
-  "/redeem/$code": typeof RedeemCodeRoute;
-  "/settings/appearance": typeof SettingsAppearanceRoute;
-  "/settings/attachments": typeof SettingsAttachmentsRoute;
-  "/settings/hotkeys": typeof SettingsHotkeysRoute;
-  "/settings/instructions": typeof SettingsInstructionsRoute;
-  "/settings/mcp": typeof SettingsMcpRoute;
-  "/settings/security": typeof SettingsSecurityRoute;
-  "/_app/": typeof AppIndexRoute;
-  "/admin/": typeof AdminIndexRoute;
-  "/logos/": typeof LogosIndexRoute;
-  "/settings/": typeof SettingsIndexRoute;
-  "/test/": typeof TestIndexRoute;
-  "/_app/chat/$id": typeof AppChatIdRoute;
-  "/_app/projects/$id": typeof AppProjectsIdRoute;
-  "/_app/share/$shareId": typeof AppShareShareIdRoute;
-  "/admin/promotions/$promotionId": typeof AdminPromotionsPromotionIdRoute;
-  "/admin/users/$userId": typeof AdminUsersUserIdRoute;
-  "/api/auth/$": typeof ApiAuthSplatRoute;
-  "/api/webhook/stripe": typeof ApiWebhookStripeRoute;
-  "/_app/projects/": typeof AppProjectsIndexRoute;
-  "/admin/promotions/": typeof AdminPromotionsIndexRoute;
-  "/admin/users/": typeof AdminUsersIndexRoute;
-  "/api/chat/": typeof ApiChatIndexRoute;
-  "/api/chat/$id/stream/": typeof ApiChatIdStreamIndexRoute;
+  __root__: typeof rootRouteImport
+  '/_app': typeof AppRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
+  '/auth': typeof AuthRouteWithChildren
+  '/components': typeof ComponentsRoute
+  '/reasoning': typeof ReasoningRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/admin/promotions': typeof AdminPromotionsRouteWithChildren
+  '/admin/users': typeof AdminUsersRouteWithChildren
+  '/api/deployment-id': typeof ApiDeploymentIdRoute
+  '/api/upload': typeof ApiUploadRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/sign-in': typeof AuthSignInRoute
+  '/auth/sign-out': typeof AuthSignOutRoute
+  '/auth/sign-up': typeof AuthSignUpRoute
+  '/ingest/$': typeof IngestSplatRoute
+  '/redeem/$code': typeof RedeemCodeRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/hotkeys': typeof SettingsHotkeysRoute
+  '/settings/instructions': typeof SettingsInstructionsRoute
+  '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/security': typeof SettingsSecurityRoute
+  '/_app/': typeof AppIndexRoute
+  '/admin/': typeof AdminIndexRoute
+  '/logos/': typeof LogosIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/test/': typeof TestIndexRoute
+  '/_app/chat/$id': typeof AppChatIdRoute
+  '/_app/projects/$id': typeof AppProjectsIdRoute
+  '/_app/share/$shareId': typeof AppShareShareIdRoute
+  '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
+  '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
+  '/_app/projects/': typeof AppProjectsIndexRoute
+  '/admin/promotions/': typeof AdminPromotionsIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
+  '/api/chat/': typeof ApiChatIndexRoute
+  '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/admin"
-    | "/auth"
-    | "/components"
-    | "/reasoning"
-    | "/settings"
-    | "/admin/promotions"
-    | "/admin/users"
-    | "/api/deployment-id"
-    | "/api/upload"
-    | "/auth/forgot-password"
-    | "/auth/sign-in"
-    | "/auth/sign-out"
-    | "/auth/sign-up"
-    | "/ingest/$"
-    | "/redeem/$code"
-    | "/settings/appearance"
-    | "/settings/attachments"
-    | "/settings/hotkeys"
-    | "/settings/instructions"
-    | "/settings/mcp"
-    | "/settings/security"
-    | "/admin/"
-    | "/logos/"
-    | "/settings/"
-    | "/test/"
-    | "/chat/$id"
-    | "/projects/$id"
-    | "/share/$shareId"
-    | "/admin/promotions/$promotionId"
-    | "/admin/users/$userId"
-    | "/api/auth/$"
-    | "/api/webhook/stripe"
-    | "/projects/"
-    | "/admin/promotions/"
-    | "/admin/users/"
-    | "/api/chat/"
-    | "/api/chat/$id/stream/";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/components'
+    | '/reasoning'
+    | '/settings'
+    | '/admin/promotions'
+    | '/admin/users'
+    | '/api/upload'
+    | '/auth/forgot-password'
+    | '/auth/sign-in'
+    | '/auth/sign-out'
+    | '/auth/sign-up'
+    | '/ingest/$'
+    | '/redeem/$code'
+    | '/settings/appearance'
+    | '/settings/attachments'
+    | '/settings/hotkeys'
+    | '/settings/instructions'
+    | '/settings/mcp'
+    | '/settings/security'
+    | '/admin/'
+    | '/logos/'
+    | '/settings/'
+    | '/test/'
+    | '/chat/$id'
+    | '/projects/$id'
+    | '/share/$shareId'
+    | '/admin/promotions/$promotionId'
+    | '/admin/users/$userId'
+    | '/api/auth/$'
+    | '/api/webhook/stripe'
+    | '/projects/'
+    | '/admin/promotions/'
+    | '/admin/users/'
+    | '/api/chat/'
+    | '/api/chat/$id/stream/'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/auth"
-    | "/components"
-    | "/reasoning"
-    | "/api/deployment-id"
-    | "/api/upload"
-    | "/auth/forgot-password"
-    | "/auth/sign-in"
-    | "/auth/sign-out"
-    | "/auth/sign-up"
-    | "/ingest/$"
-    | "/redeem/$code"
-    | "/settings/appearance"
-    | "/settings/attachments"
-    | "/settings/hotkeys"
-    | "/settings/instructions"
-    | "/settings/mcp"
-    | "/settings/security"
-    | "/"
-    | "/admin"
-    | "/logos"
-    | "/settings"
-    | "/test"
-    | "/chat/$id"
-    | "/projects/$id"
-    | "/share/$shareId"
-    | "/admin/promotions/$promotionId"
-    | "/admin/users/$userId"
-    | "/api/auth/$"
-    | "/api/webhook/stripe"
-    | "/projects"
-    | "/admin/promotions"
-    | "/admin/users"
-    | "/api/chat"
-    | "/api/chat/$id/stream";
+    | '/auth'
+    | '/components'
+    | '/reasoning'
+    | '/api/upload'
+    | '/auth/forgot-password'
+    | '/auth/sign-in'
+    | '/auth/sign-out'
+    | '/auth/sign-up'
+    | '/ingest/$'
+    | '/redeem/$code'
+    | '/settings/appearance'
+    | '/settings/attachments'
+    | '/settings/hotkeys'
+    | '/settings/instructions'
+    | '/settings/mcp'
+    | '/settings/security'
+    | '/'
+    | '/admin'
+    | '/logos'
+    | '/settings'
+    | '/test'
+    | '/chat/$id'
+    | '/projects/$id'
+    | '/share/$shareId'
+    | '/admin/promotions/$promotionId'
+    | '/admin/users/$userId'
+    | '/api/auth/$'
+    | '/api/webhook/stripe'
+    | '/projects'
+    | '/admin/promotions'
+    | '/admin/users'
+    | '/api/chat'
+    | '/api/chat/$id/stream'
   id:
-    | "__root__"
-    | "/_app"
-    | "/admin"
-    | "/auth"
-    | "/components"
-    | "/reasoning"
-    | "/settings"
-    | "/admin/promotions"
-    | "/admin/users"
-    | "/api/deployment-id"
-    | "/api/upload"
-    | "/auth/forgot-password"
-    | "/auth/sign-in"
-    | "/auth/sign-out"
-    | "/auth/sign-up"
-    | "/ingest/$"
-    | "/redeem/$code"
-    | "/settings/appearance"
-    | "/settings/attachments"
-    | "/settings/hotkeys"
-    | "/settings/instructions"
-    | "/settings/mcp"
-    | "/settings/security"
-    | "/_app/"
-    | "/admin/"
-    | "/logos/"
-    | "/settings/"
-    | "/test/"
-    | "/_app/chat/$id"
-    | "/_app/projects/$id"
-    | "/_app/share/$shareId"
-    | "/admin/promotions/$promotionId"
-    | "/admin/users/$userId"
-    | "/api/auth/$"
-    | "/api/webhook/stripe"
-    | "/_app/projects/"
-    | "/admin/promotions/"
-    | "/admin/users/"
-    | "/api/chat/"
-    | "/api/chat/$id/stream/";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/_app'
+    | '/admin'
+    | '/auth'
+    | '/components'
+    | '/reasoning'
+    | '/settings'
+    | '/admin/promotions'
+    | '/admin/users'
+    | '/api/upload'
+    | '/auth/forgot-password'
+    | '/auth/sign-in'
+    | '/auth/sign-out'
+    | '/auth/sign-up'
+    | '/ingest/$'
+    | '/redeem/$code'
+    | '/settings/appearance'
+    | '/settings/attachments'
+    | '/settings/hotkeys'
+    | '/settings/instructions'
+    | '/settings/mcp'
+    | '/settings/security'
+    | '/_app/'
+    | '/admin/'
+    | '/logos/'
+    | '/settings/'
+    | '/test/'
+    | '/_app/chat/$id'
+    | '/_app/projects/$id'
+    | '/_app/share/$shareId'
+    | '/admin/promotions/$promotionId'
+    | '/admin/users/$userId'
+    | '/api/auth/$'
+    | '/api/webhook/stripe'
+    | '/_app/projects/'
+    | '/admin/promotions/'
+    | '/admin/users/'
+    | '/api/chat/'
+    | '/api/chat/$id/stream/'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AppRoute: typeof AppRouteWithChildren;
-  AdminRoute: typeof AdminRouteWithChildren;
-  AuthRoute: typeof AuthRouteWithChildren;
-  ComponentsRoute: typeof ComponentsRoute;
-  ReasoningRoute: typeof ReasoningRoute;
-  SettingsRoute: typeof SettingsRouteWithChildren;
-  ApiDeploymentIdRoute: typeof ApiDeploymentIdRoute;
-  ApiUploadRoute: typeof ApiUploadRoute;
-  IngestSplatRoute: typeof IngestSplatRoute;
-  RedeemCodeRoute: typeof RedeemCodeRoute;
-  LogosIndexRoute: typeof LogosIndexRoute;
-  TestIndexRoute: typeof TestIndexRoute;
-  ApiAuthSplatRoute: typeof ApiAuthSplatRoute;
-  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute;
-  ApiChatIndexRoute: typeof ApiChatIndexRoute;
-  ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute;
+  AppRoute: typeof AppRouteWithChildren
+  AdminRoute: typeof AdminRouteWithChildren
+  AuthRoute: typeof AuthRouteWithChildren
+  ComponentsRoute: typeof ComponentsRoute
+  ReasoningRoute: typeof ReasoningRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
+  ApiDeploymentIdRoute: typeof ApiDeploymentIdRoute
+  ApiUploadRoute: typeof ApiUploadRoute
+  IngestSplatRoute: typeof IngestSplatRoute
+  RedeemCodeRoute: typeof RedeemCodeRoute
+  LogosIndexRoute: typeof LogosIndexRoute
+  TestIndexRoute: typeof TestIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
+  ApiChatIndexRoute: typeof ApiChatIndexRoute
+  ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/settings": {
-      id: "/settings";
-      path: "/settings";
-      fullPath: "/settings";
-      preLoaderRoute: typeof SettingsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/reasoning": {
-      id: "/reasoning";
-      path: "/reasoning";
-      fullPath: "/reasoning";
-      preLoaderRoute: typeof ReasoningRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/components": {
-      id: "/components";
-      path: "/components";
-      fullPath: "/components";
-      preLoaderRoute: typeof ComponentsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/auth": {
-      id: "/auth";
-      path: "/auth";
-      fullPath: "/auth";
-      preLoaderRoute: typeof AuthRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/admin": {
-      id: "/admin";
-      path: "/admin";
-      fullPath: "/admin";
-      preLoaderRoute: typeof AdminRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/_app": {
-      id: "/_app";
-      path: "";
-      fullPath: "/";
-      preLoaderRoute: typeof AppRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/test/": {
-      id: "/test/";
-      path: "/test";
-      fullPath: "/test/";
-      preLoaderRoute: typeof TestIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/settings/": {
-      id: "/settings/";
-      path: "/";
-      fullPath: "/settings/";
-      preLoaderRoute: typeof SettingsIndexRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
-    "/logos/": {
-      id: "/logos/";
-      path: "/logos";
-      fullPath: "/logos/";
-      preLoaderRoute: typeof LogosIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/admin/": {
-      id: "/admin/";
-      path: "/";
-      fullPath: "/admin/";
-      preLoaderRoute: typeof AdminIndexRouteImport;
-      parentRoute: typeof AdminRoute;
-    };
-    "/_app/": {
-      id: "/_app/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof AppIndexRouteImport;
-      parentRoute: typeof AppRoute;
-    };
-    "/settings/security": {
-      id: "/settings/security";
-      path: "/security";
-      fullPath: "/settings/security";
-      preLoaderRoute: typeof SettingsSecurityRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
-    "/settings/mcp": {
-      id: "/settings/mcp";
-      path: "/mcp";
-      fullPath: "/settings/mcp";
-      preLoaderRoute: typeof SettingsMcpRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
-    "/settings/instructions": {
-      id: "/settings/instructions";
-      path: "/instructions";
-      fullPath: "/settings/instructions";
-      preLoaderRoute: typeof SettingsInstructionsRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
-    "/settings/hotkeys": {
-      id: "/settings/hotkeys";
-      path: "/hotkeys";
-      fullPath: "/settings/hotkeys";
-      preLoaderRoute: typeof SettingsHotkeysRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
-    "/settings/attachments": {
-      id: "/settings/attachments";
-      path: "/attachments";
-      fullPath: "/settings/attachments";
-      preLoaderRoute: typeof SettingsAttachmentsRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
-    "/settings/appearance": {
-      id: "/settings/appearance";
-      path: "/appearance";
-      fullPath: "/settings/appearance";
-      preLoaderRoute: typeof SettingsAppearanceRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
-    "/redeem/$code": {
-      id: "/redeem/$code";
-      path: "/redeem/$code";
-      fullPath: "/redeem/$code";
-      preLoaderRoute: typeof RedeemCodeRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/ingest/$": {
-      id: "/ingest/$";
-      path: "/ingest/$";
-      fullPath: "/ingest/$";
-      preLoaderRoute: typeof IngestSplatRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/auth/sign-up": {
-      id: "/auth/sign-up";
-      path: "/sign-up";
-      fullPath: "/auth/sign-up";
-      preLoaderRoute: typeof AuthSignUpRouteImport;
-      parentRoute: typeof AuthRoute;
-    };
-    "/auth/sign-out": {
-      id: "/auth/sign-out";
-      path: "/sign-out";
-      fullPath: "/auth/sign-out";
-      preLoaderRoute: typeof AuthSignOutRouteImport;
-      parentRoute: typeof AuthRoute;
-    };
-    "/auth/sign-in": {
-      id: "/auth/sign-in";
-      path: "/sign-in";
-      fullPath: "/auth/sign-in";
-      preLoaderRoute: typeof AuthSignInRouteImport;
-      parentRoute: typeof AuthRoute;
-    };
-    "/auth/forgot-password": {
-      id: "/auth/forgot-password";
-      path: "/forgot-password";
-      fullPath: "/auth/forgot-password";
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport;
-      parentRoute: typeof AuthRoute;
-    };
-    "/api/upload": {
-      id: "/api/upload";
-      path: "/api/upload";
-      fullPath: "/api/upload";
-      preLoaderRoute: typeof ApiUploadRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/deployment-id": {
-      id: "/api/deployment-id";
-      path: "/api/deployment-id";
-      fullPath: "/api/deployment-id";
-      preLoaderRoute: typeof ApiDeploymentIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/admin/users": {
-      id: "/admin/users";
-      path: "/users";
-      fullPath: "/admin/users";
-      preLoaderRoute: typeof AdminUsersRouteImport;
-      parentRoute: typeof AdminRoute;
-    };
-    "/admin/promotions": {
-      id: "/admin/promotions";
-      path: "/promotions";
-      fullPath: "/admin/promotions";
-      preLoaderRoute: typeof AdminPromotionsRouteImport;
-      parentRoute: typeof AdminRoute;
-    };
-    "/api/chat/": {
-      id: "/api/chat/";
-      path: "/api/chat";
-      fullPath: "/api/chat/";
-      preLoaderRoute: typeof ApiChatIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/admin/users/": {
-      id: "/admin/users/";
-      path: "/";
-      fullPath: "/admin/users/";
-      preLoaderRoute: typeof AdminUsersIndexRouteImport;
-      parentRoute: typeof AdminUsersRoute;
-    };
-    "/admin/promotions/": {
-      id: "/admin/promotions/";
-      path: "/";
-      fullPath: "/admin/promotions/";
-      preLoaderRoute: typeof AdminPromotionsIndexRouteImport;
-      parentRoute: typeof AdminPromotionsRoute;
-    };
-    "/_app/projects/": {
-      id: "/_app/projects/";
-      path: "/projects";
-      fullPath: "/projects/";
-      preLoaderRoute: typeof AppProjectsIndexRouteImport;
-      parentRoute: typeof AppRoute;
-    };
-    "/api/webhook/stripe": {
-      id: "/api/webhook/stripe";
-      path: "/api/webhook/stripe";
-      fullPath: "/api/webhook/stripe";
-      preLoaderRoute: typeof ApiWebhookStripeRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/auth/$": {
-      id: "/api/auth/$";
-      path: "/api/auth/$";
-      fullPath: "/api/auth/$";
-      preLoaderRoute: typeof ApiAuthSplatRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/admin/users/$userId": {
-      id: "/admin/users/$userId";
-      path: "/$userId";
-      fullPath: "/admin/users/$userId";
-      preLoaderRoute: typeof AdminUsersUserIdRouteImport;
-      parentRoute: typeof AdminUsersRoute;
-    };
-    "/admin/promotions/$promotionId": {
-      id: "/admin/promotions/$promotionId";
-      path: "/$promotionId";
-      fullPath: "/admin/promotions/$promotionId";
-      preLoaderRoute: typeof AdminPromotionsPromotionIdRouteImport;
-      parentRoute: typeof AdminPromotionsRoute;
-    };
-    "/_app/share/$shareId": {
-      id: "/_app/share/$shareId";
-      path: "/share/$shareId";
-      fullPath: "/share/$shareId";
-      preLoaderRoute: typeof AppShareShareIdRouteImport;
-      parentRoute: typeof AppRoute;
-    };
-    "/_app/projects/$id": {
-      id: "/_app/projects/$id";
-      path: "/projects/$id";
-      fullPath: "/projects/$id";
-      preLoaderRoute: typeof AppProjectsIdRouteImport;
-      parentRoute: typeof AppRoute;
-    };
-    "/_app/chat/$id": {
-      id: "/_app/chat/$id";
-      path: "/chat/$id";
-      fullPath: "/chat/$id";
-      preLoaderRoute: typeof AppChatIdRouteImport;
-      parentRoute: typeof AppRoute;
-    };
-    "/api/chat/$id/stream/": {
-      id: "/api/chat/$id/stream/";
-      path: "/api/chat/$id/stream";
-      fullPath: "/api/chat/$id/stream/";
-      preLoaderRoute: typeof ApiChatIdStreamIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reasoning': {
+      id: '/reasoning'
+      path: '/reasoning'
+      fullPath: '/reasoning'
+      preLoaderRoute: typeof ReasoningRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/components': {
+      id: '/components'
+      path: '/components'
+      fullPath: '/components'
+      preLoaderRoute: typeof ComponentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/test/': {
+      id: '/test/'
+      path: '/test'
+      fullPath: '/test/'
+      preLoaderRoute: typeof TestIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/logos/': {
+      id: '/logos/'
+      path: '/logos'
+      fullPath: '/logos/'
+      preLoaderRoute: typeof LogosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/settings/security': {
+      id: '/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof SettingsSecurityRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/mcp': {
+      id: '/settings/mcp'
+      path: '/mcp'
+      fullPath: '/settings/mcp'
+      preLoaderRoute: typeof SettingsMcpRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/instructions': {
+      id: '/settings/instructions'
+      path: '/instructions'
+      fullPath: '/settings/instructions'
+      preLoaderRoute: typeof SettingsInstructionsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/hotkeys': {
+      id: '/settings/hotkeys'
+      path: '/hotkeys'
+      fullPath: '/settings/hotkeys'
+      preLoaderRoute: typeof SettingsHotkeysRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/attachments': {
+      id: '/settings/attachments'
+      path: '/attachments'
+      fullPath: '/settings/attachments'
+      preLoaderRoute: typeof SettingsAttachmentsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/redeem/$code': {
+      id: '/redeem/$code'
+      path: '/redeem/$code'
+      fullPath: '/redeem/$code'
+      preLoaderRoute: typeof RedeemCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ingest/$': {
+      id: '/ingest/$'
+      path: '/ingest/$'
+      fullPath: '/ingest/$'
+      preLoaderRoute: typeof IngestSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/sign-up': {
+      id: '/auth/sign-up'
+      path: '/sign-up'
+      fullPath: '/auth/sign-up'
+      preLoaderRoute: typeof AuthSignUpRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/sign-out': {
+      id: '/auth/sign-out'
+      path: '/sign-out'
+      fullPath: '/auth/sign-out'
+      preLoaderRoute: typeof AuthSignOutRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/sign-in': {
+      id: '/auth/sign-in'
+      path: '/sign-in'
+      fullPath: '/auth/sign-in'
+      preLoaderRoute: typeof AuthSignInRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/api/deployment-id': {
+      id: '/api/deployment-id'
+      path: '/api/deployment-id'
+      fullPath: '/api/deployment-id'
+      preLoaderRoute: typeof ApiDeploymentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/upload': {
+      id: '/api/upload'
+      path: '/api/upload'
+      fullPath: '/api/upload'
+      preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/promotions': {
+      id: '/admin/promotions'
+      path: '/promotions'
+      fullPath: '/admin/promotions'
+      preLoaderRoute: typeof AdminPromotionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/chat/': {
+      id: '/api/chat/'
+      path: '/api/chat'
+      fullPath: '/api/chat/'
+      preLoaderRoute: typeof ApiChatIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users/': {
+      id: '/admin/users/'
+      path: '/'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof AdminUsersRoute
+    }
+    '/admin/promotions/': {
+      id: '/admin/promotions/'
+      path: '/'
+      fullPath: '/admin/promotions/'
+      preLoaderRoute: typeof AdminPromotionsIndexRouteImport
+      parentRoute: typeof AdminPromotionsRoute
+    }
+    '/_app/projects/': {
+      id: '/_app/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof AppProjectsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/api/webhook/stripe': {
+      id: '/api/webhook/stripe'
+      path: '/api/webhook/stripe'
+      fullPath: '/api/webhook/stripe'
+      preLoaderRoute: typeof ApiWebhookStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users/$userId': {
+      id: '/admin/users/$userId'
+      path: '/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AdminUsersUserIdRouteImport
+      parentRoute: typeof AdminUsersRoute
+    }
+    '/admin/promotions/$promotionId': {
+      id: '/admin/promotions/$promotionId'
+      path: '/$promotionId'
+      fullPath: '/admin/promotions/$promotionId'
+      preLoaderRoute: typeof AdminPromotionsPromotionIdRouteImport
+      parentRoute: typeof AdminPromotionsRoute
+    }
+    '/_app/share/$shareId': {
+      id: '/_app/share/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof AppShareShareIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/projects/$id': {
+      id: '/_app/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof AppProjectsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/chat/$id': {
+      id: '/_app/chat/$id'
+      path: '/chat/$id'
+      fullPath: '/chat/$id'
+      preLoaderRoute: typeof AppChatIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/api/chat/$id/stream/': {
+      id: '/api/chat/$id/stream/'
+      path: '/api/chat/$id/stream'
+      fullPath: '/api/chat/$id/stream/'
+      preLoaderRoute: typeof ApiChatIdStreamIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AppRouteChildren {
-  AppIndexRoute: typeof AppIndexRoute;
-  AppChatIdRoute: typeof AppChatIdRoute;
-  AppProjectsIdRoute: typeof AppProjectsIdRoute;
-  AppShareShareIdRoute: typeof AppShareShareIdRoute;
-  AppProjectsIndexRoute: typeof AppProjectsIndexRoute;
+  AppIndexRoute: typeof AppIndexRoute
+  AppChatIdRoute: typeof AppChatIdRoute
+  AppProjectsIdRoute: typeof AppProjectsIdRoute
+  AppShareShareIdRoute: typeof AppShareShareIdRoute
+  AppProjectsIndexRoute: typeof AppProjectsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -794,57 +791,57 @@ const AppRouteChildren: AppRouteChildren = {
   AppProjectsIdRoute: AppProjectsIdRoute,
   AppShareShareIdRoute: AppShareShareIdRoute,
   AppProjectsIndexRoute: AppProjectsIndexRoute,
-};
+}
 
-const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren);
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminPromotionsRouteChildren {
-  AdminPromotionsPromotionIdRoute: typeof AdminPromotionsPromotionIdRoute;
-  AdminPromotionsIndexRoute: typeof AdminPromotionsIndexRoute;
+  AdminPromotionsPromotionIdRoute: typeof AdminPromotionsPromotionIdRoute
+  AdminPromotionsIndexRoute: typeof AdminPromotionsIndexRoute
 }
 
 const AdminPromotionsRouteChildren: AdminPromotionsRouteChildren = {
   AdminPromotionsPromotionIdRoute: AdminPromotionsPromotionIdRoute,
   AdminPromotionsIndexRoute: AdminPromotionsIndexRoute,
-};
+}
 
 const AdminPromotionsRouteWithChildren = AdminPromotionsRoute._addFileChildren(
   AdminPromotionsRouteChildren,
-);
+)
 
 interface AdminUsersRouteChildren {
-  AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute;
-  AdminUsersIndexRoute: typeof AdminUsersIndexRoute;
+  AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
+  AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
 
 const AdminUsersRouteChildren: AdminUsersRouteChildren = {
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
-};
+}
 
 const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
   AdminUsersRouteChildren,
-);
+)
 
 interface AdminRouteChildren {
-  AdminPromotionsRoute: typeof AdminPromotionsRouteWithChildren;
-  AdminUsersRoute: typeof AdminUsersRouteWithChildren;
-  AdminIndexRoute: typeof AdminIndexRoute;
+  AdminPromotionsRoute: typeof AdminPromotionsRouteWithChildren
+  AdminUsersRoute: typeof AdminUsersRouteWithChildren
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminPromotionsRoute: AdminPromotionsRouteWithChildren,
   AdminUsersRoute: AdminUsersRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
-};
+}
 
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren);
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AuthRouteChildren {
-  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute;
-  AuthSignInRoute: typeof AuthSignInRoute;
-  AuthSignOutRoute: typeof AuthSignOutRoute;
-  AuthSignUpRoute: typeof AuthSignUpRoute;
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthSignInRoute: typeof AuthSignInRoute
+  AuthSignOutRoute: typeof AuthSignOutRoute
+  AuthSignUpRoute: typeof AuthSignUpRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -852,18 +849,18 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
   AuthSignUpRoute: AuthSignUpRoute,
-};
+}
 
-const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren);
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface SettingsRouteChildren {
-  SettingsAppearanceRoute: typeof SettingsAppearanceRoute;
-  SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute;
-  SettingsHotkeysRoute: typeof SettingsHotkeysRoute;
-  SettingsInstructionsRoute: typeof SettingsInstructionsRoute;
-  SettingsMcpRoute: typeof SettingsMcpRoute;
-  SettingsSecurityRoute: typeof SettingsSecurityRoute;
-  SettingsIndexRoute: typeof SettingsIndexRoute;
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
+  SettingsHotkeysRoute: typeof SettingsHotkeysRoute
+  SettingsInstructionsRoute: typeof SettingsInstructionsRoute
+  SettingsMcpRoute: typeof SettingsMcpRoute
+  SettingsSecurityRoute: typeof SettingsSecurityRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -874,11 +871,11 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsMcpRoute: SettingsMcpRoute,
   SettingsSecurityRoute: SettingsSecurityRoute,
   SettingsIndexRoute: SettingsIndexRoute,
-};
+}
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
   SettingsRouteChildren,
-);
+)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
@@ -897,7 +894,17 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhookStripeRoute: ApiWebhookStripeRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
