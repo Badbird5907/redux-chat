@@ -893,6 +893,39 @@ export const Route = createFileRoute("/api/chat/")({
                       parts,
                     },
                   );
+
+                  try {
+                    await fetchAuthAction(
+                      api.functions.billing.recordUsageEvent,
+                      {
+                        secret: env.INTERNAL_CONVEX_SECRET,
+                        requestId: assistantMessageId,
+                        messageId: assistantMessageId,
+                        threadId,
+                        routeId: imageModel.route.id,
+                        usage: {
+                          inputTokens: 0,
+                          outputTokens: 0,
+                          reasoningTokens: undefined,
+                          cacheReadTokens: undefined,
+                          cacheWriteTokens: undefined,
+                          inputAudioTokens: undefined,
+                          outputAudioTokens: undefined,
+                        },
+                        toolCalls: [
+                          {
+                            billingKey: "image_generation",
+                            invocationCount: 1,
+                          },
+                        ],
+                      },
+                    );
+                  } catch (billingError) {
+                    console.error(
+                      "Failed to record image generation billing event",
+                      billingError,
+                    );
+                  }
                 } finally {
                   await cleanupTools?.();
                 }
