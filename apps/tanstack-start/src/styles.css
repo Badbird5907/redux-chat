@@ -12,6 +12,12 @@
 @custom-variant light (&:where(.light, .light *));
 @custom-variant auto (&:where(.auto, .auto *));
 
+/* Force long unbroken text to wrap instead of overflowing the container. */
+.chat-markdown {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 /* ---------------------------------------------------------------------------
  * Streamdown overrides
  * ---------------------------------------------------------------------------
