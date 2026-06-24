@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isTextUIPart } from "ai";
 import {
   ArrowRightLeft,
@@ -152,6 +152,26 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onAttachmentPreview,
   userMessagePreviewMaxLines,
 }: ChatMessageRowProps) {
+  const [mobileActionsVisible, setMobileActionsVisible] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  const handleMessageTap = useCallback((e: React.MouseEvent) => {
+    if (window.matchMedia("(hover: hover)").matches) return;
+    if ((e.target as HTMLElement).closest('button, a, [role="button"]')) return;
+    setMobileActionsVisible((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileActionsVisible) return;
+    const handleOutsideTap = (e: MouseEvent) => {
+      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
+        setMobileActionsVisible(false);
+      }
+    };
+    document.addEventListener("pointerdown", handleOutsideTap);
+    return () => document.removeEventListener("pointerdown", handleOutsideTap);
+  }, [mobileActionsVisible]);
+
   const textContent = useMemo(
     () =>
       message.parts.reduce<string>(
@@ -261,10 +281,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   return (
     <div
+      ref={rowRef}
       className={cn(
         "group flex w-full min-w-0",
         message.role === "user" ? "justify-end" : "justify-start",
       )}
+      onClick={handleMessageTap}
     >
       <div
         className={cn(
@@ -421,7 +443,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           </div>
         )}
         {message.role === "user" && (
-          <div className="text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
+          <div
+            className={cn(
+              "text-muted-foreground mt-2 flex min-h-8 items-center justify-end gap-1 text-xs opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100",
+              mobileActionsVisible && "opacity-100",
+            )}
+          >
             <BranchSwitcher
               branchGroup={branchGroup}
               disabled={controlsDisabled}
@@ -459,6 +486,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               isStreamingAssistant
                 ? "opacity-0"
                 : "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
+              mobileActionsVisible && !isStreamingAssistant && "opacity-100",
             )}
           >
             <div className="flex items-center gap-1">
