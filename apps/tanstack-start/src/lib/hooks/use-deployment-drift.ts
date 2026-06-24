@@ -57,7 +57,8 @@ export function useDeploymentDrift() {
           action: {
             label: "Refresh",
             onClick: () => window.location.reload(),
-          }
+          },
+          onDismiss: () => setDismissed(),
         });
       }
     } catch {

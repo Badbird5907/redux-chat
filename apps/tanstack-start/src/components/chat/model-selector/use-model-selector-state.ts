@@ -14,12 +14,12 @@ import { toast } from "sonner";
 
 import type { ChatModelConfig } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
-import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 import {
   CHAT_MODELS,
   compareChatModelsByReleaseDateNewestFirst,
   PROVIDERS,
 } from "@redux/shared/models";
+import { useIsMobile } from "@redux/ui/hooks/use-mobile";
 
 import type {
   MinKnowledgeCutoff,
