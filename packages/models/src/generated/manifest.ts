@@ -6,7 +6,7 @@ export const generatedProviderManifest = {
     doc: "https://docs.anthropic.com/en/docs/about-claude/models",
   },
   google: {
-    modelCount: 24,
+    modelCount: 22,
     doc: "https://ai.google.dev/gemini-api/docs/models",
   },
   openai: {
@@ -22,7 +22,7 @@ export const generatedProviderManifest = {
     doc: "https://cloud.google.com/vertex-ai/generative-ai/docs/models",
   },
   workersai: {
-    modelCount: 21,
+    modelCount: 22,
     doc: "https://developers.cloudflare.com/workers-ai/models/",
   },
 } as const;

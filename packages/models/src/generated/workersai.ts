@@ -543,6 +543,32 @@ export const workersaiModels = {
         output: 131072,
       },
     },
+    "@cf/zai-org/glm-5.2": {
+      id: "@cf/zai-org/glm-5.2",
+      name: "Glm 5.2",
+      family: "glm",
+      attachment: false,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: true,
+      release_date: "2026-06-13",
+      last_updated: "2026-06-13",
+      open_weights: true,
+      modalities: {
+        input: ["text"],
+        output: ["text"],
+      },
+      cost: {
+        cache_read: 0.26,
+        input: 1.4,
+        output: 4.4,
+      },
+      limit: {
+        context: 262144,
+        output: 262144,
+      },
+    },
   },
 } as const satisfies ModelsDevProviderCatalog;
 export const workersaiCatalog = workersaiModels;

@@ -17,6 +17,7 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
     },
     {
       id: "gemini-3-flash-preview",
+      name: "Gemini 3 Flash",
       providerIds: [
         "openrouter:google/gemini-3-flash-preview",
         "vertex:gemini-3-flash-preview",
@@ -24,12 +25,38 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
       defaultProviderId: "vertex:gemini-3-flash-preview",
     },
     {
+      id: "gemini-3.1-flash-lite",
+      providerIds: [
+        "openrouter:google/gemini-3.1-flash-lite",
+        "vertex:gemini-3.1-flash-lite",
+      ],
+      defaultProviderId: "vertex:gemini-3.1-flash-lite",
+    },
+    {
+      id: "gemini-3.1-flash-lite-preview",
+      name: "Gemini 3.1 Flash Lite",
+      providerIds: [
+        "openrouter:google/gemini-3.1-flash-lite-preview",
+        "vertex:gemini-3.1-flash-lite-preview",
+      ],
+      defaultProviderId: "vertex:gemini-3.1-flash-lite-preview",
+    },
+    {
       id: "gemini-3.1-pro-preview",
+      name: "Gemini 3.1 Pro",
       providerIds: [
         "openrouter:google/gemini-3.1-pro-preview",
         "vertex:gemini-3.1-pro-preview",
       ],
       defaultProviderId: "vertex:gemini-3.1-pro-preview",
+    },
+    {
+      id: "gemini-3.5-flash",
+      providerIds: [
+        "openrouter:google/gemini-3.5-flash",
+        "vertex:gemini-3.5-flash",
+      ],
+      defaultProviderId: "vertex:gemini-3.5-flash",
     },
     {
       id: "nano-banana-2",
