@@ -49,10 +49,7 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
           style={{ minWidth: 0 }}
           data-model-selector-sidebar
         >
-          <div
-            className="scrollbar-none flex min-h-0 w-14 flex-col items-center overflow-y-auto"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          >
+          <div className="flex min-h-0 w-14 flex-col items-center">
             <m.button
               type="button"
               title="Favorite models"
@@ -65,7 +62,7 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
                 setNavColumn("sidebar");
               }}
               className={cn(
-                "mb-[9px] flex h-11 w-11 items-center justify-center rounded-lg transition-colors outline-none",
+                "mb-[9px] flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors outline-none",
                 navColumn === "sidebar" &&
                   sidebarNavIndex === 0 &&
                   "ring-primary/45 ring-offset-background ring-2 ring-offset-2",
@@ -86,44 +83,49 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
               className="bg-border/60 mb-1.5 h-px w-8 shrink-0"
               aria-hidden
             />
-            <LayoutGroup id={sidebarRailLayoutGroupId}>
-              <div className="flex w-full flex-col items-center gap-0.5">
-                {sidebarProviders.map((p, providerIdx) => (
-                  <m.button
-                    key={p.slug}
-                    type="button"
-                    title={p.name}
-                    variants={sidebarRailItemVariants}
-                    whileTap={{ scale: 0.92 }}
-                    transition={panelSpring}
-                    onClick={() => {
-                      setActiveSidebar(p.slug);
-                      setSidebarNavIndex(providerIdx + 1);
-                      setNavColumn("sidebar");
-                    }}
-                    className={cn(
-                      "relative flex h-11 w-11 items-center justify-center rounded-lg transition-colors outline-none",
-                      navColumn === "sidebar" &&
-                        sidebarNavIndex === providerIdx + 1 &&
-                        "ring-primary/45 ring-offset-background ring-2 ring-offset-2",
-                      activeSidebar === p.slug
-                        ? "bg-muted text-muted-foreground"
-                        : "hover:bg-muted",
-                    )}
-                  >
-                    <ProviderGlyph maker={p.slug} className="size-5" />
-                    {activeSidebar === p.slug ? (
-                      <m.span
-                        layoutId="model-selector-sidebar-provider-marker"
-                        className="bg-primary absolute top-1.5 right-0 h-8 w-0.5 rounded-l"
-                        transition={panelSpring}
-                        aria-hidden
-                      />
-                    ) : null}
-                  </m.button>
-                ))}
-              </div>
-            </LayoutGroup>
+            <div
+              className="scrollbar-none min-h-0 w-full flex-1 overflow-y-auto"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              <LayoutGroup id={sidebarRailLayoutGroupId}>
+                <div className="flex w-full flex-col items-center gap-0.5">
+                  {sidebarProviders.map((p, providerIdx) => (
+                    <m.button
+                      key={p.slug}
+                      type="button"
+                      title={p.name}
+                      variants={sidebarRailItemVariants}
+                      whileTap={{ scale: 0.92 }}
+                      transition={panelSpring}
+                      onClick={() => {
+                        setActiveSidebar(p.slug);
+                        setSidebarNavIndex(providerIdx + 1);
+                        setNavColumn("sidebar");
+                      }}
+                      className={cn(
+                        "relative flex h-11 w-11 items-center justify-center rounded-lg transition-colors outline-none",
+                        navColumn === "sidebar" &&
+                          sidebarNavIndex === providerIdx + 1 &&
+                          "ring-primary/45 ring-offset-background ring-2 ring-offset-2",
+                        activeSidebar === p.slug
+                          ? "bg-muted text-muted-foreground"
+                          : "hover:bg-muted",
+                      )}
+                    >
+                      <ProviderGlyph maker={p.slug} className="size-5" />
+                      {activeSidebar === p.slug ? (
+                        <m.span
+                          layoutId="model-selector-sidebar-provider-marker"
+                          className="bg-primary absolute top-1.5 right-0 h-8 w-0.5 rounded-l"
+                          transition={panelSpring}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </m.button>
+                  ))}
+                </div>
+              </LayoutGroup>
+            </div>
           </div>
         </m.aside>
       ) : null}
