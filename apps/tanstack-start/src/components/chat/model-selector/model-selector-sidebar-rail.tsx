@@ -50,7 +50,7 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
           data-model-selector-sidebar
         >
           <div
-            className="scrollbar-none flex w-14 min-h-0 flex-col items-center overflow-y-auto"
+            className="scrollbar-none flex min-h-0 w-14 flex-col items-center overflow-y-auto"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             <m.button
