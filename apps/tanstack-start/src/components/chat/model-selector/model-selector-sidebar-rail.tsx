@@ -49,7 +49,10 @@ export function ModelSelectorSidebarRail(props: SidebarProps) {
           style={{ minWidth: 0 }}
           data-model-selector-sidebar
         >
-          <div className="flex w-14 shrink-0 flex-col items-center">
+          <div
+            className="scrollbar-none flex w-14 min-h-0 flex-col items-center overflow-y-auto"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
             <m.button
               type="button"
               title="Favorite models"
