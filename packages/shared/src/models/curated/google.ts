@@ -33,6 +33,15 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
       defaultProviderId: "vertex:gemini-3.1-flash-lite",
     },
     {
+      id: "gemini-3.1-flash-lite-preview",
+      name: "Gemini 3.1 Flash Lite",
+      providerIds: [
+        "openrouter:google/gemini-3.1-flash-lite-preview",
+        "vertex:gemini-3.1-flash-lite-preview",
+      ],
+      defaultProviderId: "vertex:gemini-3.1-flash-lite-preview",
+    },
+    {
       id: "gemini-3.1-pro-preview",
       name: "Gemini 3.1 Pro",
       providerIds: [
@@ -40,6 +49,15 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
         "vertex:gemini-3.1-pro-preview",
       ],
       defaultProviderId: "vertex:gemini-3.1-pro-preview",
+    },
+    {
+      id: "gemini-3.1-pro-preview-customtools",
+      name: "Gemini 3.1 Pro Custom Tools",
+      providerIds: [
+        "openrouter:google/gemini-3.1-pro-preview-customtools",
+        "vertex:gemini-3.1-pro-preview-customtools",
+      ],
+      defaultProviderId: "vertex:gemini-3.1-pro-preview-customtools",
     },
     {
       id: "gemini-3.5-flash",
