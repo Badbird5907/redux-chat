@@ -54,7 +54,7 @@ import {
   resolveAiSdkImageModel,
   resolveAiSdkModel,
 } from "@/server/ai/model-runtime";
-import { withPostHogTracing } from "@/server/ai/telemetry";
+import { identifyPostHogUser, withPostHogTracing } from "@/server/ai/telemetry";
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
@@ -753,13 +753,20 @@ export const Route = createFileRoute("/api/chat/")({
         // and refresh subscription state to know if overage is allowed. The
         // refresh action also idempotently grants the free monthly allowance
         // on the first read each month.
-        const [billingSnapshot, billingState] = await Promise.all([
-          fetchAuthQuery(api.functions.billing.getCurrentBillingState, {}),
-          fetchAuthAction(
-            api.functions.billing.refreshCurrentUserBillingState,
-            {},
-          ),
-        ]);
+        const [billingSnapshot, billingState, userBillingInfo] =
+          await Promise.all([
+            fetchAuthQuery(api.functions.billing.getCurrentBillingState, {}),
+            fetchAuthAction(
+              api.functions.billing.refreshCurrentUserBillingState,
+              {},
+            ),
+            fetchAuthQuery(api.functions.user.getCurrentUserBillingInfo, {}),
+          ]);
+
+        identifyPostHogUser(requestUserId, {
+          email: userBillingInfo.email,
+          name: userBillingInfo.name,
+        });
         const spendableCredits = billingState.spendableCredits;
         if (
           spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
