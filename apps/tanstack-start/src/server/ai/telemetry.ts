@@ -16,6 +16,7 @@ export function withPostHogTracing(
   const ph = getPostHogClient();
   if (!ph) return model;
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
   return withTracing(model as WrappableModel, ph, {
     posthogDistinctId: distinctId,
   });

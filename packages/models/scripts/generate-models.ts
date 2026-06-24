@@ -220,8 +220,9 @@ async function main() {
       doc: normalizedCatalog.doc,
     };
 
-    const safeProviderId = providerId.replace(/-([a-z])/g, (_, letter: string) =>
-      letter.toUpperCase(),
+    const safeProviderId = providerId.replace(
+      /-([a-z])/g,
+      (_, letter: string) => letter.toUpperCase(),
     );
 
     const constantName = `${safeProviderId}Models`;
