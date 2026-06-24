@@ -54,6 +54,7 @@ import {
   resolveAiSdkImageModel,
   resolveAiSdkModel,
 } from "@/server/ai/model-runtime";
+import { withPostHogTracing } from "@/server/ai/telemetry";
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
@@ -604,14 +605,12 @@ function sanitizePersistedValue(
     const maxItems = options.compact
       ? MAX_COMPACT_ARRAY_ITEMS
       : MAX_PERSISTED_ARRAY_ITEMS;
-    const items = value
-      .slice(0, maxItems)
-      .map((item) =>
-        sanitizePersistedValue(item, {
-          ...options,
-          key: undefined,
-        }),
-      );
+    const items = value.slice(0, maxItems).map((item) =>
+      sanitizePersistedValue(item, {
+        ...options,
+        key: undefined,
+      }),
+    );
 
     if (value.length > maxItems) {
       items.push({
@@ -1276,8 +1275,12 @@ export const Route = createFileRoute("/api/chat/")({
           let reasoningStartTime: number | null = null;
           let reasoningEndTime: number | null = null;
 
+          const tracedModel = withPostHogTracing(
+            resolvedModel.model,
+            requestUserId,
+          );
           const result = streamText({
-            model: resolvedModel.model,
+            model: tracedModel,
             system: systemPrompt,
             messages: modelMessages,
             ...(reasoning ? { reasoning } : {}),
@@ -1446,7 +1449,8 @@ export const Route = createFileRoute("/api/chat/")({
 
               const last = finishedMessages[finishedMessages.length - 1];
               const parts = last?.parts ?? [];
-              const persistedParts = sanitizeAssistantPartsForPersistence(parts);
+              const persistedParts =
+                sanitizeAssistantPartsForPersistence(parts);
               if (!parts.some(isPersistableAssistantPart)) {
                 await reportStreamFailure(
                   lastStreamErrorMessage ?? "Chat stream failed",

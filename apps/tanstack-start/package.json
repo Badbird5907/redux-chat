@@ -29,6 +29,7 @@
     "@exalabs/ai-sdk": "^2.0.1",
     "@hookform/resolvers": "^5.4.0",
     "@openrouter/ai-sdk-provider": "6.0.0-alpha.1",
+    "@posthog/ai": "8.2.1",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@redux/backend": "workspace:*",
     "@redux/redis": "workspace:*",
