@@ -54,6 +54,7 @@ import {
   resolveAiSdkImageModel,
   resolveAiSdkModel,
 } from "@/server/ai/model-runtime";
+import { withPostHogTracing } from "@/server/ai/telemetry";
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
@@ -155,6 +156,21 @@ function resolveProviderOptions(
     };
   }
 
+  if (runtimeProviderKey === "anthropic") {
+    return {
+      anthropic: {
+        cacheControl: { type: "ephemeral" },
+        ...(isEnabledReasoning(reasoning) &&
+          supportsAdaptiveAnthropicThinking(vendorId) && {
+            thinking: {
+              type: "adaptive" as const,
+              display: "summarized" as const,
+            },
+          }),
+      } satisfies AnthropicLanguageModelOptions,
+    };
+  }
+
   if (!isEnabledReasoning(reasoning)) {
     return undefined;
   }
@@ -175,17 +191,6 @@ function resolveProviderOptions(
           },
         } satisfies GoogleReasoningProviderOptions,
       };
-    case "anthropic":
-      return supportsAdaptiveAnthropicThinking(vendorId)
-        ? {
-            anthropic: {
-              thinking: {
-                type: "adaptive",
-                display: "summarized",
-              },
-            } satisfies AnthropicLanguageModelOptions,
-          }
-        : undefined;
     case "openrouter":
       return undefined;
     default:
@@ -600,14 +605,12 @@ function sanitizePersistedValue(
     const maxItems = options.compact
       ? MAX_COMPACT_ARRAY_ITEMS
       : MAX_PERSISTED_ARRAY_ITEMS;
-    const items = value
-      .slice(0, maxItems)
-      .map((item) =>
-        sanitizePersistedValue(item, {
-          ...options,
-          key: undefined,
-        }),
-      );
+    const items = value.slice(0, maxItems).map((item) =>
+      sanitizePersistedValue(item, {
+        ...options,
+        key: undefined,
+      }),
+    );
 
     if (value.length > maxItems) {
       items.push({
@@ -1112,6 +1115,39 @@ export const Route = createFileRoute("/api/chat/")({
                       parts,
                     },
                   );
+
+                  try {
+                    await fetchAuthAction(
+                      api.functions.billing.recordUsageEvent,
+                      {
+                        secret: env.INTERNAL_CONVEX_SECRET,
+                        requestId: assistantMessageId,
+                        messageId: assistantMessageId,
+                        threadId,
+                        routeId: imageModel.route.id,
+                        usage: {
+                          inputTokens: 0,
+                          outputTokens: 0,
+                          reasoningTokens: undefined,
+                          cacheReadTokens: undefined,
+                          cacheWriteTokens: undefined,
+                          inputAudioTokens: undefined,
+                          outputAudioTokens: undefined,
+                        },
+                        toolCalls: [
+                          {
+                            billingKey: "image_generation",
+                            invocationCount: 1,
+                          },
+                        ],
+                      },
+                    );
+                  } catch (billingError) {
+                    console.error(
+                      "Failed to record image generation billing event",
+                      billingError,
+                    );
+                  }
                 } finally {
                   await cleanupTools?.();
                 }
@@ -1239,8 +1275,12 @@ export const Route = createFileRoute("/api/chat/")({
           let reasoningStartTime: number | null = null;
           let reasoningEndTime: number | null = null;
 
+          const tracedModel = withPostHogTracing(
+            resolvedModel.model,
+            requestUserId,
+          );
           const result = streamText({
-            model: resolvedModel.model,
+            model: tracedModel,
             system: systemPrompt,
             messages: modelMessages,
             ...(reasoning ? { reasoning } : {}),
@@ -1345,7 +1385,8 @@ export const Route = createFileRoute("/api/chat/")({
                         outputTokens: usage.outputTokens,
                         reasoningTokens: usage.reasoningTokens,
                         cacheReadTokens: usage.cachedInputTokens,
-                        cacheWriteTokens: undefined,
+                        cacheWriteTokens:
+                          usage.inputTokenDetails.cacheWriteTokens,
                         inputAudioTokens: undefined,
                         outputAudioTokens: undefined,
                       },
@@ -1408,7 +1449,8 @@ export const Route = createFileRoute("/api/chat/")({
 
               const last = finishedMessages[finishedMessages.length - 1];
               const parts = last?.parts ?? [];
-              const persistedParts = sanitizeAssistantPartsForPersistence(parts);
+              const persistedParts =
+                sanitizeAssistantPartsForPersistence(parts);
               if (!parts.some(isPersistableAssistantPart)) {
                 await reportStreamFailure(
                   lastStreamErrorMessage ?? "Chat stream failed",

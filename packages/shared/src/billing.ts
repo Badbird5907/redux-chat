@@ -186,6 +186,10 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
       rawUsdPerCall: 0,
       enabled: true,
     },
+    image_generation: {
+      rawUsdPerCall: 0.04,
+      enabled: true,
+    },
   },
 };
 

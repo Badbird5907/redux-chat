@@ -32,6 +32,7 @@ import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as ApiDeploymentIdRouteImport } from './routes/api/deployment-id'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
@@ -162,6 +163,11 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => AuthRoute,
 } as any)
+const ApiDeploymentIdRoute = ApiDeploymentIdRouteImport.update({
+  id: '/api/deployment-id',
+  path: '/api/deployment-id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUploadRoute = ApiUploadRouteImport.update({
   id: '/api/upload',
   path: '/api/upload',
@@ -248,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/api/deployment-id': typeof ApiDeploymentIdRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -282,6 +289,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/components': typeof ComponentsRoute
   '/reasoning': typeof ReasoningRoute
+  '/api/deployment-id': typeof ApiDeploymentIdRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -323,6 +331,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/api/deployment-id': typeof ApiDeploymentIdRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -478,6 +487,7 @@ export interface RootRouteChildren {
   ComponentsRoute: typeof ComponentsRoute
   ReasoningRoute: typeof ReasoningRoute
   SettingsRoute: typeof SettingsRouteWithChildren
+  ApiDeploymentIdRoute: typeof ApiDeploymentIdRoute
   ApiUploadRoute: typeof ApiUploadRoute
   IngestSplatRoute: typeof IngestSplatRoute
   RedeemCodeRoute: typeof RedeemCodeRoute
@@ -651,6 +661,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/forgot-password'
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/api/deployment-id': {
+      id: '/api/deployment-id'
+      path: '/api/deployment-id'
+      fullPath: '/api/deployment-id'
+      preLoaderRoute: typeof ApiDeploymentIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/upload': {
       id: '/api/upload'
@@ -867,6 +884,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComponentsRoute: ComponentsRoute,
   ReasoningRoute: ReasoningRoute,
   SettingsRoute: SettingsRouteWithChildren,
+  ApiDeploymentIdRoute: ApiDeploymentIdRoute,
   ApiUploadRoute: ApiUploadRoute,
   IngestSplatRoute: IngestSplatRoute,
   RedeemCodeRoute: RedeemCodeRoute,
