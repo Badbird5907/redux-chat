@@ -51,15 +51,6 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
       defaultProviderId: "vertex:gemini-3.1-pro-preview",
     },
     {
-      id: "gemini-3.1-pro-preview-customtools",
-      name: "Gemini 3.1 Pro Custom Tools",
-      providerIds: [
-        "openrouter:google/gemini-3.1-pro-preview-customtools",
-        "vertex:gemini-3.1-pro-preview-customtools",
-      ],
-      defaultProviderId: "vertex:gemini-3.1-pro-preview-customtools",
-    },
-    {
       id: "gemini-3.5-flash",
       providerIds: [
         "openrouter:google/gemini-3.5-flash",
