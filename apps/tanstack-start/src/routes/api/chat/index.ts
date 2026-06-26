@@ -1137,9 +1137,7 @@ export const Route = createFileRoute("/api/chat/")({
           const runtimeProviderKey =
             resolvedModel.route.behavior.runtimeProviderKey ??
             resolvedModel.route.provider;
-          const providerOptions = resolveProviderOptions(
-            runtimeProviderKey,
-          );
+          const providerOptions = resolveProviderOptions(runtimeProviderKey);
           const messagesWithAttachments = await materializeAttachmentsForRoute(
             resolvedModel.route,
             messages,
