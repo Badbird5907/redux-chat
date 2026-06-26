@@ -1,6 +1,5 @@
 import type { RetrievedChunk } from "@/server/rag/vector-store";
 import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
-import type { OpenAILanguageModelResponsesOptions } from "@ai-sdk/openai";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
@@ -121,85 +120,23 @@ const requestBody = z.object({
 
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
 type AiSdkReasoning = "none" | "low" | "medium" | "high";
-type EnabledAiSdkReasoning = Exclude<AiSdkReasoning, "none">;
 const MIN_GENERATION_CREDIT_FLOOR = 10;
 type StreamTextProviderOptions = NonNullable<
   Parameters<typeof streamText>[0]["providerOptions"]
 >;
 
-interface GoogleReasoningProviderOptions {
-  thinkingConfig: {
-    includeThoughts: true;
-  };
-}
-
-interface WorkersAiReasoningProviderOptions {
-  reasoning_effort: EnabledAiSdkReasoning | null;
-}
-
-function isEnabledReasoning(
-  reasoning: AiSdkReasoning | undefined,
-): reasoning is EnabledAiSdkReasoning {
-  return reasoning !== undefined && reasoning !== "none";
-}
-
 function resolveProviderOptions(
   runtimeProviderKey: string,
-  vendorId: string,
-  reasoning: AiSdkReasoning | undefined,
 ): StreamTextProviderOptions | undefined {
-  if (runtimeProviderKey === "workersai" && reasoning !== undefined) {
-    return {
-      workersai: {
-        reasoning_effort: reasoning === "none" ? null : reasoning,
-      } satisfies WorkersAiReasoningProviderOptions,
-    };
-  }
-
   if (runtimeProviderKey === "anthropic") {
     return {
       anthropic: {
         cacheControl: { type: "ephemeral" },
-        ...(isEnabledReasoning(reasoning) &&
-          supportsAdaptiveAnthropicThinking(vendorId) && {
-            thinking: {
-              type: "adaptive" as const,
-              display: "summarized" as const,
-            },
-          }),
       } satisfies AnthropicLanguageModelOptions,
     };
   }
 
-  if (!isEnabledReasoning(reasoning)) {
-    return undefined;
-  }
-
-  switch (runtimeProviderKey) {
-    case "openai":
-      return {
-        openai: {
-          reasoningSummary: "auto",
-        } satisfies OpenAILanguageModelResponsesOptions,
-      };
-    case "vertex":
-    case "google":
-      return {
-        [runtimeProviderKey]: {
-          thinkingConfig: {
-            includeThoughts: true,
-          },
-        } satisfies GoogleReasoningProviderOptions,
-      };
-    case "openrouter":
-      return undefined;
-    default:
-      return undefined;
-  }
-}
-
-function supportsAdaptiveAnthropicThinking(vendorId: string): boolean {
-  return vendorId.includes("claude-");
+  return undefined;
 }
 
 function resolveReasoningParam(
@@ -1200,11 +1137,7 @@ export const Route = createFileRoute("/api/chat/")({
           const runtimeProviderKey =
             resolvedModel.route.behavior.runtimeProviderKey ??
             resolvedModel.route.provider;
-          const providerOptions = resolveProviderOptions(
-            runtimeProviderKey,
-            resolvedModel.route.vendorId,
-            reasoning,
-          );
+          const providerOptions = resolveProviderOptions(runtimeProviderKey);
           const messagesWithAttachments = await materializeAttachmentsForRoute(
             resolvedModel.route,
             messages,
@@ -1390,8 +1323,10 @@ export const Route = createFileRoute("/api/chat/")({
                       usage: {
                         inputTokens: usage.inputTokens,
                         outputTokens: usage.outputTokens,
-                        reasoningTokens: usage.reasoningTokens,
-                        cacheReadTokens: usage.cachedInputTokens,
+                        reasoningTokens:
+                          usage.outputTokenDetails.reasoningTokens,
+                        cacheReadTokens:
+                          usage.inputTokenDetails.cacheReadTokens,
                         cacheWriteTokens:
                           usage.inputTokenDetails.cacheWriteTokens,
                         inputAudioTokens: undefined,

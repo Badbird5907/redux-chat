@@ -51,7 +51,7 @@
     "build:app": "cd ../.. && pnpm build"
   },
   "dependencies": {
-    "@ai-sdk/google-vertex": "5.0.0-beta.66",
+    "@ai-sdk/google-vertex": "5.0.0",
     "@better-auth/core": "^1.6.9",
     "@convex-dev/better-auth": "^0.12.1",
     "@convex-dev/crons": "^0.2.0",
@@ -61,7 +61,7 @@
     "@redux/types": "workspace:*",
     "@silo-storage/sdk-core": "catalog:",
     "@t3-oss/env-core": "^0.13.11",
-    "ai": "7.0.0-beta.116",
+    "ai": "7.0.2",
     "better-auth": "catalog:",
     "buffer": "^6.0.3",
     "convex": "^1.36.1",
