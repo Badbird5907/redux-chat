@@ -2,16 +2,18 @@
 
 import type { ThemeInput } from "streamdown";
 import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
+import { createMathPlugin } from "@streamdown/math";
 import { Streamdown } from "streamdown";
 
 import { cn } from "@redux/ui/lib/utils";
 
 import { streamdownComponents } from "./streamdown-components";
 
+const mathPlugin = createMathPlugin({ singleDollarTextMath: true });
+
 const streamdownPlugins = {
   code,
-  math,
+  math: mathPlugin,
 } as const;
 
 const shikiTheme: [ThemeInput, ThemeInput] = ["github-light", "github-dark"];
