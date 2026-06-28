@@ -23,6 +23,13 @@ case "$SITE_URL" in
   *) SITE_URL="https://$SITE_URL" ;;
 esac
 pnpm run convex env set --preview-name "$VERCEL_GIT_COMMIT_REF" SITE_URL "$SITE_URL"
+# Sync INTERNAL_CONVEX_SECRET so the Convex preview deployment verifies HMAC
+# signatures with the same key the Vercel frontend used to sign them. Preview
+# deployments inherit env vars from production at creation time and can go stale
+# if the secret is later rotated or was set independently on each platform.
+if [[ "${VERCEL_ENV:-}" != "production" && -n "${INTERNAL_CONVEX_SECRET:-}" ]]; then
+  pnpm run convex env set --preview-name "$VERCEL_GIT_COMMIT_REF" INTERNAL_CONVEX_SECRET "$INTERNAL_CONVEX_SECRET"
+fi
 popd
 
 if [[ -d apps/tanstack-start/.vercel/output ]]; then
