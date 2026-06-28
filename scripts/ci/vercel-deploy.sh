@@ -4,7 +4,15 @@ set -euo pipefail
 export NITRO_PRESET=vercel
 
 pushd ./packages/backend
-pnpm run convex deploy --cmd "pnpm run build:app"
+# Build the frontend against the Convex deployment we are deploying to (the
+# per-preview deployment for previews, production for prod) instead of whatever
+# VITE_CONVEX_URL Vercel has baked in. Convex injects the deployment's cloud URL
+# as VITE_CONVEX_URL; derive the matching .site URL for Better Auth from it.
+# Without this, preview frontends talk to the production Convex backend, which
+# disables the Better Auth oAuthProxy and breaks OAuth (state_mismatch).
+pnpm run convex deploy \
+  --cmd-url-env-var-name VITE_CONVEX_URL \
+  --cmd 'VITE_CONVEX_SITE_URL="${VITE_CONVEX_URL%.cloud}.site" pnpm run build:app'
 if [[ "${VERCEL_ENV:-}" == "production" ]]; then
   SITE_URL="redux.chat"
 else
