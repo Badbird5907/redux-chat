@@ -11,21 +11,25 @@ import {
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
-import { cn } from "@redux/ui/lib/utils";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@redux/ui/components/message-scroller";
 
 import type { PreviewableFile } from "./input/types";
 import type { ChatPreload } from "./preload";
 import type { ThreadExportInput } from "./thread-export-utils";
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from "@/components/ai/conversation";
 import { useAdjacentAttachmentPanel } from "@/components/chat/adjacent-attachment-panel-context";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import {
+  CHAT_SCROLL_PREVIOUS_ITEM_PEEK,
+  useChatScrollPreferences,
+} from "@/lib/preferences/chat-scroll";
 import { ChatMessageList } from "./chat-message-list";
 import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
-import { InitialThreadScrollInitializer } from "./initial-thread-scroll-initializer";
 import { ChatInput } from "./input";
 import { ThreadPrintExport } from "./thread-export";
 import { REQUEST_THREAD_PDF_EXPORT_EVENT } from "./thread-export-utils";
@@ -75,6 +79,7 @@ export function Chat({
   } = useAdjacentAttachmentPanel();
   const printRootRef = useRef<HTMLDivElement | null>(null);
   const printInProgressRef = useRef(false);
+  const { preferences: scrollPreferences } = useChatScrollPreferences();
   const {
     currentThreadId,
     currentThreadName,
@@ -95,8 +100,6 @@ export function Chat({
     editMessage,
     submitEditedMessage,
     regenerateMessage,
-    shouldInitializeInitialThreadScroll,
-    handleInitialThreadScrollReady,
     messageStatsMap,
     previewFile,
     setPreviewFile,
@@ -258,44 +261,47 @@ export function Chat({
   return (
     <>
       <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden print:hidden">
-        <Conversation className="relative size-full">
-          <InitialThreadScrollInitializer
-            enabled={shouldInitializeInitialThreadScroll}
-            onReady={handleInitialThreadScrollReady}
-          />
-          <ConversationContent
-            className={cn(
-              "pt-0 pb-36 transition-opacity duration-200 ease-out",
-              shouldInitializeInitialThreadScroll
-                ? "pointer-events-none opacity-0"
-                : "opacity-100",
-            )}
-          >
-            <ChatMessageList
-              assistantModelByParentMessageId={assistantModelByParentMessageId}
-              allBranchMessages={allBranchMessages}
-              chatSessionId={chatSessionId}
-              convexUIMessages={convexUIMessages}
-              currentThreadId={currentThreadId}
-              effectiveChatProjectId={effectiveChatProjectId}
-              emptyContent={emptyContent}
-              finalMessages={finalMessages}
-              handleThreadIdChange={handleThreadIdChange}
-              messageAttachmentsByMessageId={messageAttachmentsByMessageId}
-              messageStatsMap={messageStatsMap}
-              resolvedMessageAttachments={resolvedMessageAttachments}
-              onRegenerateMessage={regenerateMessage}
-              sendMessageWithTracking={sendMessageWithTracking}
-              onSelectBranch={selectBranch}
-              onStartEditMessage={startEditMessage}
-              setOptimisticMessage={setOptimisticMessage}
-              setPreviewFile={handleAttachmentPreview}
-              settings={settings}
-              status={status}
-            />
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
+        <MessageScrollerProvider
+          autoScroll={scrollPreferences.autoScroll}
+          defaultScrollPosition={scrollPreferences.openPosition}
+          scrollPreviousItemPeek={
+            scrollPreferences.keepPreviousVisible
+              ? CHAT_SCROLL_PREVIOUS_ITEM_PEEK
+              : 0
+          }
+        >
+          <MessageScroller className="relative size-full">
+            <MessageScrollerViewport>
+              <MessageScrollerContent className="px-4 pt-0 pb-36">
+                <ChatMessageList
+                  assistantModelByParentMessageId={
+                    assistantModelByParentMessageId
+                  }
+                  allBranchMessages={allBranchMessages}
+                  chatSessionId={chatSessionId}
+                  convexUIMessages={convexUIMessages}
+                  currentThreadId={currentThreadId}
+                  effectiveChatProjectId={effectiveChatProjectId}
+                  emptyContent={emptyContent}
+                  finalMessages={finalMessages}
+                  handleThreadIdChange={handleThreadIdChange}
+                  messageAttachmentsByMessageId={messageAttachmentsByMessageId}
+                  messageStatsMap={messageStatsMap}
+                  resolvedMessageAttachments={resolvedMessageAttachments}
+                  onRegenerateMessage={regenerateMessage}
+                  sendMessageWithTracking={sendMessageWithTracking}
+                  onSelectBranch={selectBranch}
+                  onStartEditMessage={startEditMessage}
+                  setOptimisticMessage={setOptimisticMessage}
+                  setPreviewFile={handleAttachmentPreview}
+                  settings={settings}
+                  status={status}
+                />
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+        </MessageScrollerProvider>
 
         <ChatInput
           threadId={currentThreadId}

@@ -16,14 +16,17 @@ import { toast } from "sonner";
 import { api } from "@redux/backend/convex/_generated/api";
 import { DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES } from "@redux/types";
 import { Button } from "@redux/ui/components/button";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@redux/ui/components/message-scroller";
 import { useSidebar } from "@redux/ui/components/sidebar";
 import { cn } from "@redux/ui/lib/utils";
 
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from "@/components/ai/conversation";
 import {
   getDeepestLeafForBranch,
   getVisibleBranchMessages,
@@ -276,39 +279,47 @@ function SharedChatContent({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <Conversation className="relative size-full">
-        <ConversationContent className="pt-0 pb-36">
-          <div className="mx-auto w-full max-w-3xl">
-            <div className="flex flex-col gap-8">
+      <MessageScrollerProvider defaultScrollPosition="last-anchor">
+        <MessageScroller className="relative size-full">
+          <MessageScrollerViewport>
+            <MessageScrollerContent className="px-4 pt-0 pb-36">
               {finalMessages.map((message, index) => (
-                <ChatMessageRow
+                <MessageScrollerItem
                   key={message.id}
-                  assistantModelByParentMessageId={
-                    assistantModelByParentMessageId
-                  }
-                  allBranchMessages={allBranchMessages}
-                  index={index}
-                  message={message}
-                  messageAttachmentsByMessageId={messageAttachmentsByMessageId}
-                  messageStats={messageStatsMap.get(message.id)}
-                  onAttachmentPreview={setPreviewFile}
-                  onRegenerateMessage={ignoreMessageAction}
-                  onSelectBranch={handleSelectBranch}
-                  onStartEditMessage={ignoreMessageAction}
-                  readOnly
-                  resolvedMessageAttachments={resolvedMessageAttachments}
-                  status="ready"
-                  totalCount={finalMessages.length}
-                  userMessagePreviewMaxLines={
-                    DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES
-                  }
-                />
+                  messageId={message.id}
+                  scrollAnchor={message.role === "user"}
+                  className="mx-auto w-full max-w-3xl min-w-0"
+                >
+                  <ChatMessageRow
+                    assistantModelByParentMessageId={
+                      assistantModelByParentMessageId
+                    }
+                    allBranchMessages={allBranchMessages}
+                    index={index}
+                    message={message}
+                    messageAttachmentsByMessageId={
+                      messageAttachmentsByMessageId
+                    }
+                    messageStats={messageStatsMap.get(message.id)}
+                    onAttachmentPreview={setPreviewFile}
+                    onRegenerateMessage={ignoreMessageAction}
+                    onSelectBranch={handleSelectBranch}
+                    onStartEditMessage={ignoreMessageAction}
+                    readOnly
+                    resolvedMessageAttachments={resolvedMessageAttachments}
+                    status="ready"
+                    totalCount={finalMessages.length}
+                    userMessagePreviewMaxLines={
+                      DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES
+                    }
+                  />
+                </MessageScrollerItem>
               ))}
-            </div>
-          </div>
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton />
+        </MessageScroller>
+      </MessageScrollerProvider>
 
       <div
         className={cn(

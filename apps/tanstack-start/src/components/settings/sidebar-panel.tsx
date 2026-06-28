@@ -4,6 +4,7 @@ import {
   BookText,
   FileText,
   Keyboard,
+  MessagesSquare,
   Palette,
   Shield,
   SlidersHorizontal,
@@ -25,6 +26,7 @@ export function SettingsSidebarPanel() {
 
   const isGeneralActive = pathname === "/settings" || pathname === "/settings/";
   const isAppearanceActive = pathname.startsWith("/settings/appearance");
+  const isChatActive = pathname.startsWith("/settings/chat");
   const isSecurityActive = pathname.startsWith("/settings/security");
   const isInstructionsActive = pathname.startsWith("/settings/instructions");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
@@ -72,6 +74,16 @@ export function SettingsSidebarPanel() {
             >
               <Palette />
               <span>Appearance</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isChatActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/chat" />}
+            >
+              <MessagesSquare />
+              <span>Chat</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
