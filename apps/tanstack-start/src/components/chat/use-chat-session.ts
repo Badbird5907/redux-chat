@@ -451,6 +451,21 @@ export function useChatSession({
     };
     setTrackedPendingAssistantMessageId(undefined);
     void stop();
+
+    // Immediately mark the assistant message as canceled so the
+    // "Generation stopped by user" card renders without waiting for a
+    // Convex sync (which is blocked by locallyCompletedStreamRef).
+    if (messageId) {
+      const now = Date.now();
+      setMessages((currentMessages) =>
+        currentMessages.map((m) =>
+          m.role === "assistant" && m.id === messageId
+            ? { ...m, canceledAt: now }
+            : m,
+        ),
+      );
+    }
+
     if (!currentThreadId || !messageId) {
       return;
     }
@@ -468,6 +483,7 @@ export function useChatSession({
     activeStreamMessageId,
     currentThreadId,
     pendingAssistantMessageId,
+    setMessages,
     setTrackedPendingAssistantMessageId,
     stop,
   ]);
