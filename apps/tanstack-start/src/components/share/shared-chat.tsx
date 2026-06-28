@@ -280,9 +280,9 @@ function SharedChatContent({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <MessageScrollerProvider defaultScrollPosition="last-anchor">
-        <MessageScroller className="relative size-full">
+        <MessageScroller className="relative size-full" role="log">
           <MessageScrollerViewport>
-            <MessageScrollerContent className="px-4 pt-0 pb-36">
+            <MessageScrollerContent className="overflow-x-hidden px-4 pt-0 pb-36">
               {finalMessages.map((message, index) => (
                 <MessageScrollerItem
                   key={message.id}
