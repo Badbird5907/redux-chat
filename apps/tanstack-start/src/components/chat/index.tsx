@@ -27,7 +27,7 @@ import { FilePreviewDialog } from "@/components/chat/file-preview";
 import {
   CHAT_SCROLL_PREVIOUS_ITEM_PEEK,
   useChatScrollPreferences,
-} from "@/lib/preferences/chat-scroll";
+} from "@/lib/preferences/chat-scroll-store";
 import { ChatMessageList } from "./chat-message-list";
 import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
 import { ChatInput } from "./input";

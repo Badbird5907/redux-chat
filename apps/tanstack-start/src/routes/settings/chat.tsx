@@ -15,7 +15,7 @@ import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mob
 import {
   CHAT_OPEN_POSITION_OPTIONS,
   useChatScrollPreferences,
-} from "@/lib/preferences/chat-scroll";
+} from "@/lib/preferences/chat-scroll-store";
 
 function ChatRouteComponent() {
   const { preferences, setPreference, resetAll, isDefault } =

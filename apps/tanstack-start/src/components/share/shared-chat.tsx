@@ -6,6 +6,7 @@ import type {
   MessageStats,
   ResolvedAttachment,
 } from "@/components/chat/chat-types";
+import type { ComponentProps } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -279,76 +280,130 @@ function SharedChatContent({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <MessageScrollerProvider defaultScrollPosition="last-anchor">
-        <MessageScroller className="relative size-full" role="log">
-          <MessageScrollerViewport>
-            <MessageScrollerContent className="overflow-x-hidden px-4 pt-0 pb-36">
-              {finalMessages.map((message, index) => (
-                <MessageScrollerItem
-                  key={message.id}
-                  messageId={message.id}
-                  scrollAnchor={message.role === "user"}
-                  className="mx-auto w-full max-w-3xl min-w-0"
-                >
-                  <ChatMessageRow
-                    assistantModelByParentMessageId={
-                      assistantModelByParentMessageId
-                    }
-                    allBranchMessages={allBranchMessages}
-                    index={index}
-                    message={message}
-                    messageAttachmentsByMessageId={
-                      messageAttachmentsByMessageId
-                    }
-                    messageStats={messageStatsMap.get(message.id)}
-                    onAttachmentPreview={setPreviewFile}
-                    onRegenerateMessage={ignoreMessageAction}
-                    onSelectBranch={handleSelectBranch}
-                    onStartEditMessage={ignoreMessageAction}
-                    readOnly
-                    resolvedMessageAttachments={resolvedMessageAttachments}
-                    status="ready"
-                    totalCount={finalMessages.length}
-                    userMessagePreviewMaxLines={
-                      DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES
-                    }
-                  />
-                </MessageScrollerItem>
-              ))}
-            </MessageScrollerContent>
-          </MessageScrollerViewport>
-          <MessageScrollerButton />
-        </MessageScroller>
-      </MessageScrollerProvider>
+      <SharedChatMessages
+        finalMessages={finalMessages}
+        assistantModelByParentMessageId={assistantModelByParentMessageId}
+        allBranchMessages={allBranchMessages}
+        messageAttachmentsByMessageId={messageAttachmentsByMessageId}
+        messageStatsMap={messageStatsMap}
+        resolvedMessageAttachments={resolvedMessageAttachments}
+        onAttachmentPreview={setPreviewFile}
+        onIgnoredAction={ignoreMessageAction}
+        onSelectBranch={handleSelectBranch}
+      />
 
-      <div
-        className={cn(
-          "fixed right-0 bottom-6 left-0 z-20 flex justify-center px-4 transition-all duration-300",
-          fixedForkCardDesktopLeft,
-        )}
-      >
-        <div className="bg-card border-border flex w-full max-w-3xl items-center justify-between gap-4 rounded-3xl border px-4 py-3 shadow-lg">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Fork this shared chat</p>
-            <p className="text-muted-foreground truncate text-xs">
-              Continue from this thread in your own workspace.
-            </p>
-          </div>
-          <Button
-            className="shrink-0"
-            onClick={() => void handleFork()}
-            disabled={forking}
-          >
-            <GitFork className="size-4" />
-            {forking ? "Forking..." : "Fork chat"}
-          </Button>
-        </div>
-      </div>
+      <SharedChatForkBar
+        className={fixedForkCardDesktopLeft}
+        forking={forking}
+        onFork={handleFork}
+      />
 
       <FilePreviewDialog
         file={previewFile}
         onClose={() => setPreviewFile(null)}
       />
+    </div>
+  );
+}
+
+type ChatMessageRowProps = ComponentProps<typeof ChatMessageRow>;
+
+function SharedChatMessages({
+  finalMessages,
+  assistantModelByParentMessageId,
+  allBranchMessages,
+  messageAttachmentsByMessageId,
+  messageStatsMap,
+  resolvedMessageAttachments,
+  onAttachmentPreview,
+  onIgnoredAction,
+  onSelectBranch,
+}: {
+  finalMessages: ChatMessageWithThreadMetadata[];
+  assistantModelByParentMessageId: Map<string, string>;
+  allBranchMessages: ChatMessageWithThreadMetadata[];
+  messageAttachmentsByMessageId: Map<string, MessageAttachmentSummary[]>;
+  messageStatsMap: Map<string, MessageStats>;
+  resolvedMessageAttachments: Record<string, ResolvedAttachment>;
+  onAttachmentPreview: ChatMessageRowProps["onAttachmentPreview"];
+  onIgnoredAction: () => void;
+  onSelectBranch: ChatMessageRowProps["onSelectBranch"];
+}) {
+  return (
+    <MessageScrollerProvider defaultScrollPosition="last-anchor">
+      <MessageScroller className="relative size-full" role="log">
+        <MessageScrollerViewport>
+          <MessageScrollerContent className="overflow-x-hidden px-4 pt-0 pb-36">
+            {finalMessages.map((message, index) => (
+              <MessageScrollerItem
+                key={message.id}
+                messageId={message.id}
+                scrollAnchor={message.role === "user"}
+                className="mx-auto w-full max-w-3xl min-w-0"
+              >
+                <ChatMessageRow
+                  assistantModelByParentMessageId={
+                    assistantModelByParentMessageId
+                  }
+                  allBranchMessages={allBranchMessages}
+                  index={index}
+                  message={message}
+                  messageAttachmentsByMessageId={messageAttachmentsByMessageId}
+                  messageStats={messageStatsMap.get(message.id)}
+                  onAttachmentPreview={onAttachmentPreview}
+                  onRegenerateMessage={onIgnoredAction}
+                  onSelectBranch={onSelectBranch}
+                  onStartEditMessage={onIgnoredAction}
+                  readOnly
+                  resolvedMessageAttachments={resolvedMessageAttachments}
+                  status="ready"
+                  totalCount={finalMessages.length}
+                  userMessagePreviewMaxLines={
+                    DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES
+                  }
+                />
+              </MessageScrollerItem>
+            ))}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+        <MessageScrollerButton />
+      </MessageScroller>
+    </MessageScrollerProvider>
+  );
+}
+
+function SharedChatForkBar({
+  className,
+  forking,
+  onFork,
+}: {
+  className: string;
+  forking: boolean;
+  onFork: () => Promise<void>;
+}) {
+  return (
+    <div
+      className={cn(
+        "fixed right-0 bottom-6 left-0 z-20 flex justify-center px-4 transition-all duration-300",
+        className,
+      )}
+    >
+      <div className="bg-card border-border flex w-full max-w-3xl items-center justify-between gap-4 rounded-3xl border px-4 py-3 shadow-lg">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Fork this shared chat</p>
+          <p className="text-muted-foreground truncate text-xs">
+            Continue from this thread in your own workspace.
+          </p>
+        </div>
+        <Button
+          className="shrink-0"
+          onClick={() => void onFork()}
+          disabled={forking}
+        >
+          <GitFork className="size-4" />
+          {forking ? "Forking..." : "Fork chat"}
+        </Button>
+      </div>
     </div>
   );
 }
