@@ -57,6 +57,16 @@ export const env = createEnv({
       process.env.SILO_CDN ??
       process.env.VITE_SILO_CDN ??
       import.meta.env.VITE_SILO_CDN,
+    // The Convex URLs are baked per-deployment at build time by
+    // `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` (see
+    // scripts/ci/vercel-deploy.sh). Prefer those build-time values so a stale
+    // Vercel *runtime* env var (shared across all preview branches) can't point
+    // a preview's server-side auth handler at the production Convex backend,
+    // which silently disables the Better Auth oAuthProxy and breaks OAuth login.
+    VITE_CONVEX_URL:
+      import.meta.env.VITE_CONVEX_URL ?? process.env.VITE_CONVEX_URL,
+    VITE_CONVEX_SITE_URL:
+      import.meta.env.VITE_CONVEX_SITE_URL ?? process.env.VITE_CONVEX_SITE_URL,
   },
   skipValidation: true,
 });
