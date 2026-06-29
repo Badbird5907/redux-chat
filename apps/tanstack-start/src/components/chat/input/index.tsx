@@ -148,8 +148,22 @@ export function ChatInput({
   >(() => Promise.resolve(false));
 
   const editingMessageIdRef = useRef<string | undefined>(undefined);
+  const savedDraftRef = useRef<{
+    text: string;
+    attachments: DraftAttachment[];
+  } | null>(null);
+  const inputValueRef = useRef(input);
+  const attachmentsValueRef = useRef(attachments);
   const setInputRef = useRef(setInput);
   const setAttachmentsRef = useRef(setAttachments);
+
+  useEffect(() => {
+    inputValueRef.current = input;
+  }, [input]);
+
+  useEffect(() => {
+    attachmentsValueRef.current = attachments;
+  }, [attachments]);
 
   useEffect(() => {
     setInputRef.current = setInput;
@@ -160,6 +174,11 @@ export function ChatInput({
     if (!editMessage || editingMessageIdRef.current === editMessage.id) {
       return;
     }
+
+    savedDraftRef.current ??= {
+      text: inputValueRef.current,
+      attachments: [...attachmentsValueRef.current],
+    };
 
     editingMessageIdRef.current = editMessage.id;
     setInputRef.current(() =>
@@ -181,12 +200,21 @@ export function ChatInput({
     );
   }, [editMessage]);
 
+  const restoreSavedDraft = useCallback(() => {
+    if (savedDraftRef.current) {
+      setInput(savedDraftRef.current.text);
+      setAttachments(savedDraftRef.current.attachments);
+      savedDraftRef.current = null;
+    }
+  }, [setInput, setAttachments]);
+
   useEffect(() => {
     if (editMessage) {
       return;
     }
 
     editingMessageIdRef.current = undefined;
+    savedDraftRef.current = null;
   }, [editMessage]);
 
   useEffect(() => {
@@ -394,6 +422,15 @@ export function ChatInput({
   useAppHotkey("chat.uploadFile", () => {
     openFilePicker();
   });
+
+  useAppHotkey(
+    "chat.cancelEdit",
+    () => {
+      restoreSavedDraft();
+      onCancelEdit?.();
+    },
+    { enabled: !!editMessage },
+  );
 
   const handleRemoveAttachment = useCallback(
     async (attachmentId: string) => {
@@ -921,6 +958,7 @@ export function ChatInput({
             url: attachment.url,
           })),
         });
+        restoreSavedDraft();
         onCancelEdit?.();
       } else {
         const success = await submitNewUserPayload(
@@ -931,9 +969,9 @@ export function ChatInput({
         if (!success) {
           return;
         }
-      }
 
-      clearDraft();
+        clearDraft();
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to send message",
@@ -954,6 +992,7 @@ export function ChatInput({
     isExpanded,
     onCancelEdit,
     onSubmitEdit,
+    restoreSavedDraft,
     setAttachments,
     setIsExpanded,
     settingsReady,
@@ -1109,7 +1148,7 @@ export function ChatInput({
                   type="button"
                   className="hover:bg-muted rounded p-1 transition-colors"
                   onClick={() => {
-                    clearDraft();
+                    restoreSavedDraft();
                     onCancelEdit?.();
                   }}
                   title="Cancel edit"
