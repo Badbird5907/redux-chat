@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
 import { Switch } from "@redux/ui/components/switch";
 
+import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import McpLogo from "@/components/logos/mcp";
 import { useQuery } from "@/lib/hooks/convex";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
@@ -213,9 +214,12 @@ export function McpSettingsManager() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
-            MCP Servers
-          </h1>
+          <div className="flex items-start gap-2">
+            <MobileSidebarTrigger className="mt-1" />
+            <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+              MCP Servers
+            </h1>
+          </div>
           <p className="text-muted-foreground max-w-3xl text-sm">
             Connect external tools and data sources to use in your chats.
           </p>

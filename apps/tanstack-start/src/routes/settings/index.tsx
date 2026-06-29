@@ -24,6 +24,7 @@ import { CreditBalancePanel } from "@/components/billing/credit-balance-panel";
 import { CreditGrantHistoryDialog } from "@/components/billing/credit-grant-history";
 import { PlanTierMarketingCard } from "@/components/billing/plan-tier-marketing-card";
 import { formatStripeRecurringPrice } from "@/components/billing/plan-tier-marketing-utils";
+import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
@@ -671,6 +672,7 @@ function RouteComponent() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-16 md:gap-14">
       <header className="flex flex-row items-center justify-between gap-3 pb-2 sm:gap-8">
         <div className="flex max-w-xl min-w-0 flex-1 items-center gap-2">
+          <MobileSidebarTrigger />
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight md:text-[1.65rem]">
             Billing
           </h1>

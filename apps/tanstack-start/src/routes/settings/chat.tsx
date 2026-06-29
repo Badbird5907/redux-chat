@@ -11,6 +11,7 @@ import {
 } from "@redux/ui/components/select";
 import { Switch } from "@redux/ui/components/switch";
 
+import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import {
   CHAT_OPEN_POSITION_OPTIONS,
   useChatScrollPreferences,
@@ -28,6 +29,7 @@ function ChatRouteComponent() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <div className="flex flex-row flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
+          <MobileSidebarTrigger />
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
             Chat
           </h1>
