@@ -73,6 +73,7 @@ export function ChatInput({
   onCancelEdit,
   onSubmitEdit,
   onStopGeneration,
+  aboveComposer,
 }: ChatInputProps) {
   const {
     text: input,
@@ -1043,10 +1044,15 @@ export function ChatInput({
       >
         <div
           className={cn(
-            "flex w-full flex-col transition-all duration-300",
+            "relative flex w-full flex-col transition-all duration-300",
             isExpanded ? "h-full" : "max-w-3xl",
           )}
         >
+          {aboveComposer && !isExpanded ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-full mb-3 flex justify-center">
+              {aboveComposer}
+            </div>
+          ) : null}
           {!editMessage && queue.length > 0 ? (
             <MessageQueueCard
               onDiscard={(message) => void discardQueuedMessage(message)}

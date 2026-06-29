@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import type { ReactNode } from "react";
 
 import type { MessageSettings, MessageSettingsPatch } from "@redux/types";
 
@@ -54,6 +55,12 @@ export interface ChatInputProps {
     }[];
     text: string;
   }) => Promise<void>;
+  /**
+   * Floating content rendered just above the composer card (e.g. a
+   * scroll-to-latest button). Positioned absolutely so it does not take up
+   * space in the composer flow.
+   */
+  aboveComposer?: ReactNode;
 }
 
 export interface PreviewableFile {
