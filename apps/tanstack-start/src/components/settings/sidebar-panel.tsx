@@ -4,6 +4,7 @@ import {
   BookText,
   FileText,
   Keyboard,
+  MessageSquareHeart,
   MessagesSquare,
   Palette,
   Shield,
@@ -32,6 +33,7 @@ export function SettingsSidebarPanel() {
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
   const isAttachmentsActive = pathname.startsWith("/settings/attachments");
   const isMcpActive = pathname.startsWith("/settings/mcp");
+  const isSupportActive = pathname.startsWith("/settings/support");
 
   return (
     <AppSidebar
@@ -124,6 +126,16 @@ export function SettingsSidebarPanel() {
             >
               <FileText />
               <span>Attachments</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isSupportActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/support" />}
+            >
+              <MessageSquareHeart />
+              <span>Support</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

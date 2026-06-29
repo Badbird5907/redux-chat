@@ -42,6 +42,10 @@ export const env = createEnv({
       .default(40000),
     AA_API_KEY: z.string().min(1),
     SENTRY_AUTH_TOKEN: z.string().min(1),
+    FEATUREBASE_JWT_SECRET: z.preprocess(
+      emptyToUndefined,
+      z.string().min(1).optional(),
+    ),
   },
   client: {
     VITE_CONVEX_URL: z.string().min(1),

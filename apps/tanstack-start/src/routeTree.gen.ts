@@ -27,6 +27,8 @@ import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsChatRouteImport } from './routes/settings/chat'
 import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsSupportRouteImport } from './routes/settings/support'
+import { Route as ApiSsoFeaturebaseRouteImport } from './routes/api/sso/featurebase'
 import { Route as RedeemCodeRouteImport } from './routes/redeem.$code'
 import { Route as IngestSplatRouteImport } from './routes/ingest/$'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
@@ -138,6 +140,16 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsSupportRoute = SettingsSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const ApiSsoFeaturebaseRoute = ApiSsoFeaturebaseRouteImport.update({
+  id: '/api/sso/featurebase',
+  path: '/api/sso/featurebase',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const RedeemCodeRoute = RedeemCodeRouteImport.update({
   id: '/redeem/$code',
@@ -275,6 +287,8 @@ export interface FileRoutesByFullPath {
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
+  '/settings/support': typeof SettingsSupportRoute
+  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/admin/': typeof AdminIndexRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -311,6 +325,8 @@ export interface FileRoutesByTo {
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
+  '/settings/support': typeof SettingsSupportRoute
+  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/': typeof AppIndexRoute
   '/admin': typeof AdminIndexRoute
   '/logos': typeof LogosIndexRoute
@@ -354,6 +370,8 @@ export interface FileRoutesById {
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
+  '/settings/support': typeof SettingsSupportRoute
+  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/logos/': typeof LogosIndexRoute
@@ -398,6 +416,8 @@ export interface FileRouteTypes {
     | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/security'
+    | '/settings/support'
+    | '/api/sso/featurebase'
     | '/admin/'
     | '/logos/'
     | '/settings/'
@@ -434,6 +454,8 @@ export interface FileRouteTypes {
     | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/security'
+    | '/settings/support'
+    | '/api/sso/featurebase'
     | '/'
     | '/admin'
     | '/logos'
@@ -476,6 +498,8 @@ export interface FileRouteTypes {
     | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/security'
+    | '/settings/support'
+    | '/api/sso/featurebase'
     | '/_app/'
     | '/admin/'
     | '/logos/'
@@ -510,6 +534,7 @@ export interface RootRouteChildren {
   TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
+  ApiSsoFeaturebaseRoute: typeof ApiSsoFeaturebaseRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
@@ -641,6 +666,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/appearance'
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
+    }
+    '/settings/support': {
+      id: '/settings/support'
+      path: '/support'
+      fullPath: '/settings/support'
+      preLoaderRoute: typeof SettingsSupportRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/api/sso/featurebase': {
+      id: '/api/sso/featurebase'
+      path: '/api/sso/featurebase'
+      fullPath: '/api/sso/featurebase'
+      preLoaderRoute: typeof ApiSsoFeaturebaseRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/redeem/$code': {
       id: '/redeem/$code'
@@ -883,6 +922,7 @@ interface SettingsRouteChildren {
   SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsMcpRoute: typeof SettingsMcpRoute
   SettingsSecurityRoute: typeof SettingsSecurityRoute
+  SettingsSupportRoute: typeof SettingsSupportRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -894,6 +934,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsMcpRoute: SettingsMcpRoute,
   SettingsSecurityRoute: SettingsSecurityRoute,
+  SettingsSupportRoute: SettingsSupportRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
@@ -916,6 +957,7 @@ const rootRouteChildren: RootRouteChildren = {
   TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiWebhookStripeRoute: ApiWebhookStripeRoute,
+  ApiSsoFeaturebaseRoute: ApiSsoFeaturebaseRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }
