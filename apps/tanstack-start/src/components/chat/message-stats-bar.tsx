@@ -1,9 +1,20 @@
 "use client";
 
 import { memo } from "react";
-import { ClockIcon, ImageIcon, WholeWord, ZapIcon } from "lucide-react";
+import {
+  ClockIcon,
+  ImageIcon,
+  InfoIcon,
+  WholeWord,
+  ZapIcon,
+} from "lucide-react";
 
 import { getModelDisplayName, isImageOutputModel } from "@redux/shared/models";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@redux/ui/components/popover";
 import { cn } from "@redux/ui/lib/utils";
 
 import type { MessageStats } from "./chat-types";
@@ -82,33 +93,81 @@ export const MessageStatsBar = memo(function MessageStatsBar({
       )}
       {generationStats && isImageModel ? (
         <>
-          <span className="flex items-center gap-1">
+          <span className="hidden items-center gap-1 sm:flex">
             <ClockIcon className="size-4" />
             Generated in {formatDuration(generationStats.totalDurationMs)}
           </span>
 
-          <span className="flex items-center gap-1">
+          <span className="hidden items-center gap-1 sm:flex">
             <ImageIcon className="size-4" />1 image
           </span>
+
+          <Popover>
+            <PopoverTrigger className="text-muted-foreground flex items-center sm:hidden">
+              <InfoIcon className="size-4" />
+            </PopoverTrigger>
+            <PopoverContent
+              className="flex w-auto flex-col gap-2 p-3 text-xs"
+              side="top"
+              align="start"
+            >
+              <span className="flex items-center gap-1">
+                <ClockIcon className="size-4" />
+                Generated in {formatDuration(generationStats.totalDurationMs)}
+              </span>
+              <span className="flex items-center gap-1">
+                <ImageIcon className="size-4" />1 image
+              </span>
+            </PopoverContent>
+          </Popover>
         </>
       ) : generationStats ? (
         <>
-          <span className="flex items-center gap-1">
+          <span className="hidden items-center gap-1 sm:flex">
             <ZapIcon className="size-4" />
             {Math.round(generationStats.tokensPerSecond)} tok/sec
           </span>
 
-          <span className="flex items-center gap-1">
+          <span className="hidden items-center gap-1 sm:flex">
             <ClockIcon className="size-4" />
             TTFT: {(generationStats.timeToFirstTokenMs / 1000).toFixed(2)} sec
           </span>
 
           {usage && (
-            <span className="flex items-center gap-1">
+            <span className="hidden items-center gap-1 sm:flex">
               <WholeWord className="size-4" />
               {usage.responseTokens} tokens
             </span>
           )}
+
+          <Popover>
+            <PopoverTrigger className="text-muted-foreground flex items-center sm:hidden">
+              <InfoIcon className="size-4" />
+            </PopoverTrigger>
+            <PopoverContent
+              className="flex w-auto flex-col gap-2 p-3 text-xs"
+              side="top"
+              align="start"
+            >
+              <span className="flex items-center gap-1">
+                <ZapIcon className="size-4" />
+                {Math.round(generationStats.tokensPerSecond)} tok/sec
+              </span>
+              <span className="flex items-center gap-1">
+                <ClockIcon className="size-4" />
+                TTFT: {(generationStats.timeToFirstTokenMs / 1000).toFixed(
+                  2,
+                )}{" "}
+                sec
+              </span>
+              {usage && (
+                <span className="flex items-center gap-1">
+                  <WholeWord className="size-4" />
+                  {usage.responseTokens} tokens
+                </span>
+              )}
+            </PopoverContent>
+          </Popover>
         </>
       ) : null}
     </div>
