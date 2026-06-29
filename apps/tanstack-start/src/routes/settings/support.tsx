@@ -11,8 +11,8 @@ import {
 } from "@redux/ui/components/card";
 
 import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
-import { getFeaturebaseSsoUrl } from "@/server/featurebase-sso";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
+import { getFeaturebaseSsoUrl } from "@/server/featurebase-sso";
 
 function SupportRouteComponent() {
   const [isLoading, setIsLoading] = useReducerState(false);

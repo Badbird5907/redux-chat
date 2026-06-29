@@ -18,10 +18,7 @@ function base64UrlEncode(data: string): string {
     .replace(/=+$/, "");
 }
 
-function signJwt(
-  payload: Record<string, unknown>,
-  secret: string,
-): string {
+function signJwt(payload: Record<string, unknown>, secret: string): string {
   const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const body = base64UrlEncode(JSON.stringify(payload));
   const signature = crypto
