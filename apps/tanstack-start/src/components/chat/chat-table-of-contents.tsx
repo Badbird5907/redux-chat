@@ -15,12 +15,6 @@ import { cn } from "@redux/ui/lib/utils";
 
 import type { ChatTableOfContentsItem } from "./chat-table-of-contents-utils";
 
-const ROLE_LABEL: Record<ChatTableOfContentsItem["role"], string> = {
-  user: "You",
-  assistant: "Assistant",
-  system: "System",
-};
-
 function ChatTableOfContentsRow({
   item,
   index,
@@ -51,27 +45,17 @@ function ChatTableOfContentsRow({
       >
         {index + 1}
       </span>
-      <span className="flex min-w-0 flex-col">
-        <span
-          className={cn(
-            "text-[10px] font-medium tracking-wide uppercase",
-            isActive ? "text-foreground/70" : "text-muted-foreground/50",
-          )}
-        >
-          {ROLE_LABEL[item.role]}
-        </span>
-        <span
-          className={cn(
-            "truncate text-xs",
-            isActive
-              ? "text-foreground"
-              : isVisible
-                ? "text-foreground/80"
-                : "text-muted-foreground",
-          )}
-        >
-          {item.label}
-        </span>
+      <span
+        className={cn(
+          "truncate text-xs",
+          isActive
+            ? "text-foreground"
+            : isVisible
+              ? "text-foreground/80"
+              : "text-muted-foreground",
+        )}
+      >
+        {item.label}
       </span>
     </button>
   );
@@ -92,7 +76,15 @@ export function ChatTableOfContents({
     [visibleMessageIds],
   );
 
-  const activeId = currentAnchorId ?? visibleMessageIds[0] ?? null;
+  const itemIds = useMemo(
+    () => new Set(items.map((item) => item.id)),
+    [items],
+  );
+
+  const activeId =
+    currentAnchorId ??
+    visibleMessageIds.find((id) => itemIds.has(id)) ??
+    null;
 
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current !== null) {
@@ -126,7 +118,7 @@ export function ChatTableOfContents({
 
   return (
     <div className="pointer-events-none absolute top-1/2 right-2 z-20 hidden -translate-y-1/2 lg:block">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger
           render={
             <button
@@ -135,8 +127,6 @@ export function ChatTableOfContents({
               className="pointer-events-auto flex flex-col items-end gap-1.5 rounded-md p-2 outline-hidden"
               onMouseEnter={openNow}
               onMouseLeave={scheduleClose}
-              onFocus={openNow}
-              onBlur={scheduleClose}
             />
           }
         >
