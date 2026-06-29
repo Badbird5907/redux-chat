@@ -18,7 +18,7 @@ import {
 } from "@/lib/preferences/chat-scroll-store";
 
 function ChatRouteComponent() {
-  const { preferences, setPreference, resetAll, isDefault } =
+  const { preferences, setPreference, resetAll, isDefault, isReady } =
     useChatScrollPreferences();
 
   const openPositionOption = CHAT_OPEN_POSITION_OPTIONS.find(
@@ -37,7 +37,7 @@ function ChatRouteComponent() {
         <Button
           variant="outline"
           size="sm"
-          disabled={isDefault}
+          disabled={isDefault || !isReady}
           onClick={resetAll}
         >
           <RotateCcw className="size-4" />
@@ -50,7 +50,7 @@ function ChatRouteComponent() {
           <h2 className="text-sm font-semibold">Scrolling</h2>
           <p className="text-muted-foreground mt-1 text-sm">
             Control how the conversation scrolls while you read and as new
-            replies arrive. These settings are saved on this device.
+            replies arrive. These settings sync to your account.
           </p>
         </div>
 
@@ -65,6 +65,7 @@ function ChatRouteComponent() {
             </div>
             <Switch
               checked={preferences.autoScroll}
+              disabled={!isReady}
               onCheckedChange={(checked) =>
                 setPreference("autoScroll", checked)
               }
@@ -82,6 +83,7 @@ function ChatRouteComponent() {
             </div>
             <Select
               value={preferences.openPosition}
+              disabled={!isReady}
               onValueChange={(value) =>
                 setPreference(
                   "openPosition",
@@ -114,6 +116,7 @@ function ChatRouteComponent() {
             </div>
             <Switch
               checked={preferences.keepPreviousVisible}
+              disabled={!isReady}
               onCheckedChange={(checked) =>
                 setPreference("keepPreviousVisible", checked)
               }

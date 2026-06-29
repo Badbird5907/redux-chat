@@ -55,22 +55,28 @@ export interface ChatScrollPreferencesContextValue {
   ) => void;
   resetAll: () => void;
   isDefault: boolean;
+  /** True once preferences have been resolved from storage/backend. */
+  isReady: boolean;
 }
 
 export const ChatScrollPreferencesContext =
   createContext<ChatScrollPreferencesContextValue | null>(null);
 
-const STORAGE_KEY = "redux-chat:chat-scroll-preferences:v1";
+/**
+ * Device-local cache of the last-known preferences. Used to paint the correct
+ * scroll behavior synchronously on first render, before the Convex query (the
+ * source of truth) resolves. This avoids a flash where a thread opens at the
+ * wrong position for returning readers.
+ */
+const CACHE_KEY = "redux-chat:chat-scroll-preferences:v1";
+
 const OPEN_POSITION_VALUES = new Set<ChatOpenPosition>([
   "last-anchor",
   "end",
   "start",
 ]);
 
-const preferenceListeners = new Set<() => void>();
-let preferenceSnapshot = DEFAULT_CHAT_SCROLL_PREFERENCES;
-
-function sanitizePreferences(value: unknown): ChatScrollPreferences {
+export function sanitizePreferences(value: unknown): ChatScrollPreferences {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
     return DEFAULT_CHAT_SCROLL_PREFERENCES;
   }
@@ -102,12 +108,12 @@ export function isDefaultPreferences(preferences: ChatScrollPreferences) {
   );
 }
 
-function readStoredPreferences(): ChatScrollPreferences {
+export function readCachedPreferences(): ChatScrollPreferences {
   if (typeof window === "undefined") {
     return DEFAULT_CHAT_SCROLL_PREFERENCES;
   }
 
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw = window.localStorage.getItem(CACHE_KEY);
   if (!raw) {
     return DEFAULT_CHAT_SCROLL_PREFERENCES;
   }
@@ -119,81 +125,20 @@ function readStoredPreferences(): ChatScrollPreferences {
   }
 }
 
-function persistPreferences(preferences: ChatScrollPreferences) {
+export function writeCachedPreferences(preferences: ChatScrollPreferences) {
   if (typeof window === "undefined") {
     return;
   }
 
-  if (isDefaultPreferences(preferences)) {
-    window.localStorage.removeItem(STORAGE_KEY);
-    return;
-  }
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
-}
-
-function emitPreferenceChange() {
-  preferenceListeners.forEach((listener) => listener());
-}
-
-function syncPreferenceSnapshot() {
-  preferenceSnapshot = readStoredPreferences();
-}
-
-export function ensurePreferenceSnapshotInitialized() {
-  if (typeof window !== "undefined" && preferenceListeners.size === 0) {
-    syncPreferenceSnapshot();
-  }
-}
-
-export function getPreferenceSnapshot() {
-  return preferenceSnapshot;
-}
-
-export function getServerPreferenceSnapshot() {
-  return DEFAULT_CHAT_SCROLL_PREFERENCES;
-}
-
-export function subscribeToPreferences(listener: () => void) {
-  preferenceListeners.add(listener);
-
-  if (typeof window === "undefined") {
-    return () => {
-      preferenceListeners.delete(listener);
-    };
-  }
-
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key !== STORAGE_KEY) {
-      return;
+  try {
+    if (isDefaultPreferences(preferences)) {
+      window.localStorage.removeItem(CACHE_KEY);
+    } else {
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify(preferences));
     }
-
-    syncPreferenceSnapshot();
-    listener();
-  };
-
-  window.addEventListener("storage", handleStorage);
-
-  return () => {
-    preferenceListeners.delete(listener);
-    window.removeEventListener("storage", handleStorage);
-  };
-}
-
-export function setPreferenceValue<Key extends keyof ChatScrollPreferences>(
-  key: Key,
-  value: ChatScrollPreferences[Key],
-) {
-  const next = { ...readStoredPreferences(), [key]: value };
-  persistPreferences(next);
-  preferenceSnapshot = next;
-  emitPreferenceChange();
-}
-
-export function resetPreferences() {
-  persistPreferences(DEFAULT_CHAT_SCROLL_PREFERENCES);
-  preferenceSnapshot = DEFAULT_CHAT_SCROLL_PREFERENCES;
-  emitPreferenceChange();
+  } catch {
+    // Best effort cache for first paint only.
+  }
 }
 
 export function useChatScrollPreferences() {
