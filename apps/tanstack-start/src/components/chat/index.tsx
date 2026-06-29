@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -29,6 +30,8 @@ import {
   useChatScrollPreferences,
 } from "@/lib/preferences/chat-scroll-store";
 import { ChatMessageList } from "./chat-message-list";
+import { ChatTableOfContents } from "./chat-table-of-contents";
+import { buildChatTableOfContents } from "./chat-table-of-contents-utils";
 import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
 import { ChatInput } from "./input";
 import { ThreadPrintExport } from "./thread-export";
@@ -111,6 +114,11 @@ export function Chat({
     setModel,
     updateSettings,
   } = useChatSession({ initialThreadId, chatProjectId, preload });
+
+  const tocItems = useMemo(
+    () => buildChatTableOfContents(finalMessages),
+    [finalMessages],
+  );
 
   const handleAttachmentPreview = useCallback(
     (file: PreviewableFile | null) => {
@@ -300,6 +308,7 @@ export function Chat({
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton />
+            <ChatTableOfContents items={tocItems} />
           </MessageScroller>
         </MessageScrollerProvider>
 

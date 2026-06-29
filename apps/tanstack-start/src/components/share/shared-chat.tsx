@@ -34,6 +34,8 @@ import {
 } from "@/components/chat/chat-branching";
 import { ChatMessageRow } from "@/components/chat/chat-message-row";
 import { toChatUIMessage } from "@/components/chat/chat-message-utils";
+import { ChatTableOfContents } from "@/components/chat/chat-table-of-contents";
+import { buildChatTableOfContents } from "@/components/chat/chat-table-of-contents-utils";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import { resolvePublicShareAttachments } from "@/server/attachments";
@@ -329,6 +331,11 @@ function SharedChatMessages({
   onIgnoredAction: () => void;
   onSelectBranch: ChatMessageRowProps["onSelectBranch"];
 }) {
+  const tocItems = useMemo(
+    () => buildChatTableOfContents(finalMessages),
+    [finalMessages],
+  );
+
   return (
     <MessageScrollerProvider defaultScrollPosition="last-anchor">
       <MessageScroller className="relative size-full" role="log">
@@ -367,6 +374,7 @@ function SharedChatMessages({
           </MessageScrollerContent>
         </MessageScrollerViewport>
         <MessageScrollerButton />
+        <ChatTableOfContents items={tocItems} />
       </MessageScroller>
     </MessageScrollerProvider>
   );
