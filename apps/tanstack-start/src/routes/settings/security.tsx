@@ -26,7 +26,7 @@ import { Skeleton } from "@redux/ui/components/skeleton";
 import GithubIcon from "@redux/ui/icons/github";
 import GoogleIcon from "@redux/ui/icons/google";
 
-import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
+import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import { authClient } from "@/lib/auth/client";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
@@ -303,7 +303,7 @@ function SecurityRouteComponent() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header className="border-border border-b pb-6">
         <div className="flex items-start gap-2">
-          <SettingsMobileSidebarTrigger className="mt-0.5" />
+          <MobileSidebarTrigger className="mt-0.5" />
           <div className="min-w-0">
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Security

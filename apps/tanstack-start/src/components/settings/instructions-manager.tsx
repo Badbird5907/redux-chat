@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
 import { Textarea } from "@redux/ui/components/textarea";
 
-import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
+import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import { useInstructions } from "@/lib/hooks/use-instructions";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
@@ -214,7 +214,7 @@ export function InstructionsManager() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-col gap-2">
         <div className="flex items-start gap-2">
-          <SettingsMobileSidebarTrigger className="mt-1" />
+          <MobileSidebarTrigger className="mt-1" />
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
             Instructions
           </h1>

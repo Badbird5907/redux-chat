@@ -11,8 +11,8 @@ import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
 import { Switch } from "@redux/ui/components/switch";
 
+import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import McpLogo from "@/components/logos/mcp";
-import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
@@ -215,7 +215,7 @@ export function McpSettingsManager() {
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-start gap-2">
-            <SettingsMobileSidebarTrigger className="mt-1" />
+            <MobileSidebarTrigger className="mt-1" />
             <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
               MCP Servers
             </h1>

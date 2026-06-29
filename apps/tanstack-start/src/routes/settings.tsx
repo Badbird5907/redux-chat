@@ -32,7 +32,9 @@ function SettingsLayout() {
       <SettingsSidebarPanel />
       <main className="bg-muted/35 dark:bg-background flex h-screen w-screen flex-col p-2">
         <div className="bg-page-card border-border/60 relative flex-1 overflow-hidden rounded-4xl border">
-          <TopLeftActions />
+          <div className="max-md:hidden">
+            <TopLeftActions />
+          </div>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_58%)]" />
           <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_top_right,hsl(var(--muted-foreground)/0.12),transparent_70%)]" />
           <div className="relative h-full overflow-y-auto px-4 py-6 md:px-8 md:py-8">
