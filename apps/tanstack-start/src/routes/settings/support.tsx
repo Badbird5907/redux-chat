@@ -10,7 +10,6 @@ import {
   CardTitle,
 } from "@redux/ui/components/card";
 
-import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { getFeaturebaseSsoUrl } from "@/server/featurebase-sso";
 
@@ -31,7 +30,6 @@ function SupportRouteComponent() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <div className="flex flex-row flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
-          <SettingsMobileSidebarTrigger />
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
             Support
           </h1>

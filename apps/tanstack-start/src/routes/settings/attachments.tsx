@@ -16,7 +16,6 @@ import { Button } from "@redux/ui/components/button";
 import { Card, CardContent } from "@redux/ui/components/card";
 import { DataTable } from "@redux/ui/components/data-table";
 
-import { SettingsMobileSidebarTrigger } from "@/components/settings/settings-mobile-sidebar-trigger";
 import { deleteSettingsAttachments } from "@/server/attachments";
 
 const PAGE_SIZE = 25;
@@ -282,7 +281,6 @@ function AttachmentsRouteComponent() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-col gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <SettingsMobileSidebarTrigger />
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
             Attachments
           </h1>
