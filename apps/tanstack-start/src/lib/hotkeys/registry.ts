@@ -67,6 +67,12 @@ export const appHotkeyRegistry = defineAppHotkeys({
       requireReset: true,
     },
   },
+  "chat.cancelEdit": {
+    label: "Cancel edit",
+    description: "Cancel editing the current message and restore the draft.",
+    category: "Chat",
+    defaultHotkey: "Escape",
+  },
 });
 
 export type AppHotkeyId = keyof typeof appHotkeyRegistry;
