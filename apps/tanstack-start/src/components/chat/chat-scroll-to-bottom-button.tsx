@@ -25,8 +25,7 @@ export function ChatScrollToBottomButton() {
       variant="secondary"
       size="icon-sm"
       aria-label="Scroll to latest"
-      aria-hidden={!visible}
-      tabIndex={visible ? 0 : -1}
+      inert={!visible}
       onClick={() => scrollToEnd({ behavior: "smooth" })}
       className={cn(
         "border-border bg-background text-foreground hover:bg-muted hover:text-foreground rounded-full shadow-md transition-[translate,scale,opacity] duration-200",

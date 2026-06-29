@@ -38,6 +38,7 @@ import { ChatTableOfContents } from "@/components/chat/chat-table-of-contents";
 import { buildChatTableOfContents } from "@/components/chat/chat-table-of-contents-utils";
 import { useSignedCid } from "@/components/chat/client-id";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
+import { CHAT_SCROLL_EDGE_THRESHOLD } from "@/lib/preferences/chat-scroll-store";
 import { resolvePublicShareAttachments } from "@/server/attachments";
 
 type PublicSharePayload =
@@ -337,7 +338,10 @@ function SharedChatMessages({
   );
 
   return (
-    <MessageScrollerProvider defaultScrollPosition="last-anchor">
+    <MessageScrollerProvider
+      defaultScrollPosition="last-anchor"
+      scrollEdgeThreshold={CHAT_SCROLL_EDGE_THRESHOLD}
+    >
       <MessageScroller className="relative size-full" role="log">
         <MessageScrollerViewport>
           <MessageScrollerContent className="overflow-x-hidden px-4 pt-0 pb-36">

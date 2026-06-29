@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
   useMessageScroller,
+  useMessageScrollerScrollable,
   useMessageScrollerVisibility,
 } from "@redux/ui/components/message-scroller";
 import {
@@ -67,6 +68,7 @@ export function ChatTableOfContents({
   items: ChatTableOfContentsItem[];
 }) {
   const { currentAnchorId, visibleMessageIds } = useMessageScrollerVisibility();
+  const { end: canScrollToEnd } = useMessageScrollerScrollable();
   const { scrollToMessage } = useMessageScroller();
   const [open, setOpen] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
@@ -80,12 +82,13 @@ export function ChatTableOfContents({
 
   // The scroller reports `currentAnchorId` as the turn whose top has reached the
   // top of the viewport, so a short final message that is fully on screen never
-  // becomes the anchor and the previous turn stays highlighted. When the last
-  // message is visible, treat it as the active turn; otherwise fall back to the
-  // top-anchored turn (and then the first visible turn).
+  // becomes the anchor and the previous turn stays highlighted. Only promote the
+  // last turn once the reader is actually at the bottom of the thread (the
+  // scroller's own end-edge signal), instead of whenever it merely intersects the
+  // viewport — otherwise a turn peeking under the composer is wrongly activated.
   const lastItem = items.at(-1);
   const activeId =
-    lastItem && visibleSet.has(lastItem.id)
+    !canScrollToEnd && lastItem
       ? lastItem.id
       : (currentAnchorId ??
         visibleMessageIds.find((id) => itemIds.has(id)) ??

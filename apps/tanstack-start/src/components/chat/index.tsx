@@ -121,6 +121,8 @@ export function Chat({
     [finalMessages],
   );
 
+  const scrollToBottomButton = useMemo(() => <ChatScrollToBottomButton />, []);
+
   const handleAttachmentPreview = useCallback(
     (file: PreviewableFile | null) => {
       if (file && openAdjacentPreview(file)) {
@@ -314,7 +316,7 @@ export function Chat({
 
           <ChatInput
             threadId={currentThreadId}
-            aboveComposer={<ChatScrollToBottomButton />}
+            aboveComposer={scrollToBottomButton}
             adjacentPanelWidth={
               isAdjacentPanelOpen && panelWidth > 0
                 ? `${panelWidth}px`
