@@ -5,6 +5,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { memo } from "react";
 
 import { DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES } from "@redux/types";
+import { MessageScrollerItem } from "@redux/ui/components/message-scroller";
 
 import type { ChatMessageRowProps } from "./chat-message-row";
 import type {
@@ -65,10 +66,10 @@ export const ChatMessageList = memo(function ChatMessageList({
 }: ChatMessageListProps) {
   const totalCount = finalMessages.length;
 
-  return (
-    <div className="mx-auto w-full max-w-3xl min-w-0">
-      {!currentThreadId && finalMessages.length === 0 ? (
-        (emptyContent ?? (
+  if (!currentThreadId && finalMessages.length === 0) {
+    return (
+      <div className="mx-auto w-full max-w-3xl min-w-0">
+        {emptyContent ?? (
           <EmptyChat
             threadId={currentThreadId}
             chatProjectId={effectiveChatProjectId}
@@ -79,34 +80,42 @@ export const ChatMessageList = memo(function ChatMessageList({
             setOptimisticMessage={setOptimisticMessage}
             settings={settings}
           />
-        ))
-      ) : (
-        <div className="flex flex-col gap-8">
-          {finalMessages.map((message, index) => (
-            <ChatMessageRow
-              key={message.id}
-              assistantModelByParentMessageId={assistantModelByParentMessageId}
-              allBranchMessages={allBranchMessages}
-              index={index}
-              message={message}
-              messageAttachmentsByMessageId={messageAttachmentsByMessageId}
-              messageStats={messageStatsMap.get(message.id)}
-              onAttachmentPreview={setPreviewFile}
-              onRegenerateMessage={onRegenerateMessage}
-              onSelectBranch={onSelectBranch}
-              onStartEditMessage={onStartEditMessage}
-              readOnly={readOnly}
-              resolvedMessageAttachments={resolvedMessageAttachments}
-              status={status}
-              totalCount={totalCount}
-              userMessagePreviewMaxLines={
-                settings.userMessagePreviewMaxLines ??
-                DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES
-              }
-            />
-          ))}
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {finalMessages.map((message, index) => (
+        <MessageScrollerItem
+          key={message.id}
+          messageId={message.id}
+          scrollAnchor={message.role === "user"}
+          className="mx-auto w-full max-w-3xl min-w-0"
+        >
+          <ChatMessageRow
+            assistantModelByParentMessageId={assistantModelByParentMessageId}
+            allBranchMessages={allBranchMessages}
+            index={index}
+            message={message}
+            messageAttachmentsByMessageId={messageAttachmentsByMessageId}
+            messageStats={messageStatsMap.get(message.id)}
+            onAttachmentPreview={setPreviewFile}
+            onRegenerateMessage={onRegenerateMessage}
+            onSelectBranch={onSelectBranch}
+            onStartEditMessage={onStartEditMessage}
+            readOnly={readOnly}
+            resolvedMessageAttachments={resolvedMessageAttachments}
+            status={status}
+            totalCount={totalCount}
+            userMessagePreviewMaxLines={
+              settings.userMessagePreviewMaxLines ??
+              DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES
+            }
+          />
+        </MessageScrollerItem>
+      ))}
+    </>
   );
 });

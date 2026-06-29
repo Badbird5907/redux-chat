@@ -82,9 +82,6 @@ export function useChatSession({
     string | undefined
   >(undefined);
   const pendingAssistantMessageIdRef = useRef<string | undefined>(undefined);
-  const [initialThreadScrollReady, setInitialThreadScrollReady] = useState(
-    () => !initialThreadId,
-  );
 
   const convexMessages = useQuery(
     api.functions.threads.getThreadMessages,
@@ -777,17 +774,6 @@ export function useChatSession({
     return nextMessages;
   }, [messages, optimisticMessage, pendingAssistantMessageId]);
 
-  const shouldInitializeInitialThreadScroll =
-    Boolean(initialThreadId) &&
-    finalMessages.length > 0 &&
-    !initialThreadScrollReady &&
-    status !== "submitted" &&
-    status !== "streaming";
-
-  const handleInitialThreadScrollReady = useCallback(() => {
-    setInitialThreadScrollReady(true);
-  }, []);
-
   const messageAttachmentsByMessageId = useMemo(() => {
     const map = new Map<string, MessageAttachmentSummary[]>();
     convexMessages?.forEach((message) => {
@@ -1231,8 +1217,6 @@ export function useChatSession({
     editMessage,
     submitEditedMessage,
     regenerateMessage,
-    shouldInitializeInitialThreadScroll,
-    handleInitialThreadScrollReady,
     messageStatsMap,
     previewFile,
     setPreviewFile,

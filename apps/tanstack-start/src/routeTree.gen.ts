@@ -24,6 +24,7 @@ import { Route as SettingsSecurityRouteImport } from './routes/settings/security
 import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
+import { Route as SettingsChatRouteImport } from './routes/settings/chat'
 import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as RedeemCodeRouteImport } from './routes/redeem.$code'
@@ -32,8 +33,8 @@ import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
-import { Route as ApiDeploymentIdRouteImport } from './routes/api/deployment-id'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
+import { Route as ApiDeploymentIdRouteImport } from './routes/api/deployment-id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
@@ -123,6 +124,11 @@ const SettingsHotkeysRoute = SettingsHotkeysRouteImport.update({
   path: '/hotkeys',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsChatRoute = SettingsChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsAttachmentsRoute = SettingsAttachmentsRouteImport.update({
   id: '/attachments',
   path: '/attachments',
@@ -163,14 +169,14 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => AuthRoute,
 } as any)
-const ApiDeploymentIdRoute = ApiDeploymentIdRouteImport.update({
-  id: '/api/deployment-id',
-  path: '/api/deployment-id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiUploadRoute = ApiUploadRouteImport.update({
   id: '/api/upload',
   path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDeploymentIdRoute = ApiDeploymentIdRouteImport.update({
+  id: '/api/deployment-id',
+  path: '/api/deployment-id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
@@ -341,6 +349,7 @@ export interface FileRoutesById {
   '/redeem/$code': typeof RedeemCodeRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/attachments': typeof SettingsAttachmentsRoute
+  '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/promotions'
     | '/admin/users'
+    | '/api/deployment-id'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -383,6 +393,7 @@ export interface FileRouteTypes {
     | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/attachments'
+    | '/settings/chat'
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/mcp'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/components'
     | '/reasoning'
+    | '/api/deployment-id'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -417,6 +429,7 @@ export interface FileRouteTypes {
     | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/attachments'
+    | '/settings/chat'
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/mcp'
@@ -448,6 +461,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/promotions'
     | '/admin/users'
+    | '/api/deployment-id'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -457,6 +471,7 @@ export interface FileRouteTypes {
     | '/redeem/$code'
     | '/settings/appearance'
     | '/settings/attachments'
+    | '/settings/chat'
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/mcp'
@@ -606,6 +621,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsHotkeysRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/chat': {
+      id: '/settings/chat'
+      path: '/chat'
+      fullPath: '/settings/chat'
+      preLoaderRoute: typeof SettingsChatRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/attachments': {
       id: '/settings/attachments'
       path: '/attachments'
@@ -662,18 +684,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/api/deployment-id': {
-      id: '/api/deployment-id'
-      path: '/api/deployment-id'
-      fullPath: '/api/deployment-id'
-      preLoaderRoute: typeof ApiDeploymentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/upload': {
       id: '/api/upload'
       path: '/api/upload'
       fullPath: '/api/upload'
       preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/deployment-id': {
+      id: '/api/deployment-id'
+      path: '/api/deployment-id'
+      fullPath: '/api/deployment-id'
+      preLoaderRoute: typeof ApiDeploymentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -856,6 +878,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 interface SettingsRouteChildren {
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
+  SettingsChatRoute: typeof SettingsChatRoute
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
   SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsMcpRoute: typeof SettingsMcpRoute
@@ -866,6 +889,7 @@ interface SettingsRouteChildren {
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsAttachmentsRoute: SettingsAttachmentsRoute,
+  SettingsChatRoute: SettingsChatRoute,
   SettingsHotkeysRoute: SettingsHotkeysRoute,
   SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsMcpRoute: SettingsMcpRoute,

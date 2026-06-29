@@ -1,5 +1,7 @@
 export const modules: Record<string, () => Promise<unknown>> = {
   "./functions/index.ts": () => import("./functions/index"),
+  "./functions/chatScrollPreferences.ts": () =>
+    import("./functions/chatScrollPreferences"),
   "./functions/defaultMessageSettings.ts": () =>
     import("./functions/defaultMessageSettings"),
   "./functions/instructions.ts": () => import("./functions/instructions"),

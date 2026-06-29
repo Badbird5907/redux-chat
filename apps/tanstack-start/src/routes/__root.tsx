@@ -29,6 +29,7 @@ import { authClient } from "@/lib/auth/client";
 import { getToken } from "@/lib/auth/server";
 import { useDeploymentDrift } from "@/lib/hooks/use-deployment-drift";
 import { HotkeySettingsProvider } from "@/lib/hotkeys";
+import { ChatScrollPreferencesProvider } from "@/lib/preferences/chat-scroll";
 import appCss from "@/styles.css?url";
 
 // eslint-disable-next-line turbo/no-undeclared-env-vars -- DEV is a Vite built-in, not a user-provided environment variable.
@@ -114,7 +115,9 @@ function RootDocument({ children }: { children: ReactNode }) {
     <LazyMotion features={domMax}>
       <ThemeProvider>
         <HotkeySettingsProvider>
-          {children}
+          <ChatScrollPreferencesProvider>
+            {children}
+          </ChatScrollPreferencesProvider>
           {AppTanStackDevtools ? (
             <ClientOnly>
               <Suspense fallback={null}>

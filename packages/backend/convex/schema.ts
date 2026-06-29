@@ -139,6 +139,18 @@ export const messageSettings = v.object({
   userMessagePreviewMaxLines: v.optional(v.number()),
 });
 
+export const chatScrollOpenPosition = v.union(
+  v.literal("last-anchor"),
+  v.literal("end"),
+  v.literal("start"),
+);
+
+export const chatScrollPreferences = v.object({
+  autoScroll: v.boolean(),
+  openPosition: chatScrollOpenPosition,
+  keepPreviousVisible: v.boolean(),
+});
+
 export default defineSchema({
   mcpServers: defineTable({
     mcpServerId: v.string(),
@@ -169,6 +181,7 @@ export default defineSchema({
     userId: v.string(),
     modelFavoritesInitializedAt: v.optional(v.number()),
     mcpServersEnabled: v.optional(v.boolean()),
+    chatScroll: v.optional(chatScrollPreferences),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
