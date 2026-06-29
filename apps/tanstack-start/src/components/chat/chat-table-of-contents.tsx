@@ -76,15 +76,10 @@ export function ChatTableOfContents({
     [visibleMessageIds],
   );
 
-  const itemIds = useMemo(
-    () => new Set(items.map((item) => item.id)),
-    [items],
-  );
+  const itemIds = useMemo(() => new Set(items.map((item) => item.id)), [items]);
 
   const activeId =
-    currentAnchorId ??
-    visibleMessageIds.find((id) => itemIds.has(id)) ??
-    null;
+    currentAnchorId ?? visibleMessageIds.find((id) => itemIds.has(id)) ?? null;
 
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current !== null) {
