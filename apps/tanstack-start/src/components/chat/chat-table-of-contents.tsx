@@ -94,6 +94,31 @@ export function ChatTableOfContents({
         visibleMessageIds.find((id) => itemIds.has(id)) ??
         null);
 
+  // The visibility observer ignores the top "previous item peek" band, so a turn
+  // whose tail sits up there (e.g. the second-to-last turn once the reader is at
+  // the bottom) is reported as not visible even though it is on screen. On-screen
+  // turns are contiguous, running from the top-anchored turn down to the active
+  // turn, so treat that whole span — plus anything the observer reports — as
+  // visible instead of the raw observer set.
+  let minVisibleIndex = -1;
+  let maxVisibleIndex = -1;
+  items.forEach((item, index) => {
+    if (
+      visibleSet.has(item.id) ||
+      item.id === currentAnchorId ||
+      item.id === activeId
+    ) {
+      if (minVisibleIndex === -1) {
+        minVisibleIndex = index;
+      }
+      maxVisibleIndex = index;
+    }
+  });
+  const isItemVisible = (index: number) =>
+    minVisibleIndex !== -1 &&
+    index >= minVisibleIndex &&
+    index <= maxVisibleIndex;
+
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current !== null) {
       window.clearTimeout(closeTimerRef.current);
@@ -138,7 +163,7 @@ export function ChatTableOfContents({
             />
           }
         >
-          {items.map((item) => {
+          {items.map((item, index) => {
             const isActive = item.id === activeId;
             return (
               <span
@@ -147,7 +172,7 @@ export function ChatTableOfContents({
                   "h-0.5 rounded-full transition-all duration-200",
                   isActive
                     ? "bg-foreground w-5"
-                    : visibleSet.has(item.id)
+                    : isItemVisible(index)
                       ? "bg-foreground/50 w-4"
                       : "bg-muted-foreground/30 w-3",
                 )}
@@ -169,7 +194,7 @@ export function ChatTableOfContents({
               item={item}
               index={index}
               isActive={item.id === activeId}
-              isVisible={visibleSet.has(item.id)}
+              isVisible={isItemVisible(index)}
               onSelect={handleSelect}
             />
           ))}
