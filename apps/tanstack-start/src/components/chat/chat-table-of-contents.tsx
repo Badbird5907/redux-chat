@@ -78,8 +78,18 @@ export function ChatTableOfContents({
 
   const itemIds = useMemo(() => new Set(items.map((item) => item.id)), [items]);
 
+  // The scroller reports `currentAnchorId` as the turn whose top has reached the
+  // top of the viewport, so a short final message that is fully on screen never
+  // becomes the anchor and the previous turn stays highlighted. When the last
+  // message is visible, treat it as the active turn; otherwise fall back to the
+  // top-anchored turn (and then the first visible turn).
+  const lastItem = items.at(-1);
   const activeId =
-    currentAnchorId ?? visibleMessageIds.find((id) => itemIds.has(id)) ?? null;
+    lastItem && visibleSet.has(lastItem.id)
+      ? lastItem.id
+      : (currentAnchorId ??
+        visibleMessageIds.find((id) => itemIds.has(id)) ??
+        null);
 
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current !== null) {

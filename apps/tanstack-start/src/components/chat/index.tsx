@@ -14,7 +14,6 @@ import { toast } from "sonner";
 
 import {
   MessageScroller,
-  MessageScrollerButton,
   MessageScrollerContent,
   MessageScrollerProvider,
   MessageScrollerViewport,
@@ -26,10 +25,12 @@ import type { ThreadExportInput } from "./thread-export-utils";
 import { useAdjacentAttachmentPanel } from "@/components/chat/adjacent-attachment-panel-context";
 import { FilePreviewDialog } from "@/components/chat/file-preview";
 import {
+  CHAT_SCROLL_EDGE_THRESHOLD,
   CHAT_SCROLL_PREVIOUS_ITEM_PEEK,
   useChatScrollPreferences,
 } from "@/lib/preferences/chat-scroll-store";
 import { ChatMessageList } from "./chat-message-list";
+import { ChatScrollToBottomButton } from "./chat-scroll-to-bottom-button";
 import { ChatTableOfContents } from "./chat-table-of-contents";
 import { buildChatTableOfContents } from "./chat-table-of-contents-utils";
 import { OPEN_FILE_PREVIEW_EVENT } from "./file-preview-events";
@@ -272,6 +273,7 @@ export function Chat({
         <MessageScrollerProvider
           autoScroll={scrollPreferences.autoScroll}
           defaultScrollPosition={scrollPreferences.openPosition}
+          scrollEdgeThreshold={CHAT_SCROLL_EDGE_THRESHOLD}
           scrollPreviousItemPeek={
             scrollPreferences.keepPreviousVisible
               ? CHAT_SCROLL_PREVIOUS_ITEM_PEEK
@@ -307,35 +309,35 @@ export function Chat({
                 />
               </MessageScrollerContent>
             </MessageScrollerViewport>
-            <MessageScrollerButton />
             <ChatTableOfContents items={tocItems} />
           </MessageScroller>
-        </MessageScrollerProvider>
 
-        <ChatInput
-          threadId={currentThreadId}
-          adjacentPanelWidth={
-            isAdjacentPanelOpen && panelWidth > 0
-              ? `${panelWidth}px`
-              : undefined
-          }
-          chatProjectId={effectiveChatProjectId}
-          setThreadId={handleThreadIdChange}
-          sendMessage={sendMessageWithTracking}
-          onStopGeneration={stopGeneration}
-          setOptimisticMessage={setOptimisticMessage}
-          messages={messages}
-          status={status}
-          clientId={chatSessionId}
-          convexMessages={convexUIMessages}
-          settings={settings}
-          settingsReady={settingsReady}
-          onModelChange={setModel}
-          onSettingsChange={updateSettings}
-          editMessage={editMessage}
-          onCancelEdit={cancelEditMessage}
-          onSubmitEdit={submitEditedMessage}
-        />
+          <ChatInput
+            threadId={currentThreadId}
+            aboveComposer={<ChatScrollToBottomButton />}
+            adjacentPanelWidth={
+              isAdjacentPanelOpen && panelWidth > 0
+                ? `${panelWidth}px`
+                : undefined
+            }
+            chatProjectId={effectiveChatProjectId}
+            setThreadId={handleThreadIdChange}
+            sendMessage={sendMessageWithTracking}
+            onStopGeneration={stopGeneration}
+            setOptimisticMessage={setOptimisticMessage}
+            messages={messages}
+            status={status}
+            clientId={chatSessionId}
+            convexMessages={convexUIMessages}
+            settings={settings}
+            settingsReady={settingsReady}
+            onModelChange={setModel}
+            onSettingsChange={updateSettings}
+            editMessage={editMessage}
+            onCancelEdit={cancelEditMessage}
+            onSubmitEdit={submitEditedMessage}
+          />
+        </MessageScrollerProvider>
 
         <FilePreviewDialog
           file={previewFile}

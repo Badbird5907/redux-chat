@@ -18,6 +18,14 @@ export interface ChatScrollPreferences {
  */
 export const CHAT_SCROLL_PREVIOUS_ITEM_PEEK = 64;
 
+/**
+ * Distance from the bottom edge (px) that still counts as "at the bottom".
+ * A generous value lets the reader re-engage auto-scroll by scrolling back
+ * down near the bottom while a reply is still streaming, instead of having to
+ * land within a few pixels of a bottom that keeps moving as tokens arrive.
+ */
+export const CHAT_SCROLL_EDGE_THRESHOLD = 120;
+
 export const DEFAULT_CHAT_SCROLL_PREFERENCES: ChatScrollPreferences = {
   autoScroll: true,
   openPosition: "last-anchor",
