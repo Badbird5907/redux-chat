@@ -543,9 +543,20 @@ export const internal_completeStream = backendMutation({
       throw new ConvexError("Assistant message not found");
     }
 
-    if (assistantMessage.canceledAt || assistantMessage.status === "failed") {
+    if (assistantMessage.status === "failed") {
       await cleanupInactiveStreamThread(ctx, thread);
       return { success: false };
+    }
+
+    if (assistantMessage.canceledAt) {
+      // Save partial parts so the text generated before abort is persisted.
+      if (args.parts.length > 0) {
+        await ctx.db.patch(assistantMessage._id, {
+          parts: args.parts as UIMessagePart<UIDataTypes, UITools>[],
+        });
+      }
+      await cleanupInactiveStreamThread(ctx, thread);
+      return { success: true };
     }
 
     await ctx.db.patch(assistantMessage._id, {
