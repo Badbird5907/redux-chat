@@ -5,7 +5,6 @@ import type { ThemeMode } from "@redux/ui/components/theme";
 import { Tabs, TabsList, TabsTrigger } from "@redux/ui/components/tabs";
 import { useTheme } from "@redux/ui/components/theme";
 
-
 const themeOptions = [
   {
     icon: Monitor,
