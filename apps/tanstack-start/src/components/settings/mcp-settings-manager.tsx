@@ -25,6 +25,14 @@ import { toast } from "sonner";
 import { api } from "@redux/backend/convex/_generated/api";
 import { Button } from "@redux/ui/components/button";
 import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@redux/ui/components/dialog";
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
 import {
@@ -139,6 +147,10 @@ export function McpSettingsManager() {
   const [creating, setCreating] = useReducerState(false);
   const [savingId, setSavingId] = useReducerState<string | null>(null);
   const [deletingId, setDeletingId] = useReducerState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    mcpServerId: string;
+    name: string;
+  } | null>(null);
   const [toolStates, setToolStates] = useState<Record<string, ServerToolState>>(
     {},
   );
@@ -264,9 +276,10 @@ export function McpSettingsManager() {
     }
   };
 
-  const handleDelete = async (mcpServerId: string, name: string) => {
-    if (!window.confirm(`Delete "${name}"?`)) return;
-
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+    const { mcpServerId } = deleteConfirm;
+    setDeleteConfirm(null);
     setDeletingId(mcpServerId);
     try {
       await removeServer({ mcpServerId });
@@ -662,7 +675,7 @@ export function McpSettingsManager() {
                       disabled={isDeleting || isSaving}
                       aria-label="Delete server"
                       onClick={() =>
-                        void handleDelete(mcpServerId, server.name)
+                        setDeleteConfirm({ mcpServerId, name: server.name })
                       }
                     >
                       {isDeleting ? (
@@ -940,6 +953,36 @@ export function McpSettingsManager() {
           ) : null}
         </>
       ) : null}
+
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={deleteConfirm !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeleteConfirm(null);
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Delete server</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete{" "}
+              <strong>{deleteConfirm?.name}</strong>? This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDeleteConfirm()}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
