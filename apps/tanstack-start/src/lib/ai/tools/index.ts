@@ -51,7 +51,15 @@ interface ToolRuntimeOptions {
       client_id: string;
       client_secret?: string;
     };
+    oauthServerMetadata?: {
+      authorizationServerUrl: string;
+      tokenEndpoint: string;
+    };
   }[];
+  onOAuthTokensRefreshed?: (
+    mcpServerId: string,
+    tokens: OAuthTokens,
+  ) => Promise<void>;
   projectContext?: {
     chatProjectId: string;
     userId: string;
@@ -291,6 +299,7 @@ export async function createToolRuntime(
   {
     attachments = [],
     mcpServers = [],
+    onOAuthTokensRefreshed,
     projectContext,
     generationContext,
     previousBashFiles,
@@ -425,7 +434,9 @@ export async function createToolRuntime(
       const mcpFetch = createMcpFetch(server.url);
 
       const authProvider = server.oauthTokens
-        ? createChatOAuthProvider(server)
+        ? createChatOAuthProvider(server, async (tokens) => {
+            await onOAuthTokensRefreshed?.(server.mcpServerId, tokens);
+          })
         : undefined;
 
       const client = await createMCPClient({
@@ -677,21 +688,29 @@ function omittedBinaryToolResult(byteLength: number): Value {
 
 /**
  * Creates a minimal OAuthClientProvider for use during chat.
- * Provides stored tokens and handles token refresh transparently.
+ * Provides stored tokens, authorization server info for refresh,
+ * and persists refreshed tokens via the onTokensRefreshed callback.
  */
-function createChatOAuthProvider(server: {
-  oauthTokens?: {
-    access_token: string;
-    token_type: string;
-    refresh_token?: string;
-    expires_in?: number;
-    scope?: string;
-  };
-  oauthClientInfo?: {
-    client_id: string;
-    client_secret?: string;
-  };
-}): OAuthClientProvider {
+function createChatOAuthProvider(
+  server: {
+    oauthTokens?: {
+      access_token: string;
+      token_type: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+    };
+    oauthClientInfo?: {
+      client_id: string;
+      client_secret?: string;
+    };
+    oauthServerMetadata?: {
+      authorizationServerUrl: string;
+      tokenEndpoint: string;
+    };
+  },
+  onTokensRefreshed?: (tokens: OAuthTokens) => Promise<void>,
+): OAuthClientProvider {
   let currentTokens: OAuthTokens | undefined = server.oauthTokens
     ? {
         access_token: server.oauthTokens.access_token,
@@ -719,9 +738,9 @@ function createChatOAuthProvider(server: {
     async tokens() {
       return currentTokens;
     },
-    // eslint-disable-next-line @typescript-eslint/require-await
     async saveTokens(tokens: OAuthTokens) {
       currentTokens = tokens;
+      await onTokensRefreshed?.(tokens);
     },
     // eslint-disable-next-line @typescript-eslint/require-await
     async redirectToAuthorization() {
@@ -745,5 +764,16 @@ function createChatOAuthProvider(server: {
     },
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     async saveClientInformation() {},
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async authorizationServerInformation() {
+      if (!server.oauthServerMetadata) return undefined;
+      return {
+        authorizationServerUrl:
+          server.oauthServerMetadata.authorizationServerUrl,
+        tokenEndpoint: server.oauthServerMetadata.tokenEndpoint,
+      };
+    },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    async saveAuthorizationServerInformation() {},
   };
 }

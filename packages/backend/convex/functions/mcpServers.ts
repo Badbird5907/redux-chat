@@ -385,6 +385,7 @@ export const getByIds = query({
           toolPermissions: server.toolPermissions ?? {},
           oauthTokens: server.oauthTokens,
           oauthClientInfo: server.oauthClientInfo,
+          oauthServerMetadata: server.oauthServerMetadata,
         };
       }),
     );
@@ -685,6 +686,12 @@ export const saveOAuthTokens = mutation({
       client_id: v.string(),
       client_secret: v.optional(v.string()),
     }),
+    serverMetadata: v.optional(
+      v.object({
+        authorizationServerUrl: v.string(),
+        tokenEndpoint: v.string(),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const server = await getMcpServerForUser(ctx, args.mcpServerId);
@@ -692,6 +699,8 @@ export const saveOAuthTokens = mutation({
     await ctx.db.patch(server._id, {
       oauthTokens: args.tokens,
       oauthClientInfo: args.clientInfo,
+      oauthServerMetadata: args.serverMetadata,
+      oauthTokensIssuedAt: Date.now(),
       updatedAt: Date.now(),
     });
 
@@ -724,6 +733,7 @@ export const refreshOAuthTokens = mutation({
 
     await ctx.db.patch(server._id, {
       oauthTokens: args.tokens,
+      oauthTokensIssuedAt: Date.now(),
       updatedAt: Date.now(),
     });
 

@@ -129,6 +129,10 @@ export const Route = createFileRoute("/api/mcp/oauth/callback")({
               client_id: flow.clientId,
               client_secret: flow.clientSecret,
             },
+            serverMetadata: {
+              authorizationServerUrl: flow.authorizationServerUrl,
+              tokenEndpoint: flow.tokenEndpoint,
+            },
           });
 
           return new Response(
