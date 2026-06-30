@@ -111,8 +111,8 @@ export function McpSettingsManager() {
   const configuredServers = useQuery(
     api.functions.mcpServers.listConfigured,
     {},
-    { default: [] },
   );
+  const serversLoading = configuredServers === undefined;
   const servers = useMemo(() => configuredServers ?? [], [configuredServers]);
   const createServer = useMutation(api.functions.mcpServers.create);
   const updateServer = useMutation(api.functions.mcpServers.update);
@@ -579,6 +579,14 @@ export function McpSettingsManager() {
             </Button>
           )}
 
+          {/* Loading state */}
+          {serversLoading ? (
+            <div className="flex items-center justify-center gap-2 py-8">
+              <Loader2 className="text-muted-foreground size-5 animate-spin" />
+              <p className="text-muted-foreground text-sm">Loading servers…</p>
+            </div>
+          ) : null}
+
           {/* Server cards */}
           {servers.map((server) => {
             const mcpServerId = server.mcpServerId;
@@ -946,7 +954,7 @@ export function McpSettingsManager() {
             );
           })}
 
-          {servers.length === 0 && !showAddForm ? (
+          {!serversLoading && servers.length === 0 && !showAddForm ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
               No servers configured. Add one to get started.
             </p>
