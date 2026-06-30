@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, GitBranch } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { BranchGroup } from "./chat-types";
 
@@ -33,7 +33,6 @@ export function BranchSwitcher({
         className="inline-flex min-w-12 items-center justify-center gap-1 tabular-nums"
         title={`Branch ${branchGroup.currentIndex + 1} of ${branchGroup.siblings.length}`}
       >
-        <GitBranch className="size-4" />
         {branchGroup.currentIndex + 1}/{branchGroup.siblings.length}
       </span>
       <button
