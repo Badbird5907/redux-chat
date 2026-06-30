@@ -45,14 +45,20 @@ export const Route = createFileRoute("/api/mcp/discover-tools")({
           assertAllowedMcpServerUrl(server.url);
           const mcpFetch = createMcpFetch(server.url);
 
+          const headers: Record<string, string> = Object.fromEntries(
+            server.authHeaders.map((h) => [h.name, h.value]),
+          );
+
+          if (server.oauthTokens?.access_token) {
+            headers.Authorization = `${server.oauthTokens.token_type} ${server.oauthTokens.access_token}`;
+          }
+
           client = await createMCPClient({
             name: `redux-chat-discover-${server.mcpServerId}`,
             transport: {
               type: "http",
               url: server.url,
-              headers: Object.fromEntries(
-                server.authHeaders.map((h) => [h.name, h.value]),
-              ),
+              headers,
               redirect: "error",
               fetch: mcpFetch,
             },
@@ -74,8 +80,16 @@ export const Route = createFileRoute("/api/mcp/discover-tools")({
 
           return Response.json({ tools });
         } catch (error) {
-          const message =
+          let message =
             error instanceof Error ? error.message : "Connection failed";
+
+          const is401 =
+            message.includes("401") || message.includes("Unauthorized");
+          if (is401 && !server.oauthTokens) {
+            message =
+              "Server requires authentication. Connect via OAuth in the edit panel, or add an Authorization header.";
+          }
+
           return Response.json(
             { error: message, tools: null },
             { status: 502 },

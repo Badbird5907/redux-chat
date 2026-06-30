@@ -704,6 +704,57 @@ export function McpSettingsManager() {
                     </div>
                   ) : null}
 
+                  {/* OAuth connect/disconnect (always visible) */}
+                  {!isEditing ? (
+                    <div className="flex items-center justify-between">
+                      {server.hasOAuth ? (
+                        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                          <Link2 className="size-3.5 text-blue-500" />
+                          OAuth connected
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          Not authenticated
+                        </span>
+                      )}
+                      {server.hasOAuth ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs text-red-500 hover:text-red-600"
+                          disabled={isDisconnectingOAuth}
+                          onClick={() =>
+                            void handleOAuthDisconnect(mcpServerId)
+                          }
+                        >
+                          {isDisconnectingOAuth ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Link2Off className="size-3.5" />
+                          )}
+                          Disconnect
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={isConnectingOAuth}
+                          onClick={() => handleOAuthConnect(mcpServerId)}
+                        >
+                          {isConnectingOAuth ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Link2 className="size-3.5" />
+                          )}
+                          Connect with OAuth
+                        </Button>
+                      )}
+                    </div>
+                  ) : null}
+
                   {/* Edit mode */}
                   {isEditing ? (
                     <div className="border-border flex flex-col gap-3 rounded-md border p-3">
