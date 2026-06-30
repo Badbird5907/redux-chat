@@ -2,9 +2,17 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, memo, use, useEffect, useMemo, useRef } from "react";
+import {
+  createContext,
+  memo,
+  use,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
-import { ChevronDownIcon, DotIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, DotIcon } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
 
 import { Badge } from "@redux/ui/components/badge";
@@ -190,6 +198,42 @@ const headerStatusStyles = {
   pending: "text-muted-foreground/50",
 } as const;
 
+function isJsonLikeDescription(description: ReactNode): boolean {
+  if (typeof description !== "string") return false;
+  const trimmed = description.trim();
+  return trimmed.startsWith("{") || trimmed.startsWith("[");
+}
+
+function CollapsibleDescription({ description }: { description: ReactNode }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!isJsonLikeDescription(description)) {
+    return <div className="text-muted-foreground text-xs">{description}</div>;
+  }
+
+  return (
+    <div className="text-muted-foreground text-xs">
+      <button
+        className="hover:text-foreground inline-flex items-center gap-0.5 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+        type="button"
+      >
+        {isExpanded ? (
+          <ChevronDownIcon className="size-3" />
+        ) : (
+          <ChevronRightIcon className="size-3" />
+        )}
+        <span>{isExpanded ? "Hide output" : "Show output"}</span>
+      </button>
+      {isExpanded ? (
+        <pre className="bg-muted mt-1.5 max-h-48 overflow-auto rounded-md p-2 text-[11px] break-all whitespace-pre-wrap">
+          {description}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
 export const ChainOfThoughtStep = memo(
   ({
     className,
@@ -230,9 +274,9 @@ export const ChainOfThoughtStep = memo(
         <div>
           <ShimmerableLabel label={label} shimmer={shimmer} />
         </div>
-        {description && (
-          <div className="text-muted-foreground text-xs">{description}</div>
-        )}
+        {description ? (
+          <CollapsibleDescription description={description} />
+        ) : null}
         {children}
       </div>
     </m.div>

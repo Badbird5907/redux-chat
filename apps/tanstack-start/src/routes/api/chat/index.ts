@@ -896,6 +896,21 @@ export const Route = createFileRoute("/api/chat/")({
           const toolRuntime = await createToolRuntime(settings, {
             attachments: getToolAttachments(attachmentsByMessageId),
             mcpServers: enabledMcpServers,
+            onOAuthTokensRefreshed: async (mcpServerId, tokens) => {
+              await fetchAuthMutation(
+                api.functions.mcpServers.refreshOAuthTokens,
+                {
+                  mcpServerId,
+                  tokens: {
+                    access_token: tokens.access_token,
+                    token_type: tokens.token_type,
+                    refresh_token: tokens.refresh_token,
+                    expires_in: tokens.expires_in,
+                    scope: tokens.scope,
+                  },
+                },
+              );
+            },
             projectContext:
               chatProjectId && threadUserId
                 ? {
@@ -1219,6 +1234,8 @@ export const Route = createFileRoute("/api/chat/")({
             resolvedModel.model,
             requestUserId,
           );
+          const hasMcpApproval =
+            Object.keys(toolRuntime.mcpToolApproval).length > 0;
           const result = streamText({
             model: tracedModel,
             system: systemPrompt,
@@ -1227,6 +1244,9 @@ export const Route = createFileRoute("/api/chat/")({
             ...(providerOptions ? { providerOptions } : {}),
             abortSignal: abortController.signal,
             tools: toolRuntime.tools,
+            ...(hasMcpApproval
+              ? { toolApproval: toolRuntime.mcpToolApproval }
+              : {}),
             experimental_transform: smoothStream({
               // this makes client md rendering way smoother and performant
               delayInMs: 20,

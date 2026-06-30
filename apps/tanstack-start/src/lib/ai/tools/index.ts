@@ -3,7 +3,8 @@ import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
-import type { ToolSet } from "ai";
+import type { OAuthClientProvider, OAuthTokens } from "@ai-sdk/mcp";
+import type { ToolApprovalStatus, ToolSet } from "ai";
 import type { Value } from "convex/values";
 import type { InMemoryFs } from "just-bash";
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -38,7 +39,27 @@ interface ToolRuntimeOptions {
       name: string;
       value: string;
     }[];
+    toolPermissions?: Record<string, "allow" | "ask" | "deny">;
+    oauthTokens?: {
+      access_token: string;
+      token_type: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+    };
+    oauthClientInfo?: {
+      client_id: string;
+      client_secret?: string;
+    };
+    oauthServerMetadata?: {
+      authorizationServerUrl: string;
+      tokenEndpoint: string;
+    };
   }[];
+  onOAuthTokensRefreshed?: (
+    mcpServerId: string,
+    tokens: OAuthTokens,
+  ) => Promise<void>;
   projectContext?: {
     chatProjectId: string;
     userId: string;
@@ -56,6 +77,7 @@ interface ToolRuntime {
   getBillableToolCalls: () => BillableToolCall[];
   tools: ToolSet;
   getBashFs: () => InMemoryFs | undefined;
+  mcpToolApproval: Record<string, ToolApprovalStatus>;
 }
 
 const MAX_TOOL_RESULT_STRING_CHARS = 100_000;
@@ -134,7 +156,7 @@ async function resolvePublicMcpAddresses(hostname: string) {
   return addresses;
 }
 
-function assertAllowedMcpServerUrl(url: string) {
+export function assertAllowedMcpServerUrl(url: string) {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
     throw new Error("MCP server URL is not allowed.");
@@ -157,7 +179,7 @@ function assertAllowedMcpServerUrl(url: string) {
   }
 }
 
-function createMcpFetch(url: string): typeof fetch {
+export function createMcpFetch(url: string): typeof fetch {
   const parsed = new URL(url);
   const hostname = getUrlHostname(parsed);
 
@@ -277,6 +299,7 @@ export async function createToolRuntime(
   {
     attachments = [],
     mcpServers = [],
+    onOAuthTokensRefreshed,
     projectContext,
     generationContext,
     previousBashFiles,
@@ -403,10 +426,19 @@ export async function createToolRuntime(
     );
   }
 
+  const mcpToolApproval: Record<string, ToolApprovalStatus> = {};
+
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
       assertAllowedMcpServerUrl(server.url);
       const mcpFetch = createMcpFetch(server.url);
+
+      const authProvider = server.oauthTokens
+        ? createChatOAuthProvider(server, async (tokens) => {
+            await onOAuthTokensRefreshed?.(server.mcpServerId, tokens);
+          })
+        : undefined;
+
       const client = await createMCPClient({
         name: `redux-chat-${server.mcpServerId}`,
         transport: {
@@ -418,6 +450,7 @@ export async function createToolRuntime(
               header.value,
             ]),
           ),
+          authProvider,
           redirect: "error",
           fetch: mcpFetch,
         },
@@ -427,16 +460,29 @@ export async function createToolRuntime(
       const serverTools = await client.tools();
       const prefix = toToolKeyPrefix(server.name);
       const billingKey = `mcp:${prefix}` satisfies ToolBillingKey;
+      const permissions = server.toolPermissions ?? {};
 
       for (const [toolName, toolDefinition] of Object.entries(serverTools) as [
         string,
         ToolSet[string],
       ][]) {
-        tools[`mcp_${prefix}_${toolName}`] = instrumentTool(
+        const qualifiedName = `mcp_${prefix}_${toolName}`;
+        const permission = permissions[toolName];
+
+        if (permission === "deny") {
+          // Skip registering denied tools entirely
+          continue;
+        }
+
+        tools[qualifiedName] = instrumentTool(
           toolDefinition,
           billingKey,
           toolUsageCounts,
         );
+
+        if (permission === "ask") {
+          mcpToolApproval[qualifiedName] = "user-approval";
+        }
       }
     }
   }
@@ -507,6 +553,7 @@ export async function createToolRuntime(
       ),
     tools,
     getBashFs: () => bashWorkspaceRuntime?.fs,
+    mcpToolApproval,
     cleanup: async () => {
       await Promise.allSettled(mcpClients.map((client) => client.close()));
       await sandboxRuntime?.cleanup();
@@ -636,5 +683,97 @@ function omittedBinaryToolResult(byteLength: number): Value {
     byteLength,
     reason:
       "Binary file contents are not returned inline. Use a text extraction tool or present_file instead.",
+  };
+}
+
+/**
+ * Creates a minimal OAuthClientProvider for use during chat.
+ * Provides stored tokens, authorization server info for refresh,
+ * and persists refreshed tokens via the onTokensRefreshed callback.
+ */
+function createChatOAuthProvider(
+  server: {
+    oauthTokens?: {
+      access_token: string;
+      token_type: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+    };
+    oauthClientInfo?: {
+      client_id: string;
+      client_secret?: string;
+    };
+    oauthServerMetadata?: {
+      authorizationServerUrl: string;
+      tokenEndpoint: string;
+    };
+  },
+  onTokensRefreshed?: (tokens: OAuthTokens) => Promise<void>,
+): OAuthClientProvider {
+  let currentTokens: OAuthTokens | undefined = server.oauthTokens
+    ? {
+        access_token: server.oauthTokens.access_token,
+        token_type: server.oauthTokens.token_type,
+        refresh_token: server.oauthTokens.refresh_token,
+        expires_in: server.oauthTokens.expires_in,
+        scope: server.oauthTokens.scope,
+      }
+    : undefined;
+
+  return {
+    get redirectUrl(): string {
+      return "https://localhost/oauth/callback";
+    },
+    get clientMetadata() {
+      return {
+        redirect_uris: ["https://localhost/oauth/callback"],
+        client_name: "Redux Chat",
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none" as const,
+      };
+    },
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async tokens() {
+      return currentTokens;
+    },
+    async saveTokens(tokens: OAuthTokens) {
+      currentTokens = tokens;
+      await onTokensRefreshed?.(tokens);
+    },
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async redirectToAuthorization() {
+      throw new Error(
+        "OAuth re-authorization required. Please reconnect in MCP settings.",
+      );
+    },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    async saveCodeVerifier() {},
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async codeVerifier() {
+      throw new Error("No code verifier available during chat");
+    },
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async clientInformation() {
+      if (!server.oauthClientInfo) return undefined;
+      return {
+        client_id: server.oauthClientInfo.client_id,
+        client_secret: server.oauthClientInfo.client_secret,
+      };
+    },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    async saveClientInformation() {},
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async authorizationServerInformation() {
+      if (!server.oauthServerMetadata) return undefined;
+      return {
+        authorizationServerUrl:
+          server.oauthServerMetadata.authorizationServerUrl,
+        tokenEndpoint: server.oauthServerMetadata.tokenEndpoint,
+      };
+    },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    async saveAuthorizationServerInformation() {},
   };
 }

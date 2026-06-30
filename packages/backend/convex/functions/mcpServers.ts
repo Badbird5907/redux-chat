@@ -309,6 +309,8 @@ async function listConfiguredServers(
     ...(options.includeAuthHeaders
       ? { authHeaders: server.authHeaders ?? [] }
       : {}),
+    toolPermissions: server.toolPermissions ?? {},
+    hasOAuth: server.oauthTokens !== undefined,
     createdAt: server.createdAt,
     updatedAt: server.updatedAt,
   }));
@@ -380,6 +382,10 @@ export const getByIds = query({
           name: server.name,
           url: server.url,
           authHeaders: server.authHeaders ?? [],
+          toolPermissions: server.toolPermissions ?? {},
+          oauthTokens: server.oauthTokens,
+          oauthClientInfo: server.oauthClientInfo,
+          oauthServerMetadata: server.oauthServerMetadata,
         };
       }),
     );
@@ -516,5 +522,238 @@ export const remove = mutation({
     await ctx.db.delete(server._id);
 
     return { success: true as const };
+  },
+});
+
+const mcpToolPermission = v.union(
+  v.literal("allow"),
+  v.literal("ask"),
+  v.literal("deny"),
+);
+
+export const updateToolPermissions = mutation({
+  args: {
+    mcpServerId: v.string(),
+    toolName: v.string(),
+    permission: mcpToolPermission,
+  },
+  handler: async (ctx, args) => {
+    const server = await getMcpServerForUser(ctx, args.mcpServerId);
+    const current = server.toolPermissions ?? {};
+    const merged = { ...current, [args.toolName]: args.permission };
+
+    const cleaned = Object.fromEntries(
+      Object.entries(merged).filter(([, p]) => p !== "allow"),
+    );
+
+    await ctx.db.patch(server._id, {
+      toolPermissions: Object.keys(cleaned).length > 0 ? cleaned : undefined,
+      updatedAt: Date.now(),
+    });
+
+    return { mcpServerId: server.mcpServerId };
+  },
+});
+
+export const bulkSetToolPermissions = mutation({
+  args: {
+    mcpServerId: v.string(),
+    permission: mcpToolPermission,
+    toolNames: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const server = await getMcpServerForUser(ctx, args.mcpServerId);
+    const current = server.toolPermissions ?? {};
+    const merged = { ...current };
+    for (const name of args.toolNames) {
+      merged[name] = args.permission;
+    }
+
+    const cleaned = Object.fromEntries(
+      Object.entries(merged).filter(([, p]) => p !== "allow"),
+    );
+
+    await ctx.db.patch(server._id, {
+      toolPermissions: Object.keys(cleaned).length > 0 ? cleaned : undefined,
+      updatedAt: Date.now(),
+    });
+
+    return { mcpServerId: server.mcpServerId };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// OAuth flow management
+// ---------------------------------------------------------------------------
+
+const MAX_OAUTH_FLOWS_PER_USER = 10;
+const OAUTH_FLOW_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
+export const createOAuthFlow = mutation({
+  args: {
+    mcpServerId: v.string(),
+    flowId: v.string(),
+    serverUrl: v.string(),
+    codeVerifier: v.string(),
+    state: v.string(),
+    clientId: v.string(),
+    clientSecret: v.optional(v.string()),
+    authorizationServerUrl: v.string(),
+    tokenEndpoint: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await getMcpServerForUser(ctx, args.mcpServerId);
+
+    // Clean up expired flows for this user
+    const existingFlows = await ctx.db
+      .query("mcpOAuthFlows")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .collect();
+
+    const now = Date.now();
+    const expiredFlows = existingFlows.filter(
+      (flow) => now - flow.createdAt > OAUTH_FLOW_MAX_AGE_MS,
+    );
+    for (const flow of expiredFlows) {
+      await ctx.db.delete(flow._id);
+    }
+
+    const activeFlows = existingFlows.length - expiredFlows.length;
+    if (activeFlows >= MAX_OAUTH_FLOWS_PER_USER) {
+      throw new ConvexError("Too many pending OAuth flows");
+    }
+
+    await ctx.db.insert("mcpOAuthFlows", {
+      flowId: args.flowId,
+      mcpServerId: args.mcpServerId,
+      userId: ctx.userId,
+      serverUrl: args.serverUrl,
+      codeVerifier: args.codeVerifier,
+      state: args.state,
+      clientId: args.clientId,
+      clientSecret: args.clientSecret,
+      authorizationServerUrl: args.authorizationServerUrl,
+      tokenEndpoint: args.tokenEndpoint,
+      createdAt: now,
+    });
+
+    return { flowId: args.flowId };
+  },
+});
+
+export const getOAuthFlowByState = query({
+  args: { state: v.string() },
+  handler: async (ctx, args) => {
+    const flow = await ctx.db
+      .query("mcpOAuthFlows")
+      .withIndex("by_state", (q) => q.eq("state", args.state))
+      .first();
+
+    if (!flow?.userId || flow.userId !== ctx.userId) {
+      return null;
+    }
+
+    if (Date.now() - flow.createdAt > OAUTH_FLOW_MAX_AGE_MS) {
+      return null;
+    }
+
+    return {
+      flowId: flow.flowId,
+      mcpServerId: flow.mcpServerId,
+      serverUrl: flow.serverUrl,
+      codeVerifier: flow.codeVerifier,
+      state: flow.state,
+      clientId: flow.clientId,
+      clientSecret: flow.clientSecret,
+      authorizationServerUrl: flow.authorizationServerUrl,
+      tokenEndpoint: flow.tokenEndpoint,
+    };
+  },
+});
+
+export const saveOAuthTokens = mutation({
+  args: {
+    mcpServerId: v.string(),
+    flowId: v.string(),
+    tokens: v.object({
+      access_token: v.string(),
+      token_type: v.string(),
+      refresh_token: v.optional(v.string()),
+      expires_in: v.optional(v.number()),
+      scope: v.optional(v.string()),
+    }),
+    clientInfo: v.object({
+      client_id: v.string(),
+      client_secret: v.optional(v.string()),
+    }),
+    serverMetadata: v.optional(
+      v.object({
+        authorizationServerUrl: v.string(),
+        tokenEndpoint: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const server = await getMcpServerForUser(ctx, args.mcpServerId);
+
+    await ctx.db.patch(server._id, {
+      oauthTokens: args.tokens,
+      oauthClientInfo: args.clientInfo,
+      oauthServerMetadata: args.serverMetadata,
+      oauthTokensIssuedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Clean up the flow record
+    const flow = await ctx.db
+      .query("mcpOAuthFlows")
+      .withIndex("by_flowId", (q) => q.eq("flowId", args.flowId))
+      .first();
+    if (flow?.userId === ctx.userId) {
+      await ctx.db.delete(flow._id);
+    }
+
+    return { mcpServerId: server.mcpServerId };
+  },
+});
+
+export const refreshOAuthTokens = mutation({
+  args: {
+    mcpServerId: v.string(),
+    tokens: v.object({
+      access_token: v.string(),
+      token_type: v.string(),
+      refresh_token: v.optional(v.string()),
+      expires_in: v.optional(v.number()),
+      scope: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const server = await getMcpServerForUser(ctx, args.mcpServerId);
+
+    await ctx.db.patch(server._id, {
+      oauthTokens: args.tokens,
+      oauthTokensIssuedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return { mcpServerId: server.mcpServerId };
+  },
+});
+
+export const clearOAuthTokens = mutation({
+  args: {
+    mcpServerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const server = await getMcpServerForUser(ctx, args.mcpServerId);
+
+    await ctx.db.patch(server._id, {
+      oauthTokens: undefined,
+      oauthClientInfo: undefined,
+      updatedAt: Date.now(),
+    });
+
+    return { mcpServerId: server.mcpServerId };
   },
 });
