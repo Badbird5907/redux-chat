@@ -552,39 +552,134 @@ export function McpSettingsManager() {
                   className="border-border/60 bg-card/40 overflow-hidden rounded-lg border"
                 >
                   {/* Server header row */}
-                  <div className="flex items-center gap-3 px-3 py-3">
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
-                      disabled={!hasTools}
-                      onClick={() =>
-                        hasTools &&
-                        setExpandedIds((current) => ({
-                          ...current,
-                          [server.mcpServerId]: !isExpanded,
-                        }))
-                      }
-                      aria-label={
-                        isExpanded ? "Collapse tools" : "Expand tools"
-                      }
-                    >
-                      {hasTools ? (
-                        <ChevronDown
-                          className={cn(
-                            "size-4 transition-transform duration-200",
-                            isExpanded && "rotate-180",
-                          )}
-                        />
-                      ) : (
-                        <ChevronRight className="size-4 opacity-30" />
-                      )}
-                    </button>
+                  <div className="flex flex-col gap-2 px-4 py-3">
+                    <div className="flex items-start gap-2">
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0 transition-colors"
+                        disabled={!hasTools}
+                        onClick={() =>
+                          hasTools &&
+                          setExpandedIds((current) => ({
+                            ...current,
+                            [server.mcpServerId]: !isExpanded,
+                          }))
+                        }
+                        aria-label={
+                          isExpanded ? "Collapse tools" : "Expand tools"
+                        }
+                      >
+                        {hasTools ? (
+                          <ChevronDown
+                            className={cn(
+                              "size-4 transition-transform duration-200",
+                              isExpanded && "rotate-180",
+                            )}
+                          />
+                        ) : (
+                          <ChevronRight className="size-4 opacity-30" />
+                        )}
+                      </button>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium">
-                          {server.name}
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{server.name}</p>
+                        <p className="text-muted-foreground mt-0.5 text-xs break-all">
+                          {server.url}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={
+                                  isSaving || isDeleting || toolState?.loading
+                                }
+                                aria-label="Test connection"
+                                onClick={() =>
+                                  void discoverTools(server.mcpServerId)
+                                }
+                              />
+                            }
+                          >
+                            {toolState?.loading ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Plug className="size-4" />
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Test connection & discover tools
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={isSaving || isDeleting}
+                                aria-label={
+                                  isEditing ? "Close editor" : "Edit server"
+                                }
+                                onClick={() =>
+                                  setEditingIds((current) => ({
+                                    ...current,
+                                    [server.mcpServerId]: !isEditing,
+                                  }))
+                                }
+                              />
+                            }
+                          >
+                            {isEditing ? (
+                              <X className="size-4" />
+                            ) : (
+                              <Pencil className="size-4" />
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isEditing ? "Cancel editing" : "Edit server"}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                disabled={isDeleting || isSaving}
+                                aria-label="Delete server"
+                                onClick={() =>
+                                  void handleDelete(
+                                    server.mcpServerId,
+                                    server.name,
+                                  )
+                                }
+                              />
+                            }
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-4" />
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>Delete server</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+
+                    {/* Status badges */}
+                    {isConnected || toolState?.error || hasTools ? (
+                      <div className="flex flex-wrap items-center gap-1.5 pl-6">
                         {isConnected ? (
                           <Badge variant="outline" color="green">
                             <Check className="size-3" />
@@ -604,98 +699,7 @@ export function McpSettingsManager() {
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                        {server.url}
-                      </p>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={
-                                isSaving || isDeleting || toolState?.loading
-                              }
-                              aria-label="Test connection"
-                              onClick={() =>
-                                void discoverTools(server.mcpServerId)
-                              }
-                            />
-                          }
-                        >
-                          {toolState?.loading ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Plug className="size-4" />
-                          )}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Test connection & discover tools
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={isSaving || isDeleting}
-                              aria-label={
-                                isEditing ? "Close editor" : "Edit server"
-                              }
-                              onClick={() =>
-                                setEditingIds((current) => ({
-                                  ...current,
-                                  [server.mcpServerId]: !isEditing,
-                                }))
-                              }
-                            />
-                          }
-                        >
-                          {isEditing ? (
-                            <X className="size-4" />
-                          ) : (
-                            <Pencil className="size-4" />
-                          )}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {isEditing ? "Cancel editing" : "Edit server"}
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={isDeleting || isSaving}
-                              aria-label="Delete server"
-                              onClick={() =>
-                                void handleDelete(
-                                  server.mcpServerId,
-                                  server.name,
-                                )
-                              }
-                            />
-                          }
-                        >
-                          {isDeleting ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="size-4" />
-                          )}
-                        </TooltipTrigger>
-                        <TooltipContent>Delete server</TooltipContent>
-                      </Tooltip>
-                    </div>
+                    ) : null}
                   </div>
 
                   {/* Error state */}
@@ -740,7 +744,7 @@ export function McpSettingsManager() {
                   {isExpanded && hasTools ? (
                     <div className="border-border/60 border-t">
                       {/* Permission column headers */}
-                      <div className="bg-muted/30 flex items-center gap-3 px-3 py-2">
+                      <div className="bg-muted/30 flex items-center gap-3 px-4 py-2">
                         <span className="text-muted-foreground flex-1 text-xs font-medium">
                           Tool
                         </span>
@@ -748,7 +752,7 @@ export function McpSettingsManager() {
                           {PERMISSION_OPTIONS.map((perm) => (
                             <span
                               key={perm.value}
-                              className="text-muted-foreground w-16 text-center text-xs font-medium"
+                              className="text-muted-foreground w-10 text-center text-xs font-medium sm:w-14"
                             >
                               {perm.label}
                             </span>
@@ -883,11 +887,11 @@ function ToolPermissionRow({
   onPermissionChange: (permission: McpToolPermission) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5">
+    <div className="flex items-center gap-3 px-4 py-2.5">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{tool.name}</p>
+        <p className="text-sm font-medium">{tool.name}</p>
         {tool.description ? (
-          <p className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
+          <p className="text-muted-foreground mt-0.5 text-xs">
             {tool.description}
           </p>
         ) : null}
@@ -907,7 +911,7 @@ function ToolPermissionRow({
             <Label
               key={perm.value}
               className={cn(
-                "flex w-16 cursor-pointer items-center justify-center rounded-md py-1.5 transition-colors",
+                "flex w-10 cursor-pointer items-center justify-center rounded-md py-1.5 transition-colors sm:w-14",
                 isActive ? perm.activeBg : "hover:bg-muted/50",
                 saving && "cursor-not-allowed opacity-50",
               )}
