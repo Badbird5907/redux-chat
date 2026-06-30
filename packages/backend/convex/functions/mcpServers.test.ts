@@ -42,6 +42,7 @@ describe("functions/mcpServers", () => {
         mcpServerId,
         name: "Local MCP",
         url: "https://example.com/mcp",
+        transport: "http",
         toolPermissions: {},
         hasOAuth: false,
         createdAt: NOW,
@@ -56,6 +57,7 @@ describe("functions/mcpServers", () => {
         mcpServerId,
         name: "Local MCP",
         url: "https://example.com/mcp",
+        transport: "http",
         authHeaders: [
           { name: "Authorization", value: "Bearer test-token" },
           { name: "X-Trace", value: "trace-id" },
@@ -64,6 +66,43 @@ describe("functions/mcpServers", () => {
         hasOAuth: false,
         createdAt: NOW,
         updatedAt: NOW,
+      },
+    ]);
+  });
+
+  it("stores and updates the MCP server transport", async () => {
+    const t = authedTest();
+
+    const { mcpServerId } = await t.mutation(api.functions.mcpServers.create, {
+      name: "SSE MCP",
+      url: "https://example.com/sse",
+      transport: "sse",
+    });
+
+    await expect(
+      t.query(api.functions.mcpServers.getByIds, {
+        serverIds: [mcpServerId],
+      }),
+    ).resolves.toMatchObject([
+      {
+        mcpServerId,
+        transport: "sse",
+      },
+    ]);
+
+    await t.mutation(api.functions.mcpServers.update, {
+      mcpServerId,
+      patch: {
+        transport: "http",
+      },
+    });
+
+    await expect(
+      t.query(api.functions.mcpServers.listConfigured),
+    ).resolves.toMatchObject([
+      {
+        mcpServerId,
+        transport: "http",
       },
     ]);
   });
