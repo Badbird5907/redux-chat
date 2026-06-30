@@ -45,12 +45,16 @@ else
     exit 1
   fi
   INSTANCE_SECRET="$(python3 -c "import json;print(json.load(open('$DATA_DIR/config.json'))['instanceSecret'])")"
-  ( cd "$DATA_DIR" && nohup "$BIN" \
+  # Fully detach the backend: new session (setsid), stdin from /dev/null and
+  # stdout/stderr to a log file, then disown so this script never waits on it
+  # (otherwise piping this script's output, e.g. `... | tail`, would hang).
+  ( cd "$DATA_DIR" && setsid "$BIN" \
       --port 3210 --site-proxy-port 3211 \
       --instance-name anonymous-agent \
       --instance-secret "$INSTANCE_SECRET" \
       --local-storage convex_local_storage \
-      convex_local_backend.sqlite3 > /tmp/convex-backend.log 2>&1 & )
+      convex_local_backend.sqlite3 </dev/null >/tmp/convex-backend.log 2>&1 & )
+  disown -a 2>/dev/null || true
 
   log "Waiting for the backend to become healthy..."
   for _ in $(seq 1 30); do backend_healthy && break; sleep 1; done
