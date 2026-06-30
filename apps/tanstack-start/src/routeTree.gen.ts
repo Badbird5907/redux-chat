@@ -20,6 +20,7 @@ import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as SettingsSupportRouteImport } from './routes/settings/support'
 import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
 import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
@@ -27,8 +28,6 @@ import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsChatRouteImport } from './routes/settings/chat'
 import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
-import { Route as SettingsSupportRouteImport } from './routes/settings/support'
-import { Route as ApiSsoFeaturebaseRouteImport } from './routes/api/sso/featurebase'
 import { Route as RedeemCodeRouteImport } from './routes/redeem.$code'
 import { Route as IngestSplatRouteImport } from './routes/ingest/$'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
@@ -44,6 +43,8 @@ import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminPromotionsIndexRouteImport } from './routes/admin/promotions/index'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
 import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook/stripe'
+import { Route as ApiSsoFeaturebaseRouteImport } from './routes/api/sso/featurebase'
+import { Route as ApiMcpDiscoverToolsRouteImport } from './routes/api/mcp/discover-tools'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
 import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/promotions.$promotionId'
@@ -106,6 +107,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const SettingsSupportRoute = SettingsSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -140,16 +146,6 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
-} as any)
-const SettingsSupportRoute = SettingsSupportRouteImport.update({
-  id: '/support',
-  path: '/support',
-  getParentRoute: () => SettingsRoute,
-} as any)
-const ApiSsoFeaturebaseRoute = ApiSsoFeaturebaseRouteImport.update({
-  id: '/api/sso/featurebase',
-  path: '/api/sso/featurebase',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const RedeemCodeRoute = RedeemCodeRouteImport.update({
   id: '/redeem/$code',
@@ -226,6 +222,16 @@ const ApiWebhookStripeRoute = ApiWebhookStripeRouteImport.update({
   path: '/api/webhook/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSsoFeaturebaseRoute = ApiSsoFeaturebaseRouteImport.update({
+  id: '/api/sso/featurebase',
+  path: '/api/sso/featurebase',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpDiscoverToolsRoute = ApiMcpDiscoverToolsRouteImport.update({
+  id: '/api/mcp/discover-tools',
+  path: '/api/mcp/discover-tools',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -288,7 +294,6 @@ export interface FileRoutesByFullPath {
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/support': typeof SettingsSupportRoute
-  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/admin/': typeof AdminIndexRoute
   '/logos/': typeof LogosIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -299,6 +304,8 @@ export interface FileRoutesByFullPath {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
+  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects/': typeof AppProjectsIndexRoute
   '/admin/promotions/': typeof AdminPromotionsIndexRoute
@@ -326,7 +333,6 @@ export interface FileRoutesByTo {
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/support': typeof SettingsSupportRoute
-  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/': typeof AppIndexRoute
   '/admin': typeof AdminIndexRoute
   '/logos': typeof LogosIndexRoute
@@ -338,6 +344,8 @@ export interface FileRoutesByTo {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
+  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/projects': typeof AppProjectsIndexRoute
   '/admin/promotions': typeof AdminPromotionsIndexRoute
@@ -371,7 +379,6 @@ export interface FileRoutesById {
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/support': typeof SettingsSupportRoute
-  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/logos/': typeof LogosIndexRoute
@@ -383,6 +390,8 @@ export interface FileRoutesById {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
+  '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/_app/projects/': typeof AppProjectsIndexRoute
   '/admin/promotions/': typeof AdminPromotionsIndexRoute
@@ -417,7 +426,6 @@ export interface FileRouteTypes {
     | '/settings/mcp'
     | '/settings/security'
     | '/settings/support'
-    | '/api/sso/featurebase'
     | '/admin/'
     | '/logos/'
     | '/settings/'
@@ -428,6 +436,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/mcp/discover-tools'
+    | '/api/sso/featurebase'
     | '/api/webhook/stripe'
     | '/projects/'
     | '/admin/promotions/'
@@ -455,7 +465,6 @@ export interface FileRouteTypes {
     | '/settings/mcp'
     | '/settings/security'
     | '/settings/support'
-    | '/api/sso/featurebase'
     | '/'
     | '/admin'
     | '/logos'
@@ -467,6 +476,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/mcp/discover-tools'
+    | '/api/sso/featurebase'
     | '/api/webhook/stripe'
     | '/projects'
     | '/admin/promotions'
@@ -499,7 +510,6 @@ export interface FileRouteTypes {
     | '/settings/mcp'
     | '/settings/security'
     | '/settings/support'
-    | '/api/sso/featurebase'
     | '/_app/'
     | '/admin/'
     | '/logos/'
@@ -511,6 +521,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/mcp/discover-tools'
+    | '/api/sso/featurebase'
     | '/api/webhook/stripe'
     | '/_app/projects/'
     | '/admin/promotions/'
@@ -533,8 +545,9 @@ export interface RootRouteChildren {
   LogosIndexRoute: typeof LogosIndexRoute
   TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
+  ApiMcpDiscoverToolsRoute: typeof ApiMcpDiscoverToolsRoute
   ApiSsoFeaturebaseRoute: typeof ApiSsoFeaturebaseRoute
+  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
@@ -618,6 +631,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/settings/support': {
+      id: '/settings/support'
+      path: '/support'
+      fullPath: '/settings/support'
+      preLoaderRoute: typeof SettingsSupportRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/security': {
       id: '/settings/security'
       path: '/security'
@@ -666,20 +686,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/appearance'
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
-    }
-    '/settings/support': {
-      id: '/settings/support'
-      path: '/support'
-      fullPath: '/settings/support'
-      preLoaderRoute: typeof SettingsSupportRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/api/sso/featurebase': {
-      id: '/api/sso/featurebase'
-      path: '/api/sso/featurebase'
-      fullPath: '/api/sso/featurebase'
-      preLoaderRoute: typeof ApiSsoFeaturebaseRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/redeem/$code': {
       id: '/redeem/$code'
@@ -784,6 +790,20 @@ declare module '@tanstack/react-router' {
       path: '/api/webhook/stripe'
       fullPath: '/api/webhook/stripe'
       preLoaderRoute: typeof ApiWebhookStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sso/featurebase': {
+      id: '/api/sso/featurebase'
+      path: '/api/sso/featurebase'
+      fullPath: '/api/sso/featurebase'
+      preLoaderRoute: typeof ApiSsoFeaturebaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp/discover-tools': {
+      id: '/api/mcp/discover-tools'
+      path: '/api/mcp/discover-tools'
+      fullPath: '/api/mcp/discover-tools'
+      preLoaderRoute: typeof ApiMcpDiscoverToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -956,21 +976,12 @@ const rootRouteChildren: RootRouteChildren = {
   LogosIndexRoute: LogosIndexRoute,
   TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiWebhookStripeRoute: ApiWebhookStripeRoute,
+  ApiMcpDiscoverToolsRoute: ApiMcpDiscoverToolsRoute,
   ApiSsoFeaturebaseRoute: ApiSsoFeaturebaseRoute,
+  ApiWebhookStripeRoute: ApiWebhookStripeRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

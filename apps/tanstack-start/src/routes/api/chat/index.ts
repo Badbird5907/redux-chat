@@ -1219,6 +1219,8 @@ export const Route = createFileRoute("/api/chat/")({
             resolvedModel.model,
             requestUserId,
           );
+          const hasMcpApproval =
+            Object.keys(toolRuntime.mcpToolApproval).length > 0;
           const result = streamText({
             model: tracedModel,
             system: systemPrompt,
@@ -1227,6 +1229,9 @@ export const Route = createFileRoute("/api/chat/")({
             ...(providerOptions ? { providerOptions } : {}),
             abortSignal: abortController.signal,
             tools: toolRuntime.tools,
+            ...(hasMcpApproval
+              ? { toolApproval: toolRuntime.mcpToolApproval }
+              : {}),
             experimental_transform: smoothStream({
               // this makes client md rendering way smoother and performant
               delayInMs: 20,

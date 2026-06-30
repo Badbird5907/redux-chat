@@ -1,20 +1,41 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
-import { KeyRound, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  KeyRound,
+  Loader2,
+  Pencil,
+  Plug,
+  Plus,
+  Save,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldQuestion,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
 import { Button } from "@redux/ui/components/button";
 import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
+import { Label } from "@redux/ui/components/label";
+import { RadioGroup, RadioGroupItem } from "@redux/ui/components/radio-group";
 import { Switch } from "@redux/ui/components/switch";
+import { cn } from "@redux/ui/lib/utils";
 
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import McpLogo from "@/components/logos/mcp";
 import { useQuery } from "@/lib/hooks/convex";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
+
+type McpToolPermission = "allow" | "ask" | "deny";
 
 interface McpServerDraft {
   name: string;
@@ -25,6 +46,18 @@ interface McpServerDraft {
 interface AuthHeaderDraft {
   name: string;
   value: string;
+}
+
+interface DiscoveredTool {
+  name: string;
+  description: string;
+}
+
+interface ServerToolState {
+  tools: DiscoveredTool[];
+  loading: boolean;
+  error: string | null;
+  lastFetched: number | null;
 }
 
 function createDraft(server: {
@@ -55,6 +88,36 @@ function serializeAuthHeaders(authHeaders: AuthHeaderDraft[]) {
   return JSON.stringify(compactAuthHeaders(authHeaders));
 }
 
+const PERMISSION_CONFIG: {
+  value: McpToolPermission;
+  label: string;
+  icon: typeof ShieldCheck;
+  color: string;
+  activeColor: string;
+}[] = [
+  {
+    value: "allow",
+    label: "Allow",
+    icon: ShieldCheck,
+    color: "text-muted-foreground",
+    activeColor: "text-green-500",
+  },
+  {
+    value: "ask",
+    label: "Ask",
+    icon: ShieldQuestion,
+    color: "text-muted-foreground",
+    activeColor: "text-yellow-500",
+  },
+  {
+    value: "deny",
+    label: "Deny",
+    icon: ShieldAlert,
+    color: "text-muted-foreground",
+    activeColor: "text-red-500",
+  },
+];
+
 export function McpSettingsManager() {
   const mcpSettings = useQuery(
     api.functions.mcpServers.getSettings,
@@ -72,6 +135,9 @@ export function McpSettingsManager() {
   const updateServer = useMutation(api.functions.mcpServers.update);
   const removeServer = useMutation(api.functions.mcpServers.remove);
   const setMcpEnabled = useMutation(api.functions.mcpServers.setEnabled);
+  const updateToolPermissionsMutation = useMutation(
+    api.functions.mcpServers.updateToolPermissions,
+  );
 
   const [drafts, setDrafts] = useReducerState<Record<string, McpServerDraft>>(
     {},
@@ -79,6 +145,9 @@ export function McpSettingsManager() {
   const [editingIds, setEditingIds] = useReducerState<Record<string, boolean>>(
     {},
   );
+  const [expandedIds, setExpandedIds] = useReducerState<
+    Record<string, boolean>
+  >({});
   const [newServerName, setNewServerName] = useReducerState("");
   const [newServerUrl, setNewServerUrl] = useReducerState("");
   const [newAuthHeaders, setNewAuthHeaders] = useReducerState<
@@ -88,6 +157,12 @@ export function McpSettingsManager() {
   const [creating, setCreating] = useReducerState(false);
   const [savingId, setSavingId] = useReducerState<string | null>(null);
   const [deletingId, setDeletingId] = useReducerState<string | null>(null);
+  const [toolStates, setToolStates] = useState<
+    Record<string, ServerToolState>
+  >({});
+  const [savingPermissions, setSavingPermissions] = useState<
+    Record<string, boolean>
+  >({});
 
   const mergedDrafts = useMemo(
     () =>
@@ -200,6 +275,11 @@ export function McpSettingsManager() {
         delete next[mcpServerId];
         return next;
       });
+      setToolStates((current) => {
+        const next = { ...current };
+        delete next[mcpServerId];
+        return next;
+      });
       toast.success("MCP server removed");
     } catch (error) {
       toast.error(
@@ -209,6 +289,110 @@ export function McpSettingsManager() {
       setDeletingId(null);
     }
   };
+
+  const discoverTools = useCallback(
+    async (mcpServerId: string) => {
+      setToolStates((current) => ({
+        ...current,
+        [mcpServerId]: {
+          tools: current[mcpServerId]?.tools ?? [],
+          loading: true,
+          error: null,
+          lastFetched: current[mcpServerId]?.lastFetched ?? null,
+        },
+      }));
+
+      try {
+        const response = await fetch("/api/mcp/discover-tools", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mcpServerId }),
+        });
+
+        const data = (await response.json()) as {
+          tools?: DiscoveredTool[];
+          error?: string;
+        };
+
+        if (!response.ok || !data.tools) {
+          setToolStates((current) => ({
+            ...current,
+            [mcpServerId]: {
+              tools: [],
+              loading: false,
+              error: data.error ?? "Failed to connect",
+              lastFetched: null,
+            },
+          }));
+          return;
+        }
+
+        setToolStates((current) => ({
+          ...current,
+          [mcpServerId]: {
+            tools: data.tools ?? [],
+            loading: false,
+            error: null,
+            lastFetched: Date.now(),
+          },
+        }));
+
+        // Auto-expand the server card to show tools
+        setExpandedIds((current) => ({
+          ...current,
+          [mcpServerId]: true,
+        }));
+      } catch (error) {
+        setToolStates((current) => ({
+          ...current,
+          [mcpServerId]: {
+            tools: [],
+            loading: false,
+            error:
+              error instanceof Error ? error.message : "Connection failed",
+            lastFetched: null,
+          },
+        }));
+      }
+    },
+    [setExpandedIds],
+  );
+
+  const handlePermissionChange = useCallback(
+    async (
+      mcpServerId: string,
+      toolName: string,
+      permission: McpToolPermission,
+      currentPermissions: Record<string, McpToolPermission>,
+    ) => {
+      const next = { ...currentPermissions, [toolName]: permission };
+
+      // Remove entries that are "allow" (the default) to keep it clean
+      const cleaned = Object.fromEntries(
+        Object.entries(next).filter(([, p]) => p !== "allow"),
+      );
+
+      setSavingPermissions((current) => ({ ...current, [mcpServerId]: true }));
+      try {
+        await updateToolPermissionsMutation({
+          mcpServerId,
+          toolPermissions: cleaned,
+        });
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update permission",
+        );
+      } finally {
+        setSavingPermissions((current) => ({
+          ...current,
+          [mcpServerId]: false,
+        }));
+      }
+    },
+    [updateToolPermissionsMutation],
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -222,6 +406,7 @@ export function McpSettingsManager() {
           </div>
           <p className="text-muted-foreground max-w-3xl text-sm">
             Connect external tools and data sources to use in your chats.
+            Configure per-tool permissions to control how each tool is used.
           </p>
         </div>
         <Switch
@@ -298,66 +483,208 @@ export function McpSettingsManager() {
               const draft =
                 mergedDrafts[server.mcpServerId] ?? createDraft(server);
               const isEditing = editingIds[server.mcpServerId] === true;
+              const isExpanded = expandedIds[server.mcpServerId] === true;
               const isDirty = dirtyIds.has(server.mcpServerId);
               const isSaving = savingId === server.mcpServerId;
               const isDeleting = deletingId === server.mcpServerId;
+              const toolState = toolStates[server.mcpServerId];
+              const permissions = server.toolPermissions;
 
               return (
                 <Card key={server.mcpServerId}>
-                  <CardHeader className="flex flex-row items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{server.name}</div>
-                      <div className="text-muted-foreground mt-1 text-sm break-all">
-                        {server.url}
+                  <CardHeader className="flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {server.name}
+                          </span>
+                          {toolState?.lastFetched && !toolState.error ? (
+                            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+                              <Check className="size-3 text-green-500" />
+                              Connected
+                            </span>
+                          ) : null}
+                          {toolState?.error ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-red-500">
+                              <AlertCircle className="size-3" />
+                              Error
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-muted-foreground mt-1 text-sm break-all">
+                          {server.url}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={
+                            isSaving || isDeleting || toolState?.loading
+                          }
+                          aria-label="Test connection"
+                          title="Test connection and discover tools"
+                          onClick={() => void discoverTools(server.mcpServerId)}
+                        >
+                          {toolState?.loading ? (
+                            <Loader2
+                              className="size-4 animate-spin"
+                              aria-hidden
+                            />
+                          ) : (
+                            <Plug className="size-4" aria-hidden />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={isSaving || isDeleting}
+                          aria-label={
+                            isEditing ? "Close editor" : "Edit server"
+                          }
+                          onClick={() =>
+                            setEditingIds((current) => ({
+                              ...current,
+                              [server.mcpServerId]: !isEditing,
+                            }))
+                          }
+                        >
+                          {isEditing ? (
+                            <X className="size-4" />
+                          ) : (
+                            <Pencil className="size-4" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={isDeleting || isSaving}
+                          aria-label={
+                            isDeleting ? "Deleting server" : "Delete server"
+                          }
+                          aria-busy={isDeleting}
+                          onClick={() =>
+                            void handleDelete(
+                              server.mcpServerId,
+                              server.name,
+                            )
+                          }
+                        >
+                          {isDeleting ? (
+                            <Loader2
+                              className="size-4 animate-spin"
+                              aria-hidden
+                            />
+                          ) : (
+                            <Trash2 className="size-4" aria-hidden />
+                          )}
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
+
+                    {/* Expandable tools section toggle */}
+                    {toolState?.tools && toolState.tools.length > 0 ? (
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={isSaving || isDeleting}
-                        aria-label={isEditing ? "Close editor" : "Edit server"}
+                        className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors"
                         onClick={() =>
-                          setEditingIds((current) => ({
+                          setExpandedIds((current) => ({
                             ...current,
-                            [server.mcpServerId]: !isEditing,
+                            [server.mcpServerId]: !isExpanded,
                           }))
                         }
                       >
-                        {isEditing ? (
-                          <X className="size-4" />
+                        {isExpanded ? (
+                          <ChevronUp className="size-3.5" />
                         ) : (
-                          <Pencil className="size-4" />
+                          <ChevronDown className="size-3.5" />
                         )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={isDeleting || isSaving}
-                        aria-label={
-                          isDeleting ? "Deleting server" : "Delete server"
-                        }
-                        aria-busy={isDeleting}
-                        onClick={() =>
-                          void handleDelete(server.mcpServerId, server.name)
-                        }
-                      >
-                        {isDeleting ? (
-                          <Loader2
-                            className="size-4 animate-spin"
-                            aria-hidden
-                          />
-                        ) : (
-                          <Trash2 className="size-4" aria-hidden />
-                        )}
-                      </Button>
-                    </div>
+                        {toolState.tools.length} tool
+                        {toolState.tools.length !== 1 ? "s" : ""} available
+                      </button>
+                    ) : null}
                   </CardHeader>
 
+                  {/* Error state */}
+                  {toolState?.error ? (
+                    <CardContent className="pt-0">
+                      <div className="flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-500">
+                        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                        <div>
+                          <div className="font-medium">Connection failed</div>
+                          <div className="text-muted-foreground mt-0.5 text-xs">
+                            {toolState.error}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  ) : null}
+
+                  {/* Tools permission list */}
+                  {isExpanded &&
+                  toolState?.tools &&
+                  toolState.tools.length > 0 ? (
+                    <CardContent className="pt-0">
+                      <div className="border-border/70 bg-muted/20 rounded-lg border">
+                        <div className="border-border/70 flex items-center justify-between border-b px-4 py-2.5">
+                          <span className="text-xs font-medium">Tool</span>
+                          <div className="flex gap-6 pr-1">
+                            {PERMISSION_CONFIG.map((perm) => (
+                              <span
+                                key={perm.value}
+                                className="text-muted-foreground w-12 text-center text-xs"
+                              >
+                                {perm.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="divide-border/50 divide-y">
+                          {toolState.tools.map((tool) => (
+                            <ToolPermissionRow
+                              key={tool.name}
+                              tool={tool}
+                              permission={permissions[tool.name] ?? "allow"}
+                              saving={
+                                savingPermissions[server.mcpServerId] ?? false
+                              }
+                              onPermissionChange={(permission) =>
+                                void handlePermissionChange(
+                                  server.mcpServerId,
+                                  tool.name,
+                                  permission,
+                                  permissions,
+                                )
+                              }
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  ) : null}
+
+                  {/* No tools discovered yet - prompt to test */}
+                  {!toolState && !isEditing ? (
+                    <CardContent className="pt-0">
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground hover:bg-muted/50 flex w-full items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm transition-colors"
+                        disabled={isSaving || isDeleting}
+                        onClick={() => void discoverTools(server.mcpServerId)}
+                      >
+                        <Plug className="size-4" />
+                        Test connection & discover tools
+                      </button>
+                    </CardContent>
+                  ) : null}
+
+                  {/* Edit mode */}
                   {isEditing ? (
-                    <CardContent className="flex flex-col gap-3">
+                    <CardContent className="flex flex-col gap-3 pt-0">
                       <Input
                         value={draft.name}
                         onChange={(event) =>
@@ -414,6 +741,62 @@ export function McpSettingsManager() {
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function ToolPermissionRow({
+  tool,
+  permission,
+  saving,
+  onPermissionChange,
+}: {
+  tool: DiscoveredTool;
+  permission: McpToolPermission;
+  saving: boolean;
+  onPermissionChange: (permission: McpToolPermission) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium">{tool.name}</div>
+        {tool.description ? (
+          <div className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
+            {tool.description}
+          </div>
+        ) : null}
+      </div>
+      <RadioGroup
+        value={permission}
+        onValueChange={(value) =>
+          onPermissionChange(value as McpToolPermission)
+        }
+        orientation="horizontal"
+        className="flex w-auto shrink-0 gap-6"
+        disabled={saving}
+      >
+        {PERMISSION_CONFIG.map((perm) => (
+          <Label
+            key={perm.value}
+            className={cn(
+              "flex w-12 cursor-pointer items-center justify-center gap-1",
+              saving && "cursor-not-allowed opacity-50",
+            )}
+          >
+            <RadioGroupItem
+              value={perm.value}
+              className="sr-only"
+              aria-label={`${perm.label} ${tool.name}`}
+            />
+            <perm.icon
+              className={cn(
+                "size-5 transition-colors",
+                permission === perm.value ? perm.activeColor : perm.color,
+              )}
+            />
+          </Label>
+        ))}
+      </RadioGroup>
     </div>
   );
 }

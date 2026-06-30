@@ -309,6 +309,7 @@ async function listConfiguredServers(
     ...(options.includeAuthHeaders
       ? { authHeaders: server.authHeaders ?? [] }
       : {}),
+    toolPermissions: server.toolPermissions ?? {},
     createdAt: server.createdAt,
     updatedAt: server.updatedAt,
   }));
@@ -380,6 +381,7 @@ export const getByIds = query({
           name: server.name,
           url: server.url,
           authHeaders: server.authHeaders ?? [],
+          toolPermissions: server.toolPermissions ?? {},
         };
       }),
     );
@@ -516,5 +518,31 @@ export const remove = mutation({
     await ctx.db.delete(server._id);
 
     return { success: true as const };
+  },
+});
+
+const mcpToolPermission = v.union(
+  v.literal("allow"),
+  v.literal("ask"),
+  v.literal("deny"),
+);
+
+export const updateToolPermissions = mutation({
+  args: {
+    mcpServerId: v.string(),
+    toolPermissions: v.record(v.string(), mcpToolPermission),
+  },
+  handler: async (ctx, args) => {
+    const server = await getMcpServerForUser(ctx, args.mcpServerId);
+
+    await ctx.db.patch(server._id, {
+      toolPermissions:
+        Object.keys(args.toolPermissions).length > 0
+          ? args.toolPermissions
+          : undefined,
+      updatedAt: Date.now(),
+    });
+
+    return { mcpServerId: server.mcpServerId };
   },
 });

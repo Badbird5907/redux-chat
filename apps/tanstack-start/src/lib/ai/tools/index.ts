@@ -3,7 +3,7 @@ import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
-import type { ToolSet } from "ai";
+import type { ToolApprovalStatus, ToolSet } from "ai";
 import type { Value } from "convex/values";
 import type { InMemoryFs } from "just-bash";
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -38,6 +38,7 @@ interface ToolRuntimeOptions {
       name: string;
       value: string;
     }[];
+    toolPermissions?: Record<string, "allow" | "ask" | "deny">;
   }[];
   projectContext?: {
     chatProjectId: string;
@@ -56,6 +57,7 @@ interface ToolRuntime {
   getBillableToolCalls: () => BillableToolCall[];
   tools: ToolSet;
   getBashFs: () => InMemoryFs | undefined;
+  mcpToolApproval: Record<string, ToolApprovalStatus>;
 }
 
 const MAX_TOOL_RESULT_STRING_CHARS = 100_000;
@@ -403,6 +405,8 @@ export async function createToolRuntime(
     );
   }
 
+  const mcpToolApproval: Record<string, ToolApprovalStatus> = {};
+
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
       assertAllowedMcpServerUrl(server.url);
@@ -427,16 +431,29 @@ export async function createToolRuntime(
       const serverTools = await client.tools();
       const prefix = toToolKeyPrefix(server.name);
       const billingKey = `mcp:${prefix}` satisfies ToolBillingKey;
+      const permissions = server.toolPermissions ?? {};
 
       for (const [toolName, toolDefinition] of Object.entries(serverTools) as [
         string,
         ToolSet[string],
       ][]) {
-        tools[`mcp_${prefix}_${toolName}`] = instrumentTool(
+        const qualifiedName = `mcp_${prefix}_${toolName}`;
+        const permission = permissions[toolName];
+
+        if (permission === "deny") {
+          // Skip registering denied tools entirely
+          continue;
+        }
+
+        tools[qualifiedName] = instrumentTool(
           toolDefinition,
           billingKey,
           toolUsageCounts,
         );
+
+        if (permission === "ask") {
+          mcpToolApproval[qualifiedName] = "user-approval";
+        }
       }
     }
   }
@@ -507,6 +524,7 @@ export async function createToolRuntime(
       ),
     tools,
     getBashFs: () => bashWorkspaceRuntime?.fs,
+    mcpToolApproval,
     cleanup: async () => {
       await Promise.allSettled(mcpClients.map((client) => client.close()));
       await sandboxRuntime?.cleanup();

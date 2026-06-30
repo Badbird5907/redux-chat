@@ -165,6 +165,16 @@ export default defineSchema({
         }),
       ),
     ),
+    toolPermissions: v.optional(
+      v.record(
+        v.string(),
+        v.union(
+          v.literal("allow"),
+          v.literal("ask"),
+          v.literal("deny"),
+        ),
+      ),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
