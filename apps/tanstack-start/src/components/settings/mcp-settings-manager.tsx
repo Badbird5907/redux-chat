@@ -211,7 +211,7 @@ export function McpSettingsManager() {
           const authHeaders = server.authHeaders ?? [];
           return draft?.name !== server.name ||
             draft.url !== server.url ||
-            draft.transport !== (server.transport ?? "http") ||
+            draft.transport !== server.transport ||
             serializeAuthHeaders(draft.authHeaders) !==
               serializeAuthHeaders(authHeaders)
             ? [server.mcpServerId]
@@ -665,7 +665,7 @@ export function McpSettingsManager() {
                         </span>
                       ) : null}
                       <span className="text-muted-foreground bg-muted inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase">
-                        {server.transport ?? "http"}
+                        {server.transport}
                       </span>
                       {isConnected ? (
                         <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
