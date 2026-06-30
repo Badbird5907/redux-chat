@@ -550,3 +550,30 @@ export const updateToolPermissions = mutation({
     return { mcpServerId: server.mcpServerId };
   },
 });
+
+export const bulkSetToolPermissions = mutation({
+  args: {
+    mcpServerId: v.string(),
+    permission: mcpToolPermission,
+    toolNames: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const server = await getMcpServerForUser(ctx, args.mcpServerId);
+    const current = server.toolPermissions ?? {};
+    const merged = { ...current };
+    for (const name of args.toolNames) {
+      merged[name] = args.permission;
+    }
+
+    const cleaned = Object.fromEntries(
+      Object.entries(merged).filter(([, p]) => p !== "allow"),
+    );
+
+    await ctx.db.patch(server._id, {
+      toolPermissions: Object.keys(cleaned).length > 0 ? cleaned : undefined,
+      updatedAt: Date.now(),
+    });
+
+    return { mcpServerId: server.mcpServerId };
+  },
+});
