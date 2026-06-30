@@ -22,7 +22,9 @@ export const Route = createFileRoute("/api/mcp/oauth/authorize")({
         const callbackUrl = `${origin}/api/mcp/oauth/callback`;
 
         let servers: Awaited<
-          ReturnType<typeof fetchAuthQuery<typeof api.functions.mcpServers.getByIds>>
+          ReturnType<
+            typeof fetchAuthQuery<typeof api.functions.mcpServers.getByIds>
+          >
         >;
         try {
           servers = await fetchAuthQuery(api.functions.mcpServers.getByIds, {

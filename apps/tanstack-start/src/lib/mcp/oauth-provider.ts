@@ -1,9 +1,9 @@
 import type {
+  OAuthAuthorizationServerInformation,
   OAuthClientInformation,
   OAuthClientMetadata,
   OAuthClientProvider,
   OAuthTokens,
-  OAuthAuthorizationServerInformation,
 } from "@ai-sdk/mcp";
 
 /**
@@ -73,8 +73,7 @@ export class ServerMcpOAuthProvider implements OAuthClientProvider {
         client_secret: options.preloadedState.clientSecret,
       };
       this._authServerInfo = {
-        authorizationServerUrl:
-          options.preloadedState.authorizationServerUrl,
+        authorizationServerUrl: options.preloadedState.authorizationServerUrl,
         tokenEndpoint: options.preloadedState.tokenEndpoint,
       };
     }

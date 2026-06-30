@@ -36,7 +36,11 @@ export const Route = createFileRoute("/api/mcp/oauth/callback")({
 
         // Look up the flow by state
         let flow: Awaited<
-          ReturnType<typeof fetchAuthQuery<typeof api.functions.mcpServers.getOAuthFlowByState>>
+          ReturnType<
+            typeof fetchAuthQuery<
+              typeof api.functions.mcpServers.getOAuthFlowByState
+            >
+          >
         >;
         try {
           flow = await fetchAuthQuery(

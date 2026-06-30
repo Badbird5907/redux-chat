@@ -159,7 +159,11 @@ export function McpSettingsManager() {
         | { type?: string; success?: boolean }
         | null
         | undefined;
-      if (data && typeof data === "object" && data.type === "mcp-oauth-complete") {
+      if (
+        data &&
+        typeof data === "object" &&
+        data.type === "mcp-oauth-complete"
+      ) {
         setConnectingOAuth({});
         if (data.success) {
           toast.success("OAuth connected");
@@ -378,32 +382,29 @@ export function McpSettingsManager() {
     [updateToolPermissionsMutation],
   );
 
-  const handleOAuthConnect = useCallback(
-    (mcpServerId: string) => {
-      setConnectingOAuth((current) => ({ ...current, [mcpServerId]: true }));
-      const popup = window.open(
-        `/api/mcp/oauth/authorize?mcpServerId=${encodeURIComponent(mcpServerId)}`,
-        "mcp-oauth",
-        "width=600,height=700,popup=yes",
-      );
-      if (!popup) {
-        toast.error("Failed to open OAuth popup. Please allow popups.");
-        setConnectingOAuth((current) => ({ ...current, [mcpServerId]: false }));
-        return;
+  const handleOAuthConnect = useCallback((mcpServerId: string) => {
+    setConnectingOAuth((current) => ({ ...current, [mcpServerId]: true }));
+    const popup = window.open(
+      `/api/mcp/oauth/authorize?mcpServerId=${encodeURIComponent(mcpServerId)}`,
+      "mcp-oauth",
+      "width=600,height=700,popup=yes",
+    );
+    if (!popup) {
+      toast.error("Failed to open OAuth popup. Please allow popups.");
+      setConnectingOAuth((current) => ({ ...current, [mcpServerId]: false }));
+      return;
+    }
+    // Poll for popup close in case the message event doesn't fire
+    const interval = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(interval);
+        setConnectingOAuth((current) => ({
+          ...current,
+          [mcpServerId]: false,
+        }));
       }
-      // Poll for popup close in case the message event doesn't fire
-      const interval = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(interval);
-          setConnectingOAuth((current) => ({
-            ...current,
-            [mcpServerId]: false,
-          }));
-        }
-      }, 500);
-    },
-    [],
-  );
+    }, 500);
+  }, []);
 
   const handleOAuthDisconnect = useCallback(
     async (mcpServerId: string) => {
@@ -584,8 +585,7 @@ export function McpSettingsManager() {
               toolState?.lastFetched !== undefined &&
               !toolState.error;
             const isSavingPerm = savingPermissions[mcpServerId] ?? false;
-            const isConnectingOAuth =
-              connectingOAuth[mcpServerId] ?? false;
+            const isConnectingOAuth = connectingOAuth[mcpServerId] ?? false;
             const isDisconnectingOAuth =
               disconnectingOAuth[mcpServerId] ?? false;
 

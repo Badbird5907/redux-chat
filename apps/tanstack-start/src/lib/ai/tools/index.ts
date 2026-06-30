@@ -3,10 +3,10 @@ import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
+import type { OAuthClientProvider, OAuthTokens } from "@ai-sdk/mcp";
 import type { ToolApprovalStatus, ToolSet } from "ai";
 import type { Value } from "convex/values";
 import type { InMemoryFs } from "just-bash";
-import type { OAuthClientProvider, OAuthTokens } from "@ai-sdk/mcp";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { webSearch } from "@exalabs/ai-sdk";
 import { generateImage, tool } from "ai";
@@ -725,7 +725,9 @@ function createChatOAuthProvider(server: {
     },
     // eslint-disable-next-line @typescript-eslint/require-await
     async redirectToAuthorization() {
-      throw new Error("OAuth re-authorization required. Please reconnect in MCP settings.");
+      throw new Error(
+        "OAuth re-authorization required. Please reconnect in MCP settings.",
+      );
     },
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     async saveCodeVerifier() {},
