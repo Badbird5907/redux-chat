@@ -157,9 +157,9 @@ export function McpSettingsManager() {
   const [creating, setCreating] = useReducerState(false);
   const [savingId, setSavingId] = useReducerState<string | null>(null);
   const [deletingId, setDeletingId] = useReducerState<string | null>(null);
-  const [toolStates, setToolStates] = useState<
-    Record<string, ServerToolState>
-  >({});
+  const [toolStates, setToolStates] = useState<Record<string, ServerToolState>>(
+    {},
+  );
   const [savingPermissions, setSavingPermissions] = useState<
     Record<string, boolean>
   >({});
@@ -348,8 +348,7 @@ export function McpSettingsManager() {
           [mcpServerId]: {
             tools: [],
             loading: false,
-            error:
-              error instanceof Error ? error.message : "Connection failed",
+            error: error instanceof Error ? error.message : "Connection failed",
             lastFetched: null,
           },
         }));
@@ -568,10 +567,7 @@ export function McpSettingsManager() {
                           }
                           aria-busy={isDeleting}
                           onClick={() =>
-                            void handleDelete(
-                              server.mcpServerId,
-                              server.name,
-                            )
+                            void handleDelete(server.mcpServerId, server.name)
                           }
                         >
                           {isDeleting ? (
