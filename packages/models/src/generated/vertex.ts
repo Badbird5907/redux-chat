@@ -381,6 +381,33 @@ export const vertexModels = {
         output: 64000,
       },
     },
+    "claude-sonnet-5@default": {
+      id: "claude-sonnet-5@default",
+      name: "Claude Sonnet 5",
+      family: "claude-sonnet",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      temperature: false,
+      knowledge: "2026-01-31",
+      release_date: "2026-06-30",
+      last_updated: "2026-06-30",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image", "pdf"],
+        output: ["text"],
+      },
+      cost: {
+        cache_read: 0.2,
+        cache_write: 2.5,
+        input: 2,
+        output: 10,
+      },
+      limit: {
+        context: 1000000,
+        output: 128000,
+      },
+    },
     "deepseek-ai/deepseek-v3.1-maas": {
       id: "deepseek-ai/deepseek-v3.1-maas",
       name: "DeepSeek V3.1",

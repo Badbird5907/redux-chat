@@ -356,8 +356,35 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function serialize(value: unknown): string {
-  return JSON.stringify(value, null, 2);
+const VALID_IDENT = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+
+function serialize(value: unknown, indent = 0): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+
+  const pad = "  ".repeat(indent + 1);
+  const closePad = "  ".repeat(indent);
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    const items = value.map((v) => `${pad}${serialize(v, indent + 1)}`);
+    return `[\n${items.join(",\n")}\n${closePad}]`;
+  }
+
+  if (isPlainObject(value)) {
+    const entries = Object.entries(value);
+    if (entries.length === 0) return "{}";
+    const lines = entries.map(([k, v]) => {
+      const key = VALID_IDENT.test(k) ? k : JSON.stringify(k);
+      return `${pad}${key}: ${serialize(v, indent + 1)}`;
+    });
+    return `{\n${lines.join(",\n")}\n${closePad}}`;
+  }
+
+  return String(value);
 }
 
 main().catch((error) => {

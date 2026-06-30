@@ -192,9 +192,9 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.144,
-        input: 0.66,
-        output: 3.41,
+        cache_read: 0.11,
+        input: 0.55,
+        output: 3.2,
       },
       limit: {
         context: 262144,
@@ -739,33 +739,6 @@ export const openrouterModels = {
             },
           },
         ],
-      },
-      limit: {
-        context: 1000000,
-        output: 128000,
-      },
-    },
-    "anthropic/claude-opus-4.6-fast": {
-      id: "anthropic/claude-opus-4.6-fast",
-      name: "Claude Opus 4.6 (Fast)",
-      family: "claude-opus",
-      attachment: true,
-      reasoning: true,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      release_date: "2026-04-07",
-      last_updated: "2026-04-07",
-      open_weights: false,
-      modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
-      },
-      cost: {
-        cache_read: 3,
-        cache_write: 37.5,
-        input: 30,
-        output: 150,
       },
       limit: {
         context: 1000000,
@@ -1674,6 +1647,7 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
+        cache_read: 0.02288,
         input: 0.2288,
         output: 0.3432,
       },
@@ -1816,7 +1790,7 @@ export const openrouterModels = {
       },
       limit: {
         context: 32768,
-        output: 8192,
+        output: 32768,
       },
     },
     "google/gemini-2.5-flash-lite": {
@@ -2071,8 +2045,8 @@ export const openrouterModels = {
         output: 3,
       },
       limit: {
-        context: 65536,
-        output: 65536,
+        context: 131072,
+        output: 32768,
       },
     },
     "google/gemini-3.1-flash-image-preview": {
@@ -2440,7 +2414,7 @@ export const openrouterModels = {
       attachment: true,
       reasoning: true,
       tool_call: true,
-      structured_output: false,
+      structured_output: true,
       temperature: true,
       release_date: "2026-04-02",
       last_updated: "2026-04-02",
@@ -3454,9 +3428,8 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.05,
-        input: 0.15,
-        output: 0.9,
+        input: 0.12,
+        output: 0.48,
       },
       limit: {
         context: 196608,
@@ -3480,8 +3453,8 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        input: 0.24,
-        output: 0.96,
+        input: 0.18,
+        output: 0.72,
       },
       limit: {
         context: 196608,
@@ -4040,7 +4013,7 @@ export const openrouterModels = {
       },
       limit: {
         context: 131072,
-        output: 32768,
+        output: 100352,
       },
     },
     "moonshotai/kimi-k2-0905": {
@@ -4066,7 +4039,7 @@ export const openrouterModels = {
       },
       limit: {
         context: 262144,
-        output: 262144,
+        output: 100352,
       },
     },
     "moonshotai/kimi-k2-thinking": {
@@ -4087,6 +4060,7 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
+        cache_read: 0.6,
         input: 0.6,
         output: 2.5,
       },
@@ -4118,7 +4092,7 @@ export const openrouterModels = {
       },
       limit: {
         context: 256000,
-        output: 262144,
+        output: 256000,
       },
     },
     "moonshotai/kimi-k2.6": {
@@ -4139,9 +4113,9 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.144,
-        input: 0.66,
-        output: 3.41,
+        cache_read: 0.11,
+        input: 0.55,
+        output: 3.2,
       },
       limit: {
         context: 262144,
@@ -4498,12 +4472,12 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        input: 0.09,
-        output: 0.45,
+        input: 0.085,
+        output: 0.4,
       },
       limit: {
         context: 262144,
-        output: 262144,
+        output: 16384,
       },
     },
     "nvidia/nemotron-3-super-120b-a12b:free": {
@@ -5924,14 +5898,13 @@ export const openrouterModels = {
     },
     "openai/gpt-oss-120b": {
       id: "openai/gpt-oss-120b",
-      name: "gpt-oss-120b",
+      name: "GPT OSS 120B",
       family: "gpt-oss",
       attachment: false,
       reasoning: true,
       tool_call: true,
       structured_output: true,
       temperature: true,
-      knowledge: "2024-06-30",
       release_date: "2025-08-05",
       last_updated: "2025-08-05",
       open_weights: true,
@@ -5940,12 +5913,12 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        input: 0.039,
-        output: 0.18,
+        input: 0.03,
+        output: 0.15,
       },
       limit: {
         context: 131072,
-        output: 32768,
+        output: 131072,
       },
     },
     "openai/gpt-oss-120b:free": {
@@ -5957,7 +5930,6 @@ export const openrouterModels = {
       tool_call: true,
       structured_output: false,
       temperature: true,
-      knowledge: "2024-06-30",
       release_date: "2025-08-05",
       last_updated: "2025-08-05",
       open_weights: true,
@@ -6404,31 +6376,6 @@ export const openrouterModels = {
       limit: {
         context: 1000000,
         output: 128000,
-      },
-    },
-    "openrouter/owl-alpha": {
-      id: "openrouter/owl-alpha",
-      name: "Owl Alpha",
-      family: "alpha",
-      attachment: false,
-      reasoning: false,
-      tool_call: true,
-      structured_output: true,
-      temperature: true,
-      release_date: "2026-04-28",
-      last_updated: "2026-04-28",
-      open_weights: false,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
-      },
-      cost: {
-        input: 0,
-        output: 0,
-      },
-      limit: {
-        context: 1048756,
-        output: 262144,
       },
     },
     "openrouter/pareto-code": {
@@ -7660,12 +7607,13 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
+        cache_read: 0.05,
         input: 0.14,
         output: 1,
       },
       limit: {
         context: 262144,
-        output: 262144,
+        output: 81920,
       },
     },
     "qwen/qwen3.5-397b-a17b": {
@@ -7690,7 +7638,7 @@ export const openrouterModels = {
       },
       limit: {
         context: 131072,
-        output: 65536,
+        output: 64000,
       },
     },
     "qwen/qwen3.5-9b": {
@@ -7812,8 +7760,8 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        input: 0.2885,
-        output: 3.17,
+        input: 0.285,
+        output: 2.4,
       },
       limit: {
         context: 262140,
@@ -8079,6 +8027,31 @@ export const openrouterModels = {
         output: 128000,
       },
     },
+    "sakana/fugu-ultra": {
+      id: "sakana/fugu-ultra",
+      name: "Fugu Ultra",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: false,
+      release_date: "2026-06-24",
+      last_updated: "2026-06-24",
+      open_weights: false,
+      modalities: {
+        input: ["text", "image"],
+        output: ["text"],
+      },
+      cost: {
+        cache_read: 0.5,
+        input: 5,
+        output: 30,
+      },
+      limit: {
+        context: 1000000,
+        output: 128000,
+      },
+    },
     "sao10k/l3-lunaris-8b": {
       id: "sao10k/l3-lunaris-8b",
       name: "Llama 3 8B Lunaris",
@@ -8200,13 +8173,12 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.02,
-        input: 0.09,
+        input: 0.1,
         output: 0.3,
       },
       limit: {
         context: 262144,
-        output: 16384,
+        output: 65536,
       },
     },
     "stepfun/step-3.7-flash": {
@@ -8618,12 +8590,11 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.0028,
-        input: 0.14,
+        input: 0.105,
         output: 0.28,
       },
       limit: {
-        context: 1048576,
+        context: 32000,
         output: 131072,
       },
     },
@@ -8866,7 +8837,7 @@ export const openrouterModels = {
       },
       limit: {
         context: 202752,
-        output: 16384,
+        output: 128000,
       },
     },
     "z-ai/glm-5-turbo": {
@@ -8912,13 +8883,12 @@ export const openrouterModels = {
         output: ["text"],
       },
       cost: {
-        cache_read: 0.49,
-        input: 0.98,
-        output: 3.08,
+        input: 0.975,
+        output: 4.3,
       },
       limit: {
-        context: 202752,
-        output: 65535,
+        context: 65536,
+        output: 128000,
       },
     },
     "z-ai/glm-5.2": {
@@ -8939,7 +8909,7 @@ export const openrouterModels = {
       },
       cost: {
         cache_read: 0.18,
-        input: 0.95,
+        input: 0.94,
         output: 3,
       },
       limit: {

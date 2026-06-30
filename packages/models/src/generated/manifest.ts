@@ -2,7 +2,7 @@
 // Do not edit manually.
 export const generatedProviderManifest = {
   anthropic: {
-    modelCount: 25,
+    modelCount: 24,
     doc: "https://docs.anthropic.com/en/docs/about-claude/models",
   },
   google: {
@@ -14,11 +14,11 @@ export const generatedProviderManifest = {
     doc: "https://platform.openai.com/docs/models",
   },
   openrouter: {
-    modelCount: 337,
+    modelCount: 336,
     doc: "https://openrouter.ai/models",
   },
   vertex: {
-    modelCount: 37,
+    modelCount: 38,
     doc: "https://cloud.google.com/vertex-ai/generative-ai/docs/models",
   },
   workersai: {
