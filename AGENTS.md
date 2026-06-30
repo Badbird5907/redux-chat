@@ -65,8 +65,27 @@ the notes below only cover non-obvious things needed to run it in a Cloud Agent.
   (`Attempted to access a server-side environment variable on the client`). They
   reproduce on a clean checkout and are unrelated to environment setup.
 
+### Dev-only admin login (`/api/dev-login`)
+For local development there is a dev-only auto-login route:
+`GET /api/dev-login` (on the app at `localhost` port `3712`). Visiting it provisions a fixed admin
+account (`dev-admin@local.test`) if missing — **it checks for an existing user
+first and skips creation if one exists** — signs in (setting the session
+cookie), ensures the account has the `admin` role, and redirects to `/`.
+- Implemented in `apps/tanstack-start/src/routes/api/dev-login.ts` (the route)
+  and `packages/backend/convex/functions/devAuth.ts` (`ensureDevAdmin`).
+- **Triple-gated:** the route 404s unless `NODE_ENV !== "production"`; the
+  Convex `ensureDevAdmin` mutation requires `INTERNAL_CONVEX_SECRET` (via
+  `backendMutation`) and refuses unless `SITE_URL` is a local origin. Do not
+  loosen these gates.
+- After adding/editing Convex functions, redeploy + regen types: stop the local
+  backend, run `pnpm -F @redux/backend exec convex dev --once` (codegen on),
+  delete `convex/tsconfig.json`, then re-run `scripts/dev/cloud-local-backend.sh`.
+  Committing the regenerated `convex/_generated/api.d.ts` and
+  `apps/tanstack-start/src/routeTree.gen.ts` is expected.
+
 ### Verified working
 Sign up with email/password at `/auth/sign-up`, land in the authenticated chat,
 send a message, and the AI replies (e.g. "What is 7 times 6?" → "42"). This
 exercises the full stack: frontend → local Convex → Better Auth → DB → AI
-provider → Stripe billing.
+provider → Stripe billing. The `/api/dev-login` route logs in as an admin and
+`/admin` loads.

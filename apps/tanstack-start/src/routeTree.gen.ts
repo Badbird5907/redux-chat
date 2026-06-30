@@ -35,6 +35,7 @@ import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
+import { Route as ApiDevLoginRouteImport } from './routes/api/dev-login'
 import { Route as ApiDeploymentIdRouteImport } from './routes/api/deployment-id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
@@ -184,6 +185,11 @@ const ApiUploadRoute = ApiUploadRouteImport.update({
   path: '/api/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDevLoginRoute = ApiDevLoginRouteImport.update({
+  id: '/api/dev-login',
+  path: '/api/dev-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDeploymentIdRoute = ApiDeploymentIdRouteImport.update({
   id: '/api/deployment-id',
   path: '/api/deployment-id',
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/deployment-id': typeof ApiDeploymentIdRoute
+  '/api/dev-login': typeof ApiDevLoginRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/components': typeof ComponentsRoute
   '/reasoning': typeof ReasoningRoute
   '/api/deployment-id': typeof ApiDeploymentIdRoute
+  '/api/dev-login': typeof ApiDevLoginRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -380,6 +388,7 @@ export interface FileRoutesById {
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/deployment-id': typeof ApiDeploymentIdRoute
+  '/api/dev-login': typeof ApiDevLoginRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/users'
     | '/api/deployment-id'
+    | '/api/dev-login'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -470,6 +480,7 @@ export interface FileRouteTypes {
     | '/components'
     | '/reasoning'
     | '/api/deployment-id'
+    | '/api/dev-login'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -517,6 +528,7 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/users'
     | '/api/deployment-id'
+    | '/api/dev-login'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -563,6 +575,7 @@ export interface RootRouteChildren {
   ReasoningRoute: typeof ReasoningRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiDeploymentIdRoute: typeof ApiDeploymentIdRoute
+  ApiDevLoginRoute: typeof ApiDevLoginRoute
   ApiUploadRoute: typeof ApiUploadRoute
   IngestSplatRoute: typeof IngestSplatRoute
   RedeemCodeRoute: typeof RedeemCodeRoute
@@ -760,6 +773,13 @@ declare module '@tanstack/react-router' {
       path: '/api/upload'
       fullPath: '/api/upload'
       preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dev-login': {
+      id: '/api/dev-login'
+      path: '/api/dev-login'
+      fullPath: '/api/dev-login'
+      preLoaderRoute: typeof ApiDevLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/deployment-id': {
@@ -1010,6 +1030,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReasoningRoute: ReasoningRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ApiDeploymentIdRoute: ApiDeploymentIdRoute,
+  ApiDevLoginRoute: ApiDevLoginRoute,
   ApiUploadRoute: ApiUploadRoute,
   IngestSplatRoute: IngestSplatRoute,
   RedeemCodeRoute: RedeemCodeRoute,
