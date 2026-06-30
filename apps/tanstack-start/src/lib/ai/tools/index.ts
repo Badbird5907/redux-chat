@@ -136,7 +136,7 @@ async function resolvePublicMcpAddresses(hostname: string) {
   return addresses;
 }
 
-function assertAllowedMcpServerUrl(url: string) {
+export function assertAllowedMcpServerUrl(url: string) {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
     throw new Error("MCP server URL is not allowed.");
@@ -159,7 +159,7 @@ function assertAllowedMcpServerUrl(url: string) {
   }
 }
 
-function createMcpFetch(url: string): typeof fetch {
+export function createMcpFetch(url: string): typeof fetch {
   const parsed = new URL(url);
   const hostname = getUrlHostname(parsed);
 

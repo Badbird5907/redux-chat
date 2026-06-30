@@ -6,7 +6,8 @@ import {
   AlertCircle,
   Check,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
+  ExternalLink,
   KeyRound,
   Loader2,
   Pencil,
@@ -22,12 +23,17 @@ import {
 import { toast } from "sonner";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
-import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
 import { RadioGroup, RadioGroupItem } from "@redux/ui/components/radio-group";
 import { Switch } from "@redux/ui/components/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@redux/ui/components/tooltip";
 import { cn } from "@redux/ui/lib/utils";
 
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
@@ -88,33 +94,37 @@ function serializeAuthHeaders(authHeaders: AuthHeaderDraft[]) {
   return JSON.stringify(compactAuthHeaders(authHeaders));
 }
 
-const PERMISSION_CONFIG: {
+const PERMISSION_OPTIONS: {
   value: McpToolPermission;
   label: string;
+  description: string;
   icon: typeof ShieldCheck;
-  color: string;
   activeColor: string;
+  activeBg: string;
 }[] = [
   {
     value: "allow",
     label: "Allow",
+    description: "Runs automatically",
     icon: ShieldCheck,
-    color: "text-muted-foreground",
-    activeColor: "text-green-500",
+    activeColor: "text-emerald-500",
+    activeBg: "bg-emerald-500/10",
   },
   {
     value: "ask",
     label: "Ask",
+    description: "Requires confirmation",
     icon: ShieldQuestion,
-    color: "text-muted-foreground",
     activeColor: "text-yellow-500",
+    activeBg: "bg-yellow-500/10",
   },
   {
     value: "deny",
     label: "Deny",
+    description: "Blocked from use",
     icon: ShieldAlert,
-    color: "text-muted-foreground",
     activeColor: "text-red-500",
+    activeBg: "bg-red-500/10",
   },
 ];
 
@@ -153,6 +163,7 @@ export function McpSettingsManager() {
   const [newAuthHeaders, setNewAuthHeaders] = useReducerState<
     AuthHeaderDraft[]
   >([]);
+  const [showAddServer, setShowAddServer] = useReducerState(false);
   const [savingEnabled, setSavingEnabled] = useReducerState(false);
   const [creating, setCreating] = useReducerState(false);
   const [savingId, setSavingId] = useReducerState<string | null>(null);
@@ -203,6 +214,7 @@ export function McpSettingsManager() {
       setNewServerName("");
       setNewServerUrl("");
       setNewAuthHeaders([]);
+      setShowAddServer(false);
       toast.success("MCP server added");
     } catch (error) {
       toast.error(
@@ -215,10 +227,7 @@ export function McpSettingsManager() {
 
   const handleSave = async (mcpServerId: string) => {
     const draft = mergedDrafts[mcpServerId];
-
-    if (!draft) {
-      return;
-    }
+    if (!draft) return;
 
     setSavingId(mcpServerId);
     try {
@@ -245,7 +254,6 @@ export function McpSettingsManager() {
     setSavingEnabled(true);
     try {
       await setMcpEnabled({ enabled });
-      toast.success(enabled ? "MCP servers enabled" : "MCP servers disabled");
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -258,9 +266,7 @@ export function McpSettingsManager() {
   };
 
   const handleDelete = async (mcpServerId: string, name: string) => {
-    if (!window.confirm(`Delete "${name}"?`)) {
-      return;
-    }
+    if (!window.confirm(`Delete "${name}"?`)) return;
 
     setDeletingId(mcpServerId);
     try {
@@ -337,7 +343,6 @@ export function McpSettingsManager() {
           },
         }));
 
-        // Auto-expand the server card to show tools
         setExpandedIds((current) => ({
           ...current,
           [mcpServerId]: true,
@@ -362,20 +367,13 @@ export function McpSettingsManager() {
       mcpServerId: string,
       toolName: string,
       permission: McpToolPermission,
-      currentPermissions: Record<string, McpToolPermission>,
     ) => {
-      const next = { ...currentPermissions, [toolName]: permission };
-
-      // Remove entries that are "allow" (the default) to keep it clean
-      const cleaned = Object.fromEntries(
-        Object.entries(next).filter(([, p]) => p !== "allow"),
-      );
-
       setSavingPermissions((current) => ({ ...current, [mcpServerId]: true }));
       try {
         await updateToolPermissionsMutation({
           mcpServerId,
-          toolPermissions: cleaned,
+          toolName,
+          permission,
         });
       } catch (error) {
         toast.error(
@@ -394,88 +392,145 @@ export function McpSettingsManager() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex items-start gap-2">
-            <MobileSidebarTrigger className="mt-1" />
-            <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
-              MCP Servers
-            </h1>
-          </div>
-          <p className="text-muted-foreground max-w-3xl text-sm">
-            Connect external tools and data sources to use in your chats.
-            Configure per-tool permissions to control how each tool is used.
-          </p>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+      {/* Page header */}
+      <div className="flex flex-row flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <MobileSidebarTrigger />
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+            MCP Servers
+          </h1>
         </div>
-        <Switch
-          checked={mcpEnabled}
-          disabled={savingEnabled}
-          aria-label="Enable MCP servers"
-          className="mt-1"
-          onCheckedChange={(enabled) => void handleEnabledChange(enabled)}
-        />
       </div>
 
-      {!mcpEnabled ? (
-        <Card>
-          <CardContent className="text-muted-foreground flex items-center gap-3 py-6 text-sm">
-            <McpLogo className="size-4" />
-            MCP servers are disabled. Turn them on to add or manage servers.
-          </CardContent>
-        </Card>
-      ) : null}
+      {/* Enable / disable section */}
+      <section className="flex flex-col gap-2">
+        <div>
+          <h2 className="text-sm font-semibold">General</h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Connect external tools and data sources via the Model Context
+            Protocol.
+          </p>
+        </div>
+
+        <div className="divide-border/60 border-border/60 bg-card/40 divide-y rounded-lg border">
+          <div className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Enable MCP servers</p>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                Allow connected MCP servers to provide tools in your chats.
+              </p>
+            </div>
+            <Switch
+              checked={mcpEnabled}
+              disabled={savingEnabled}
+              onCheckedChange={(checked) => void handleEnabledChange(checked)}
+              aria-label="Enable MCP servers"
+            />
+          </div>
+        </div>
+      </section>
 
       {mcpEnabled ? (
         <>
-          <Card>
-            <CardHeader className="flex flex-col gap-1">
-              <div className="text-sm font-medium">Add server</div>
-              <div className="text-muted-foreground text-sm">
-                Use a full `http://` or `https://` MCP endpoint URL. Optional
-                auth headers will be sent with every MCP request.
+          {/* Servers section */}
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold">Servers</h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Manage your MCP server connections and per-tool permissions.
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <Input
-                value={newServerName}
-                placeholder="Server name"
-                onChange={(event) => setNewServerName(event.target.value)}
-              />
-              <Input
-                value={newServerUrl}
-                placeholder="https://example.com/mcp"
-                onChange={(event) => setNewServerUrl(event.target.value)}
-              />
-              <AuthHeadersEditor
-                authHeaders={newAuthHeaders}
-                disabled={creating}
-                idPrefix="new-mcp-server"
-                onChange={setNewAuthHeaders}
-              />
-              <div className="flex justify-end">
-                <Button
-                  disabled={
-                    creating ||
-                    newServerName.trim().length === 0 ||
-                    newServerUrl.trim().length === 0
-                  }
-                  onClick={() => void handleCreate()}
-                >
-                  {creating ? "Adding..." : "Add MCP server"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddServer(!showAddServer)}
+              >
+                {showAddServer ? (
+                  <X className="size-4" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+                {showAddServer ? "Cancel" : "Add server"}
+              </Button>
+            </div>
 
-          <div className="flex flex-col gap-4">
-            {servers.length === 0 ? (
-              <Card>
-                <CardContent className="text-muted-foreground flex items-center gap-3 py-6 text-sm">
-                  <McpLogo className="size-4" />
-                  No MCP servers configured yet.
-                </CardContent>
-              </Card>
+            {/* Add server form */}
+            {showAddServer ? (
+              <div className="border-border/60 bg-card/40 rounded-lg border p-4">
+                <div className="flex flex-col gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1.5">
+                      <Label
+                        htmlFor="new-server-name"
+                        className="text-xs font-medium"
+                      >
+                        Name
+                      </Label>
+                      <Input
+                        id="new-server-name"
+                        value={newServerName}
+                        placeholder="My MCP Server"
+                        onChange={(e) => setNewServerName(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label
+                        htmlFor="new-server-url"
+                        className="text-xs font-medium"
+                      >
+                        Endpoint URL
+                      </Label>
+                      <Input
+                        id="new-server-url"
+                        value={newServerUrl}
+                        placeholder="https://example.com/mcp"
+                        onChange={(e) => setNewServerUrl(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <AuthHeadersEditor
+                    authHeaders={newAuthHeaders}
+                    disabled={creating}
+                    idPrefix="new-mcp-server"
+                    onChange={setNewAuthHeaders}
+                  />
+
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      disabled={
+                        creating ||
+                        newServerName.trim().length === 0 ||
+                        newServerUrl.trim().length === 0
+                      }
+                      onClick={() => void handleCreate()}
+                    >
+                      {creating ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Plus className="size-4" />
+                      )}
+                      {creating ? "Adding..." : "Add server"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Server list */}
+            {servers.length === 0 && !showAddServer ? (
+              <div className="border-border/60 text-muted-foreground flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
+                <McpLogo className="text-muted-foreground/60 size-8" />
+                <div>
+                  <p className="text-sm font-medium">No servers configured</p>
+                  <p className="mt-1 text-xs">
+                    Add an MCP server to connect external tools to your chats.
+                  </p>
+                </div>
+              </div>
             ) : null}
 
             {servers.map((server) => {
@@ -488,67 +543,119 @@ export function McpSettingsManager() {
               const isDeleting = deletingId === server.mcpServerId;
               const toolState = toolStates[server.mcpServerId];
               const permissions = server.toolPermissions;
+              const hasTools = toolState?.tools && toolState.tools.length > 0;
+              const isConnected = toolState?.lastFetched && !toolState.error;
 
               return (
-                <Card key={server.mcpServerId}>
-                  <CardHeader className="flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {server.name}
-                          </span>
-                          {toolState?.lastFetched && !toolState.error ? (
-                            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                              <Check className="size-3 text-green-500" />
-                              Connected
-                            </span>
-                          ) : null}
-                          {toolState?.error ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-red-500">
-                              <AlertCircle className="size-3" />
-                              Error
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="text-muted-foreground mt-1 text-sm break-all">
-                          {server.url}
-                        </div>
+                <div
+                  key={server.mcpServerId}
+                  className="border-border/60 bg-card/40 overflow-hidden rounded-lg border"
+                >
+                  {/* Server header row */}
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                      disabled={!hasTools}
+                      onClick={() =>
+                        hasTools &&
+                        setExpandedIds((current) => ({
+                          ...current,
+                          [server.mcpServerId]: !isExpanded,
+                        }))
+                      }
+                      aria-label={
+                        isExpanded ? "Collapse tools" : "Expand tools"
+                      }
+                    >
+                      {hasTools ? (
+                        <ChevronDown
+                          className={cn(
+                            "size-4 transition-transform duration-200",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
+                      ) : (
+                        <ChevronRight className="size-4 opacity-30" />
+                      )}
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium">
+                          {server.name}
+                        </span>
+                        {isConnected ? (
+                          <Badge variant="outline" color="green">
+                            <Check className="size-3" />
+                            Connected
+                          </Badge>
+                        ) : null}
+                        {toolState?.error ? (
+                          <Badge variant="outline" color="red">
+                            <AlertCircle className="size-3" />
+                            Error
+                          </Badge>
+                        ) : null}
+                        {hasTools ? (
+                          <Badge variant="outline" color="muted">
+                            {toolState.tools.length} tool
+                            {toolState.tools.length !== 1 ? "s" : ""}
+                          </Badge>
+                        ) : null}
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={
-                            isSaving || isDeleting || toolState?.loading
+                      <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                        {server.url}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={
+                                isSaving || isDeleting || toolState?.loading
+                              }
+                              aria-label="Test connection"
+                              onClick={() =>
+                                void discoverTools(server.mcpServerId)
+                              }
+                            />
                           }
-                          aria-label="Test connection"
-                          title="Test connection and discover tools"
-                          onClick={() => void discoverTools(server.mcpServerId)}
                         >
                           {toolState?.loading ? (
-                            <Loader2
-                              className="size-4 animate-spin"
-                              aria-hidden
-                            />
+                            <Loader2 className="size-4 animate-spin" />
                           ) : (
-                            <Plug className="size-4" aria-hidden />
+                            <Plug className="size-4" />
                           )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={isSaving || isDeleting}
-                          aria-label={
-                            isEditing ? "Close editor" : "Edit server"
-                          }
-                          onClick={() =>
-                            setEditingIds((current) => ({
-                              ...current,
-                              [server.mcpServerId]: !isEditing,
-                            }))
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Test connection & discover tools
+                        </TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={isSaving || isDeleting}
+                              aria-label={
+                                isEditing ? "Close editor" : "Edit server"
+                              }
+                              onClick={() =>
+                                setEditingIds((current) => ({
+                                  ...current,
+                                  [server.mcpServerId]: !isEditing,
+                                }))
+                              }
+                            />
                           }
                         >
                           {isEditing ? (
@@ -556,155 +663,169 @@ export function McpSettingsManager() {
                           ) : (
                             <Pencil className="size-4" />
                           )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={isDeleting || isSaving}
-                          aria-label={
-                            isDeleting ? "Deleting server" : "Delete server"
-                          }
-                          aria-busy={isDeleting}
-                          onClick={() =>
-                            void handleDelete(server.mcpServerId, server.name)
-                          }
-                        >
-                          {isDeleting ? (
-                            <Loader2
-                              className="size-4 animate-spin"
-                              aria-hidden
-                            />
-                          ) : (
-                            <Trash2 className="size-4" aria-hidden />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {isEditing ? "Cancel editing" : "Edit server"}
+                        </TooltipContent>
+                      </Tooltip>
 
-                    {/* Expandable tools section toggle */}
-                    {toolState?.tools && toolState.tools.length > 0 ? (
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors"
-                        onClick={() =>
-                          setExpandedIds((current) => ({
-                            ...current,
-                            [server.mcpServerId]: !isExpanded,
-                          }))
-                        }
-                      >
-                        {isExpanded ? (
-                          <ChevronUp className="size-3.5" />
-                        ) : (
-                          <ChevronDown className="size-3.5" />
-                        )}
-                        {toolState.tools.length} tool
-                        {toolState.tools.length !== 1 ? "s" : ""} available
-                      </button>
-                    ) : null}
-                  </CardHeader>
-
-                  {/* Error state */}
-                  {toolState?.error ? (
-                    <CardContent className="pt-0">
-                      <div className="flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-500">
-                        <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                        <div>
-                          <div className="font-medium">Connection failed</div>
-                          <div className="text-muted-foreground mt-0.5 text-xs">
-                            {toolState.error}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  ) : null}
-
-                  {/* Tools permission list */}
-                  {isExpanded &&
-                  toolState?.tools &&
-                  toolState.tools.length > 0 ? (
-                    <CardContent className="pt-0">
-                      <div className="border-border/70 bg-muted/20 rounded-lg border">
-                        <div className="border-border/70 flex items-center justify-between border-b px-4 py-2.5">
-                          <span className="text-xs font-medium">Tool</span>
-                          <div className="flex gap-6 pr-1">
-                            {PERMISSION_CONFIG.map((perm) => (
-                              <span
-                                key={perm.value}
-                                className="text-muted-foreground w-12 text-center text-xs"
-                              >
-                                {perm.label}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="divide-border/50 divide-y">
-                          {toolState.tools.map((tool) => (
-                            <ToolPermissionRow
-                              key={tool.name}
-                              tool={tool}
-                              permission={permissions[tool.name] ?? "allow"}
-                              saving={
-                                savingPermissions[server.mcpServerId] ?? false
-                              }
-                              onPermissionChange={(permission) =>
-                                void handlePermissionChange(
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={isDeleting || isSaving}
+                              aria-label="Delete server"
+                              onClick={() =>
+                                void handleDelete(
                                   server.mcpServerId,
-                                  tool.name,
-                                  permission,
-                                  permissions,
+                                  server.name,
                                 )
                               }
                             />
-                          ))}
-                        </div>
+                          }
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4" />
+                          )}
+                        </TooltipTrigger>
+                        <TooltipContent>Delete server</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+
+                  {/* Error state */}
+                  {toolState?.error ? (
+                    <div className="border-border/60 mx-3 mb-3 flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-500">
+                      <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium">Connection failed</p>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {toolState.error}
+                        </p>
                       </div>
-                    </CardContent>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="ml-auto shrink-0"
+                        disabled={toolState.loading}
+                        onClick={() => void discoverTools(server.mcpServerId)}
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </Button>
+                    </div>
                   ) : null}
 
-                  {/* No tools discovered yet - prompt to test */}
+                  {/* Prompt to discover tools */}
                   {!toolState && !isEditing ? (
-                    <CardContent className="pt-0">
+                    <div className="border-border/60 mx-3 mb-3 border-t pt-3">
                       <button
                         type="button"
-                        className="text-muted-foreground hover:text-foreground hover:bg-muted/50 flex w-full items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm transition-colors"
+                        className="text-muted-foreground hover:text-foreground hover:border-border flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-transparent py-2 text-xs transition-colors"
                         disabled={isSaving || isDeleting}
                         onClick={() => void discoverTools(server.mcpServerId)}
                       >
-                        <Plug className="size-4" />
+                        <Plug className="size-3.5" />
                         Test connection & discover tools
                       </button>
-                    </CardContent>
+                    </div>
+                  ) : null}
+
+                  {/* Tools permissions panel */}
+                  {isExpanded && hasTools ? (
+                    <div className="border-border/60 border-t">
+                      {/* Permission column headers */}
+                      <div className="bg-muted/30 flex items-center gap-3 px-3 py-2">
+                        <span className="text-muted-foreground flex-1 text-xs font-medium">
+                          Tool
+                        </span>
+                        <div className="flex shrink-0">
+                          {PERMISSION_OPTIONS.map((perm) => (
+                            <span
+                              key={perm.value}
+                              className="text-muted-foreground w-16 text-center text-xs font-medium"
+                            >
+                              {perm.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Tool rows */}
+                      <div className="divide-border/40 divide-y">
+                        {toolState.tools.map((tool) => (
+                          <ToolPermissionRow
+                            key={tool.name}
+                            tool={tool}
+                            permission={permissions[tool.name] ?? "allow"}
+                            saving={
+                              savingPermissions[server.mcpServerId] ?? false
+                            }
+                            onPermissionChange={(permission) =>
+                              void handlePermissionChange(
+                                server.mcpServerId,
+                                tool.name,
+                                permission,
+                              )
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ) : null}
 
                   {/* Edit mode */}
                   {isEditing ? (
-                    <CardContent className="flex flex-col gap-3 pt-0">
-                      <Input
-                        value={draft.name}
-                        onChange={(event) =>
-                          setDrafts((current) => ({
-                            ...current,
-                            [server.mcpServerId]: {
-                              ...(current[server.mcpServerId] ?? draft),
-                              name: event.target.value,
-                            },
-                          }))
-                        }
-                      />
-                      <Input
-                        value={draft.url}
-                        onChange={(event) =>
-                          setDrafts((current) => ({
-                            ...current,
-                            [server.mcpServerId]: {
-                              ...(current[server.mcpServerId] ?? draft),
-                              url: event.target.value,
-                            },
-                          }))
-                        }
-                      />
+                    <div className="border-border/60 flex flex-col gap-3 border-t p-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="flex flex-col gap-1.5">
+                          <Label
+                            htmlFor={`edit-name-${server.mcpServerId}`}
+                            className="text-xs font-medium"
+                          >
+                            Name
+                          </Label>
+                          <Input
+                            id={`edit-name-${server.mcpServerId}`}
+                            value={draft.name}
+                            onChange={(e) =>
+                              setDrafts((current) => ({
+                                ...current,
+                                [server.mcpServerId]: {
+                                  ...(current[server.mcpServerId] ?? draft),
+                                  name: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label
+                            htmlFor={`edit-url-${server.mcpServerId}`}
+                            className="text-xs font-medium"
+                          >
+                            Endpoint URL
+                          </Label>
+                          <Input
+                            id={`edit-url-${server.mcpServerId}`}
+                            value={draft.url}
+                            onChange={(e) =>
+                              setDrafts((current) => ({
+                                ...current,
+                                [server.mcpServerId]: {
+                                  ...(current[server.mcpServerId] ?? draft),
+                                  url: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
                       <AuthHeadersEditor
                         authHeaders={draft.authHeaders}
                         disabled={isSaving || isDeleting}
@@ -725,18 +846,27 @@ export function McpSettingsManager() {
                           disabled={!isDirty || isSaving || isDeleting}
                           onClick={() => void handleSave(server.mcpServerId)}
                         >
-                          <Save className="size-4" />
+                          {isSaving ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Save className="size-4" />
+                          )}
                           {isSaving ? "Saving..." : "Save changes"}
                         </Button>
                       </div>
-                    </CardContent>
+                    </div>
                   ) : null}
-                </Card>
+                </div>
               );
             })}
-          </div>
+          </section>
         </>
-      ) : null}
+      ) : (
+        <div className="border-border/60 text-muted-foreground flex items-center gap-3 rounded-lg border px-3 py-6 text-sm">
+          <McpLogo className="size-4 shrink-0" />
+          MCP servers are disabled. Turn them on to add or manage servers.
+        </div>
+      )}
     </div>
   );
 }
@@ -753,13 +883,13 @@ function ToolPermissionRow({
   onPermissionChange: (permission: McpToolPermission) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+    <div className="flex items-center gap-3 px-3 py-2.5">
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{tool.name}</div>
+        <p className="truncate text-sm font-medium">{tool.name}</p>
         {tool.description ? (
-          <div className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
+          <p className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
             {tool.description}
-          </div>
+          </p>
         ) : null}
       </div>
       <RadioGroup
@@ -768,30 +898,34 @@ function ToolPermissionRow({
           onPermissionChange(value as McpToolPermission)
         }
         orientation="horizontal"
-        className="flex w-auto shrink-0 gap-6"
+        className="flex w-auto shrink-0"
         disabled={saving}
       >
-        {PERMISSION_CONFIG.map((perm) => (
-          <Label
-            key={perm.value}
-            className={cn(
-              "flex w-12 cursor-pointer items-center justify-center gap-1",
-              saving && "cursor-not-allowed opacity-50",
-            )}
-          >
-            <RadioGroupItem
-              value={perm.value}
-              className="sr-only"
-              aria-label={`${perm.label} ${tool.name}`}
-            />
-            <perm.icon
+        {PERMISSION_OPTIONS.map((perm) => {
+          const isActive = permission === perm.value;
+          return (
+            <Label
+              key={perm.value}
               className={cn(
-                "size-5 transition-colors",
-                permission === perm.value ? perm.activeColor : perm.color,
+                "flex w-16 cursor-pointer items-center justify-center rounded-md py-1.5 transition-colors",
+                isActive ? perm.activeBg : "hover:bg-muted/50",
+                saving && "cursor-not-allowed opacity-50",
               )}
-            />
-          </Label>
-        ))}
+            >
+              <RadioGroupItem
+                value={perm.value}
+                className="sr-only"
+                aria-label={`${perm.label} ${tool.name}`}
+              />
+              <perm.icon
+                className={cn(
+                  "size-4 transition-colors",
+                  isActive ? perm.activeColor : "text-muted-foreground/50",
+                )}
+              />
+            </Label>
+          );
+        })}
       </RadioGroup>
     </div>
   );
@@ -825,27 +959,22 @@ function AuthHeadersEditor({
   };
 
   return (
-    <div className="border-border/70 bg-muted/20 flex flex-col gap-3 rounded-lg border p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <KeyRound className="size-4" />
-            Auth headers
-          </div>
-          <div className="text-muted-foreground mt-1 text-xs">
-            Add headers like Authorization or x-api-key for protected MCP
-            endpoints.
-          </div>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <KeyRound className="text-muted-foreground size-3.5" />
+          <span className="text-xs font-medium">Auth headers</span>
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="h-7 px-2 text-xs"
           disabled={disabled}
           onClick={() => onChange([...authHeaders, { name: "", value: "" }])}
         >
-          <Plus className="size-4" />
-          Add header
+          <Plus className="size-3.5" />
+          Add
         </Button>
       </div>
 
@@ -853,44 +982,40 @@ function AuthHeadersEditor({
         <div className="flex flex-col gap-2">
           {authHeaders.map((header, index) => (
             <div
-              key={`${idPrefix}-auth-header-${header.name}-${header.value}-${index}`}
+              key={`${idPrefix}-auth-header-${index}`}
               className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]"
             >
               <Input
-                aria-label="Auth header name"
+                aria-label="Header name"
                 disabled={disabled}
                 placeholder="Authorization"
                 value={header.name}
-                onChange={(event) =>
-                  updateHeader(index, "name", event.target.value)
-                }
+                className="h-8 text-xs"
+                onChange={(e) => updateHeader(index, "name", e.target.value)}
               />
               <Input
-                aria-label="Auth header value"
+                aria-label="Header value"
                 disabled={disabled}
                 placeholder="Bearer token"
                 type="password"
                 value={header.value}
-                onChange={(event) =>
-                  updateHeader(index, "value", event.target.value)
-                }
+                className="h-8 text-xs"
+                onChange={(e) => updateHeader(index, "value", e.target.value)}
               />
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-sm"
                 disabled={disabled}
                 onClick={() => removeHeader(index)}
               >
-                <Trash2 className="size-4" />
+                <Trash2 className="size-3.5" />
               </Button>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-muted-foreground text-xs">
-          No custom auth headers.
-        </div>
+        <p className="text-muted-foreground text-xs">No auth headers.</p>
       )}
     </div>
   );

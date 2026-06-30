@@ -530,16 +530,20 @@ const mcpToolPermission = v.union(
 export const updateToolPermissions = mutation({
   args: {
     mcpServerId: v.string(),
-    toolPermissions: v.record(v.string(), mcpToolPermission),
+    toolName: v.string(),
+    permission: mcpToolPermission,
   },
   handler: async (ctx, args) => {
     const server = await getMcpServerForUser(ctx, args.mcpServerId);
+    const current = server.toolPermissions ?? {};
+    const merged = { ...current, [args.toolName]: args.permission };
+
+    const cleaned = Object.fromEntries(
+      Object.entries(merged).filter(([, p]) => p !== "allow"),
+    );
 
     await ctx.db.patch(server._id, {
-      toolPermissions:
-        Object.keys(args.toolPermissions).length > 0
-          ? args.toolPermissions
-          : undefined,
+      toolPermissions: Object.keys(cleaned).length > 0 ? cleaned : undefined,
       updatedAt: Date.now(),
     });
 
