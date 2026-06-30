@@ -171,11 +171,43 @@ export default defineSchema({
         v.union(v.literal("allow"), v.literal("ask"), v.literal("deny")),
       ),
     ),
+    oauthTokens: v.optional(
+      v.object({
+        access_token: v.string(),
+        token_type: v.string(),
+        refresh_token: v.optional(v.string()),
+        expires_in: v.optional(v.number()),
+        scope: v.optional(v.string()),
+      }),
+    ),
+    oauthClientInfo: v.optional(
+      v.object({
+        client_id: v.string(),
+        client_secret: v.optional(v.string()),
+      }),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_mcpServerId", ["mcpServerId"])
     .index("by_userId", ["userId", "updatedAt"]),
+
+  mcpOAuthFlows: defineTable({
+    flowId: v.string(),
+    mcpServerId: v.string(),
+    userId: v.string(),
+    serverUrl: v.string(),
+    codeVerifier: v.string(),
+    state: v.string(),
+    clientId: v.string(),
+    clientSecret: v.optional(v.string()),
+    authorizationServerUrl: v.string(),
+    tokenEndpoint: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_flowId", ["flowId"])
+    .index("by_state", ["state"])
+    .index("by_userId", ["userId", "createdAt"]),
 
   defaultMessageSettings: defineTable({
     userId: v.string(),

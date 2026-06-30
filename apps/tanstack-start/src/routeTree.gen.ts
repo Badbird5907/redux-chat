@@ -51,6 +51,8 @@ import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/p
 import { Route as AppShareShareIdRouteImport } from './routes/_app/share.$shareId'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
+import { Route as ApiMcpOauthCallbackRouteImport } from './routes/api/mcp/oauth/callback'
+import { Route as ApiMcpOauthAuthorizeRouteImport } from './routes/api/mcp/oauth/authorize'
 import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -263,6 +265,16 @@ const AppChatIdRoute = AppChatIdRouteImport.update({
   path: '/chat/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiMcpOauthCallbackRoute = ApiMcpOauthCallbackRouteImport.update({
+  id: '/api/mcp/oauth/callback',
+  path: '/api/mcp/oauth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpOauthAuthorizeRoute = ApiMcpOauthAuthorizeRouteImport.update({
+  id: '/api/mcp/oauth/authorize',
+  path: '/api/mcp/oauth/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatIdStreamIndexRoute = ApiChatIdStreamIndexRouteImport.update({
   id: '/api/chat/$id/stream/',
   path: '/api/chat/$id/stream/',
@@ -311,6 +323,8 @@ export interface FileRoutesByFullPath {
   '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
+  '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
+  '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRoutesByTo {
@@ -351,6 +365,8 @@ export interface FileRoutesByTo {
   '/admin/promotions': typeof AdminPromotionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
+  '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
+  '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRoutesById {
@@ -397,6 +413,8 @@ export interface FileRoutesById {
   '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
+  '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
+  '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRouteTypes {
@@ -443,6 +461,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
+    | '/api/mcp/oauth/authorize'
+    | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -483,6 +503,8 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/users'
     | '/api/chat'
+    | '/api/mcp/oauth/authorize'
+    | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream'
   id:
     | '__root__'
@@ -528,6 +550,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
+    | '/api/mcp/oauth/authorize'
+    | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream/'
   fileRoutesById: FileRoutesById
 }
@@ -549,6 +573,8 @@ export interface RootRouteChildren {
   ApiSsoFeaturebaseRoute: typeof ApiSsoFeaturebaseRoute
   ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
+  ApiMcpOauthAuthorizeRoute: typeof ApiMcpOauthAuthorizeRoute
+  ApiMcpOauthCallbackRoute: typeof ApiMcpOauthCallbackRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
 
@@ -848,6 +874,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/mcp/oauth/callback': {
+      id: '/api/mcp/oauth/callback'
+      path: '/api/mcp/oauth/callback'
+      fullPath: '/api/mcp/oauth/callback'
+      preLoaderRoute: typeof ApiMcpOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp/oauth/authorize': {
+      id: '/api/mcp/oauth/authorize'
+      path: '/api/mcp/oauth/authorize'
+      fullPath: '/api/mcp/oauth/authorize'
+      preLoaderRoute: typeof ApiMcpOauthAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat/$id/stream/': {
       id: '/api/chat/$id/stream/'
       path: '/api/chat/$id/stream'
@@ -980,8 +1020,20 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSsoFeaturebaseRoute: ApiSsoFeaturebaseRoute,
   ApiWebhookStripeRoute: ApiWebhookStripeRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
+  ApiMcpOauthAuthorizeRoute: ApiMcpOauthAuthorizeRoute,
+  ApiMcpOauthCallbackRoute: ApiMcpOauthCallbackRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

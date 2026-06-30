@@ -6,6 +6,7 @@ import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import type { ToolApprovalStatus, ToolSet } from "ai";
 import type { Value } from "convex/values";
 import type { InMemoryFs } from "just-bash";
+import type { OAuthClientProvider, OAuthTokens } from "@ai-sdk/mcp";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { webSearch } from "@exalabs/ai-sdk";
 import { generateImage, tool } from "ai";
@@ -39,6 +40,17 @@ interface ToolRuntimeOptions {
       value: string;
     }[];
     toolPermissions?: Record<string, "allow" | "ask" | "deny">;
+    oauthTokens?: {
+      access_token: string;
+      token_type: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+    };
+    oauthClientInfo?: {
+      client_id: string;
+      client_secret?: string;
+    };
   }[];
   projectContext?: {
     chatProjectId: string;
@@ -411,6 +423,11 @@ export async function createToolRuntime(
     for (const server of mcpServers) {
       assertAllowedMcpServerUrl(server.url);
       const mcpFetch = createMcpFetch(server.url);
+
+      const authProvider = server.oauthTokens
+        ? createChatOAuthProvider(server)
+        : undefined;
+
       const client = await createMCPClient({
         name: `redux-chat-${server.mcpServerId}`,
         transport: {
@@ -422,6 +439,7 @@ export async function createToolRuntime(
               header.value,
             ]),
           ),
+          authProvider,
           redirect: "error",
           fetch: mcpFetch,
         },
@@ -654,5 +672,76 @@ function omittedBinaryToolResult(byteLength: number): Value {
     byteLength,
     reason:
       "Binary file contents are not returned inline. Use a text extraction tool or present_file instead.",
+  };
+}
+
+/**
+ * Creates a minimal OAuthClientProvider for use during chat.
+ * Provides stored tokens and handles token refresh transparently.
+ */
+function createChatOAuthProvider(server: {
+  oauthTokens?: {
+    access_token: string;
+    token_type: string;
+    refresh_token?: string;
+    expires_in?: number;
+    scope?: string;
+  };
+  oauthClientInfo?: {
+    client_id: string;
+    client_secret?: string;
+  };
+}): OAuthClientProvider {
+  let currentTokens: OAuthTokens | undefined = server.oauthTokens
+    ? {
+        access_token: server.oauthTokens.access_token,
+        token_type: server.oauthTokens.token_type,
+        refresh_token: server.oauthTokens.refresh_token,
+        expires_in: server.oauthTokens.expires_in,
+        scope: server.oauthTokens.scope,
+      }
+    : undefined;
+
+  return {
+    get redirectUrl(): string {
+      return "https://localhost/oauth/callback";
+    },
+    get clientMetadata() {
+      return {
+        redirect_uris: ["https://localhost/oauth/callback"],
+        client_name: "Redux Chat",
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none" as const,
+      };
+    },
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async tokens() {
+      return currentTokens;
+    },
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async saveTokens(tokens: OAuthTokens) {
+      currentTokens = tokens;
+    },
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async redirectToAuthorization() {
+      throw new Error("OAuth re-authorization required. Please reconnect in MCP settings.");
+    },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    async saveCodeVerifier() {},
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async codeVerifier() {
+      throw new Error("No code verifier available during chat");
+    },
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async clientInformation() {
+      if (!server.oauthClientInfo) return undefined;
+      return {
+        client_id: server.oauthClientInfo.client_id,
+        client_secret: server.oauthClientInfo.client_secret,
+      };
+    },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    async saveClientInformation() {},
   };
 }

@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
   KeyRound,
+  Link2,
+  Link2Off,
   Loader2,
   Pencil,
   Plug,
@@ -114,6 +116,9 @@ export function McpSettingsManager() {
   const bulkSetToolPermissionsMutation = useMutation(
     api.functions.mcpServers.bulkSetToolPermissions,
   );
+  const clearOAuthTokensMutation = useMutation(
+    api.functions.mcpServers.clearOAuthTokens,
+  );
 
   const [drafts, setDrafts] = useReducerState<Record<string, McpServerDraft>>(
     {},
@@ -140,6 +145,30 @@ export function McpSettingsManager() {
   const [savingPermissions, setSavingPermissions] = useState<
     Record<string, boolean>
   >({});
+  const [connectingOAuth, setConnectingOAuth] = useState<
+    Record<string, boolean>
+  >({});
+  const [disconnectingOAuth, setDisconnectingOAuth] = useState<
+    Record<string, boolean>
+  >({});
+
+  // Listen for OAuth popup completion messages
+  useEffect(() => {
+    const handler = (event: MessageEvent<unknown>) => {
+      const data = event.data as
+        | { type?: string; success?: boolean }
+        | null
+        | undefined;
+      if (data && typeof data === "object" && data.type === "mcp-oauth-complete") {
+        setConnectingOAuth({});
+        if (data.success) {
+          toast.success("OAuth connected");
+        }
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   const mergedDrafts = useMemo(
     () =>
@@ -349,6 +378,53 @@ export function McpSettingsManager() {
     [updateToolPermissionsMutation],
   );
 
+  const handleOAuthConnect = useCallback(
+    (mcpServerId: string) => {
+      setConnectingOAuth((current) => ({ ...current, [mcpServerId]: true }));
+      const popup = window.open(
+        `/api/mcp/oauth/authorize?mcpServerId=${encodeURIComponent(mcpServerId)}`,
+        "mcp-oauth",
+        "width=600,height=700,popup=yes",
+      );
+      if (!popup) {
+        toast.error("Failed to open OAuth popup. Please allow popups.");
+        setConnectingOAuth((current) => ({ ...current, [mcpServerId]: false }));
+        return;
+      }
+      // Poll for popup close in case the message event doesn't fire
+      const interval = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(interval);
+          setConnectingOAuth((current) => ({
+            ...current,
+            [mcpServerId]: false,
+          }));
+        }
+      }, 500);
+    },
+    [],
+  );
+
+  const handleOAuthDisconnect = useCallback(
+    async (mcpServerId: string) => {
+      setDisconnectingOAuth((current) => ({ ...current, [mcpServerId]: true }));
+      try {
+        await clearOAuthTokensMutation({ mcpServerId });
+        toast.success("OAuth disconnected");
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to disconnect OAuth",
+        );
+      } finally {
+        setDisconnectingOAuth((current) => ({
+          ...current,
+          [mcpServerId]: false,
+        }));
+      }
+    },
+    [clearOAuthTokensMutation],
+  );
+
   const handleBulkPermission = useCallback(
     async (
       mcpServerId: string,
@@ -506,8 +582,12 @@ export function McpSettingsManager() {
             const isConnected =
               toolState?.lastFetched !== null &&
               toolState?.lastFetched !== undefined &&
-              !toolState?.error;
+              !toolState.error;
             const isSavingPerm = savingPermissions[mcpServerId] ?? false;
+            const isConnectingOAuth =
+              connectingOAuth[mcpServerId] ?? false;
+            const isDisconnectingOAuth =
+              disconnectingOAuth[mcpServerId] ?? false;
 
             const bulkValue = (() => {
               if (!toolState || toolState.tools.length === 0) return undefined;
@@ -528,6 +608,12 @@ export function McpSettingsManager() {
                       <span className="truncate text-sm font-medium">
                         {server.name}
                       </span>
+                      {server.hasOAuth ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
+                          <Link2 className="size-2.5" />
+                          OAuth
+                        </span>
+                      ) : null}
                       {isConnected ? (
                         <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
                       ) : toolState?.error ? (
@@ -658,6 +744,56 @@ export function McpSettingsManager() {
                           }))
                         }
                       />
+                      {/* OAuth section */}
+                      <div className="border-border flex flex-col gap-2 border-t pt-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Link2 className="text-muted-foreground size-3.5" />
+                            <span className="text-xs font-medium">OAuth</span>
+                          </div>
+                          {server.hasOAuth ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs text-red-500 hover:text-red-600"
+                              disabled={isDisconnectingOAuth}
+                              onClick={() =>
+                                void handleOAuthDisconnect(mcpServerId)
+                              }
+                            >
+                              {isDisconnectingOAuth ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Link2Off className="size-3.5" />
+                              )}
+                              Disconnect
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              disabled={isConnectingOAuth}
+                              onClick={() => handleOAuthConnect(mcpServerId)}
+                            >
+                              {isConnectingOAuth ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Link2 className="size-3.5" />
+                              )}
+                              Connect with OAuth
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                          {server.hasOAuth
+                            ? "OAuth tokens are configured for this server."
+                            : "Connect via OAuth if the server requires authorization."}
+                        </p>
+                      </div>
+
                       <div className="flex justify-end">
                         <Button
                           size="sm"
