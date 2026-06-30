@@ -33,7 +33,6 @@ import {
   SelectValue,
 } from "@redux/ui/components/select";
 import { Switch } from "@redux/ui/components/switch";
-import { cn } from "@redux/ui/lib/utils";
 
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import { useQuery } from "@/lib/hooks/convex";
@@ -91,15 +90,6 @@ function compactAuthHeaders(authHeaders: AuthHeaderDraft[]) {
 function serializeAuthHeaders(authHeaders: AuthHeaderDraft[]) {
   return JSON.stringify(compactAuthHeaders(authHeaders));
 }
-
-const PERMISSION_META: Record<
-  McpToolPermission,
-  { label: string; icon: typeof ShieldCheck; color: string }
-> = {
-  allow: { label: "Allow", icon: ShieldCheck, color: "text-emerald-500" },
-  ask: { label: "Ask", icon: ShieldQuestion, color: "text-yellow-500" },
-  deny: { label: "Deny", icon: ShieldAlert, color: "text-red-500" },
-};
 
 export function McpSettingsManager() {
   const mcpSettings = useQuery(
@@ -833,9 +823,6 @@ function ToolPermissionRow({
   saving: boolean;
   onPermissionChange: (permission: McpToolPermission) => void;
 }) {
-  const meta = PERMISSION_META[permission];
-  const Icon = meta.icon;
-
   return (
     <div className="bg-muted/30 flex items-center gap-3 rounded-md px-3 py-2">
       <div className="min-w-0 flex-1">
@@ -858,7 +845,6 @@ function ToolPermissionRow({
           className="h-7 w-auto shrink-0 gap-1.5 text-xs"
           aria-label={`Permission for ${tool.name}`}
         >
-          <Icon className={cn("size-3.5", meta.color)} />
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper" align="end">
