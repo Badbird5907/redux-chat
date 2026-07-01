@@ -49,10 +49,12 @@ import { useQuery } from "@/lib/hooks/convex";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
 type McpToolPermission = "allow" | "ask" | "deny";
+type McpServerTransport = "http" | "sse";
 
 interface McpServerDraft {
   name: string;
   url: string;
+  transport: McpServerTransport;
   authHeaders: AuthHeaderDraft[];
 }
 
@@ -76,11 +78,13 @@ interface ServerToolState {
 function createDraft(server: {
   name: string;
   url: string;
+  transport?: McpServerTransport;
   authHeaders?: AuthHeaderDraft[];
 }): McpServerDraft {
   return {
     name: server.name,
     url: server.url,
+    transport: server.transport ?? "http",
     authHeaders: server.authHeaders ?? [],
   };
 }
@@ -139,6 +143,8 @@ export function McpSettingsManager() {
   >({});
   const [newServerName, setNewServerName] = useReducerState("");
   const [newServerUrl, setNewServerUrl] = useReducerState("");
+  const [newServerTransport, setNewServerTransport] =
+    useReducerState<McpServerTransport>("http");
   const [newAuthHeaders, setNewAuthHeaders] = useReducerState<
     AuthHeaderDraft[]
   >([]);
@@ -205,6 +211,7 @@ export function McpSettingsManager() {
           const authHeaders = server.authHeaders ?? [];
           return draft?.name !== server.name ||
             draft.url !== server.url ||
+            draft.transport !== server.transport ||
             serializeAuthHeaders(draft.authHeaders) !==
               serializeAuthHeaders(authHeaders)
             ? [server.mcpServerId]
@@ -220,10 +227,12 @@ export function McpSettingsManager() {
       await createServer({
         name: newServerName,
         url: newServerUrl,
+        transport: newServerTransport,
         authHeaders: compactAuthHeaders(newAuthHeaders),
       });
       setNewServerName("");
       setNewServerUrl("");
+      setNewServerTransport("http");
       setNewAuthHeaders([]);
       setShowAddForm(false);
       toast.success("MCP server added");
@@ -247,6 +256,7 @@ export function McpSettingsManager() {
         patch: {
           name: draft.name,
           url: draft.url,
+          transport: draft.transport,
           authHeaders: compactAuthHeaders(draft.authHeaders),
         },
       });
@@ -535,6 +545,25 @@ export function McpSettingsManager() {
                     onChange={(e) => setNewServerUrl(e.target.value)}
                   />
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="new-server-transport" className="text-xs">
+                    Transport
+                  </Label>
+                  <Select
+                    value={newServerTransport}
+                    onValueChange={(value) =>
+                      setNewServerTransport(value as McpServerTransport)
+                    }
+                  >
+                    <SelectTrigger id="new-server-transport">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="http">HTTP</SelectItem>
+                      <SelectItem value="sse">SSE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <AuthHeadersEditor
                   authHeaders={newAuthHeaders}
                   disabled={creating}
@@ -635,6 +664,9 @@ export function McpSettingsManager() {
                           OAuth
                         </span>
                       ) : null}
+                      <span className="text-muted-foreground bg-muted inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase">
+                        {server.transport}
+                      </span>
                       {isConnected ? (
                         <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
                       ) : toolState?.error ? (
@@ -801,6 +833,36 @@ export function McpSettingsManager() {
                             }))
                           }
                         />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label
+                          htmlFor={`edit-transport-${mcpServerId}`}
+                          className="text-xs"
+                        >
+                          Transport
+                        </Label>
+                        <Select
+                          value={draft.transport}
+                          disabled={isSaving || isDeleting}
+                          onValueChange={(value) =>
+                            setDrafts((current) => ({
+                              ...current,
+                              [mcpServerId]: {
+                                ...(current[mcpServerId] ??
+                                  createDraft(server)),
+                                transport: value as McpServerTransport,
+                              },
+                            }))
+                          }
+                        >
+                          <SelectTrigger id={`edit-transport-${mcpServerId}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="http">HTTP</SelectItem>
+                            <SelectItem value="sse">SSE</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <AuthHeadersEditor
                         authHeaders={draft.authHeaders}
