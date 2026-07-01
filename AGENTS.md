@@ -16,6 +16,7 @@ the notes below only cover non-obvious things needed to run it in a Cloud Agent.
   (there is no `engine-strict`), but **run the app/Convex with Node 24**.
 
 ### Services (all must run for end-to-end use)
+
 | Service | How to start | Notes |
 |---|---|---|
 | Local infra (Redis, etc.) | `docker compose up -d` | Docker isn't auto-started: run `sudo dockerd > /var/log/dockerd.log 2>&1 &` first if `docker` errors. |

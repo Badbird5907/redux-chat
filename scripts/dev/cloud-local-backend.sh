@@ -39,7 +39,11 @@ else
   ( cd "$BACKEND_DIR" && CONVEX_AGENT_MODE=anonymous pnpm exec convex dev --once --codegen disable )
 
   log "Starting the persistent local Convex backend..."
-  BIN="$(ls -t "$HOME"/.cache/convex/binaries/*/convex-local-backend 2>/dev/null | head -1)"
+  # Pick the newest backend binary. `find` (unlike `ls -t`) doesn't abort under
+  # `set -e` when nothing matches and is safe with unusual filenames (SC2012).
+  BIN="$(find "$HOME/.cache/convex/binaries" -maxdepth 2 -type f \
+      -name convex-local-backend -printf '%T@ %p\n' 2>/dev/null \
+      | sort -rn | head -1 | cut -d' ' -f2-)"
   if [[ -z "${BIN:-}" || ! -x "$BIN" ]]; then
     echo "Could not find the convex-local-backend binary under ~/.cache/convex/binaries" >&2
     exit 1
@@ -67,7 +71,9 @@ ADMIN_KEY="$(python3 -c "import json;print(json.load(open('$DATA_DIR/config.json
 set_env() {
   local name="$1" value="$2"
   [[ -n "$value" ]] || { log "skip $name (not set in environment)"; return 0; }
-  ( cd "$BACKEND_DIR" && pnpm exec convex env set "$name" "$value" \
+  # Pass the value via stdin (supported by `convex env set`) so secrets don't
+  # appear in argv / process listings.
+  ( cd "$BACKEND_DIR" && printf '%s' "$value" | pnpm exec convex env set "$name" \
       --url "$CONVEX_URL" --admin-key "$ADMIN_KEY" >/dev/null )
   log "set $name"
 }
@@ -106,5 +112,25 @@ set_env SITE_URL "${SITE_URL:-http://localhost:${APP_PORT:-3712}}"
 # convex codegen may recreate convex/tsconfig.json which breaks `pnpm lint`; drop it.
 rm -f "$BACKEND_DIR/convex/tsconfig.json"
 
+# Ensure the web app can find the local backend. Without these, `pnpm dev` throws
+# "VITE_CONVEX_URL is not set" on a fresh checkout. Only append if missing so we
+# never clobber an existing value.
+ensure_env_var() {
+  local name="$1" value="$2" env_file="$REPO_ROOT/.env"
+  if [[ ! -f "$env_file" ]]; then
+    if [[ -f "$REPO_ROOT/.env.example" ]]; then
+      cp "$REPO_ROOT/.env.example" "$env_file"
+    else
+      : > "$env_file"
+    fi
+  fi
+  if ! grep -qE "^${name}=" "$env_file"; then
+    printf '%s="%s"\n' "$name" "$value" >> "$env_file"
+    log "added $name to .env"
+  fi
+}
+ensure_env_var VITE_CONVEX_URL "$CONVEX_URL"
+ensure_env_var VITE_CONVEX_SITE_URL "$CONVEX_SITE_URL"
+
 log "Done. Convex API: $CONVEX_URL  | HTTP actions: $CONVEX_SITE_URL"
-log "Point the app at these via VITE_CONVEX_URL / VITE_CONVEX_SITE_URL (already in .env)."
+log "Web app reads these from .env via VITE_CONVEX_URL / VITE_CONVEX_SITE_URL."

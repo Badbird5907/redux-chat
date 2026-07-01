@@ -80,22 +80,25 @@ export async function devLoginResponse(
 
   // Duplicate check (+ admin elevation when requested). Gated on the backend by
   // INTERNAL_CONVEX_SECRET and a local-deployment check.
-  const { existed } = await convex.mutation(
-    api.functions.devAuth.ensureDevAccount,
-    {
+  const ensureAccount = () =>
+    convex.mutation(api.functions.devAuth.ensureDevAccount, {
       secret: env.INTERNAL_CONVEX_SECRET,
       email: account.email,
       admin: account.admin,
-    },
-  );
+    });
+
+  const signIn = () =>
+    postAuth(origin, "/api/auth/sign-in/email", {
+      email: account.email,
+      password: account.password,
+    });
+
+  const { existed } = await ensureAccount();
 
   let authResponse: Response;
   if (existed) {
     // Account already exists — skip creation and just sign in.
-    authResponse = await postAuth(origin, "/api/auth/sign-in/email", {
-      email: account.email,
-      password: account.password,
-    });
+    authResponse = await signIn();
   } else {
     // Provision the account (Better Auth auto-signs in).
     authResponse = await postAuth(origin, "/api/auth/sign-up/email", {
@@ -103,13 +106,18 @@ export async function devLoginResponse(
       email: account.email,
       password: account.password,
     });
-    // Elevate to admin only for admin accounts, once the user exists.
-    if (authResponse.ok && account.admin) {
-      await convex.mutation(api.functions.devAuth.ensureDevAccount, {
-        secret: env.INTERNAL_CONVEX_SECRET,
-        email: account.email,
-        admin: true,
-      });
+
+    if (authResponse.ok) {
+      // Elevate to admin only for admin accounts, once the user exists.
+      if (account.admin) {
+        await ensureAccount();
+      }
+    } else {
+      // Sign-up can fail if the account was created concurrently (duplicate
+      // email race). Treat it as retryable: re-ensure (elevating admins) and
+      // fall back to signing in instead of returning a hard 500.
+      await ensureAccount();
+      authResponse = await signIn();
     }
   }
 

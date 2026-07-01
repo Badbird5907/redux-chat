@@ -18,9 +18,20 @@ function rolesFromAuthRoleField(role: string | null | undefined): string[] {
 /** Only allow the dev-login helper against a local (non-production) deployment. */
 function assertLocalDeployment() {
   const siteUrl = backendEnv().SITE_URL;
+  let hostname: string;
+  let protocol: string;
+  try {
+    ({ hostname, protocol } = new URL(siteUrl));
+  } catch {
+    throw new ConvexError("ensureDevAccount requires a valid local SITE_URL");
+  }
+  // Parse the URL (rather than prefix-matching) so hosts like
+  // "http://localhost.attacker.test" cannot bypass the local-only gate.
   const isLocal =
-    siteUrl.startsWith("http://localhost") ||
-    siteUrl.startsWith("http://127.0.0.1");
+    protocol === "http:" &&
+    (hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1");
   if (!isLocal) {
     throw new ConvexError(
       "ensureDevAccount is only available on local development deployments",
