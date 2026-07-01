@@ -13,6 +13,8 @@ const MAX_AUTH_HEADERS = 20;
 const MAX_HEADER_NAME_LENGTH = 128;
 const MAX_HEADER_VALUE_LENGTH = 4096;
 const headerNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const mcpServerTransport = v.union(v.literal("http"), v.literal("sse"));
+type McpServerTransport = "http" | "sse";
 const blockedMcpHostnames = new Set([
   "localhost",
   "metadata.google.internal",
@@ -39,6 +41,12 @@ function normalizeMcpServerName(name: string) {
   }
 
   return normalized;
+}
+
+function normalizeMcpServerTransport(
+  transport: McpServerTransport | undefined,
+) {
+  return transport ?? "http";
 }
 
 function isPrivateIpv4(hostname: string) {
@@ -306,6 +314,7 @@ async function listConfiguredServers(
     mcpServerId: server.mcpServerId,
     name: server.name,
     url: server.url,
+    transport: normalizeMcpServerTransport(server.transport),
     ...(options.includeAuthHeaders
       ? { authHeaders: server.authHeaders ?? [] }
       : {}),
@@ -381,6 +390,7 @@ export const getByIds = query({
           mcpServerId: server.mcpServerId,
           name: server.name,
           url: server.url,
+          transport: normalizeMcpServerTransport(server.transport),
           authHeaders: server.authHeaders ?? [],
           toolPermissions: server.toolPermissions ?? {},
           oauthTokens: server.oauthTokens,
@@ -398,6 +408,7 @@ export const create = mutation({
   args: {
     name: v.string(),
     url: v.string(),
+    transport: v.optional(mcpServerTransport),
     authHeaders: v.optional(
       v.array(
         v.object({
@@ -417,6 +428,7 @@ export const create = mutation({
       userId: ctx.userId,
       name: normalizeMcpServerName(args.name),
       url: normalizeMcpServerUrl(args.url),
+      transport: normalizeMcpServerTransport(args.transport),
       authHeaders: authHeaders.length > 0 ? authHeaders : undefined,
       createdAt: now,
       updatedAt: now,
@@ -434,6 +446,7 @@ export const update = mutation({
     patch: v.object({
       name: v.optional(v.string()),
       url: v.optional(v.string()),
+      transport: v.optional(mcpServerTransport),
       authHeaders: v.optional(
         v.array(
           v.object({
@@ -455,6 +468,10 @@ export const update = mutation({
       args.patch.url !== undefined
         ? normalizeMcpServerUrl(args.patch.url)
         : server.url;
+    const nextTransport =
+      args.patch.transport !== undefined
+        ? normalizeMcpServerTransport(args.patch.transport)
+        : normalizeMcpServerTransport(server.transport);
     const nextAuthHeaders =
       args.patch.authHeaders !== undefined
         ? normalizeMcpAuthHeaders(args.patch.authHeaders)
@@ -463,6 +480,7 @@ export const update = mutation({
     await ctx.db.patch(server._id, {
       name: nextName,
       url: nextUrl,
+      transport: nextTransport,
       authHeaders: nextAuthHeaders.length > 0 ? nextAuthHeaders : undefined,
       updatedAt: Date.now(),
     });
@@ -471,6 +489,7 @@ export const update = mutation({
       mcpServerId: server.mcpServerId,
       name: nextName,
       url: nextUrl,
+      transport: nextTransport,
       authHeaders: nextAuthHeaders,
     };
   },

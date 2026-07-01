@@ -29,12 +29,15 @@ import { resolveAiSdkImageModel } from "@/server/ai/model-runtime";
 
 export type { ChatToolAttachment };
 
+export type McpServerTransport = "http" | "sse";
+
 interface ToolRuntimeOptions {
   attachments?: ChatToolAttachment[];
   mcpServers?: {
     mcpServerId: string;
     name: string;
     url: string;
+    transport?: McpServerTransport;
     authHeaders?: {
       name: string;
       value: string;
@@ -294,6 +297,27 @@ export function createMcpFetch(url: string): typeof fetch {
   };
 }
 
+export function createMcpTransport({
+  url,
+  transport,
+  headers,
+  authProvider,
+}: {
+  url: string;
+  transport?: McpServerTransport;
+  headers?: Record<string, string>;
+  authProvider?: OAuthClientProvider;
+}) {
+  return {
+    type: transport ?? "http",
+    url,
+    headers,
+    authProvider,
+    redirect: "error" as const,
+    fetch: createMcpFetch(url),
+  };
+}
+
 export async function createToolRuntime(
   settings: MessageSettings,
   {
@@ -431,7 +455,6 @@ export async function createToolRuntime(
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
       assertAllowedMcpServerUrl(server.url);
-      const mcpFetch = createMcpFetch(server.url);
 
       const authProvider = server.oauthTokens
         ? createChatOAuthProvider(server, async (tokens) => {
@@ -441,9 +464,9 @@ export async function createToolRuntime(
 
       const client = await createMCPClient({
         name: `redux-chat-${server.mcpServerId}`,
-        transport: {
-          type: "http",
+        transport: createMcpTransport({
           url: server.url,
+          transport: server.transport,
           headers: Object.fromEntries(
             (server.authHeaders ?? []).map((header) => [
               header.name,
@@ -451,9 +474,7 @@ export async function createToolRuntime(
             ]),
           ),
           authProvider,
-          redirect: "error",
-          fetch: mcpFetch,
-        },
+        }),
       });
       mcpClients.push(client);
 

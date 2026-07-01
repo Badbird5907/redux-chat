@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
 
-import { assertAllowedMcpServerUrl, createMcpFetch } from "@/lib/ai/tools";
+import { assertAllowedMcpServerUrl, createMcpTransport } from "@/lib/ai/tools";
 import { fetchAuthQuery, getRequestUserIdFromHeaders } from "@/lib/auth/server";
 
 const requestSchema = z.object({
@@ -43,7 +43,6 @@ export const Route = createFileRoute("/api/mcp/discover-tools")({
         let client: Awaited<ReturnType<typeof createMCPClient>> | undefined;
         try {
           assertAllowedMcpServerUrl(server.url);
-          const mcpFetch = createMcpFetch(server.url);
 
           const headers: Record<string, string> = Object.fromEntries(
             server.authHeaders.map((h) => [h.name, h.value]),
@@ -55,13 +54,11 @@ export const Route = createFileRoute("/api/mcp/discover-tools")({
 
           client = await createMCPClient({
             name: `redux-chat-discover-${server.mcpServerId}`,
-            transport: {
-              type: "http",
+            transport: createMcpTransport({
               url: server.url,
+              transport: server.transport,
               headers,
-              redirect: "error",
-              fetch: mcpFetch,
-            },
+            }),
           });
 
           const serverTools = await client.tools();

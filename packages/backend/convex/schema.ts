@@ -157,6 +157,7 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(),
     url: v.string(),
+    transport: v.optional(v.union(v.literal("http"), v.literal("sse"))),
     authHeaders: v.optional(
       v.array(
         v.object({
