@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { ConvexHttpClient } from "convex/browser";
 
 import { api } from "@redux/backend/convex/_generated/api";
@@ -6,12 +5,34 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { env } from "@/env";
 import { handler } from "@/lib/auth/server";
 
-// Fixed dev-only admin account. This route is disabled in production builds.
-const DEV_ADMIN_NAME = "Dev Admin";
-const DEV_ADMIN_EMAIL = "dev-admin@local.test";
-const DEV_ADMIN_PASSWORD = "dev-admin-12345!";
+// Fixed dev-only accounts. These routes are disabled in production builds.
+export interface DevAccount {
+  name: string;
+  email: string;
+  password: string;
+  admin: boolean;
+}
 
-function notFound() {
+export const DEV_ACCOUNTS = {
+  admin: {
+    name: "Dev Admin",
+    email: "dev-admin@local.test",
+    password: "dev-admin-12345!",
+    admin: true,
+  },
+  user: {
+    name: "Dev User",
+    email: "dev-user@local.test",
+    password: "dev-user-12345!",
+    admin: false,
+  },
+} satisfies Record<string, DevAccount>;
+
+export function isDevLoginEnabled() {
+  return env.NODE_ENV !== "production";
+}
+
+export function notFound() {
   return new Response("Not Found", { status: 404 });
 }
 
@@ -42,40 +63,52 @@ function redirectWithCookies(authResponse: Response, location: string) {
   return response;
 }
 
-async function devLogin(request: Request): Promise<Response> {
-  // Hard gate: never expose this in production.
-  if (env.NODE_ENV === "production") {
+/**
+ * Provision (if missing) and sign in the given dev account, then redirect to `/`.
+ * Existing accounts are detected first so creation is skipped. Disabled in prod.
+ */
+export async function devLoginResponse(
+  request: Request,
+  account: DevAccount,
+): Promise<Response> {
+  if (!isDevLoginEnabled()) {
     return notFound();
   }
 
   const origin = new URL(request.url).origin;
   const convex = new ConvexHttpClient(env.VITE_CONVEX_URL);
 
-  // Duplicate check (+ admin elevation if the account already exists). Gated on
-  // the backend by INTERNAL_CONVEX_SECRET and a local-deployment check.
-  const { existed } = await convex.mutation(api.functions.devAuth.ensureDevAdmin, {
-    secret: env.INTERNAL_CONVEX_SECRET,
-    email: DEV_ADMIN_EMAIL,
-  });
+  // Duplicate check (+ admin elevation when requested). Gated on the backend by
+  // INTERNAL_CONVEX_SECRET and a local-deployment check.
+  const { existed } = await convex.mutation(
+    api.functions.devAuth.ensureDevAccount,
+    {
+      secret: env.INTERNAL_CONVEX_SECRET,
+      email: account.email,
+      admin: account.admin,
+    },
+  );
 
   let authResponse: Response;
   if (existed) {
     // Account already exists — skip creation and just sign in.
     authResponse = await postAuth(origin, "/api/auth/sign-in/email", {
-      email: DEV_ADMIN_EMAIL,
-      password: DEV_ADMIN_PASSWORD,
+      email: account.email,
+      password: account.password,
     });
   } else {
-    // Provision the account (Better Auth auto-signs in), then elevate to admin.
+    // Provision the account (Better Auth auto-signs in).
     authResponse = await postAuth(origin, "/api/auth/sign-up/email", {
-      name: DEV_ADMIN_NAME,
-      email: DEV_ADMIN_EMAIL,
-      password: DEV_ADMIN_PASSWORD,
+      name: account.name,
+      email: account.email,
+      password: account.password,
     });
-    if (authResponse.ok) {
-      await convex.mutation(api.functions.devAuth.ensureDevAdmin, {
+    // Elevate to admin only for admin accounts, once the user exists.
+    if (authResponse.ok && account.admin) {
+      await convex.mutation(api.functions.devAuth.ensureDevAccount, {
         secret: env.INTERNAL_CONVEX_SECRET,
-        email: DEV_ADMIN_EMAIL,
+        email: account.email,
+        admin: true,
       });
     }
   }
@@ -89,12 +122,3 @@ async function devLogin(request: Request): Promise<Response> {
 
   return redirectWithCookies(authResponse, "/");
 }
-
-export const Route = createFileRoute("/api/dev-login")({
-  server: {
-    handlers: {
-      GET: ({ request }) => devLogin(request),
-      POST: ({ request }) => devLogin(request),
-    },
-  },
-});

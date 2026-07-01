@@ -23,23 +23,24 @@ function assertLocalDeployment() {
     siteUrl.startsWith("http://127.0.0.1");
   if (!isLocal) {
     throw new ConvexError(
-      "ensureDevAdmin is only available on local development deployments",
+      "ensureDevAccount is only available on local development deployments",
     );
   }
 }
 
 /**
- * Dev-only helper used by the `/api/dev-login` route. Looks up a Better Auth
- * user by email (duplicate check) and, if it exists, ensures it has the "admin"
- * role. Account *creation* is intentionally handled by the app route via the
- * normal Better Auth sign-up endpoint so the browser session cookie is set.
+ * Dev-only helper used by the `/api/dev-login/*` routes. Looks up a Better Auth
+ * user by email (duplicate check) and, when `admin` is requested, ensures the
+ * account has the "admin" role. Account *creation* is intentionally handled by
+ * the app route via the normal Better Auth sign-up endpoint so the browser
+ * session cookie is set.
  *
  * Protected by `backendMutation` (requires INTERNAL_CONVEX_SECRET) and gated to
  * local deployments only.
  */
-export const ensureDevAdmin = backendMutation({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) => {
+export const ensureDevAccount = backendMutation({
+  args: { email: v.string(), admin: v.boolean() },
+  handler: async (ctx, { email, admin }) => {
     assertLocalDeployment();
 
     const auth = initAuth(ctx);
@@ -61,7 +62,7 @@ export const ensureDevAdmin = backendMutation({
     }
 
     const roles = rolesFromAuthRoleField(existing.role);
-    if (!roles.includes("admin")) {
+    if (admin && !roles.includes("admin")) {
       await adapter.update({
         model: "user",
         where: [{ field: "email", value: email }],
@@ -69,6 +70,6 @@ export const ensureDevAdmin = backendMutation({
       });
     }
 
-    return { existed: true, isAdmin: true };
+    return { existed: true, isAdmin: admin || roles.includes("admin") };
   },
 });

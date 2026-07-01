@@ -35,10 +35,10 @@ import { Route as AuthSignOutRouteImport } from './routes/auth.sign-out'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
-import { Route as ApiDevLoginRouteImport } from './routes/api/dev-login'
 import { Route as ApiDeploymentIdRouteImport } from './routes/api/deployment-id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
+import { Route as ApiDevLoginIndexRouteImport } from './routes/api/dev-login/index'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminPromotionsIndexRouteImport } from './routes/admin/promotions/index'
@@ -46,6 +46,8 @@ import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.ind
 import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook/stripe'
 import { Route as ApiSsoFeaturebaseRouteImport } from './routes/api/sso/featurebase'
 import { Route as ApiMcpDiscoverToolsRouteImport } from './routes/api/mcp/discover-tools'
+import { Route as ApiDevLoginUserRouteImport } from './routes/api/dev-login/user'
+import { Route as ApiDevLoginAdminRouteImport } from './routes/api/dev-login/admin'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
 import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/promotions.$promotionId'
@@ -185,11 +187,6 @@ const ApiUploadRoute = ApiUploadRouteImport.update({
   path: '/api/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDevLoginRoute = ApiDevLoginRouteImport.update({
-  id: '/api/dev-login',
-  path: '/api/dev-login',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiDeploymentIdRoute = ApiDeploymentIdRouteImport.update({
   id: '/api/deployment-id',
   path: '/api/deployment-id',
@@ -204,6 +201,11 @@ const AdminPromotionsRoute = AdminPromotionsRouteImport.update({
   id: '/promotions',
   path: '/promotions',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiDevLoginIndexRoute = ApiDevLoginIndexRouteImport.update({
+  id: '/api/dev-login/',
+  path: '/api/dev-login/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
   id: '/api/chat/',
@@ -238,6 +240,16 @@ const ApiSsoFeaturebaseRoute = ApiSsoFeaturebaseRouteImport.update({
 const ApiMcpDiscoverToolsRoute = ApiMcpDiscoverToolsRouteImport.update({
   id: '/api/mcp/discover-tools',
   path: '/api/mcp/discover-tools',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDevLoginUserRoute = ApiDevLoginUserRouteImport.update({
+  id: '/api/dev-login/user',
+  path: '/api/dev-login/user',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDevLoginAdminRoute = ApiDevLoginAdminRouteImport.update({
+  id: '/api/dev-login/admin',
+  path: '/api/dev-login/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -297,7 +309,6 @@ export interface FileRoutesByFullPath {
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/deployment-id': typeof ApiDeploymentIdRoute
-  '/api/dev-login': typeof ApiDevLoginRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -323,6 +334,8 @@ export interface FileRoutesByFullPath {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/dev-login/admin': typeof ApiDevLoginAdminRoute
+  '/api/dev-login/user': typeof ApiDevLoginUserRoute
   '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
   '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
@@ -330,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
+  '/api/dev-login/': typeof ApiDevLoginIndexRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -339,7 +353,6 @@ export interface FileRoutesByTo {
   '/components': typeof ComponentsRoute
   '/reasoning': typeof ReasoningRoute
   '/api/deployment-id': typeof ApiDeploymentIdRoute
-  '/api/dev-login': typeof ApiDevLoginRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -366,6 +379,8 @@ export interface FileRoutesByTo {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/dev-login/admin': typeof ApiDevLoginAdminRoute
+  '/api/dev-login/user': typeof ApiDevLoginUserRoute
   '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
   '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
@@ -373,6 +388,7 @@ export interface FileRoutesByTo {
   '/admin/promotions': typeof AdminPromotionsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
+  '/api/dev-login': typeof ApiDevLoginIndexRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
@@ -388,7 +404,6 @@ export interface FileRoutesById {
   '/admin/promotions': typeof AdminPromotionsRouteWithChildren
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/api/deployment-id': typeof ApiDeploymentIdRoute
-  '/api/dev-login': typeof ApiDevLoginRoute
   '/api/upload': typeof ApiUploadRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -415,6 +430,8 @@ export interface FileRoutesById {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/dev-login/admin': typeof ApiDevLoginAdminRoute
+  '/api/dev-login/user': typeof ApiDevLoginUserRoute
   '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
   '/api/sso/featurebase': typeof ApiSsoFeaturebaseRoute
   '/api/webhook/stripe': typeof ApiWebhookStripeRoute
@@ -422,6 +439,7 @@ export interface FileRoutesById {
   '/admin/promotions/': typeof AdminPromotionsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
+  '/api/dev-login/': typeof ApiDevLoginIndexRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -438,7 +456,6 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/users'
     | '/api/deployment-id'
-    | '/api/dev-login'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -464,6 +481,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/dev-login/admin'
+    | '/api/dev-login/user'
     | '/api/mcp/discover-tools'
     | '/api/sso/featurebase'
     | '/api/webhook/stripe'
@@ -471,6 +490,7 @@ export interface FileRouteTypes {
     | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
+    | '/api/dev-login/'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream/'
@@ -480,7 +500,6 @@ export interface FileRouteTypes {
     | '/components'
     | '/reasoning'
     | '/api/deployment-id'
-    | '/api/dev-login'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -507,6 +526,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/dev-login/admin'
+    | '/api/dev-login/user'
     | '/api/mcp/discover-tools'
     | '/api/sso/featurebase'
     | '/api/webhook/stripe'
@@ -514,6 +535,7 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/users'
     | '/api/chat'
+    | '/api/dev-login'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream'
@@ -528,7 +550,6 @@ export interface FileRouteTypes {
     | '/admin/promotions'
     | '/admin/users'
     | '/api/deployment-id'
-    | '/api/dev-login'
     | '/api/upload'
     | '/auth/forgot-password'
     | '/auth/sign-in'
@@ -555,6 +576,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/dev-login/admin'
+    | '/api/dev-login/user'
     | '/api/mcp/discover-tools'
     | '/api/sso/featurebase'
     | '/api/webhook/stripe'
@@ -562,6 +585,7 @@ export interface FileRouteTypes {
     | '/admin/promotions/'
     | '/admin/users/'
     | '/api/chat/'
+    | '/api/dev-login/'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream/'
@@ -575,17 +599,19 @@ export interface RootRouteChildren {
   ReasoningRoute: typeof ReasoningRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ApiDeploymentIdRoute: typeof ApiDeploymentIdRoute
-  ApiDevLoginRoute: typeof ApiDevLoginRoute
   ApiUploadRoute: typeof ApiUploadRoute
   IngestSplatRoute: typeof IngestSplatRoute
   RedeemCodeRoute: typeof RedeemCodeRoute
   LogosIndexRoute: typeof LogosIndexRoute
   TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDevLoginAdminRoute: typeof ApiDevLoginAdminRoute
+  ApiDevLoginUserRoute: typeof ApiDevLoginUserRoute
   ApiMcpDiscoverToolsRoute: typeof ApiMcpDiscoverToolsRoute
   ApiSsoFeaturebaseRoute: typeof ApiSsoFeaturebaseRoute
   ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
+  ApiDevLoginIndexRoute: typeof ApiDevLoginIndexRoute
   ApiMcpOauthAuthorizeRoute: typeof ApiMcpOauthAuthorizeRoute
   ApiMcpOauthCallbackRoute: typeof ApiMcpOauthCallbackRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
@@ -775,13 +801,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/dev-login': {
-      id: '/api/dev-login'
-      path: '/api/dev-login'
-      fullPath: '/api/dev-login'
-      preLoaderRoute: typeof ApiDevLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/deployment-id': {
       id: '/api/deployment-id'
       path: '/api/deployment-id'
@@ -802,6 +821,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/promotions'
       preLoaderRoute: typeof AdminPromotionsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/dev-login/': {
+      id: '/api/dev-login/'
+      path: '/api/dev-login'
+      fullPath: '/api/dev-login/'
+      preLoaderRoute: typeof ApiDevLoginIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/chat/': {
       id: '/api/chat/'
@@ -850,6 +876,20 @@ declare module '@tanstack/react-router' {
       path: '/api/mcp/discover-tools'
       fullPath: '/api/mcp/discover-tools'
       preLoaderRoute: typeof ApiMcpDiscoverToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dev-login/user': {
+      id: '/api/dev-login/user'
+      path: '/api/dev-login/user'
+      fullPath: '/api/dev-login/user'
+      preLoaderRoute: typeof ApiDevLoginUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dev-login/admin': {
+      id: '/api/dev-login/admin'
+      path: '/api/dev-login/admin'
+      fullPath: '/api/dev-login/admin'
+      preLoaderRoute: typeof ApiDevLoginAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -1030,17 +1070,19 @@ const rootRouteChildren: RootRouteChildren = {
   ReasoningRoute: ReasoningRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ApiDeploymentIdRoute: ApiDeploymentIdRoute,
-  ApiDevLoginRoute: ApiDevLoginRoute,
   ApiUploadRoute: ApiUploadRoute,
   IngestSplatRoute: IngestSplatRoute,
   RedeemCodeRoute: RedeemCodeRoute,
   LogosIndexRoute: LogosIndexRoute,
   TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDevLoginAdminRoute: ApiDevLoginAdminRoute,
+  ApiDevLoginUserRoute: ApiDevLoginUserRoute,
   ApiMcpDiscoverToolsRoute: ApiMcpDiscoverToolsRoute,
   ApiSsoFeaturebaseRoute: ApiSsoFeaturebaseRoute,
   ApiWebhookStripeRoute: ApiWebhookStripeRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
+  ApiDevLoginIndexRoute: ApiDevLoginIndexRoute,
   ApiMcpOauthAuthorizeRoute: ApiMcpOauthAuthorizeRoute,
   ApiMcpOauthCallbackRoute: ApiMcpOauthCallbackRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,

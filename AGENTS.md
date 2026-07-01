@@ -65,18 +65,29 @@ the notes below only cover non-obvious things needed to run it in a Cloud Agent.
   (`Attempted to access a server-side environment variable on the client`). They
   reproduce on a clean checkout and are unrelated to environment setup.
 
-### Dev-only admin login (`/api/dev-login`)
-For local development there is a dev-only auto-login route:
-`GET /api/dev-login` (on the app at `localhost` port `3712`). Visiting it provisions a fixed admin
-account (`dev-admin@local.test`) if missing — **it checks for an existing user
-first and skips creation if one exists** — signs in (setting the session
-cookie), ensures the account has the `admin` role, and redirects to `/`.
-- Implemented in `apps/tanstack-start/src/routes/api/dev-login.ts` (the route)
-  and `packages/backend/convex/functions/devAuth.ts` (`ensureDevAdmin`).
-- **Triple-gated:** the route 404s unless `NODE_ENV !== "production"`; the
-  Convex `ensureDevAdmin` mutation requires `INTERNAL_CONVEX_SECRET` (via
+### Dev-only auto-login (`/api/dev-login/*`)
+For local development there are dev-only auto-login routes (on the app at
+`localhost` port `3712`):
+- `GET /api/dev-login/user` — provisions/logs in a normal user
+  (`dev-user@local.test`).
+- `GET /api/dev-login/admin` — provisions/logs in an admin
+  (`dev-admin@local.test`, elevated to the `admin` role).
+- `GET /api/dev-login` — convenience alias that redirects to
+  `/api/dev-login/admin`.
+
+Each account route **checks for an existing user first and skips creation if one
+exists**, signs in (setting the session cookie), and redirects to `/`.
+- Implemented in `apps/tanstack-start/src/routes/api/dev-login/`
+  (`index.ts`/`user.ts`/`admin.ts`), the shared helper
+  `apps/tanstack-start/src/server/dev-login.ts`, and
+  `packages/backend/convex/functions/devAuth.ts` (`ensureDevAccount`).
+- **Triple-gated:** the routes 404 unless `NODE_ENV !== "production"`; the
+  Convex `ensureDevAccount` mutation requires `INTERNAL_CONVEX_SECRET` (via
   `backendMutation`) and refuses unless `SITE_URL` is a local origin. Do not
   loosen these gates.
+- New server route files require restarting the app dev server to register
+  their handlers (HMR regenerates the route tree but doesn't always re-register
+  server handlers).
 - After adding/editing Convex functions, redeploy + regen types: stop the local
   backend, run `pnpm -F @redux/backend exec convex dev --once` (codegen on),
   delete `convex/tsconfig.json`, then re-run `scripts/dev/cloud-local-backend.sh`.
