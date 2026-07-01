@@ -56,6 +56,9 @@ else
   # Fully detach the backend: new session (setsid), stdin from /dev/null and
   # stdout/stderr to a log file, then disown so this script never waits on it
   # (otherwise piping this script's output, e.g. `... | tail`, would hang).
+  # NOTE: convex-local-backend has no env-var or file-based alternative for
+  # --instance-secret (it's a plain clap `long` arg with no `env` attribute,
+  # and --instance-name requires it to be passed), so it must be passed on argv.
   ( cd "$DATA_DIR" && setsid "$BIN" \
       --port 3210 --site-proxy-port 3211 \
       --instance-name anonymous-agent \
@@ -77,8 +80,11 @@ set_env() {
   [[ -n "$value" ]] || { log "skip $name (not set in environment)"; return 0; }
   # Pass the value via stdin (supported by `convex env set`) so secrets don't
   # appear in argv / process listings.
-  ( cd "$BACKEND_DIR" && printf '%s' "$value" | pnpm exec convex env set "$name" \
-      --url "$CONVEX_URL" --admin-key "$ADMIN_KEY" >/dev/null )
+  # Pass URL and admin key via environment variables to avoid exposing the admin
+  # key in process listings.
+  ( cd "$BACKEND_DIR" && export CONVEX_SELF_HOSTED_URL="$CONVEX_URL" \
+      CONVEX_SELF_HOSTED_ADMIN_KEY="$ADMIN_KEY" && \
+      printf '%s' "$value" | pnpm exec convex env set "$name" >/dev/null )
   log "set $name"
 }
 
