@@ -8,7 +8,10 @@ export const workersaiModels = {
   api: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
   npm: "@ai-sdk/openai-compatible",
   doc: "https://developers.cloudflare.com/workers-ai/models/",
-  env: ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_KEY"],
+  env: [
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_API_KEY"
+  ],
   models: {
     "@cf/aisingapore/gemma-sea-lion-v4-27b-it": {
       id: "@cf/aisingapore/gemma-sea-lion-v4-27b-it",
@@ -23,17 +26,21 @@ export const workersaiModels = {
       last_updated: "2025-09-23",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.351,
-        output: 0.555,
+        output: 0.555
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {
       id: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
@@ -49,17 +56,21 @@ export const workersaiModels = {
       last_updated: "2025-05-29",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.497,
-        output: 4.881,
+        output: 4.881
       },
       limit: {
         context: 80000,
-        output: 80000,
-      },
+        output: 80000
+      }
     },
     "@cf/google/gemma-4-26b-a4b-it": {
       id: "@cf/google/gemma-4-26b-a4b-it",
@@ -74,17 +85,22 @@ export const workersaiModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 256000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "@cf/ibm-granite/granite-4.0-h-micro": {
       id: "@cf/ibm-granite/granite-4.0-h-micro",
@@ -99,17 +115,21 @@ export const workersaiModels = {
       last_updated: "2025-10-07",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.017,
-        output: 0.112,
+        output: 0.112
       },
       limit: {
         context: 131000,
-        output: 131000,
-      },
+        output: 131000
+      }
     },
     "@cf/meta/llama-3.1-8b-instruct-fp8": {
       id: "@cf/meta/llama-3.1-8b-instruct-fp8",
@@ -124,17 +144,21 @@ export const workersaiModels = {
       last_updated: "2024-07-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.152,
-        output: 0.287,
+        output: 0.287
       },
       limit: {
         context: 32000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "@cf/meta/llama-3.2-11b-vision-instruct": {
       id: "@cf/meta/llama-3.2-11b-vision-instruct",
@@ -149,17 +173,22 @@ export const workersaiModels = {
       last_updated: "2024-09-25",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.0485,
-        output: 0.676,
+        output: 0.676
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "@cf/meta/llama-3.2-1b-instruct": {
       id: "@cf/meta/llama-3.2-1b-instruct",
@@ -174,17 +203,21 @@ export const workersaiModels = {
       last_updated: "2024-09-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.027,
-        output: 0.201,
+        output: 0.201
       },
       limit: {
         context: 60000,
-        output: 60000,
-      },
+        output: 60000
+      }
     },
     "@cf/meta/llama-3.2-3b-instruct": {
       id: "@cf/meta/llama-3.2-3b-instruct",
@@ -199,17 +232,21 @@ export const workersaiModels = {
       last_updated: "2024-09-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.0509,
-        output: 0.335,
+        output: 0.335
       },
       limit: {
         context: 80000,
-        output: 80000,
-      },
+        output: 80000
+      }
     },
     "@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
       id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
@@ -225,17 +262,21 @@ export const workersaiModels = {
       last_updated: "2024-12-06",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.293,
-        output: 2.253,
+        output: 2.253
       },
       limit: {
         context: 24000,
-        output: 24000,
-      },
+        output: 24000
+      }
     },
     "@cf/meta/llama-4-scout-17b-16e-instruct": {
       id: "@cf/meta/llama-4-scout-17b-16e-instruct",
@@ -251,17 +292,22 @@ export const workersaiModels = {
       last_updated: "2025-04-05",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.27,
-        output: 0.85,
+        output: 0.85
       },
       limit: {
         context: 131000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "@cf/meta/llama-guard-3-8b": {
       id: "@cf/meta/llama-guard-3-8b",
@@ -276,17 +322,21 @@ export const workersaiModels = {
       last_updated: "2025-01-22",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.484,
-        output: 0.03,
+        output: 0.03
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "@cf/mistralai/mistral-small-3.1-24b-instruct": {
       id: "@cf/mistralai/mistral-small-3.1-24b-instruct",
@@ -301,17 +351,21 @@ export const workersaiModels = {
       last_updated: "2025-03-18",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.351,
-        output: 0.555,
+        output: 0.555
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "@cf/moonshotai/kimi-k2.6": {
       id: "@cf/moonshotai/kimi-k2.6",
@@ -327,18 +381,23 @@ export const workersaiModels = {
       last_updated: "2026-04-21",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.16,
         input: 0.95,
-        output: 4,
+        output: 4
       },
       limit: {
         context: 262144,
-        output: 256000,
-      },
+        output: 256000
+      }
     },
     "@cf/moonshotai/kimi-k2.7-code": {
       id: "@cf/moonshotai/kimi-k2.7-code",
@@ -354,18 +413,23 @@ export const workersaiModels = {
       last_updated: "2026-06-12",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.19,
         input: 0.95,
-        output: 4,
+        output: 4
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "@cf/nvidia/nemotron-3-120b-a12b": {
       id: "@cf/nvidia/nemotron-3-120b-a12b",
@@ -380,17 +444,21 @@ export const workersaiModels = {
       last_updated: "2026-03-11",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 256000,
-        output: 256000,
-      },
+        output: 256000
+      }
     },
     "@cf/openai/gpt-oss-120b": {
       id: "@cf/openai/gpt-oss-120b",
@@ -405,17 +473,21 @@ export const workersaiModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.35,
-        output: 0.75,
+        output: 0.75
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "@cf/openai/gpt-oss-20b": {
       id: "@cf/openai/gpt-oss-20b",
@@ -430,17 +502,21 @@ export const workersaiModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.2,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "@cf/qwen/qwen2.5-coder-32b-instruct": {
       id: "@cf/qwen/qwen2.5-coder-32b-instruct",
@@ -455,17 +531,21 @@ export const workersaiModels = {
       last_updated: "2025-02-27",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.66,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "@cf/qwen/qwen3-30b-a3b-fp8": {
       id: "@cf/qwen/qwen3-30b-a3b-fp8",
@@ -480,17 +560,21 @@ export const workersaiModels = {
       last_updated: "2025-04-30",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.0509,
-        output: 0.335,
+        output: 0.335
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "@cf/qwen/qwq-32b": {
       id: "@cf/qwen/qwq-32b",
@@ -505,17 +589,21 @@ export const workersaiModels = {
       last_updated: "2025-03-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.66,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 24000,
-        output: 24000,
-      },
+        output: 24000
+      }
     },
     "@cf/zai-org/glm-4.7-flash": {
       id: "@cf/zai-org/glm-4.7-flash",
@@ -531,17 +619,21 @@ export const workersaiModels = {
       last_updated: "2026-01-19",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.0605,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "@cf/zai-org/glm-5.2": {
       id: "@cf/zai-org/glm-5.2",
@@ -556,19 +648,23 @@ export const workersaiModels = {
       last_updated: "2026-06-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.26,
         input: 1.4,
-        output: 4.4,
+        output: 4.4
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
-    },
-  },
+        output: 262144
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const workersaiCatalog = workersaiModels;

@@ -7,7 +7,9 @@ export const openaiModels = {
   name: "OpenAI",
   npm: "@ai-sdk/openai",
   doc: "https://platform.openai.com/docs/models",
-  env: ["OPENAI_API_KEY"],
+  env: [
+    "OPENAI_API_KEY"
+  ],
   models: {
     "chatgpt-image-latest": {
       id: "chatgpt-image-latest",
@@ -21,14 +23,20 @@ export const openaiModels = {
       last_updated: "2025-12-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       limit: {
         context: 0,
         input: 0,
-        output: 0,
-      },
+        output: 0
+      }
     },
     "gpt-3.5-turbo": {
       id: "gpt-3.5-turbo",
@@ -44,18 +52,22 @@ export const openaiModels = {
       last_updated: "2023-11-06",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0,
         input: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 16385,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "gpt-4": {
       id: "gpt-4",
@@ -71,17 +83,21 @@ export const openaiModels = {
       last_updated: "2024-04-09",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 30,
-        output: 60,
+        output: 60
       },
       limit: {
         context: 8192,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "gpt-4-turbo": {
       id: "gpt-4-turbo",
@@ -97,17 +113,22 @@ export const openaiModels = {
       last_updated: "2024-04-09",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 10,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 128000,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "gpt-4.1": {
       id: "gpt-4.1",
@@ -123,18 +144,24 @@ export const openaiModels = {
       last_updated: "2025-04-14",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 1047576,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gpt-4.1-mini": {
       id: "gpt-4.1-mini",
@@ -150,18 +177,24 @@ export const openaiModels = {
       last_updated: "2025-04-14",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         input: 0.4,
-        output: 1.6,
+        output: 1.6
       },
       limit: {
         context: 1047576,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gpt-4.1-nano": {
       id: "gpt-4.1-nano",
@@ -177,18 +210,23 @@ export const openaiModels = {
       last_updated: "2025-04-14",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.1,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 1047576,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gpt-4o": {
       id: "gpt-4o",
@@ -204,18 +242,24 @@ export const openaiModels = {
       last_updated: "2024-08-06",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.25,
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gpt-4o-2024-05-13": {
       id: "gpt-4o-2024-05-13",
@@ -231,17 +275,22 @@ export const openaiModels = {
       last_updated: "2024-05-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 5,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 128000,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "gpt-4o-2024-08-06": {
       id: "gpt-4o-2024-08-06",
@@ -257,18 +306,23 @@ export const openaiModels = {
       last_updated: "2024-08-06",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.25,
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gpt-4o-2024-11-20": {
       id: "gpt-4o-2024-11-20",
@@ -284,18 +338,23 @@ export const openaiModels = {
       last_updated: "2024-11-20",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.25,
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gpt-4o-mini": {
       id: "gpt-4o-mini",
@@ -311,18 +370,24 @@ export const openaiModels = {
       last_updated: "2024-07-18",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gpt-5": {
       id: "gpt-5",
@@ -338,19 +403,24 @@ export const openaiModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5-chat-latest": {
       id: "gpt-5-chat-latest",
@@ -366,19 +436,24 @@ export const openaiModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5-codex": {
       id: "gpt-5-codex",
@@ -394,19 +469,24 @@ export const openaiModels = {
       last_updated: "2025-09-15",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5-mini": {
       id: "gpt-5-mini",
@@ -422,19 +502,24 @@ export const openaiModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5-nano": {
       id: "gpt-5-nano",
@@ -450,19 +535,24 @@ export const openaiModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.005,
         input: 0.05,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5-pro": {
       id: "gpt-5-pro",
@@ -478,18 +568,23 @@ export const openaiModels = {
       last_updated: "2025-10-06",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 15,
-        output: 120,
+        output: 120
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 272000,
-      },
+        output: 272000
+      }
     },
     "gpt-5.1": {
       id: "gpt-5.1",
@@ -505,19 +600,24 @@ export const openaiModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.1-chat-latest": {
       id: "gpt-5.1-chat-latest",
@@ -533,18 +633,23 @@ export const openaiModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gpt-5.1-codex": {
       id: "gpt-5.1-codex",
@@ -560,19 +665,24 @@ export const openaiModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.1-codex-max": {
       id: "gpt-5.1-codex-max",
@@ -588,19 +698,24 @@ export const openaiModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.1-codex-mini": {
       id: "gpt-5.1-codex-mini",
@@ -616,19 +731,24 @@ export const openaiModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.2": {
       id: "gpt-5.2",
@@ -644,19 +764,24 @@ export const openaiModels = {
       last_updated: "2025-12-11",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.2-chat-latest": {
       id: "gpt-5.2-chat-latest",
@@ -672,18 +797,23 @@ export const openaiModels = {
       last_updated: "2025-12-11",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gpt-5.2-codex": {
       id: "gpt-5.2-codex",
@@ -699,19 +829,25 @@ export const openaiModels = {
       last_updated: "2025-12-11",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.2-pro": {
       id: "gpt-5.2-pro",
@@ -727,18 +863,23 @@ export const openaiModels = {
       last_updated: "2025-12-11",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 21,
-        output: 168,
+        output: 168
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.3-chat-latest": {
       id: "gpt-5.3-chat-latest",
@@ -754,18 +895,23 @@ export const openaiModels = {
       last_updated: "2026-03-03",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gpt-5.3-codex": {
       id: "gpt-5.3-codex",
@@ -781,19 +927,25 @@ export const openaiModels = {
       last_updated: "2026-02-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.3-codex-spark": {
       id: "gpt-5.3-codex-spark",
@@ -809,19 +961,25 @@ export const openaiModels = {
       last_updated: "2026-02-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 128000,
         input: 100000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "gpt-5.4": {
       id: "gpt-5.4",
@@ -837,15 +995,21 @@ export const openaiModels = {
       last_updated: "2026-03-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.25,
         context_over_200k: {
           cache_read: 0.5,
           input: 5,
-          output: 22.5,
+          output: 22.5
         },
         input: 2.5,
         output: 15,
@@ -856,16 +1020,16 @@ export const openaiModels = {
             cache_read: 0.5,
             tier: {
               type: "context",
-              size: 272000,
-            },
-          },
-        ],
+              size: 272000
+            }
+          }
+        ]
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.4-mini": {
       id: "gpt-5.4-mini",
@@ -881,19 +1045,24 @@ export const openaiModels = {
       last_updated: "2026-03-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.75,
-        output: 4.5,
+        output: 4.5
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.4-nano": {
       id: "gpt-5.4-nano",
@@ -909,19 +1078,24 @@ export const openaiModels = {
       last_updated: "2026-03-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.02,
         input: 0.2,
-        output: 1.25,
+        output: 1.25
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.4-pro": {
       id: "gpt-5.4-pro",
@@ -937,13 +1111,18 @@ export const openaiModels = {
       last_updated: "2026-03-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         context_over_200k: {
           input: 60,
-          output: 270,
+          output: 270
         },
         input: 30,
         output: 180,
@@ -953,16 +1132,16 @@ export const openaiModels = {
             output: 270,
             tier: {
               type: "context",
-              size: 272000,
-            },
-          },
-        ],
+              size: 272000
+            }
+          }
+        ]
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.5": {
       id: "gpt-5.5",
@@ -978,15 +1157,21 @@ export const openaiModels = {
       last_updated: "2026-04-23",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         context_over_200k: {
           cache_read: 1,
           input: 10,
-          output: 45,
+          output: 45
         },
         input: 5,
         output: 30,
@@ -997,16 +1182,16 @@ export const openaiModels = {
             cache_read: 1,
             tier: {
               type: "context",
-              size: 272000,
-            },
-          },
-        ],
+              size: 272000
+            }
+          }
+        ]
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-5.5-pro": {
       id: "gpt-5.5-pro",
@@ -1022,13 +1207,19 @@ export const openaiModels = {
       last_updated: "2026-04-23",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         context_over_200k: {
           input: 60,
-          output: 270,
+          output: 270
         },
         input: 30,
         output: 180,
@@ -1038,16 +1229,16 @@ export const openaiModels = {
             output: 270,
             tier: {
               type: "context",
-              size: 272000,
-            },
-          },
-        ],
+              size: 272000
+            }
+          }
+        ]
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "gpt-image-1": {
       id: "gpt-image-1",
@@ -1061,14 +1252,19 @@ export const openaiModels = {
       last_updated: "2025-04-24",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "image"
+        ]
       },
       limit: {
         context: 0,
         input: 0,
-        output: 0,
-      },
+        output: 0
+      }
     },
     "gpt-image-1-mini": {
       id: "gpt-image-1-mini",
@@ -1082,14 +1278,20 @@ export const openaiModels = {
       last_updated: "2025-09-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       limit: {
         context: 0,
         input: 0,
-        output: 0,
-      },
+        output: 0
+      }
     },
     "gpt-image-1.5": {
       id: "gpt-image-1.5",
@@ -1103,14 +1305,20 @@ export const openaiModels = {
       last_updated: "2025-11-25",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       limit: {
         context: 0,
         input: 0,
-        output: 0,
-      },
+        output: 0
+      }
     },
     "gpt-image-2": {
       id: "gpt-image-2",
@@ -1125,13 +1333,18 @@ export const openaiModels = {
       last_updated: "2026-05-01",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "image"
+        ]
       },
       cost: {
         input: 5,
-        output: 40,
-      },
+        output: 40
+      }
     },
     o1: {
       id: "o1",
@@ -1147,18 +1360,24 @@ export const openaiModels = {
       last_updated: "2024-12-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 7.5,
         input: 15,
-        output: 60,
+        output: 60
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "o1-pro": {
       id: "o1-pro",
@@ -1174,17 +1393,22 @@ export const openaiModels = {
       last_updated: "2025-03-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 150,
-        output: 600,
+        output: 600
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     o3: {
       id: "o3",
@@ -1200,18 +1424,24 @@ export const openaiModels = {
       last_updated: "2025-04-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "o3-deep-research": {
       id: "o3-deep-research",
@@ -1226,18 +1456,23 @@ export const openaiModels = {
       last_updated: "2024-06-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 2.5,
         input: 10,
-        output: 40,
+        output: 40
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "o3-mini": {
       id: "o3-mini",
@@ -1253,18 +1488,22 @@ export const openaiModels = {
       last_updated: "2025-01-29",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.55,
         input: 1.1,
-        output: 4.4,
+        output: 4.4
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "o3-pro": {
       id: "o3-pro",
@@ -1280,17 +1519,22 @@ export const openaiModels = {
       last_updated: "2025-06-10",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 20,
-        output: 80,
+        output: 80
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "o4-mini": {
       id: "o4-mini",
@@ -1306,18 +1550,23 @@ export const openaiModels = {
       last_updated: "2025-04-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.275,
         input: 1.1,
-        output: 4.4,
+        output: 4.4
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "o4-mini-deep-research": {
       id: "o4-mini-deep-research",
@@ -1332,18 +1581,23 @@ export const openaiModels = {
       last_updated: "2024-06-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "text-embedding-3-large": {
       id: "text-embedding-3-large",
@@ -1358,17 +1612,21 @@ export const openaiModels = {
       last_updated: "2024-01-25",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.13,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 8191,
-        output: 3072,
-      },
+        output: 3072
+      }
     },
     "text-embedding-3-small": {
       id: "text-embedding-3-small",
@@ -1383,17 +1641,21 @@ export const openaiModels = {
       last_updated: "2024-01-25",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.02,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 8191,
-        output: 1536,
-      },
+        output: 1536
+      }
     },
     "text-embedding-ada-002": {
       id: "text-embedding-ada-002",
@@ -1408,18 +1670,22 @@ export const openaiModels = {
       last_updated: "2022-12-15",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 8192,
-        output: 1536,
-      },
-    },
-  },
+        output: 1536
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const openaiCatalog = openaiModels;

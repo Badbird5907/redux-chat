@@ -7,7 +7,11 @@ export const googleModels = {
   name: "Google",
   npm: "@ai-sdk/google",
   doc: "https://ai.google.dev/gemini-api/docs/models",
-  env: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+  env: [
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "GOOGLE_GENERATIVE_AI_API_KEY"
+  ],
   models: {
     "gemini-2.0-flash": {
       id: "gemini-2.0-flash",
@@ -23,18 +27,26 @@ export const googleModels = {
       last_updated: "2024-12-11",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.1,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 1048576,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "gemini-2.0-flash-lite": {
       id: "gemini-2.0-flash-lite",
@@ -50,17 +62,25 @@ export const googleModels = {
       last_updated: "2024-12-11",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.075,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 1048576,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "gemini-2.5-flash": {
       id: "gemini-2.5-flash",
@@ -76,19 +96,27 @@ export const googleModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         input: 0.3,
         input_audio: 1,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-flash-image": {
       id: "gemini-2.5-flash-image",
@@ -103,18 +131,24 @@ export const googleModels = {
       last_updated: "2025-08-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.3,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gemini-2.5-flash-lite": {
       id: "gemini-2.5-flash-lite",
@@ -130,19 +164,27 @@ export const googleModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         input: 0.1,
         input_audio: 0.3,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-flash-preview-tts": {
       id: "gemini-2.5-flash-preview-tts",
@@ -157,17 +199,21 @@ export const googleModels = {
       last_updated: "2025-05-01",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["audio"],
+        input: [
+          "text"
+        ],
+        output: [
+          "audio"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 8192,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gemini-2.5-pro": {
       id: "gemini-2.5-pro",
@@ -183,15 +229,23 @@ export const googleModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         context_over_200k: {
           cache_read: 0.25,
           input: 2.5,
-          output: 15,
+          output: 15
         },
         input: 1.25,
         output: 10,
@@ -202,15 +256,15 @@ export const googleModels = {
             cache_read: 0.25,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-pro-preview-tts": {
       id: "gemini-2.5-pro-preview-tts",
@@ -225,17 +279,21 @@ export const googleModels = {
       last_updated: "2025-05-01",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["audio"],
+        input: [
+          "text"
+        ],
+        output: [
+          "audio"
+        ]
       },
       cost: {
         input: 1,
-        output: 20,
+        output: 20
       },
       limit: {
         context: 8192,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gemini-3-flash-preview": {
       id: "gemini-3-flash-preview",
@@ -251,19 +309,27 @@ export const googleModels = {
       last_updated: "2025-12-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.5,
         input_audio: 1,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3-pro-image-preview": {
       id: "gemini-3-pro-image-preview",
@@ -278,17 +344,23 @@ export const googleModels = {
       last_updated: "2025-11-20",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         input: 2,
-        output: 120,
+        output: 120
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gemini-3-pro-preview": {
       id: "gemini-3-pro-preview",
@@ -304,15 +376,23 @@ export const googleModels = {
       last_updated: "2025-11-18",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -323,15 +403,15 @@ export const googleModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-flash-image-preview": {
       id: "gemini-3.1-flash-image-preview",
@@ -346,17 +426,24 @@ export const googleModels = {
       last_updated: "2026-02-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 60,
+        output: 60
       },
       limit: {
         context: 65536,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-flash-lite": {
       id: "gemini-3.1-flash-lite",
@@ -372,19 +459,27 @@ export const googleModels = {
       last_updated: "2026-05-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
         input_audio: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-flash-lite-preview": {
       id: "gemini-3.1-flash-lite-preview",
@@ -400,19 +495,27 @@ export const googleModels = {
       last_updated: "2026-03-03",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
         input_audio: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-pro-preview": {
       id: "gemini-3.1-pro-preview",
@@ -428,15 +531,23 @@ export const googleModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -447,15 +558,15 @@ export const googleModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-pro-preview-customtools": {
       id: "gemini-3.1-pro-preview-customtools",
@@ -471,15 +582,23 @@ export const googleModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -490,15 +609,15 @@ export const googleModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.5-flash": {
       id: "gemini-3.5-flash",
@@ -514,19 +633,27 @@ export const googleModels = {
       last_updated: "2026-05-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.15,
         input: 1.5,
         input_audio: 1.5,
-        output: 9,
+        output: 9
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-embedding-001": {
       id: "gemini-embedding-001",
@@ -541,17 +668,21 @@ export const googleModels = {
       last_updated: "2025-05-20",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 2048,
-        output: 1,
-      },
+        output: 1
+      }
     },
     "gemini-flash-latest": {
       id: "gemini-flash-latest",
@@ -567,19 +698,27 @@ export const googleModels = {
       last_updated: "2025-09-25",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.3,
         input_audio: 1,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-flash-lite-latest": {
       id: "gemini-flash-lite-latest",
@@ -595,18 +734,26 @@ export const googleModels = {
       last_updated: "2025-09-25",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.1,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemma-4-26b-a4b-it": {
       id: "gemma-4-26b-a4b-it",
@@ -621,13 +768,18 @@ export const googleModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gemma-4-31b-it": {
       id: "gemma-4-31b-it",
@@ -642,14 +794,19 @@ export const googleModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
-    },
-  },
+        output: 32768
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const googleCatalog = googleModels;

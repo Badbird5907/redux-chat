@@ -8,7 +8,9 @@ export const openrouterModels = {
   api: "https://openrouter.ai/api/v1",
   npm: "@openrouter/ai-sdk-provider",
   doc: "https://openrouter.ai/models",
-  env: ["OPENROUTER_API_KEY"],
+  env: [
+    "OPENROUTER_API_KEY"
+  ],
   models: {
     "~anthropic/claude-fable-latest": {
       id: "~anthropic/claude-fable-latest",
@@ -23,19 +25,25 @@ export const openrouterModels = {
       last_updated: "2026-06-09",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1,
         cache_write: 12.5,
         input: 10,
-        output: 50,
+        output: 50
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "~anthropic/claude-haiku-latest": {
       id: "~anthropic/claude-haiku-latest",
@@ -50,19 +58,25 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         cache_write: 1.25,
         input: 1,
-        output: 5,
+        output: 5
       },
       limit: {
         context: 200000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "~anthropic/claude-opus-latest": {
       id: "~anthropic/claude-opus-latest",
@@ -77,19 +91,25 @@ export const openrouterModels = {
       last_updated: "2026-04-21",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         cache_write: 6.25,
         input: 5,
-        output: 25,
+        output: 25
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "~anthropic/claude-sonnet-latest": {
       id: "~anthropic/claude-sonnet-latest",
@@ -99,24 +119,30 @@ export const openrouterModels = {
       reasoning: true,
       tool_call: true,
       structured_output: true,
-      temperature: true,
+      temperature: false,
       release_date: "2026-04-27",
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.3,
-        cache_write: 3.75,
-        input: 3,
-        output: 15,
+        cache_read: 0.2,
+        cache_write: 2.5,
+        input: 2,
+        output: 10
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "~google/gemini-flash-latest": {
       id: "~google/gemini-flash-latest",
@@ -132,20 +158,28 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "pdf", "audio"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "pdf",
+          "audio"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.15,
         cache_write: 0.083333,
         input: 1.5,
         output: 9,
-        reasoning: 9,
+        reasoning: 9
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "~google/gemini-pro-latest": {
       id: "~google/gemini-pro-latest",
@@ -160,20 +194,28 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["audio", "pdf", "image", "text", "video"],
-        output: ["text"],
+        input: [
+          "audio",
+          "pdf",
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         cache_write: 0.375,
         input: 2,
         output: 12,
-        reasoning: 12,
+        reasoning: 12
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "~moonshotai/kimi-latest": {
       id: "~moonshotai/kimi-latest",
@@ -188,18 +230,23 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.11,
         input: 0.55,
-        output: 3.2,
+        output: 3.2
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "~openai/gpt-latest": {
       id: "~openai/gpt-latest",
@@ -215,18 +262,24 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 5,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 1050000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "~openai/gpt-mini-latest": {
       id: "~openai/gpt-mini-latest",
@@ -242,18 +295,24 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.75,
-        output: 4.5,
+        output: 4.5
       },
       limit: {
         context: 400000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "ai21/jamba-large-1.7": {
       id: "ai21/jamba-large-1.7",
@@ -269,17 +328,21 @@ export const openrouterModels = {
       last_updated: "2025-08-08",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 256000,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "aion-labs/aion-1.0": {
       id: "aion-labs/aion-1.0",
@@ -293,17 +356,21 @@ export const openrouterModels = {
       last_updated: "2025-02-04",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 4,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "aion-labs/aion-1.0-mini": {
       id: "aion-labs/aion-1.0-mini",
@@ -317,17 +384,21 @@ export const openrouterModels = {
       last_updated: "2025-02-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.7,
-        output: 1.4,
+        output: 1.4
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "aion-labs/aion-2.0": {
       id: "aion-labs/aion-2.0",
@@ -341,18 +412,22 @@ export const openrouterModels = {
       last_updated: "2026-02-23",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         input: 0.8,
-        output: 1.6,
+        output: 1.6
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "aion-labs/aion-rp-llama-3.1-8b": {
       id: "aion-labs/aion-rp-llama-3.1-8b",
@@ -368,17 +443,21 @@ export const openrouterModels = {
       last_updated: "2025-02-04",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.8,
-        output: 1.6,
+        output: 1.6
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "allenai/olmo-3-32b-think": {
       id: "allenai/olmo-3-32b-think",
@@ -393,17 +472,21 @@ export const openrouterModels = {
       last_updated: "2025-11-21",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 0.5,
+        output: 0.5
       },
       limit: {
         context: 65536,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "amazon/nova-2-lite-v1": {
       id: "amazon/nova-2-lite-v1",
@@ -418,17 +501,24 @@ export const openrouterModels = {
       last_updated: "2025-12-02",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.3,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 1000000,
-        output: 65535,
-      },
+        output: 65535
+      }
     },
     "amazon/nova-lite-v1": {
       id: "amazon/nova-lite-v1",
@@ -444,17 +534,22 @@ export const openrouterModels = {
       last_updated: "2024-12-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.06,
-        output: 0.24,
+        output: 0.24
       },
       limit: {
         context: 300000,
-        output: 5120,
-      },
+        output: 5120
+      }
     },
     "amazon/nova-micro-v1": {
       id: "amazon/nova-micro-v1",
@@ -470,17 +565,21 @@ export const openrouterModels = {
       last_updated: "2024-12-05",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.035,
-        output: 0.14,
+        output: 0.14
       },
       limit: {
         context: 128000,
-        output: 5120,
-      },
+        output: 5120
+      }
     },
     "amazon/nova-premier-v1": {
       id: "amazon/nova-premier-v1",
@@ -495,18 +594,23 @@ export const openrouterModels = {
       last_updated: "2025-10-31",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.625,
         input: 2.5,
-        output: 12.5,
+        output: 12.5
       },
       limit: {
         context: 1000000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "amazon/nova-pro-v1": {
       id: "amazon/nova-pro-v1",
@@ -522,17 +626,22 @@ export const openrouterModels = {
       last_updated: "2024-12-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.8,
-        output: 3.2,
+        output: 3.2
       },
       limit: {
         context: 300000,
-        output: 5120,
-      },
+        output: 5120
+      }
     },
     "anthracite-org/magnum-v4-72b": {
       id: "anthracite-org/magnum-v4-72b",
@@ -547,17 +656,21 @@ export const openrouterModels = {
       last_updated: "2024-10-22",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 3,
-        output: 5,
+        output: 5
       },
       limit: {
         context: 16384,
-        output: 2048,
-      },
+        output: 2048
+      }
     },
     "anthropic/claude-3-haiku": {
       id: "anthropic/claude-3-haiku",
@@ -573,19 +686,24 @@ export const openrouterModels = {
       last_updated: "2024-03-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         cache_write: 0.3,
         input: 0.25,
-        output: 1.25,
+        output: 1.25
       },
       limit: {
         context: 200000,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "anthropic/claude-haiku-4.5": {
       id: "anthropic/claude-haiku-4.5",
@@ -601,19 +719,25 @@ export const openrouterModels = {
       last_updated: "2025-10-15",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         cache_write: 1.25,
         input: 1,
-        output: 5,
+        output: 5
       },
       limit: {
         context: 200000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "anthropic/claude-opus-4": {
       id: "anthropic/claude-opus-4",
@@ -629,19 +753,25 @@ export const openrouterModels = {
       last_updated: "2025-05-22",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.5,
         cache_write: 18.75,
         input: 15,
-        output: 75,
+        output: 75
       },
       limit: {
         context: 200000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "anthropic/claude-opus-4.1": {
       id: "anthropic/claude-opus-4.1",
@@ -657,19 +787,25 @@ export const openrouterModels = {
       last_updated: "2025-08-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.5,
         cache_write: 18.75,
         input: 15,
-        output: 75,
+        output: 75
       },
       limit: {
         context: 200000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "anthropic/claude-opus-4.5": {
       id: "anthropic/claude-opus-4.5",
@@ -685,19 +821,25 @@ export const openrouterModels = {
       last_updated: "2025-11-24",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         cache_write: 6.25,
         input: 5,
-        output: 25,
+        output: 25
       },
       limit: {
         context: 200000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "anthropic/claude-opus-4.6": {
       id: "anthropic/claude-opus-4.6",
@@ -713,8 +855,14 @@ export const openrouterModels = {
       last_updated: "2026-03-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
@@ -723,7 +871,7 @@ export const openrouterModels = {
           cache_read: 1,
           cache_write: 12.5,
           input: 10,
-          output: 37.5,
+          output: 37.5
         },
         input: 5,
         output: 25,
@@ -735,15 +883,15 @@ export const openrouterModels = {
             cache_write: 12.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "anthropic/claude-opus-4.7": {
       id: "anthropic/claude-opus-4.7",
@@ -759,8 +907,14 @@ export const openrouterModels = {
       last_updated: "2026-04-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
@@ -769,7 +923,7 @@ export const openrouterModels = {
           cache_read: 1,
           cache_write: 12.5,
           input: 10,
-          output: 37.5,
+          output: 37.5
         },
         input: 5,
         output: 25,
@@ -781,15 +935,15 @@ export const openrouterModels = {
             cache_write: 12.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "anthropic/claude-opus-4.7-fast": {
       id: "anthropic/claude-opus-4.7-fast",
@@ -804,19 +958,25 @@ export const openrouterModels = {
       last_updated: "2026-05-12",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 3,
         cache_write: 37.5,
         input: 30,
-        output: 150,
+        output: 150
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "anthropic/claude-opus-4.8": {
       id: "anthropic/claude-opus-4.8",
@@ -831,19 +991,25 @@ export const openrouterModels = {
       last_updated: "2026-05-28",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         cache_write: 6.25,
         input: 5,
-        output: 25,
+        output: 25
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "anthropic/claude-opus-4.8-fast": {
       id: "anthropic/claude-opus-4.8-fast",
@@ -858,19 +1024,25 @@ export const openrouterModels = {
       last_updated: "2026-05-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1,
         cache_write: 12.5,
         input: 10,
-        output: 50,
+        output: 50
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "anthropic/claude-sonnet-4": {
       id: "anthropic/claude-sonnet-4",
@@ -886,8 +1058,14 @@ export const openrouterModels = {
       last_updated: "2025-05-22",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.3,
@@ -896,7 +1074,7 @@ export const openrouterModels = {
           cache_read: 0.6,
           cache_write: 7.5,
           input: 6,
-          output: 22.5,
+          output: 22.5
         },
         input: 3,
         output: 15,
@@ -908,15 +1086,15 @@ export const openrouterModels = {
             cache_write: 7.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "anthropic/claude-sonnet-4.5": {
       id: "anthropic/claude-sonnet-4.5",
@@ -932,8 +1110,14 @@ export const openrouterModels = {
       last_updated: "2025-09-29",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.3,
@@ -942,7 +1126,7 @@ export const openrouterModels = {
           cache_read: 0.6,
           cache_write: 7.5,
           input: 6,
-          output: 22.5,
+          output: 22.5
         },
         input: 3,
         output: 15,
@@ -954,15 +1138,15 @@ export const openrouterModels = {
             cache_write: 7.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "anthropic/claude-sonnet-4.6": {
       id: "anthropic/claude-sonnet-4.6",
@@ -978,8 +1162,14 @@ export const openrouterModels = {
       last_updated: "2026-03-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.3,
@@ -988,7 +1178,7 @@ export const openrouterModels = {
           cache_read: 0.6,
           cache_write: 7.5,
           input: 6,
-          output: 22.5,
+          output: 22.5
         },
         input: 3,
         output: 15,
@@ -1000,15 +1190,49 @@ export const openrouterModels = {
             cache_write: 7.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
+        output: 128000
+      }
+    },
+    "anthropic/claude-sonnet-5": {
+      id: "anthropic/claude-sonnet-5",
+      name: "Claude Sonnet 5",
+      family: "claude-sonnet",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: false,
+      knowledge: "2026-01-31",
+      release_date: "2026-06-30",
+      last_updated: "2026-06-30",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        cache_read: 0.2,
+        cache_write: 2.5,
+        input: 2,
+        output: 10
+      },
+      limit: {
+        context: 1000000,
+        output: 128000
+      }
     },
     "arcee-ai/coder-large": {
       id: "arcee-ai/coder-large",
@@ -1023,17 +1247,21 @@ export const openrouterModels = {
       last_updated: "2025-05-05",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 0.8,
+        output: 0.8
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "arcee-ai/trinity-large-thinking": {
       id: "arcee-ai/trinity-large-thinking",
@@ -1048,18 +1276,22 @@ export const openrouterModels = {
       last_updated: "2026-04-01",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.06,
         input: 0.25,
-        output: 0.8,
+        output: 0.8
       },
       limit: {
         context: 262144,
-        output: 80000,
-      },
+        output: 80000
+      }
     },
     "arcee-ai/trinity-mini": {
       id: "arcee-ai/trinity-mini",
@@ -1074,17 +1306,21 @@ export const openrouterModels = {
       last_updated: "2025-12-01",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.045,
-        output: 0.15,
+        output: 0.15
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "arcee-ai/virtuoso-large": {
       id: "arcee-ai/virtuoso-large",
@@ -1099,17 +1335,21 @@ export const openrouterModels = {
       last_updated: "2025-05-05",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.75,
-        output: 1.2,
+        output: 1.2
       },
       limit: {
         context: 131072,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "baidu/ernie-4.5-vl-424b-a47b": {
       id: "baidu/ernie-4.5-vl-424b-a47b",
@@ -1125,17 +1365,22 @@ export const openrouterModels = {
       last_updated: "2025-06-30",
       open_weights: true,
       modalities: {
-        input: ["image", "text"],
-        output: ["text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.42,
-        output: 1.25,
+        output: 1.25
       },
       limit: {
         context: 123000,
-        output: 16000,
-      },
+        output: 16000
+      }
     },
     "bytedance-seed/seed-1.6": {
       id: "bytedance-seed/seed-1.6",
@@ -1150,17 +1395,23 @@ export const openrouterModels = {
       last_updated: "2025-12-23",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.25,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "bytedance-seed/seed-1.6-flash": {
       id: "bytedance-seed/seed-1.6-flash",
@@ -1175,17 +1426,23 @@ export const openrouterModels = {
       last_updated: "2025-12-23",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.075,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "bytedance-seed/seed-2.0-lite": {
       id: "bytedance-seed/seed-2.0-lite",
@@ -1200,17 +1457,23 @@ export const openrouterModels = {
       last_updated: "2026-03-10",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.25,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 262144,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "bytedance-seed/seed-2.0-mini": {
       id: "bytedance-seed/seed-2.0-mini",
@@ -1225,17 +1488,23 @@ export const openrouterModels = {
       last_updated: "2026-02-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 262144,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "bytedance/ui-tars-1.5-7b": {
       id: "bytedance/ui-tars-1.5-7b",
@@ -1250,18 +1519,23 @@ export const openrouterModels = {
       last_updated: "2025-07-22",
       open_weights: true,
       modalities: {
-        input: ["image", "text"],
-        output: ["text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         input: 0.1,
-        output: 0.2,
+        output: 0.2
       },
       limit: {
         context: 128000,
-        output: 2048,
-      },
+        output: 2048
+      }
     },
     "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": {
       id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
@@ -1277,17 +1551,21 @@ export const openrouterModels = {
       last_updated: "2025-07-09",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "cohere/command-a": {
       id: "cohere/command-a",
@@ -1303,17 +1581,21 @@ export const openrouterModels = {
       last_updated: "2025-03-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 256000,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "cohere/command-r-08-2024": {
       id: "cohere/command-r-08-2024",
@@ -1329,17 +1611,21 @@ export const openrouterModels = {
       last_updated: "2024-08-30",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 128000,
-        output: 4000,
-      },
+        output: 4000
+      }
     },
     "cohere/command-r-plus-08-2024": {
       id: "cohere/command-r-plus-08-2024",
@@ -1355,17 +1641,21 @@ export const openrouterModels = {
       last_updated: "2024-08-30",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 4000,
-      },
+        output: 4000
+      }
     },
     "cohere/command-r7b-12-2024": {
       id: "cohere/command-r7b-12-2024",
@@ -1381,17 +1671,21 @@ export const openrouterModels = {
       last_updated: "2024-12-02",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.0375,
-        output: 0.15,
+        output: 0.15
       },
       limit: {
         context: 128000,
-        output: 4000,
-      },
+        output: 4000
+      }
     },
     "cohere/north-mini-code:free": {
       id: "cohere/north-mini-code:free",
@@ -1406,17 +1700,21 @@ export const openrouterModels = {
       last_updated: "2026-06-17",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 256000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "deepcogito/cogito-v2.1-671b": {
       id: "deepcogito/cogito-v2.1-671b",
@@ -1431,17 +1729,21 @@ export const openrouterModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1.25,
-        output: 1.25,
+        output: 1.25
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "deepseek/deepseek-chat": {
       id: "deepseek/deepseek-chat",
@@ -1457,17 +1759,21 @@ export const openrouterModels = {
       last_updated: "2026-02-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.2002,
-        output: 0.8001,
+        output: 0.8001
       },
       limit: {
         context: 128000,
-        output: 16000,
-      },
+        output: 16000
+      }
     },
     "deepseek/deepseek-chat-v3-0324": {
       id: "deepseek/deepseek-chat-v3-0324",
@@ -1483,18 +1789,22 @@ export const openrouterModels = {
       last_updated: "2025-03-24",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.135,
         input: 0.2,
-        output: 0.77,
+        output: 0.77
       },
       limit: {
         context: 163840,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "deepseek/deepseek-chat-v3.1": {
       id: "deepseek/deepseek-chat-v3.1",
@@ -1510,18 +1820,22 @@ export const openrouterModels = {
       last_updated: "2025-08-21",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.13,
         input: 0.21,
-        output: 0.79,
+        output: 0.79
       },
       limit: {
         context: 163840,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "deepseek/deepseek-r1": {
       id: "deepseek/deepseek-r1",
@@ -1537,17 +1851,21 @@ export const openrouterModels = {
       last_updated: "2025-05-29",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.7,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 64000,
-        output: 16000,
-      },
+        output: 16000
+      }
     },
     "deepseek/deepseek-r1-0528": {
       id: "deepseek/deepseek-r1-0528",
@@ -1563,18 +1881,22 @@ export const openrouterModels = {
       last_updated: "2025-05-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.35,
         input: 0.5,
-        output: 2.15,
+        output: 2.15
       },
       limit: {
         context: 163840,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "deepseek/deepseek-r1-distill-llama-70b": {
       id: "deepseek/deepseek-r1-distill-llama-70b",
@@ -1590,17 +1912,21 @@ export const openrouterModels = {
       last_updated: "2025-01-23",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.8,
-        output: 0.8,
+        output: 0.8
       },
       limit: {
         context: 8192,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "deepseek/deepseek-v3.1-terminus": {
       id: "deepseek/deepseek-v3.1-terminus",
@@ -1616,18 +1942,22 @@ export const openrouterModels = {
       last_updated: "2025-09-22",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.13,
         input: 0.27,
-        output: 0.95,
+        output: 0.95
       },
       limit: {
         context: 163840,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "deepseek/deepseek-v3.2": {
       id: "deepseek/deepseek-v3.2",
@@ -1643,18 +1973,22 @@ export const openrouterModels = {
       last_updated: "2025-12-01",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.02288,
         input: 0.2288,
-        output: 0.3432,
+        output: 0.3432
       },
       limit: {
         context: 128000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "deepseek/deepseek-v3.2-exp": {
       id: "deepseek/deepseek-v3.2-exp",
@@ -1670,17 +2004,21 @@ export const openrouterModels = {
       last_updated: "2025-09-29",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.27,
-        output: 0.41,
+        output: 0.41
       },
       limit: {
         context: 163840,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "deepseek/deepseek-v4-flash": {
       id: "deepseek/deepseek-v4-flash",
@@ -1696,18 +2034,22 @@ export const openrouterModels = {
       last_updated: "2026-04-24",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.02,
-        input: 0.09,
-        output: 0.18,
+        input: 0.098,
+        output: 0.196
       },
       limit: {
-        context: 1000000,
-        output: 65536,
-      },
+        context: 1048575,
+        output: 65536
+      }
     },
     "deepseek/deepseek-v4-pro": {
       id: "deepseek/deepseek-v4-pro",
@@ -1723,18 +2065,22 @@ export const openrouterModels = {
       last_updated: "2026-04-24",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.003625,
         input: 0.435,
-        output: 0.87,
+        output: 0.87
       },
       limit: {
         context: 1048576,
-        output: 384000,
-      },
+        output: 384000
+      }
     },
     "google/gemini-2.5-flash": {
       id: "google/gemini-2.5-flash",
@@ -1750,20 +2096,28 @@ export const openrouterModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         cache_write: 0.083333,
         input: 0.3,
         output: 2.5,
-        reasoning: 2.5,
+        reasoning: 2.5
       },
       limit: {
         context: 1048576,
-        output: 65535,
-      },
+        output: 65535
+      }
     },
     "google/gemini-2.5-flash-image": {
       id: "google/gemini-2.5-flash-image",
@@ -1779,19 +2133,25 @@ export const openrouterModels = {
       last_updated: "2025-08-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         cache_read: 0.03,
         cache_write: 0.083333,
         input: 0.3,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "google/gemini-2.5-flash-lite": {
       id: "google/gemini-2.5-flash-lite",
@@ -1807,20 +2167,28 @@ export const openrouterModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         cache_write: 0.083333,
         input: 0.1,
         output: 0.4,
-        reasoning: 0.4,
+        reasoning: 0.4
       },
       limit: {
         context: 1048576,
-        output: 65535,
-      },
+        output: 65535
+      }
     },
     "google/gemini-2.5-flash-lite-preview-09-2025": {
       id: "google/gemini-2.5-flash-lite-preview-09-2025",
@@ -1836,20 +2204,28 @@ export const openrouterModels = {
       last_updated: "2025-09-25",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf", "audio", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf",
+          "audio",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         cache_write: 0.083333,
         input: 0.1,
         output: 0.4,
-        reasoning: 0.4,
+        reasoning: 0.4
       },
       limit: {
         context: 1048576,
-        output: 65535,
-      },
+        output: 65535
+      }
     },
     "google/gemini-2.5-pro": {
       id: "google/gemini-2.5-pro",
@@ -1865,20 +2241,28 @@ export const openrouterModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         cache_write: 0.375,
         input: 1.25,
         output: 10,
-        reasoning: 10,
+        reasoning: 10
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "google/gemini-2.5-pro-preview": {
       id: "google/gemini-2.5-pro-preview",
@@ -1894,20 +2278,27 @@ export const openrouterModels = {
       last_updated: "2025-06-05",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text", "audio"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text",
+          "audio"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         cache_write: 0.375,
         input: 1.25,
         output: 10,
-        reasoning: 10,
+        reasoning: 10
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "google/gemini-2.5-pro-preview-05-06": {
       id: "google/gemini-2.5-pro-preview-05-06",
@@ -1923,20 +2314,28 @@ export const openrouterModels = {
       last_updated: "2025-05-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf", "audio", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf",
+          "audio",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         cache_write: 0.375,
         input: 1.25,
         output: 10,
-        reasoning: 10,
+        reasoning: 10
       },
       limit: {
         context: 1048576,
-        output: 65535,
-      },
+        output: 65535
+      }
     },
     "google/gemini-3-flash-preview": {
       id: "google/gemini-3-flash-preview",
@@ -1952,20 +2351,28 @@ export const openrouterModels = {
       last_updated: "2025-12-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         cache_write: 0.083333,
         input: 0.5,
         output: 3,
-        reasoning: 3,
+        reasoning: 3
       },
       limit: {
         context: 1048576,
-        output: 65535,
-      },
+        output: 65535
+      }
     },
     "google/gemini-3-pro-image": {
       id: "google/gemini-3-pro-image",
@@ -1980,20 +2387,26 @@ export const openrouterModels = {
       last_updated: "2026-06-18",
       open_weights: false,
       modalities: {
-        input: ["image", "text"],
-        output: ["image", "text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "image",
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         cache_write: 0.375,
         input: 2,
         output: 12,
-        reasoning: 12,
+        reasoning: 12
       },
       limit: {
         context: 65536,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "google/gemini-3-pro-image-preview": {
       id: "google/gemini-3-pro-image-preview",
@@ -2009,20 +2422,26 @@ export const openrouterModels = {
       last_updated: "2025-11-20",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         cache_read: 0.2,
         cache_write: 0.375,
         input: 2,
         output: 12,
-        reasoning: 12,
+        reasoning: 12
       },
       limit: {
         context: 65536,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "google/gemini-3.1-flash-image": {
       id: "google/gemini-3.1-flash-image",
@@ -2037,17 +2456,23 @@ export const openrouterModels = {
       last_updated: "2026-06-18",
       open_weights: false,
       modalities: {
-        input: ["image", "text"],
-        output: ["image", "text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "image",
+          "text"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "google/gemini-3.1-flash-image-preview": {
       id: "google/gemini-3.1-flash-image-preview",
@@ -2063,17 +2488,23 @@ export const openrouterModels = {
       last_updated: "2026-02-26",
       open_weights: false,
       modalities: {
-        input: ["image", "text"],
-        output: ["text", "image"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "google/gemini-3.1-flash-lite": {
       id: "google/gemini-3.1-flash-lite",
@@ -2089,20 +2520,60 @@ export const openrouterModels = {
       last_updated: "2026-05-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         cache_write: 0.083333,
         input: 0.25,
         output: 1.5,
-        reasoning: 1.5,
+        reasoning: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "google/gemini-3.1-flash-lite-image": {
+      id: "google/gemini-3.1-flash-lite-image",
+      name: "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+      family: "gemini",
+      attachment: true,
+      reasoning: true,
+      tool_call: false,
+      structured_output: false,
+      temperature: true,
+      knowledge: "2025-01-01",
+      release_date: "2026-06-30",
+      last_updated: "2026-06-30",
+      open_weights: false,
+      modalities: {
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "image",
+          "text"
+        ]
       },
+      cost: {
+        input: 0.25,
+        output: 1.5
+      },
+      limit: {
+        context: 65536,
+        output: 66000
+      }
     },
     "google/gemini-3.1-flash-lite-preview": {
       id: "google/gemini-3.1-flash-lite-preview",
@@ -2118,20 +2589,28 @@ export const openrouterModels = {
       last_updated: "2026-03-03",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         cache_write: 0.083333,
         input: 0.25,
         output: 1.5,
-        reasoning: 1.5,
+        reasoning: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "google/gemini-3.1-pro-preview": {
       id: "google/gemini-3.1-pro-preview",
@@ -2147,8 +2626,16 @@ export const openrouterModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
@@ -2156,7 +2643,7 @@ export const openrouterModels = {
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -2168,15 +2655,15 @@ export const openrouterModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "google/gemini-3.1-pro-preview-customtools": {
       id: "google/gemini-3.1-pro-preview-customtools",
@@ -2192,8 +2679,16 @@ export const openrouterModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
@@ -2201,7 +2696,7 @@ export const openrouterModels = {
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -2213,15 +2708,15 @@ export const openrouterModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "google/gemini-3.5-flash": {
       id: "google/gemini-3.5-flash",
@@ -2237,20 +2732,28 @@ export const openrouterModels = {
       last_updated: "2026-05-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.15,
         cache_write: 0.083333,
         input: 1.5,
         output: 9,
-        reasoning: 9,
+        reasoning: 9
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "google/gemma-2-27b-it": {
       id: "google/gemma-2-27b-it",
@@ -2266,17 +2769,21 @@ export const openrouterModels = {
       last_updated: "2024-07-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.65,
-        output: 0.65,
+        output: 0.65
       },
       limit: {
         context: 8192,
-        output: 2048,
-      },
+        output: 2048
+      }
     },
     "google/gemma-3-12b-it": {
       id: "google/gemma-3-12b-it",
@@ -2292,17 +2799,22 @@ export const openrouterModels = {
       last_updated: "2025-03-13",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.05,
-        output: 0.15,
+        output: 0.15
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "google/gemma-3-27b-it": {
       id: "google/gemma-3-27b-it",
@@ -2318,17 +2830,22 @@ export const openrouterModels = {
       last_updated: "2025-03-12",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.08,
-        output: 0.16,
+        output: 0.16
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "google/gemma-3-4b-it": {
       id: "google/gemma-3-4b-it",
@@ -2344,17 +2861,22 @@ export const openrouterModels = {
       last_updated: "2025-03-13",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.05,
-        output: 0.1,
+        output: 0.1
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "google/gemma-3n-e4b-it": {
       id: "google/gemma-3n-e4b-it",
@@ -2370,17 +2892,21 @@ export const openrouterModels = {
       last_updated: "2025-05-20",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.06,
-        output: 0.12,
+        output: 0.12
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "google/gemma-4-26b-a4b-it": {
       id: "google/gemma-4-26b-a4b-it",
@@ -2395,17 +2921,23 @@ export const openrouterModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.06,
-        output: 0.33,
+        output: 0.33
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "google/gemma-4-26b-a4b-it:free": {
       id: "google/gemma-4-26b-a4b-it:free",
@@ -2420,17 +2952,23 @@ export const openrouterModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "google/gemma-4-31b-it": {
       id: "google/gemma-4-31b-it",
@@ -2445,18 +2983,24 @@ export const openrouterModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.09,
         input: 0.12,
-        output: 0.35,
+        output: 0.35
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "google/gemma-4-31b-it:free": {
       id: "google/gemma-4-31b-it:free",
@@ -2471,17 +3015,23 @@ export const openrouterModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 262144,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "google/lyria-3-clip-preview": {
       id: "google/lyria-3-clip-preview",
@@ -2496,17 +3046,23 @@ export const openrouterModels = {
       last_updated: "2026-03-30",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "audio"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "audio"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "google/lyria-3-pro-preview": {
       id: "google/lyria-3-pro-preview",
@@ -2521,17 +3077,23 @@ export const openrouterModels = {
       last_updated: "2026-03-30",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "audio"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "audio"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gryphe/mythomax-l2-13b": {
       id: "gryphe/mythomax-l2-13b",
@@ -2546,17 +3108,21 @@ export const openrouterModels = {
       last_updated: "2023-07-02",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.06,
-        output: 0.06,
+        output: 0.06
       },
       limit: {
         context: 4096,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "ibm-granite/granite-4.0-h-micro": {
       id: "ibm-granite/granite-4.0-h-micro",
@@ -2571,17 +3137,21 @@ export const openrouterModels = {
       last_updated: "2025-10-20",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.017,
-        output: 0.112,
+        output: 0.112
       },
       limit: {
         context: 131000,
-        output: 131000,
-      },
+        output: 131000
+      }
     },
     "ibm-granite/granite-4.1-8b": {
       id: "ibm-granite/granite-4.1-8b",
@@ -2596,18 +3166,22 @@ export const openrouterModels = {
       last_updated: "2026-04-30",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.05,
-        output: 0.1,
+        output: 0.1
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "inception/mercury-2": {
       id: "inception/mercury-2",
@@ -2622,18 +3196,22 @@ export const openrouterModels = {
       last_updated: "2026-03-04",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
-        output: 0.75,
+        output: 0.75
       },
       limit: {
         context: 128000,
-        output: 50000,
-      },
+        output: 50000
+      }
     },
     "inclusionai/ling-2.6-1t": {
       id: "inclusionai/ling-2.6-1t",
@@ -2648,18 +3226,22 @@ export const openrouterModels = {
       last_updated: "2026-04-23",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.015,
         input: 0.075,
-        output: 0.625,
+        output: 0.625
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "inclusionai/ling-2.6-flash": {
       id: "inclusionai/ling-2.6-flash",
@@ -2674,18 +3256,22 @@ export const openrouterModels = {
       last_updated: "2026-04-21",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.002,
         input: 0.01,
-        output: 0.03,
+        output: 0.03
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "inclusionai/ring-2.6-1t": {
       id: "inclusionai/ring-2.6-1t",
@@ -2700,18 +3286,22 @@ export const openrouterModels = {
       last_updated: "2026-05-08",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.015,
         input: 0.075,
-        output: 0.625,
+        output: 0.625
       },
       limit: {
         context: 262144,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "inflection/inflection-3-pi": {
       id: "inflection/inflection-3-pi",
@@ -2726,17 +3316,21 @@ export const openrouterModels = {
       last_updated: "2024-10-11",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 8000,
-        output: 1024,
-      },
+        output: 1024
+      }
     },
     "inflection/inflection-3-productivity": {
       id: "inflection/inflection-3-productivity",
@@ -2751,17 +3345,21 @@ export const openrouterModels = {
       last_updated: "2024-10-11",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 8000,
-        output: 1024,
-      },
+        output: 1024
+      }
     },
     "kwaipilot/kat-coder-pro-v2": {
       id: "kwaipilot/kat-coder-pro-v2",
@@ -2776,18 +3374,22 @@ export const openrouterModels = {
       last_updated: "2026-03-27",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.06,
         input: 0.3,
-        output: 1.2,
+        output: 1.2
       },
       limit: {
         context: 256000,
-        output: 80000,
-      },
+        output: 80000
+      }
     },
     "liquid/lfm-2-24b-a2b": {
       id: "liquid/lfm-2-24b-a2b",
@@ -2802,17 +3404,21 @@ export const openrouterModels = {
       last_updated: "2026-02-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.03,
-        output: 0.12,
+        output: 0.12
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "liquid/lfm-2.5-1.2b-instruct:free": {
       id: "liquid/lfm-2.5-1.2b-instruct:free",
@@ -2828,17 +3434,21 @@ export const openrouterModels = {
       last_updated: "2026-01-20",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "liquid/lfm-2.5-1.2b-thinking:free": {
       id: "liquid/lfm-2.5-1.2b-thinking:free",
@@ -2854,17 +3464,21 @@ export const openrouterModels = {
       last_updated: "2026-01-20",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "mancer/weaver": {
       id: "mancer/weaver",
@@ -2880,17 +3494,21 @@ export const openrouterModels = {
       last_updated: "2023-08-02",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.75,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 8000,
-        output: 2000,
-      },
+        output: 2000
+      }
     },
     "meta-llama/llama-3-8b-instruct": {
       id: "meta-llama/llama-3-8b-instruct",
@@ -2906,17 +3524,21 @@ export const openrouterModels = {
       last_updated: "2024-04-18",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.14,
-        output: 0.14,
+        output: 0.14
       },
       limit: {
         context: 8192,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "meta-llama/llama-3.1-70b-instruct": {
       id: "meta-llama/llama-3.1-70b-instruct",
@@ -2932,17 +3554,21 @@ export const openrouterModels = {
       last_updated: "2024-07-23",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.4,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "meta-llama/llama-3.1-8b-instruct": {
       id: "meta-llama/llama-3.1-8b-instruct",
@@ -2958,17 +3584,21 @@ export const openrouterModels = {
       last_updated: "2024-07-23",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.02,
-        output: 0.03,
+        output: 0.03
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "meta-llama/llama-3.2-11b-vision-instruct": {
       id: "meta-llama/llama-3.2-11b-vision-instruct",
@@ -2984,17 +3614,22 @@ export const openrouterModels = {
       last_updated: "2024-09-25",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.345,
-        output: 0.345,
+        output: 0.345
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "meta-llama/llama-3.2-1b-instruct": {
       id: "meta-llama/llama-3.2-1b-instruct",
@@ -3010,17 +3645,21 @@ export const openrouterModels = {
       last_updated: "2024-09-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.027,
-        output: 0.201,
+        output: 0.201
       },
       limit: {
         context: 60000,
-        output: 60000,
-      },
+        output: 60000
+      }
     },
     "meta-llama/llama-3.2-3b-instruct": {
       id: "meta-llama/llama-3.2-3b-instruct",
@@ -3036,17 +3675,21 @@ export const openrouterModels = {
       last_updated: "2024-09-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.0509,
-        output: 0.335,
+        output: 0.335
       },
       limit: {
         context: 80000,
-        output: 80000,
-      },
+        output: 80000
+      }
     },
     "meta-llama/llama-3.2-3b-instruct:free": {
       id: "meta-llama/llama-3.2-3b-instruct:free",
@@ -3062,17 +3705,21 @@ export const openrouterModels = {
       last_updated: "2024-09-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "meta-llama/llama-3.3-70b-instruct": {
       id: "meta-llama/llama-3.3-70b-instruct",
@@ -3088,17 +3735,21 @@ export const openrouterModels = {
       last_updated: "2024-12-06",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.32,
+        output: 0.32
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "meta-llama/llama-3.3-70b-instruct:free": {
       id: "meta-llama/llama-3.3-70b-instruct:free",
@@ -3114,17 +3765,21 @@ export const openrouterModels = {
       last_updated: "2024-12-06",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 65536,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "meta-llama/llama-4-maverick": {
       id: "meta-llama/llama-4-maverick",
@@ -3140,17 +3795,22 @@ export const openrouterModels = {
       last_updated: "2025-04-05",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 1048576,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "meta-llama/llama-4-scout": {
       id: "meta-llama/llama-4-scout",
@@ -3166,17 +3826,22 @@ export const openrouterModels = {
       last_updated: "2025-04-05",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 327680,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "meta-llama/llama-guard-4-12b": {
       id: "meta-llama/llama-guard-4-12b",
@@ -3192,17 +3857,22 @@ export const openrouterModels = {
       last_updated: "2025-04-30",
       open_weights: true,
       modalities: {
-        input: ["image", "text"],
-        output: ["text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.18,
-        output: 0.18,
+        output: 0.18
       },
       limit: {
         context: 163840,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "microsoft/phi-4": {
       id: "microsoft/phi-4",
@@ -3218,43 +3888,21 @@ export const openrouterModels = {
       last_updated: "2025-01-10",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.07,
-        output: 0.14,
+        output: 0.14
       },
       limit: {
         context: 16384,
-        output: 16384,
-      },
-    },
-    "microsoft/phi-4-mini-instruct": {
-      id: "microsoft/phi-4-mini-instruct",
-      name: "Phi 4 Mini Instruct",
-      family: "phi",
-      attachment: false,
-      reasoning: false,
-      tool_call: false,
-      structured_output: true,
-      temperature: true,
-      release_date: "2025-10-17",
-      last_updated: "2025-10-17",
-      open_weights: true,
-      modalities: {
-        input: ["text"],
-        output: ["text"],
-      },
-      cost: {
-        cache_read: 0.08,
-        input: 0.08,
-        output: 0.35,
-      },
-      limit: {
-        context: 128000,
-        output: 128000,
-      },
+        output: 16384
+      }
     },
     "microsoft/wizardlm-2-8x22b": {
       id: "microsoft/wizardlm-2-8x22b",
@@ -3269,17 +3917,21 @@ export const openrouterModels = {
       last_updated: "2024-04-16",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.62,
-        output: 0.62,
+        output: 0.62
       },
       limit: {
         context: 65535,
-        output: 8000,
-      },
+        output: 8000
+      }
     },
     "minimax/minimax-01": {
       id: "minimax/minimax-01",
@@ -3295,17 +3947,22 @@ export const openrouterModels = {
       last_updated: "2025-01-15",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.2,
-        output: 1.1,
+        output: 1.1
       },
       limit: {
         context: 1000192,
-        output: 1000192,
-      },
+        output: 1000192
+      }
     },
     "minimax/minimax-m1": {
       id: "minimax/minimax-m1",
@@ -3321,17 +3978,21 @@ export const openrouterModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.4,
-        output: 2.2,
+        output: 2.2
       },
       limit: {
         context: 1000000,
-        output: 40000,
-      },
+        output: 40000
+      }
     },
     "minimax/minimax-m2": {
       id: "minimax/minimax-m2",
@@ -3346,18 +4007,22 @@ export const openrouterModels = {
       last_updated: "2025-10-27",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         input: 0.255,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 196608,
-        output: 196608,
-      },
+        output: 196608
+      }
     },
     "minimax/minimax-m2-her": {
       id: "minimax/minimax-m2-her",
@@ -3372,18 +4037,22 @@ export const openrouterModels = {
       last_updated: "2026-01-23",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         input: 0.3,
-        output: 1.2,
+        output: 1.2
       },
       limit: {
         context: 65536,
-        output: 2048,
-      },
+        output: 2048
+      }
     },
     "minimax/minimax-m2.1": {
       id: "minimax/minimax-m2.1",
@@ -3398,18 +4067,22 @@ export const openrouterModels = {
       last_updated: "2025-12-23",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         input: 0.29,
-        output: 0.95,
+        output: 0.95
       },
       limit: {
         context: 196608,
-        output: 196608,
-      },
+        output: 196608
+      }
     },
     "minimax/minimax-m2.5": {
       id: "minimax/minimax-m2.5",
@@ -3424,17 +4097,21 @@ export const openrouterModels = {
       last_updated: "2026-02-12",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.12,
-        output: 0.48,
+        output: 0.48
       },
       limit: {
         context: 196608,
-        output: 196608,
-      },
+        output: 196608
+      }
     },
     "minimax/minimax-m2.7": {
       id: "minimax/minimax-m2.7",
@@ -3449,17 +4126,21 @@ export const openrouterModels = {
       last_updated: "2026-03-18",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.18,
-        output: 0.72,
+        output: 0.72
       },
       limit: {
         context: 196608,
-        output: 196608,
-      },
+        output: 196608
+      }
     },
     "minimax/minimax-m3": {
       id: "minimax/minimax-m3",
@@ -3474,18 +4155,24 @@ export const openrouterModels = {
       last_updated: "2026-06-01",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.06,
         input: 0.3,
-        output: 1.2,
+        output: 1.2
       },
       limit: {
         context: 524288,
-        output: 512000,
-      },
+        output: 512000
+      }
     },
     "mistralai/codestral-2508": {
       id: "mistralai/codestral-2508",
@@ -3501,18 +4188,23 @@ export const openrouterModels = {
       last_updated: "2025-08-01",
       open_weights: false,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         input: 0.3,
-        output: 0.9,
+        output: 0.9
       },
       limit: {
         context: 256000,
-        output: 256000,
-      },
+        output: 256000
+      }
     },
     "mistralai/devstral-2512": {
       id: "mistralai/devstral-2512",
@@ -3528,18 +4220,23 @@ export const openrouterModels = {
       last_updated: "2025-12-09",
       open_weights: true,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.04,
         input: 0.4,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "mistralai/ministral-14b-2512": {
       id: "mistralai/ministral-14b-2512",
@@ -3554,18 +4251,23 @@ export const openrouterModels = {
       last_updated: "2025-12-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.02,
         input: 0.2,
-        output: 0.2,
+        output: 0.2
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "mistralai/ministral-3b-2512": {
       id: "mistralai/ministral-3b-2512",
@@ -3580,18 +4282,23 @@ export const openrouterModels = {
       last_updated: "2025-12-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         input: 0.1,
-        output: 0.1,
+        output: 0.1
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "mistralai/ministral-8b-2512": {
       id: "mistralai/ministral-8b-2512",
@@ -3606,18 +4313,23 @@ export const openrouterModels = {
       last_updated: "2025-12-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.015,
         input: 0.15,
-        output: 0.15,
+        output: 0.15
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "mistralai/mistral-large": {
       id: "mistralai/mistral-large",
@@ -3633,18 +4345,23 @@ export const openrouterModels = {
       last_updated: "2024-02-26",
       open_weights: false,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         input: 2,
-        output: 6,
+        output: 6
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "mistralai/mistral-large-2407": {
       id: "mistralai/mistral-large-2407",
@@ -3660,18 +4377,23 @@ export const openrouterModels = {
       last_updated: "2024-11-19",
       open_weights: false,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         input: 2,
-        output: 6,
+        output: 6
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "mistralai/mistral-large-2512": {
       id: "mistralai/mistral-large-2512",
@@ -3687,18 +4409,24 @@ export const openrouterModels = {
       last_updated: "2025-12-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "mistralai/mistral-medium-3": {
       id: "mistralai/mistral-medium-3",
@@ -3714,18 +4442,24 @@ export const openrouterModels = {
       last_updated: "2025-05-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.04,
         input: 0.4,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "mistralai/mistral-medium-3-5": {
       id: "mistralai/mistral-medium-3-5",
@@ -3740,17 +4474,23 @@ export const openrouterModels = {
       last_updated: "2026-04-30",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1.5,
-        output: 7.5,
+        output: 7.5
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "mistralai/mistral-medium-3.1": {
       id: "mistralai/mistral-medium-3.1",
@@ -3766,18 +4506,24 @@ export const openrouterModels = {
       last_updated: "2025-08-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.04,
         input: 0.4,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 131072,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "mistralai/mistral-nemo": {
       id: "mistralai/mistral-nemo",
@@ -3793,17 +4539,21 @@ export const openrouterModels = {
       last_updated: "2024-07-01",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.02,
-        output: 0.03,
+        output: 0.03
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "mistralai/mistral-saba": {
       id: "mistralai/mistral-saba",
@@ -3819,18 +4569,23 @@ export const openrouterModels = {
       last_updated: "2025-02-17",
       open_weights: false,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.02,
         input: 0.2,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "mistralai/mistral-small-24b-instruct-2501": {
       id: "mistralai/mistral-small-24b-instruct-2501",
@@ -3846,17 +4601,21 @@ export const openrouterModels = {
       last_updated: "2025-01-30",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.05,
-        output: 0.08,
+        output: 0.08
       },
       limit: {
         context: 32768,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "mistralai/mistral-small-2603": {
       id: "mistralai/mistral-small-2603",
@@ -3872,18 +4631,23 @@ export const openrouterModels = {
       last_updated: "2026-03-16",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.015,
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "mistralai/mistral-small-3.1-24b-instruct": {
       id: "mistralai/mistral-small-3.1-24b-instruct",
@@ -3899,17 +4663,22 @@ export const openrouterModels = {
       last_updated: "2025-03-17",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.351,
-        output: 0.555,
+        output: 0.555
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "mistralai/mistral-small-3.2-24b-instruct": {
       id: "mistralai/mistral-small-3.2-24b-instruct",
@@ -3925,17 +4694,22 @@ export const openrouterModels = {
       last_updated: "2025-06-20",
       open_weights: true,
       modalities: {
-        input: ["image", "text"],
-        output: ["text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.075,
-        output: 0.2,
+        output: 0.2
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "mistralai/mixtral-8x22b-instruct": {
       id: "mistralai/mixtral-8x22b-instruct",
@@ -3951,18 +4725,23 @@ export const openrouterModels = {
       last_updated: "2024-04-17",
       open_weights: true,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         input: 2,
-        output: 6,
+        output: 6
       },
       limit: {
         context: 65536,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "mistralai/voxtral-small-24b-2507": {
       id: "mistralai/voxtral-small-24b-2507",
@@ -3977,18 +4756,24 @@ export const openrouterModels = {
       last_updated: "2025-10-30",
       open_weights: true,
       modalities: {
-        input: ["text", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         input: 0.1,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 32000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "moonshotai/kimi-k2": {
       id: "moonshotai/kimi-k2",
@@ -4004,17 +4789,21 @@ export const openrouterModels = {
       last_updated: "2025-07-11",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.57,
-        output: 2.3,
+        output: 2.3
       },
       limit: {
         context: 131072,
-        output: 100352,
-      },
+        output: 100352
+      }
     },
     "moonshotai/kimi-k2-0905": {
       id: "moonshotai/kimi-k2-0905",
@@ -4030,17 +4819,21 @@ export const openrouterModels = {
       last_updated: "2025-09-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.6,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 262144,
-        output: 100352,
-      },
+        output: 100352
+      }
     },
     "moonshotai/kimi-k2-thinking": {
       id: "moonshotai/kimi-k2-thinking",
@@ -4056,18 +4849,22 @@ export const openrouterModels = {
       last_updated: "2025-11-06",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.6,
         input: 0.6,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "moonshotai/kimi-k2.5": {
       id: "moonshotai/kimi-k2.5",
@@ -4083,17 +4880,22 @@ export const openrouterModels = {
       last_updated: "2026-01",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.375,
-        output: 2.025,
+        output: 2.025
       },
       limit: {
         context: 256000,
-        output: 256000,
-      },
+        output: 256000
+      }
     },
     "moonshotai/kimi-k2.6": {
       id: "moonshotai/kimi-k2.6",
@@ -4109,18 +4911,23 @@ export const openrouterModels = {
       last_updated: "2026-04-21",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.11,
         input: 0.55,
-        output: 3.2,
+        output: 3.2
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "moonshotai/kimi-k2.7-code": {
       id: "moonshotai/kimi-k2.7-code",
@@ -4136,18 +4943,23 @@ export const openrouterModels = {
       last_updated: "2026-06-12",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.15,
         input: 0.74,
-        output: 3.5,
+        output: 3.5
       },
       limit: {
         context: 262144,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "morph/morph-v3-fast": {
       id: "morph/morph-v3-fast",
@@ -4162,17 +4974,21 @@ export const openrouterModels = {
       last_updated: "2025-07-07",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.8,
-        output: 1.2,
+        output: 1.2
       },
       limit: {
         context: 81920,
-        output: 38000,
-      },
+        output: 38000
+      }
     },
     "morph/morph-v3-large": {
       id: "morph/morph-v3-large",
@@ -4187,17 +5003,21 @@ export const openrouterModels = {
       last_updated: "2025-07-07",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.9,
-        output: 1.9,
+        output: 1.9
       },
       limit: {
         context: 262144,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "nex-agi/nex-n2-pro": {
       id: "nex-agi/nex-n2-pro",
@@ -4212,18 +5032,23 @@ export const openrouterModels = {
       last_updated: "2026-06-08",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "nousresearch/hermes-3-llama-3.1-405b": {
       id: "nousresearch/hermes-3-llama-3.1-405b",
@@ -4239,17 +5064,21 @@ export const openrouterModels = {
       last_updated: "2024-08-16",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "nousresearch/hermes-3-llama-3.1-405b:free": {
       id: "nousresearch/hermes-3-llama-3.1-405b:free",
@@ -4265,17 +5094,21 @@ export const openrouterModels = {
       last_updated: "2024-08-16",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "nousresearch/hermes-3-llama-3.1-70b": {
       id: "nousresearch/hermes-3-llama-3.1-70b",
@@ -4291,17 +5124,21 @@ export const openrouterModels = {
       last_updated: "2024-08-18",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.7,
-        output: 0.7,
+        output: 0.7
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "nousresearch/hermes-4-405b": {
       id: "nousresearch/hermes-4-405b",
@@ -4317,17 +5154,21 @@ export const openrouterModels = {
       last_updated: "2025-08-26",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "nousresearch/hermes-4-70b": {
       id: "nousresearch/hermes-4-70b",
@@ -4343,17 +5184,21 @@ export const openrouterModels = {
       last_updated: "2025-08-26",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.13,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
       id: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
@@ -4368,17 +5213,21 @@ export const openrouterModels = {
       last_updated: "2025-07-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.4,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "nvidia/nemotron-3-nano-30b-a3b": {
       id: "nvidia/nemotron-3-nano-30b-a3b",
@@ -4393,17 +5242,21 @@ export const openrouterModels = {
       last_updated: "2025-12-15",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.05,
-        output: 0.2,
+        output: 0.2
       },
       limit: {
         context: 262144,
-        output: 228000,
-      },
+        output: 228000
+      }
     },
     "nvidia/nemotron-3-nano-30b-a3b:free": {
       id: "nvidia/nemotron-3-nano-30b-a3b:free",
@@ -4418,17 +5271,21 @@ export const openrouterModels = {
       last_updated: "2025-12-15",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 256000,
-        output: 256000,
-      },
+        output: 256000
+      }
     },
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
       id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -4443,17 +5300,24 @@ export const openrouterModels = {
       last_updated: "2026-04-28",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video", "audio"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 256000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "nvidia/nemotron-3-super-120b-a12b": {
       id: "nvidia/nemotron-3-super-120b-a12b",
@@ -4468,17 +5332,21 @@ export const openrouterModels = {
       last_updated: "2026-03-11",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.085,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 262144,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "nvidia/nemotron-3-super-120b-a12b:free": {
       id: "nvidia/nemotron-3-super-120b-a12b:free",
@@ -4493,17 +5361,21 @@ export const openrouterModels = {
       last_updated: "2026-03-11",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "nvidia/nemotron-3-ultra-550b-a55b": {
       id: "nvidia/nemotron-3-ultra-550b-a55b",
@@ -4518,18 +5390,22 @@ export const openrouterModels = {
       last_updated: "2026-06-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         input: 0.5,
-        output: 2.2,
+        output: 2.2
       },
       limit: {
         context: 262144,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "nvidia/nemotron-3-ultra-550b-a55b:free": {
       id: "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -4544,17 +5420,21 @@ export const openrouterModels = {
       last_updated: "2026-06-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "nvidia/nemotron-3.5-content-safety:free": {
       id: "nvidia/nemotron-3.5-content-safety:free",
@@ -4569,17 +5449,22 @@ export const openrouterModels = {
       last_updated: "2026-06-04",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 128000,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "nvidia/nemotron-nano-12b-v2-vl:free": {
       id: "nvidia/nemotron-nano-12b-v2-vl:free",
@@ -4594,17 +5479,23 @@ export const openrouterModels = {
       last_updated: "2025-10-28",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "nvidia/nemotron-nano-9b-v2:free": {
       id: "nvidia/nemotron-nano-9b-v2:free",
@@ -4619,17 +5510,21 @@ export const openrouterModels = {
       last_updated: "2025-08-18",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-3.5-turbo": {
       id: "openai/gpt-3.5-turbo",
@@ -4645,17 +5540,21 @@ export const openrouterModels = {
       last_updated: "2023-11-06",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 16385,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-3.5-turbo-0613": {
       id: "openai/gpt-3.5-turbo-0613",
@@ -4671,17 +5570,21 @@ export const openrouterModels = {
       last_updated: "2024-01-25",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 4095,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-3.5-turbo-16k": {
       id: "openai/gpt-3.5-turbo-16k",
@@ -4697,17 +5600,21 @@ export const openrouterModels = {
       last_updated: "2023-08-28",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 3,
-        output: 4,
+        output: 4
       },
       limit: {
         context: 16385,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-3.5-turbo-instruct": {
       id: "openai/gpt-3.5-turbo-instruct",
@@ -4723,17 +5630,21 @@ export const openrouterModels = {
       last_updated: "2023-09-28",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1.5,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 4095,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-4": {
       id: "openai/gpt-4",
@@ -4749,17 +5660,21 @@ export const openrouterModels = {
       last_updated: "2024-04-09",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 30,
-        output: 60,
+        output: 60
       },
       limit: {
         context: 8191,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-4-turbo": {
       id: "openai/gpt-4-turbo",
@@ -4775,17 +5690,22 @@ export const openrouterModels = {
       last_updated: "2024-04-09",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 10,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 128000,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-4-turbo-preview": {
       id: "openai/gpt-4-turbo-preview",
@@ -4801,17 +5721,21 @@ export const openrouterModels = {
       last_updated: "2024-01-25",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 10,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 128000,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-4.1": {
       id: "openai/gpt-4.1",
@@ -4827,18 +5751,24 @@ export const openrouterModels = {
       last_updated: "2025-04-14",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 1047576,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "openai/gpt-4.1-mini": {
       id: "openai/gpt-4.1-mini",
@@ -4854,18 +5784,24 @@ export const openrouterModels = {
       last_updated: "2025-04-14",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         input: 0.4,
-        output: 1.6,
+        output: 1.6
       },
       limit: {
         context: 1047576,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "openai/gpt-4.1-nano": {
       id: "openai/gpt-4.1-nano",
@@ -4881,18 +5817,24 @@ export const openrouterModels = {
       last_updated: "2025-04-14",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.1,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 1047576,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "openai/gpt-4o": {
       id: "openai/gpt-4o",
@@ -4908,17 +5850,23 @@ export const openrouterModels = {
       last_updated: "2024-08-06",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-4o-2024-05-13": {
       id: "openai/gpt-4o-2024-05-13",
@@ -4934,17 +5882,23 @@ export const openrouterModels = {
       last_updated: "2024-05-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 5,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 128000,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "openai/gpt-4o-2024-08-06": {
       id: "openai/gpt-4o-2024-08-06",
@@ -4960,18 +5914,24 @@ export const openrouterModels = {
       last_updated: "2024-08-06",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.25,
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-4o-2024-11-20": {
       id: "openai/gpt-4o-2024-11-20",
@@ -4987,18 +5947,24 @@ export const openrouterModels = {
       last_updated: "2024-11-20",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.25,
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-4o-mini": {
       id: "openai/gpt-4o-mini",
@@ -5014,18 +5980,24 @@ export const openrouterModels = {
       last_updated: "2024-07-18",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-4o-mini-2024-07-18": {
       id: "openai/gpt-4o-mini-2024-07-18",
@@ -5041,18 +6013,24 @@ export const openrouterModels = {
       last_updated: "2024-07-18",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-4o-mini-search-preview": {
       id: "openai/gpt-4o-mini-search-preview",
@@ -5068,17 +6046,21 @@ export const openrouterModels = {
       last_updated: "2025-03-12",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-4o-search-preview": {
       id: "openai/gpt-4o-search-preview",
@@ -5094,17 +6076,21 @@ export const openrouterModels = {
       last_updated: "2025-03-12",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-5": {
       id: "openai/gpt-5",
@@ -5120,19 +6106,25 @@ export const openrouterModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5-chat": {
       id: "openai/gpt-5-chat",
@@ -5148,18 +6140,24 @@ export const openrouterModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-5-codex": {
       id: "openai/gpt-5-codex",
@@ -5175,19 +6173,24 @@ export const openrouterModels = {
       last_updated: "2025-09-15",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5-image": {
       id: "openai/gpt-5-image",
@@ -5203,18 +6206,25 @@ export const openrouterModels = {
       last_updated: "2025-10-14",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["image", "text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "image",
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.25,
         input: 10,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5-image-mini": {
       id: "openai/gpt-5-image-mini",
@@ -5229,18 +6239,25 @@ export const openrouterModels = {
       last_updated: "2025-10-16",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["image", "text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "image",
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.25,
         input: 2.5,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 400000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5-mini": {
       id: "openai/gpt-5-mini",
@@ -5256,19 +6273,25 @@ export const openrouterModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5-nano": {
       id: "openai/gpt-5-nano",
@@ -5284,19 +6307,25 @@ export const openrouterModels = {
       last_updated: "2025-08-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         input: 0.05,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5-pro": {
       id: "openai/gpt-5-pro",
@@ -5312,18 +6341,24 @@ export const openrouterModels = {
       last_updated: "2025-10-06",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 15,
-        output: 120,
+        output: 120
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.1": {
       id: "openai/gpt-5.1",
@@ -5339,19 +6374,25 @@ export const openrouterModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.13,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.1-chat": {
       id: "openai/gpt-5.1-chat",
@@ -5367,18 +6408,24 @@ export const openrouterModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.13,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "openai/gpt-5.1-codex": {
       id: "openai/gpt-5.1-codex",
@@ -5394,19 +6441,24 @@ export const openrouterModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.13,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.1-codex-max": {
       id: "openai/gpt-5.1-codex-max",
@@ -5422,19 +6474,24 @@ export const openrouterModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         input: 1.25,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.1-codex-mini": {
       id: "openai/gpt-5.1-codex-mini",
@@ -5450,19 +6507,24 @@ export const openrouterModels = {
       last_updated: "2025-11-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/gpt-5.2": {
       id: "openai/gpt-5.2",
@@ -5478,19 +6540,25 @@ export const openrouterModels = {
       last_updated: "2025-12-11",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.2-chat": {
       id: "openai/gpt-5.2-chat",
@@ -5506,18 +6574,24 @@ export const openrouterModels = {
       last_updated: "2025-12-10",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-5.2-codex": {
       id: "openai/gpt-5.2-codex",
@@ -5533,19 +6607,24 @@ export const openrouterModels = {
       last_updated: "2025-12-11",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.2-pro": {
       id: "openai/gpt-5.2-pro",
@@ -5561,18 +6640,24 @@ export const openrouterModels = {
       last_updated: "2025-12-11",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 21,
-        output: 168,
+        output: 168
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.3-chat": {
       id: "openai/gpt-5.3-chat",
@@ -5587,18 +6672,24 @@ export const openrouterModels = {
       last_updated: "2026-03-03",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-5.3-codex": {
       id: "openai/gpt-5.3-codex",
@@ -5614,19 +6705,25 @@ export const openrouterModels = {
       last_updated: "2026-02-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.175,
         input: 1.75,
-        output: 14,
+        output: 14
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.4": {
       id: "openai/gpt-5.4",
@@ -5642,19 +6739,25 @@ export const openrouterModels = {
       last_updated: "2026-03-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.25,
         input: 2.5,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.4-image-2": {
       id: "openai/gpt-5.4-image-2",
@@ -5669,18 +6772,25 @@ export const openrouterModels = {
       last_updated: "2026-04-21",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["image", "text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "image",
+          "text"
+        ]
       },
       cost: {
         cache_read: 2,
         input: 8,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.4-mini": {
       id: "openai/gpt-5.4-mini",
@@ -5696,19 +6806,25 @@ export const openrouterModels = {
       last_updated: "2026-03-17",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.75,
-        output: 4.5,
+        output: 4.5
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.4-nano": {
       id: "openai/gpt-5.4-nano",
@@ -5724,19 +6840,25 @@ export const openrouterModels = {
       last_updated: "2026-03-17",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.02,
         input: 0.2,
-        output: 1.25,
+        output: 1.25
       },
       limit: {
         context: 400000,
         input: 272000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.4-pro": {
       id: "openai/gpt-5.4-pro",
@@ -5752,18 +6874,24 @@ export const openrouterModels = {
       last_updated: "2026-03-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 30,
-        output: 180,
+        output: 180
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.5": {
       id: "openai/gpt-5.5",
@@ -5779,19 +6907,25 @@ export const openrouterModels = {
       last_updated: "2026-04-23",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 5,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-5.5-pro": {
       id: "openai/gpt-5.5-pro",
@@ -5807,18 +6941,24 @@ export const openrouterModels = {
       last_updated: "2026-04-23",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 30,
-        output: 180,
+        output: 180
       },
       limit: {
         context: 1050000,
         input: 922000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-audio": {
       id: "openai/gpt-audio",
@@ -5833,17 +6973,23 @@ export const openrouterModels = {
       last_updated: "2026-01-19",
       open_weights: false,
       modalities: {
-        input: ["text", "audio"],
-        output: ["text", "audio"],
+        input: [
+          "text",
+          "audio"
+        ],
+        output: [
+          "text",
+          "audio"
+        ]
       },
       cost: {
         input: 2.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-audio-mini": {
       id: "openai/gpt-audio-mini",
@@ -5858,17 +7004,23 @@ export const openrouterModels = {
       last_updated: "2026-01-19",
       open_weights: false,
       modalities: {
-        input: ["text", "audio"],
-        output: ["text", "audio"],
+        input: [
+          "text",
+          "audio"
+        ],
+        output: [
+          "text",
+          "audio"
+        ]
       },
       cost: {
         input: 0.6,
-        output: 2.4,
+        output: 2.4
       },
       limit: {
         context: 128000,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "openai/gpt-chat-latest": {
       id: "openai/gpt-chat-latest",
@@ -5883,18 +7035,24 @@ export const openrouterModels = {
       last_updated: "2026-05-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 5,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 400000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openai/gpt-oss-120b": {
       id: "openai/gpt-oss-120b",
@@ -5909,17 +7067,21 @@ export const openrouterModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.03,
-        output: 0.15,
+        output: 0.15
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "openai/gpt-oss-120b:free": {
       id: "openai/gpt-oss-120b:free",
@@ -5934,17 +7096,21 @@ export const openrouterModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "openai/gpt-oss-20b": {
       id: "openai/gpt-oss-20b",
@@ -5960,17 +7126,21 @@ export const openrouterModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.029,
-        output: 0.14,
+        output: 0.14
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "openai/gpt-oss-20b:free": {
       id: "openai/gpt-oss-20b:free",
@@ -5986,17 +7156,21 @@ export const openrouterModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "openai/gpt-oss-safeguard-20b": {
       id: "openai/gpt-oss-safeguard-20b",
@@ -6011,18 +7185,22 @@ export const openrouterModels = {
       last_updated: "2025-10-29",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.0375,
         input: 0.075,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 131072,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "openai/o1": {
       id: "openai/o1",
@@ -6038,18 +7216,24 @@ export const openrouterModels = {
       last_updated: "2024-12-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 7.5,
         input: 15,
-        output: 60,
+        output: 60
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o1-pro": {
       id: "openai/o1-pro",
@@ -6065,17 +7249,23 @@ export const openrouterModels = {
       last_updated: "2025-03-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 150,
-        output: 600,
+        output: 600
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o3": {
       id: "openai/o3",
@@ -6091,18 +7281,24 @@ export const openrouterModels = {
       last_updated: "2025-04-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o3-deep-research": {
       id: "openai/o3-deep-research",
@@ -6118,18 +7314,24 @@ export const openrouterModels = {
       last_updated: "2024-06-26",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 2.5,
         input: 10,
-        output: 40,
+        output: 40
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o3-mini": {
       id: "openai/o3-mini",
@@ -6145,18 +7347,23 @@ export const openrouterModels = {
       last_updated: "2025-01-29",
       open_weights: false,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.55,
         input: 1.1,
-        output: 4.4,
+        output: 4.4
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o3-mini-high": {
       id: "openai/o3-mini-high",
@@ -6172,18 +7379,23 @@ export const openrouterModels = {
       last_updated: "2025-02-12",
       open_weights: false,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.55,
         input: 1.1,
-        output: 4.4,
+        output: 4.4
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o3-pro": {
       id: "openai/o3-pro",
@@ -6199,17 +7411,23 @@ export const openrouterModels = {
       last_updated: "2025-06-10",
       open_weights: false,
       modalities: {
-        input: ["text", "pdf", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 20,
-        output: 80,
+        output: 80
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o4-mini": {
       id: "openai/o4-mini",
@@ -6225,18 +7443,24 @@ export const openrouterModels = {
       last_updated: "2025-04-16",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.275,
         input: 1.1,
-        output: 4.4,
+        output: 4.4
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o4-mini-deep-research": {
       id: "openai/o4-mini-deep-research",
@@ -6252,18 +7476,24 @@ export const openrouterModels = {
       last_updated: "2024-06-26",
       open_weights: false,
       modalities: {
-        input: ["pdf", "image", "text"],
-        output: ["text"],
+        input: [
+          "pdf",
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openai/o4-mini-high": {
       id: "openai/o4-mini-high",
@@ -6279,18 +7509,24 @@ export const openrouterModels = {
       last_updated: "2025-04-16",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "pdf"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.275,
         input: 1.1,
-        output: 4.4,
+        output: 4.4
       },
       limit: {
         context: 200000,
-        output: 100000,
-      },
+        output: 100000
+      }
     },
     "openrouter/auto": {
       id: "openrouter/auto",
@@ -6305,13 +7541,22 @@ export const openrouterModels = {
       last_updated: "2023-11-08",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "pdf", "video"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "pdf",
+          "video"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       limit: {
         context: 2000000,
-        output: 2000000,
-      },
+        output: 2000000
+      }
     },
     "openrouter/bodybuilder": {
       id: "openrouter/bodybuilder",
@@ -6325,13 +7570,17 @@ export const openrouterModels = {
       last_updated: "2025-12-05",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openrouter/free": {
       id: "openrouter/free",
@@ -6345,18 +7594,23 @@ export const openrouterModels = {
       last_updated: "2026-02-01",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 200000,
         input: 200000,
-        output: 8000,
-      },
+        output: 8000
+      }
     },
     "openrouter/fusion": {
       id: "openrouter/fusion",
@@ -6370,13 +7624,17 @@ export const openrouterModels = {
       last_updated: "2026-06-13",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "openrouter/pareto-code": {
       id: "openrouter/pareto-code",
@@ -6390,13 +7648,17 @@ export const openrouterModels = {
       last_updated: "2026-04-21",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       limit: {
         context: 2000000,
-        output: 200000,
-      },
+        output: 200000
+      }
     },
     "perceptron/perceptron-mk1": {
       id: "perceptron/perceptron-mk1",
@@ -6410,17 +7672,23 @@ export const openrouterModels = {
       last_updated: "2026-05-12",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 32768,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "perplexity/sonar": {
       id: "perplexity/sonar",
@@ -6435,17 +7703,22 @@ export const openrouterModels = {
       last_updated: "2025-01-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 127072,
-        output: 127072,
-      },
+        output: 127072
+      }
     },
     "perplexity/sonar-deep-research": {
       id: "perplexity/sonar-deep-research",
@@ -6460,18 +7733,22 @@ export const openrouterModels = {
       last_updated: "2025-03-07",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2,
         output: 8,
-        reasoning: 3,
+        reasoning: 3
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "perplexity/sonar-pro": {
       id: "perplexity/sonar-pro",
@@ -6486,17 +7763,22 @@ export const openrouterModels = {
       last_updated: "2025-03-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 3,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 200000,
-        output: 8000,
-      },
+        output: 8000
+      }
     },
     "perplexity/sonar-pro-search": {
       id: "perplexity/sonar-pro-search",
@@ -6511,17 +7793,22 @@ export const openrouterModels = {
       last_updated: "2025-10-30",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 3,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 200000,
-        output: 8000,
-      },
+        output: 8000
+      }
     },
     "perplexity/sonar-reasoning-pro": {
       id: "perplexity/sonar-reasoning-pro",
@@ -6536,17 +7823,22 @@ export const openrouterModels = {
       last_updated: "2025-03-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 2,
-        output: 8,
+        output: 8
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "poolside/laguna-m.1": {
       id: "poolside/laguna-m.1",
@@ -6560,18 +7852,22 @@ export const openrouterModels = {
       last_updated: "2026-04-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         input: 0.2,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "poolside/laguna-m.1:free": {
       id: "poolside/laguna-m.1:free",
@@ -6585,17 +7881,21 @@ export const openrouterModels = {
       last_updated: "2026-04-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "poolside/laguna-xs.2": {
       id: "poolside/laguna-xs.2",
@@ -6609,18 +7909,22 @@ export const openrouterModels = {
       last_updated: "2026-04-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.1,
-        output: 0.2,
+        output: 0.2
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "poolside/laguna-xs.2:free": {
       id: "poolside/laguna-xs.2:free",
@@ -6634,17 +7938,21 @@ export const openrouterModels = {
       last_updated: "2026-04-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen-2.5-72b-instruct": {
       id: "qwen/qwen-2.5-72b-instruct",
@@ -6660,17 +7968,21 @@ export const openrouterModels = {
       last_updated: "2024-09-19",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.36,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 32768,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "qwen/qwen-2.5-7b-instruct": {
       id: "qwen/qwen-2.5-7b-instruct",
@@ -6686,17 +7998,21 @@ export const openrouterModels = {
       last_updated: "2024-10-16",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.04,
-        output: 0.1,
+        output: 0.1
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen-2.5-coder-32b-instruct": {
       id: "qwen/qwen-2.5-coder-32b-instruct",
@@ -6712,17 +8028,21 @@ export const openrouterModels = {
       last_updated: "2024-11-11",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.66,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen-plus": {
       id: "qwen/qwen-plus",
@@ -6738,19 +8058,23 @@ export const openrouterModels = {
       last_updated: "2025-09-11",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.052,
         cache_write: 0.325,
         input: 0.26,
-        output: 0.78,
+        output: 0.78
       },
       limit: {
         context: 1000000,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen-plus-2025-07-28": {
       id: "qwen/qwen-plus-2025-07-28",
@@ -6766,17 +8090,21 @@ export const openrouterModels = {
       last_updated: "2025-09-08",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.26,
-        output: 0.78,
+        output: 0.78
       },
       limit: {
         context: 1000000,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen-plus-2025-07-28:thinking": {
       id: "qwen/qwen-plus-2025-07-28:thinking",
@@ -6792,18 +8120,22 @@ export const openrouterModels = {
       last_updated: "2025-09-08",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_write: 0.325,
         input: 0.26,
-        output: 0.78,
+        output: 0.78
       },
       limit: {
         context: 1000000,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen2.5-vl-72b-instruct": {
       id: "qwen/qwen2.5-vl-72b-instruct",
@@ -6819,18 +8151,23 @@ export const openrouterModels = {
       last_updated: "2025-02-01",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.4,
         input: 0.8,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "qwen/qwen3-14b": {
       id: "qwen/qwen3-14b",
@@ -6846,17 +8183,21 @@ export const openrouterModels = {
       last_updated: "2025-04-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.24,
+        output: 0.24
       },
       limit: {
         context: 40960,
-        output: 40960,
-      },
+        output: 40960
+      }
     },
     "qwen/qwen3-235b-a22b": {
       id: "qwen/qwen3-235b-a22b",
@@ -6872,17 +8213,21 @@ export const openrouterModels = {
       last_updated: "2025-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.455,
-        output: 1.82,
+        output: 1.82
       },
       limit: {
         context: 131072,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "qwen/qwen3-235b-a22b-2507": {
       id: "qwen/qwen3-235b-a22b-2507",
@@ -6898,17 +8243,21 @@ export const openrouterModels = {
       last_updated: "2025-07-21",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.09,
-        output: 0.1,
+        output: 0.1
       },
       limit: {
         context: 262144,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "qwen/qwen3-235b-a22b-thinking-2507": {
       id: "qwen/qwen3-235b-a22b-thinking-2507",
@@ -6924,18 +8273,21 @@ export const openrouterModels = {
       last_updated: "2025-07-25",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.1,
-        input: 0.1,
-        output: 0.1,
+        input: 0.1495,
+        output: 1.495
       },
       limit: {
-        context: 262144,
-        output: 262144,
-      },
+        context: 131072,
+        output: 262144
+      }
     },
     "qwen/qwen3-30b-a3b": {
       id: "qwen/qwen3-30b-a3b",
@@ -6951,17 +8303,21 @@ export const openrouterModels = {
       last_updated: "2025-04-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.12,
-        output: 0.5,
+        output: 0.5
       },
       limit: {
         context: 40960,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "qwen/qwen3-30b-a3b-instruct-2507": {
       id: "qwen/qwen3-30b-a3b-instruct-2507",
@@ -6977,17 +8333,21 @@ export const openrouterModels = {
       last_updated: "2025-07-29",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.04815,
-        output: 0.19305,
+        output: 0.19305
       },
       limit: {
         context: 128000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "qwen/qwen3-30b-a3b-thinking-2507": {
       id: "qwen/qwen3-30b-a3b-thinking-2507",
@@ -7003,18 +8363,22 @@ export const openrouterModels = {
       last_updated: "2025-08-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.08,
         input: 0.08,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "qwen/qwen3-32b": {
       id: "qwen/qwen3-32b",
@@ -7030,17 +8394,21 @@ export const openrouterModels = {
       last_updated: "2025-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.08,
-        output: 0.28,
+        output: 0.28
       },
       limit: {
         context: 40960,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "qwen/qwen3-8b": {
       id: "qwen/qwen3-8b",
@@ -7056,18 +8424,22 @@ export const openrouterModels = {
       last_updated: "2025-04-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.05,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 40960,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "qwen/qwen3-coder": {
       id: "qwen/qwen3-coder",
@@ -7083,17 +8455,21 @@ export const openrouterModels = {
       last_updated: "2025-07-23",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.22,
-        output: 1.8,
+        output: 1.8
       },
       limit: {
         context: 262144,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3-coder-30b-a3b-instruct": {
       id: "qwen/qwen3-coder-30b-a3b-instruct",
@@ -7109,17 +8485,21 @@ export const openrouterModels = {
       last_updated: "2025-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.07,
-        output: 0.27,
+        output: 0.27
       },
       limit: {
         context: 160000,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-coder-flash": {
       id: "qwen/qwen3-coder-flash",
@@ -7135,19 +8515,23 @@ export const openrouterModels = {
       last_updated: "2025-07-28",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.039,
         cache_write: 0.24375,
         input: 0.195,
-        output: 0.975,
+        output: 0.975
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3-coder-next": {
       id: "qwen/qwen3-coder-next",
@@ -7162,18 +8546,22 @@ export const openrouterModels = {
       last_updated: "2026-02-04",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.07,
         input: 0.11,
-        output: 0.8,
+        output: 0.8
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "qwen/qwen3-coder-plus": {
       id: "qwen/qwen3-coder-plus",
@@ -7189,19 +8577,23 @@ export const openrouterModels = {
       last_updated: "2025-07-23",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.13,
         cache_write: 0.8125,
         input: 0.65,
-        output: 3.25,
+        output: 3.25
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3-coder:free": {
       id: "qwen/qwen3-coder:free",
@@ -7217,17 +8609,21 @@ export const openrouterModels = {
       last_updated: "2025-07-23",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 262000,
-        output: 262000,
-      },
+        output: 262000
+      }
     },
     "qwen/qwen3-max": {
       id: "qwen/qwen3-max",
@@ -7243,19 +8639,23 @@ export const openrouterModels = {
       last_updated: "2025-09-23",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.156,
         cache_write: 0.975,
         input: 0.78,
-        output: 3.9,
+        output: 3.9
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-max-thinking": {
       id: "qwen/qwen3-max-thinking",
@@ -7270,17 +8670,21 @@ export const openrouterModels = {
       last_updated: "2026-02-09",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.78,
-        output: 3.9,
+        output: 3.9
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-next-80b-a3b-instruct": {
       id: "qwen/qwen3-next-80b-a3b-instruct",
@@ -7296,17 +8700,21 @@ export const openrouterModels = {
       last_updated: "2025-09",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.09,
-        output: 1.1,
+        output: 1.1
       },
       limit: {
         context: 262144,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "qwen/qwen3-next-80b-a3b-instruct:free": {
       id: "qwen/qwen3-next-80b-a3b-instruct:free",
@@ -7322,17 +8730,21 @@ export const openrouterModels = {
       last_updated: "2025-09",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "qwen/qwen3-next-80b-a3b-thinking": {
       id: "qwen/qwen3-next-80b-a3b-thinking",
@@ -7348,17 +8760,21 @@ export const openrouterModels = {
       last_updated: "2025-09",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.0975,
-        output: 0.78,
+        output: 0.78
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-vl-235b-a22b-instruct": {
       id: "qwen/qwen3-vl-235b-a22b-instruct",
@@ -7374,18 +8790,23 @@ export const openrouterModels = {
       last_updated: "2025-09-23",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.11,
         input: 0.2,
-        output: 0.88,
+        output: 0.88
       },
       limit: {
         context: 262144,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "qwen/qwen3-vl-235b-a22b-thinking": {
       id: "qwen/qwen3-vl-235b-a22b-thinking",
@@ -7401,17 +8822,22 @@ export const openrouterModels = {
       last_updated: "2025-09-23",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.26,
-        output: 2.6,
+        output: 2.6
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-vl-30b-a3b-instruct": {
       id: "qwen/qwen3-vl-30b-a3b-instruct",
@@ -7427,17 +8853,22 @@ export const openrouterModels = {
       last_updated: "2025-10-06",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.13,
-        output: 0.52,
+        output: 0.52
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-vl-30b-a3b-thinking": {
       id: "qwen/qwen3-vl-30b-a3b-thinking",
@@ -7453,17 +8884,22 @@ export const openrouterModels = {
       last_updated: "2025-10-06",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.13,
-        output: 1.56,
+        output: 1.56
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-vl-32b-instruct": {
       id: "qwen/qwen3-vl-32b-instruct",
@@ -7478,17 +8914,22 @@ export const openrouterModels = {
       last_updated: "2025-10-23",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.104,
-        output: 0.416,
+        output: 0.416
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-vl-8b-instruct": {
       id: "qwen/qwen3-vl-8b-instruct",
@@ -7503,17 +8944,22 @@ export const openrouterModels = {
       last_updated: "2025-10-14",
       open_weights: true,
       modalities: {
-        input: ["image", "text"],
-        output: ["text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.08,
-        output: 0.5,
+        output: 0.5
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-vl-8b-thinking": {
       id: "qwen/qwen3-vl-8b-thinking",
@@ -7528,17 +8974,22 @@ export const openrouterModels = {
       last_updated: "2025-10-14",
       open_weights: true,
       modalities: {
-        input: ["image", "text"],
-        output: ["text"],
+        input: [
+          "image",
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.117,
-        output: 1.365,
+        output: 1.365
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3.5-122b-a10b": {
       id: "qwen/qwen3.5-122b-a10b",
@@ -7553,17 +9004,23 @@ export const openrouterModels = {
       last_updated: "2026-02-23",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.26,
-        output: 2.08,
+        output: 2.08
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "qwen/qwen3.5-27b": {
       id: "qwen/qwen3.5-27b",
@@ -7578,17 +9035,23 @@ export const openrouterModels = {
       last_updated: "2026-02-23",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.195,
-        output: 1.56,
+        output: 1.56
       },
       limit: {
         context: 262144,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.5-35b-a3b": {
       id: "qwen/qwen3.5-35b-a3b",
@@ -7603,18 +9066,24 @@ export const openrouterModels = {
       last_updated: "2026-02-23",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.14,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 262144,
-        output: 81920,
-      },
+        output: 81920
+      }
     },
     "qwen/qwen3.5-397b-a17b": {
       id: "qwen/qwen3.5-397b-a17b",
@@ -7629,17 +9098,23 @@ export const openrouterModels = {
       last_updated: "2026-02-15",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.385,
-        output: 2.45,
+        output: 2.45
       },
       limit: {
         context: 131072,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "qwen/qwen3.5-9b": {
       id: "qwen/qwen3.5-9b",
@@ -7654,17 +9129,23 @@ export const openrouterModels = {
       last_updated: "2026-02-23",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.15,
+        output: 0.15
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "qwen/qwen3.5-flash-02-23": {
       id: "qwen/qwen3.5-flash-02-23",
@@ -7679,17 +9160,23 @@ export const openrouterModels = {
       last_updated: "2026-02-25",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.065,
-        output: 0.26,
+        output: 0.26
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.5-plus-02-15": {
       id: "qwen/qwen3.5-plus-02-15",
@@ -7705,17 +9192,23 @@ export const openrouterModels = {
       last_updated: "2026-02-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.26,
-        output: 1.56,
+        output: 1.56
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.5-plus-20260420": {
       id: "qwen/qwen3.5-plus-20260420",
@@ -7730,18 +9223,24 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_write: 0.375,
         input: 0.3,
-        output: 1.8,
+        output: 1.8
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.6-27b": {
       id: "qwen/qwen3.6-27b",
@@ -7756,17 +9255,23 @@ export const openrouterModels = {
       last_updated: "2026-04-22",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.285,
-        output: 2.4,
+        output: 2.4
       },
       limit: {
         context: 262140,
-        output: 262140,
-      },
+        output: 262140
+      }
     },
     "qwen/qwen3.6-35b-a3b": {
       id: "qwen/qwen3.6-35b-a3b",
@@ -7781,17 +9286,23 @@ export const openrouterModels = {
       last_updated: "2026-04-17",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.14,
-        output: 1,
+        output: 1
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "qwen/qwen3.6-flash": {
       id: "qwen/qwen3.6-flash",
@@ -7806,18 +9317,24 @@ export const openrouterModels = {
       last_updated: "2026-04-27",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_write: 0.234375,
         input: 0.1875,
-        output: 1.125,
+        output: 1.125
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.6-max-preview": {
       id: "qwen/qwen3.6-max-preview",
@@ -7833,18 +9350,22 @@ export const openrouterModels = {
       last_updated: "2026-04-20",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_write: 1.3,
         input: 1.04,
-        output: 6.24,
+        output: 6.24
       },
       limit: {
         context: 262144,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.6-plus": {
       id: "qwen/qwen3.6-plus",
@@ -7860,18 +9381,24 @@ export const openrouterModels = {
       last_updated: "2026-04-02",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_write: 0.40625,
         input: 0.325,
-        output: 1.95,
+        output: 1.95
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.7-max": {
       id: "qwen/qwen3.7-max",
@@ -7886,19 +9413,23 @@ export const openrouterModels = {
       last_updated: "2026-05-21",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.25,
         cache_write: 1.5625,
         input: 1.25,
-        output: 3.75,
+        output: 3.75
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "qwen/qwen3.7-plus": {
       id: "qwen/qwen3.7-plus",
@@ -7914,19 +9445,24 @@ export const openrouterModels = {
       last_updated: "2026-06-02",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.064,
         cache_write: 0.4,
         input: 0.32,
-        output: 1.28,
+        output: 1.28
       },
       limit: {
         context: 1000000,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "rekaai/reka-edge": {
       id: "rekaai/reka-edge",
@@ -7941,17 +9477,23 @@ export const openrouterModels = {
       last_updated: "2026-03-20",
       open_weights: true,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.1,
+        output: 0.1
       },
       limit: {
         context: 16384,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "rekaai/reka-flash-3": {
       id: "rekaai/reka-flash-3",
@@ -7967,17 +9509,21 @@ export const openrouterModels = {
       last_updated: "2025-03-12",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.2,
+        output: 0.2
       },
       limit: {
         context: 65536,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "relace/relace-apply-3": {
       id: "relace/relace-apply-3",
@@ -7991,17 +9537,21 @@ export const openrouterModels = {
       last_updated: "2025-09-26",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.85,
-        output: 1.25,
+        output: 1.25
       },
       limit: {
         context: 256000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "relace/relace-search": {
       id: "relace/relace-search",
@@ -8015,21 +9565,26 @@ export const openrouterModels = {
       last_updated: "2025-12-08",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 1,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 256000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "sakana/fugu-ultra": {
       id: "sakana/fugu-ultra",
       name: "Fugu Ultra",
+      family: "fugu",
       attachment: true,
       reasoning: true,
       tool_call: true,
@@ -8039,18 +9594,23 @@ export const openrouterModels = {
       last_updated: "2026-06-24",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         input: 5,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "sao10k/l3-lunaris-8b": {
       id: "sao10k/l3-lunaris-8b",
@@ -8066,17 +9626,21 @@ export const openrouterModels = {
       last_updated: "2024-08-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.04,
-        output: 0.05,
+        output: 0.05
       },
       limit: {
         context: 8192,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "sao10k/l3.1-70b-hanami-x1": {
       id: "sao10k/l3.1-70b-hanami-x1",
@@ -8092,17 +9656,21 @@ export const openrouterModels = {
       last_updated: "2025-01-08",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 3,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 16000,
-        output: 16000,
-      },
+        output: 16000
+      }
     },
     "sao10k/l3.1-euryale-70b": {
       id: "sao10k/l3.1-euryale-70b",
@@ -8118,17 +9686,21 @@ export const openrouterModels = {
       last_updated: "2024-08-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.85,
-        output: 0.85,
+        output: 0.85
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "sao10k/l3.3-euryale-70b": {
       id: "sao10k/l3.3-euryale-70b",
@@ -8144,17 +9716,21 @@ export const openrouterModels = {
       last_updated: "2024-12-18",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.65,
-        output: 0.75,
+        output: 0.75
       },
       limit: {
         context: 131072,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "stepfun/step-3.5-flash": {
       id: "stepfun/step-3.5-flash",
@@ -8169,17 +9745,21 @@ export const openrouterModels = {
       last_updated: "2026-02-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.1,
-        output: 0.3,
+        output: 0.3
       },
       limit: {
         context: 262144,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "stepfun/step-3.7-flash": {
       id: "stepfun/step-3.7-flash",
@@ -8194,19 +9774,25 @@ export const openrouterModels = {
       last_updated: "2026-05-29",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.04,
         input: 0.2,
-        output: 1.15,
+        output: 1.15
       },
       limit: {
         context: 256000,
         input: 256000,
-        output: 256000,
-      },
+        output: 256000
+      }
     },
     "switchpoint/router": {
       id: "switchpoint/router",
@@ -8220,17 +9806,21 @@ export const openrouterModels = {
       last_updated: "2025-07-11",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.85,
-        output: 3.4,
+        output: 3.4
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "tencent/hunyuan-a13b-instruct": {
       id: "tencent/hunyuan-a13b-instruct",
@@ -8246,17 +9836,21 @@ export const openrouterModels = {
       last_updated: "2025-07-08",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.14,
-        output: 0.57,
+        output: 0.57
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "tencent/hy3-preview": {
       id: "tencent/hy3-preview",
@@ -8271,18 +9865,22 @@ export const openrouterModels = {
       last_updated: "2026-04-20",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.021,
         input: 0.063,
-        output: 0.21,
+        output: 0.21
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "thedrummer/cydonia-24b-v4.1": {
       id: "thedrummer/cydonia-24b-v4.1",
@@ -8297,18 +9895,22 @@ export const openrouterModels = {
       last_updated: "2025-09-27",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.15,
         input: 0.3,
-        output: 0.5,
+        output: 0.5
       },
       limit: {
         context: 131072,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "thedrummer/rocinante-12b": {
       id: "thedrummer/rocinante-12b",
@@ -8323,17 +9925,21 @@ export const openrouterModels = {
       last_updated: "2024-09-30",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.25,
-        output: 0.5,
+        output: 0.5
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "thedrummer/skyfall-36b-v2": {
       id: "thedrummer/skyfall-36b-v2",
@@ -8348,18 +9954,22 @@ export const openrouterModels = {
       last_updated: "2025-03-10",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.25,
         input: 0.55,
-        output: 0.8,
+        output: 0.8
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "thedrummer/unslopnemo-12b": {
       id: "thedrummer/unslopnemo-12b",
@@ -8374,17 +9984,21 @@ export const openrouterModels = {
       last_updated: "2024-11-08",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.4,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "undi95/remm-slerp-l2-13b": {
       id: "undi95/remm-slerp-l2-13b",
@@ -8399,17 +10013,21 @@ export const openrouterModels = {
       last_updated: "2023-07-22",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.45,
-        output: 0.65,
+        output: 0.65
       },
       limit: {
         context: 6144,
-        output: 4096,
-      },
+        output: 4096
+      }
     },
     "upstage/solar-pro-3": {
       id: "upstage/solar-pro-3",
@@ -8424,18 +10042,22 @@ export const openrouterModels = {
       last_updated: "2026-01-27",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.015,
         input: 0.15,
-        output: 0.6,
+        output: 0.6
       },
       limit: {
         context: 128000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "writer/palmyra-x5": {
       id: "writer/palmyra-x5",
@@ -8450,17 +10072,21 @@ export const openrouterModels = {
       last_updated: "2026-01-21",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.6,
-        output: 6,
+        output: 6
       },
       limit: {
         context: 1040000,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "x-ai/grok-4.20": {
       id: "x-ai/grok-4.20",
@@ -8476,18 +10102,24 @@ export const openrouterModels = {
       last_updated: "2026-03-31",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         input: 1.25,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 2000000,
-        output: 2000000,
-      },
+        output: 2000000
+      }
     },
     "x-ai/grok-4.20-multi-agent": {
       id: "x-ai/grok-4.20-multi-agent",
@@ -8503,18 +10135,24 @@ export const openrouterModels = {
       last_updated: "2026-03-31",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         input: 1.25,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 2000000,
-        output: 2000000,
-      },
+        output: 2000000
+      }
     },
     "x-ai/grok-4.3": {
       id: "x-ai/grok-4.3",
@@ -8529,22 +10167,27 @@ export const openrouterModels = {
       last_updated: "2026-04-30",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           input: 2.5,
-          output: 5,
+          output: 5
         },
         input: 1.25,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 1000000,
-        output: 1000000,
-      },
+        output: 1000000
+      }
     },
     "x-ai/grok-build-0.1": {
       id: "x-ai/grok-build-0.1",
@@ -8559,18 +10202,23 @@ export const openrouterModels = {
       last_updated: "2026-04-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         input: 1,
-        output: 2,
+        output: 2
       },
       limit: {
         context: 256000,
-        output: 256000,
-      },
+        output: 256000
+      }
     },
     "xiaomi/mimo-v2.5": {
       id: "xiaomi/mimo-v2.5",
@@ -8586,17 +10234,24 @@ export const openrouterModels = {
       last_updated: "2026-04-22",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "audio", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.105,
-        output: 0.28,
+        output: 0.28
       },
       limit: {
         context: 32000,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "xiaomi/mimo-v2.5-pro": {
       id: "xiaomi/mimo-v2.5-pro",
@@ -8612,18 +10267,22 @@ export const openrouterModels = {
       last_updated: "2026-04-22",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.0036,
         input: 0.435,
-        output: 0.87,
+        output: 0.87
       },
       limit: {
         context: 1048576,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "z-ai/glm-4.5": {
       id: "z-ai/glm-4.5",
@@ -8639,18 +10298,22 @@ export const openrouterModels = {
       last_updated: "2025-07-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.11,
         input: 0.6,
-        output: 2.2,
+        output: 2.2
       },
       limit: {
         context: 131072,
-        output: 98304,
-      },
+        output: 98304
+      }
     },
     "z-ai/glm-4.5-air": {
       id: "z-ai/glm-4.5-air",
@@ -8666,18 +10329,22 @@ export const openrouterModels = {
       last_updated: "2025-07-28",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.13,
-        output: 0.85,
+        output: 0.85
       },
       limit: {
         context: 131072,
-        output: 98304,
-      },
+        output: 98304
+      }
     },
     "z-ai/glm-4.5v": {
       id: "z-ai/glm-4.5v",
@@ -8693,18 +10360,23 @@ export const openrouterModels = {
       last_updated: "2025-08-11",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.11,
         input: 0.6,
-        output: 1.8,
+        output: 1.8
       },
       limit: {
         context: 65536,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "z-ai/glm-4.6": {
       id: "z-ai/glm-4.6",
@@ -8720,18 +10392,22 @@ export const openrouterModels = {
       last_updated: "2025-09-30",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.08,
         input: 0.43,
-        output: 1.74,
+        output: 1.74
       },
       limit: {
         context: 202752,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "z-ai/glm-4.6v": {
       id: "z-ai/glm-4.6v",
@@ -8747,18 +10423,24 @@ export const openrouterModels = {
       last_updated: "2025-12-08",
       open_weights: true,
       modalities: {
-        input: ["text", "image", "video"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.055,
         input: 0.3,
-        output: 0.9,
+        output: 0.9
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "z-ai/glm-4.7": {
       id: "z-ai/glm-4.7",
@@ -8774,18 +10456,22 @@ export const openrouterModels = {
       last_updated: "2025-12-22",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.08,
         input: 0.4,
-        output: 1.75,
+        output: 1.75
       },
       limit: {
         context: 202752,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "z-ai/glm-4.7-flash": {
       id: "z-ai/glm-4.7-flash",
@@ -8801,18 +10487,22 @@ export const openrouterModels = {
       last_updated: "2026-01-19",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         input: 0.06,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 202752,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "z-ai/glm-5": {
       id: "z-ai/glm-5",
@@ -8827,18 +10517,22 @@ export const openrouterModels = {
       last_updated: "2026-02-12",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.12,
         input: 0.6,
-        output: 1.92,
+        output: 1.92
       },
       limit: {
         context: 202752,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "z-ai/glm-5-turbo": {
       id: "z-ai/glm-5-turbo",
@@ -8853,18 +10547,22 @@ export const openrouterModels = {
       last_updated: "2026-03-16",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.24,
         input: 1.2,
-        output: 4,
+        output: 4
       },
       limit: {
         context: 262144,
-        output: 131072,
-      },
+        output: 131072
+      }
     },
     "z-ai/glm-5.1": {
       id: "z-ai/glm-5.1",
@@ -8879,17 +10577,21 @@ export const openrouterModels = {
       last_updated: "2026-04-07",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.975,
-        output: 4.3,
+        output: 4.3
       },
       limit: {
         context: 65536,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "z-ai/glm-5.2": {
       id: "z-ai/glm-5.2",
@@ -8904,18 +10606,22 @@ export const openrouterModels = {
       last_updated: "2026-06-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.18,
-        input: 0.94,
-        output: 3,
+        input: 0.93,
+        output: 3
       },
       limit: {
         context: 1048576,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "z-ai/glm-5v-turbo": {
       id: "z-ai/glm-5v-turbo",
@@ -8930,19 +10636,25 @@ export const openrouterModels = {
       last_updated: "2026-04-01",
       open_weights: false,
       modalities: {
-        input: ["image", "text", "video"],
-        output: ["text"],
+        input: [
+          "image",
+          "text",
+          "video"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.24,
         input: 1.2,
-        output: 4,
+        output: 4
       },
       limit: {
         context: 202752,
-        output: 131072,
-      },
-    },
-  },
+        output: 131072
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const openrouterCatalog = openrouterModels;
