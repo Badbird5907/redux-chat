@@ -123,9 +123,12 @@ export async function devLoginResponse(
 
   if (!authResponse.ok) {
     const detail = await authResponse.text();
-    return new Response(`Dev login failed (${authResponse.status}): ${detail}`, {
-      status: 500,
-    });
+    return new Response(
+      `Dev login failed (${authResponse.status}): ${detail}`,
+      {
+        status: 500,
+      },
+    );
   }
 
   return redirectWithCookies(authResponse, "/");
