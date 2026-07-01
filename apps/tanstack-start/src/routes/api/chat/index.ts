@@ -120,6 +120,7 @@ const requestBody = z.object({
 
 type ChatRequestMessage = z.infer<typeof requestBody>["messages"][number];
 type AiSdkReasoning = "none" | "low" | "medium" | "high";
+type AnthropicEffort = "low" | "medium" | "high";
 const MIN_GENERATION_CREDIT_FLOOR = 10;
 type StreamTextProviderOptions = NonNullable<
   Parameters<typeof streamText>[0]["providerOptions"]
@@ -127,16 +128,27 @@ type StreamTextProviderOptions = NonNullable<
 
 function resolveProviderOptions(
   runtimeProviderKey: string,
+  reasoning: AiSdkReasoning | undefined,
 ): StreamTextProviderOptions | undefined {
   if (runtimeProviderKey === "anthropic") {
     return {
       anthropic: {
         cacheControl: { type: "ephemeral" },
+        ...(reasoning && reasoning !== "none"
+          ? {
+              thinking: { type: "adaptive" },
+              effort: reasoning satisfies AnthropicEffort,
+            }
+          : {}),
       } satisfies AnthropicLanguageModelOptions,
     };
   }
 
   return undefined;
+}
+
+function shouldUseGenericReasoning(runtimeProviderKey: string): boolean {
+  return runtimeProviderKey !== "anthropic";
 }
 
 function resolveReasoningParam(
@@ -1152,7 +1164,10 @@ export const Route = createFileRoute("/api/chat/")({
           const runtimeProviderKey =
             resolvedModel.route.behavior.runtimeProviderKey ??
             resolvedModel.route.provider;
-          const providerOptions = resolveProviderOptions(runtimeProviderKey);
+          const providerOptions = resolveProviderOptions(
+            runtimeProviderKey,
+            reasoning,
+          );
           const messagesWithAttachments = await materializeAttachmentsForRoute(
             resolvedModel.route,
             messages,
@@ -1240,7 +1255,9 @@ export const Route = createFileRoute("/api/chat/")({
             model: tracedModel,
             system: systemPrompt,
             messages: modelMessages,
-            ...(reasoning ? { reasoning } : {}),
+            ...(reasoning && shouldUseGenericReasoning(runtimeProviderKey)
+              ? { reasoning }
+              : {}),
             ...(providerOptions ? { providerOptions } : {}),
             abortSignal: abortController.signal,
             tools: toolRuntime.tools,
