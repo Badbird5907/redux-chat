@@ -41,9 +41,13 @@ else
   log "Starting the persistent local Convex backend..."
   # Pick the newest backend binary. `find` (unlike `ls -t`) doesn't abort under
   # `set -e` when nothing matches and is safe with unusual filenames (SC2012).
-  BIN="$(find "$HOME/.cache/convex/binaries" -maxdepth 2 -type f \
-      -name convex-local-backend -printf '%T@ %p\n' 2>/dev/null \
-      | sort -rn | head -1 | cut -d' ' -f2-)"
+  if [[ -d "$HOME/.cache/convex/binaries" ]]; then
+    BIN="$(find "$HOME/.cache/convex/binaries" -maxdepth 2 -type f \
+        -name convex-local-backend -printf '%T@ %p\n' 2>/dev/null \
+        | sort -rn | head -1 | cut -d' ' -f2-)"
+  else
+    BIN=""
+  fi
   if [[ -z "${BIN:-}" || ! -x "$BIN" ]]; then
     echo "Could not find the convex-local-backend binary under ~/.cache/convex/binaries" >&2
     exit 1
