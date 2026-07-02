@@ -84,24 +84,13 @@ function AppLayout() {
     pathname === "/" || desiredChatThreadId !== undefined;
   const chatMatchThreadId = chatMatch?.params.id;
   const chatThreadId = desiredChatThreadId ?? chatMatchThreadId;
-  const homeLoaderData = homeMatch?.loaderData as
-    | {
-        settingsJson?: ChatPreload["settingsJson"];
-      }
-    | undefined;
   const isHomeRoute = homeMatch !== undefined;
   const isPendingChatRoute =
     desiredChatThreadId !== undefined && chatMatchThreadId !== chatThreadId;
   const shouldRenderChatSurface =
     !isPendingChatRoute && (chatThreadId !== undefined || isHomeRoute);
   const chatPreload: ChatPreload | undefined =
-    chatMatchThreadId === chatThreadId
-      ? chatMatch?.loaderData
-      : chatThreadId === undefined
-        ? {
-            settingsJson: homeLoaderData?.settingsJson ?? null,
-          }
-        : undefined;
+    chatMatchThreadId === chatThreadId ? chatMatch?.loaderData : undefined;
 
   return (
     <ChatRouteAdoptionProvider>

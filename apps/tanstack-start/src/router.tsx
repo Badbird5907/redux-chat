@@ -47,8 +47,6 @@ export function getRouter() {
     defaultPreload: "intent",
     defaultPreloadStaleTime: 60_000,
     defaultPendingMs: Infinity,
-    defaultStaleReloadMode: "background",
-    defaultStaleTime: 60_000,
     defaultGcTime: 10 * 60_000,
     context: { queryClient, convexQueryClient },
     scrollRestoration: true,

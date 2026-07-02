@@ -12,15 +12,21 @@ import { submitMessage } from "@/components/chat/use-submit-message";
 
 interface SuggestionCardProps {
   text: string;
+  disabled?: boolean;
   onClick?: () => void;
 }
 
-const SuggestionCard = ({ text, onClick }: SuggestionCardProps) => {
+const SuggestionCard = ({
+  text,
+  disabled = false,
+  onClick,
+}: SuggestionCardProps) => {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="border-border bg-card hover:bg-muted/50 text-foreground rounded-xl border px-4 py-3 text-left text-sm transition-colors"
+      disabled={disabled}
+      className="border-border bg-card hover:bg-muted/50 text-foreground disabled:text-muted-foreground disabled:hover:bg-card rounded-xl border px-4 py-3 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60"
     >
       {text}
     </button>
@@ -39,6 +45,7 @@ interface EmptyChatProps {
   clientId: string;
   convexMessages: UIMessage[];
   settings: MessageSettings;
+  settingsReady: boolean;
 }
 
 const SUGGESTIONS = [
@@ -118,6 +125,7 @@ export const EmptyChat = ({
   clientId,
   convexMessages,
   settings,
+  settingsReady,
 }: EmptyChatProps) => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
@@ -126,6 +134,10 @@ export const EmptyChat = ({
   const [greeting, setGreeting] = useState("Hello");
 
   const handleSuggestionClick = async (text: string) => {
+    if (!settingsReady) {
+      return;
+    }
+
     if (isAuthLoading) {
       return;
     }
@@ -178,6 +190,7 @@ export const EmptyChat = ({
             <SuggestionCard
               key={text}
               text={text}
+              disabled={!settingsReady}
               onClick={() => void handleSuggestionClick(text)}
             />
           ))}

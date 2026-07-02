@@ -28,6 +28,7 @@ interface ChatMessageListProps {
   convexUIMessages: ChatMessageWithThreadMetadata[];
   setOptimisticMessage: (m: UIMessage | undefined) => void;
   settings: ComponentProps<typeof EmptyChat>["settings"];
+  settingsReady: ComponentProps<typeof EmptyChat>["settingsReady"];
   status: string;
   messageStatsMap: Map<string, MessageStats>;
   resolvedMessageAttachments: Record<string, ResolvedAttachment>;
@@ -52,6 +53,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   convexUIMessages,
   setOptimisticMessage,
   settings,
+  settingsReady,
   status,
   messageStatsMap,
   resolvedMessageAttachments,
@@ -79,6 +81,7 @@ export const ChatMessageList = memo(function ChatMessageList({
             convexMessages={convexUIMessages}
             setOptimisticMessage={setOptimisticMessage}
             settings={settings}
+            settingsReady={settingsReady}
           />
         )}
       </div>
