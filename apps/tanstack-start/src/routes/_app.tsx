@@ -22,22 +22,8 @@ import {
   ReasoningLevelSelectorHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
-import { getSidebarConfig } from "@/server/cookie";
 
 export const Route = createFileRoute("/_app")({
-  beforeLoad: async () => {
-    // const token = await getToken();
-    const sidebarConfig = await getSidebarConfig();
-    const [openState, savedWidth] = sidebarConfig?.split(":") ?? [];
-    const defaultOpen =
-      openState !== undefined ? openState === "true" : undefined;
-    const defaultWidth = savedWidth;
-    return {
-      // token,
-      defaultOpen,
-      defaultWidth,
-    };
-  },
   component: AppLayout,
 });
 
@@ -82,7 +68,6 @@ function useAppDocumentScrollLock() {
 function AppLayout() {
   useAppDocumentScrollLock();
 
-  const { defaultOpen, defaultWidth } = Route.useRouteContext();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -104,11 +89,11 @@ function AppLayout() {
         settingsJson?: ChatPreload["settingsJson"];
       }
     | undefined;
+  const isHomeRoute = homeMatch !== undefined;
   const isPendingChatRoute =
     desiredChatThreadId !== undefined && chatMatchThreadId !== chatThreadId;
   const shouldRenderChatSurface =
-    !isPendingChatRoute &&
-    (chatThreadId !== undefined || homeLoaderData !== undefined);
+    !isPendingChatRoute && (chatThreadId !== undefined || isHomeRoute);
   const chatPreload: ChatPreload | undefined =
     chatMatchThreadId === chatThreadId
       ? chatMatch?.loaderData
@@ -120,11 +105,7 @@ function AppLayout() {
 
   return (
     <ChatRouteAdoptionProvider>
-      <SidebarProvider
-        className="h-dvh max-h-dvh min-h-0 overflow-hidden overscroll-none"
-        defaultOpen={defaultOpen}
-        defaultWidth={defaultWidth}
-      >
+      <SidebarProvider className="h-dvh max-h-dvh min-h-0 overflow-hidden overscroll-none">
         <NewChatHotkeyRegistration />
         <ModelSwitcherHotkeyRegistration />
         <ReasoningLevelSelectorHotkeyRegistration />

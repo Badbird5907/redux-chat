@@ -71,10 +71,6 @@ export const AppSidebarFooter = () => {
     });
   };
 
-  const handleOpenSettings = () => {
-    void router.navigate({ to: "/settings" });
-  };
-
   if (!mounted || isPending) {
     return (
       <div className="flex items-center gap-2 p-2">
@@ -139,7 +135,7 @@ export const AppSidebarFooter = () => {
                 <Button
                   variant="ghost"
                   className="w-full justify-start"
-                  onClick={handleOpenSettings}
+                  render={<Link to="/settings" preload="render" />}
                 />
               }
             >
@@ -152,7 +148,7 @@ export const AppSidebarFooter = () => {
                   <Button
                     variant="ghost"
                     className="w-full justify-start"
-                    render={<Link to="/admin" />}
+                    render={<Link to="/admin" preload="render" />}
                   />
                 }
               >
@@ -194,12 +190,12 @@ export const AppSidebarFooter = () => {
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="ml-2 w-68 md:w-54" align="start">
-        <DropdownMenuItem onClick={handleOpenSettings}>
+        <DropdownMenuItem render={<Link to="/settings" preload="render" />}>
           <Settings className="size-4" />
           <span>Settings</span>
         </DropdownMenuItem>
         {isAdmin ? (
-          <DropdownMenuItem render={<Link to="/admin" />}>
+          <DropdownMenuItem render={<Link to="/admin" preload="render" />}>
             <Shield className="size-4" />
             <span>Admin</span>
           </DropdownMenuItem>

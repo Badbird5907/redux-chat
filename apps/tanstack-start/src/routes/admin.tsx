@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  createFileRoute,
-  Outlet,
-  redirect,
-  useRouteContext,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { SidebarProvider } from "@redux/ui/components/sidebar";
 
@@ -18,14 +13,12 @@ import {
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
 import { fetchAdminDashboardAccess } from "@/server/admin/ensure-admin-access";
-import { getSidebarConfig } from "@/server/cookie";
 
 function AdminLayout() {
-  const { defaultOpen, defaultWidth } = useRouteContext({ from: "/admin" });
   const [commandOpen, setCommandOpen] = useState(false);
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+    <SidebarProvider>
       <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
       <NewChatHotkeyRegistration />
       <ModelSwitcherHotkeyRegistration />
@@ -53,22 +46,13 @@ export const Route = createFileRoute("/admin")({
       throw redirect({ to: "/auth/sign-in" });
     }
 
-    const sidebarConfig = await getSidebarConfig();
-    const [openState, savedWidth] = sidebarConfig?.split(":") ?? [];
-    const defaultOpen =
-      openState !== undefined ? openState === "true" : undefined;
-    const defaultWidth = savedWidth;
-
     const access = await fetchAdminDashboardAccess();
     if (!access.isAdmin) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({ to: "/" });
     }
 
-    return {
-      defaultOpen,
-      defaultWidth,
-    };
+    return {};
   },
   head: () => ({
     meta: [{ title: "Admin | Redux Chat" }],
