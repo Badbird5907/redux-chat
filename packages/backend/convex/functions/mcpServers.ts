@@ -12,6 +12,8 @@ import { mutation, query } from "./index";
 const MAX_AUTH_HEADERS = 20;
 const MAX_HEADER_NAME_LENGTH = 128;
 const MAX_HEADER_VALUE_LENGTH = 4096;
+const MAX_OAUTH_CLIENT_ID_LENGTH = 512;
+const MAX_OAUTH_CLIENT_SECRET_LENGTH = 4096;
 const headerNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 const mcpServerTransport = v.union(v.literal("http"), v.literal("sse"));
 type McpServerTransport = "http" | "sse";
@@ -24,6 +26,11 @@ const blockedMcpHostnames = new Set([
 interface McpAuthHeaderInput {
   name: string;
   value: string;
+}
+
+interface McpOAuthStaticClientInfoInput {
+  client_id: string;
+  client_secret?: string;
 }
 
 type AuthenticatedCtx = (
@@ -195,6 +202,51 @@ function normalizeMcpAuthHeaders(
   return normalizedHeaders;
 }
 
+function normalizeMcpOAuthStaticClientInfo(
+  clientInfo: McpOAuthStaticClientInfoInput | undefined,
+) {
+  if (!clientInfo) {
+    return undefined;
+  }
+
+  const clientId = clientInfo.client_id.trim();
+  const clientSecret = clientInfo.client_secret?.trim() ?? "";
+
+  if (!clientId && !clientSecret) {
+    return undefined;
+  }
+
+  if (!clientId) {
+    throw new ConvexError(
+      "OAuth client ID is required when a client secret is provided",
+    );
+  }
+
+  if (clientId.length > MAX_OAUTH_CLIENT_ID_LENGTH) {
+    throw new ConvexError("OAuth client ID is too long");
+  }
+
+  if (clientSecret.length > MAX_OAUTH_CLIENT_SECRET_LENGTH) {
+    throw new ConvexError("OAuth client secret is too long");
+  }
+
+  if (/[\r\n]/.test(clientId) || /[\r\n]/.test(clientSecret)) {
+    throw new ConvexError("OAuth client credentials cannot contain new lines");
+  }
+
+  return {
+    client_id: clientId,
+    ...(clientSecret ? { client_secret: clientSecret } : {}),
+  };
+}
+
+function areOAuthStaticClientInfosEqual(
+  a: ReturnType<typeof normalizeMcpOAuthStaticClientInfo>,
+  b: ReturnType<typeof normalizeMcpOAuthStaticClientInfo>,
+) {
+  return a?.client_id === b?.client_id && a?.client_secret === b?.client_secret;
+}
+
 async function getMcpServerForUser(
   ctx: GenericMutationCtx<DataModel> & { userId: string },
   mcpServerId: string,
@@ -316,7 +368,12 @@ async function listConfiguredServers(
     url: server.url,
     transport: normalizeMcpServerTransport(server.transport),
     ...(options.includeAuthHeaders
-      ? { authHeaders: server.authHeaders ?? [] }
+      ? {
+          authHeaders: server.authHeaders ?? [],
+          ...(server.oauthStaticClientInfo
+            ? { oauthStaticClientInfo: server.oauthStaticClientInfo }
+            : {}),
+        }
       : {}),
     toolPermissions: server.toolPermissions ?? {},
     hasOAuth: server.oauthTokens !== undefined,
@@ -395,6 +452,7 @@ export const getByIds = query({
           toolPermissions: server.toolPermissions ?? {},
           oauthTokens: server.oauthTokens,
           oauthClientInfo: server.oauthClientInfo,
+          oauthStaticClientInfo: server.oauthStaticClientInfo,
           oauthServerMetadata: server.oauthServerMetadata,
         };
       }),
@@ -417,11 +475,20 @@ export const create = mutation({
         }),
       ),
     ),
+    oauthStaticClientInfo: v.optional(
+      v.object({
+        client_id: v.string(),
+        client_secret: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     const mcpServerId = crypto.randomUUID();
     const authHeaders = normalizeMcpAuthHeaders(args.authHeaders);
+    const oauthStaticClientInfo = normalizeMcpOAuthStaticClientInfo(
+      args.oauthStaticClientInfo,
+    );
 
     await ctx.db.insert("mcpServers", {
       mcpServerId,
@@ -430,6 +497,7 @@ export const create = mutation({
       url: normalizeMcpServerUrl(args.url),
       transport: normalizeMcpServerTransport(args.transport),
       authHeaders: authHeaders.length > 0 ? authHeaders : undefined,
+      oauthStaticClientInfo,
       createdAt: now,
       updatedAt: now,
     });
@@ -455,6 +523,12 @@ export const update = mutation({
           }),
         ),
       ),
+      oauthStaticClientInfo: v.optional(
+        v.object({
+          client_id: v.string(),
+          client_secret: v.optional(v.string()),
+        }),
+      ),
     }),
   },
   handler: async (ctx, args) => {
@@ -476,12 +550,31 @@ export const update = mutation({
       args.patch.authHeaders !== undefined
         ? normalizeMcpAuthHeaders(args.patch.authHeaders)
         : (server.authHeaders ?? []);
+    const nextOAuthStaticClientInfo =
+      args.patch.oauthStaticClientInfo !== undefined
+        ? normalizeMcpOAuthStaticClientInfo(args.patch.oauthStaticClientInfo)
+        : server.oauthStaticClientInfo;
+    const oauthIdentityChanged =
+      nextUrl !== server.url ||
+      !areOAuthStaticClientInfosEqual(
+        nextOAuthStaticClientInfo,
+        server.oauthStaticClientInfo,
+      );
 
     await ctx.db.patch(server._id, {
       name: nextName,
       url: nextUrl,
       transport: nextTransport,
       authHeaders: nextAuthHeaders.length > 0 ? nextAuthHeaders : undefined,
+      oauthStaticClientInfo: nextOAuthStaticClientInfo,
+      ...(oauthIdentityChanged
+        ? {
+            oauthTokens: undefined,
+            oauthClientInfo: undefined,
+            oauthServerMetadata: undefined,
+            oauthTokensIssuedAt: undefined,
+          }
+        : {}),
       updatedAt: Date.now(),
     });
 
@@ -491,6 +584,9 @@ export const update = mutation({
       url: nextUrl,
       transport: nextTransport,
       authHeaders: nextAuthHeaders,
+      ...(nextOAuthStaticClientInfo
+        ? { oauthStaticClientInfo: nextOAuthStaticClientInfo }
+        : {}),
     };
   },
 });
@@ -770,6 +866,8 @@ export const clearOAuthTokens = mutation({
     await ctx.db.patch(server._id, {
       oauthTokens: undefined,
       oauthClientInfo: undefined,
+      oauthServerMetadata: undefined,
+      oauthTokensIssuedAt: undefined,
       updatedAt: Date.now(),
     });
 

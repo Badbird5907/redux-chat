@@ -107,6 +107,88 @@ describe("functions/mcpServers", () => {
     ]);
   });
 
+  it("keeps static OAuth client credentials after disconnecting tokens", async () => {
+    const t = authedTest();
+
+    const { mcpServerId } = await t.mutation(api.functions.mcpServers.create, {
+      name: "GitHub MCP",
+      url: "https://api.githubcopilot.com/mcp/",
+      oauthStaticClientInfo: {
+        client_id: " github-client-id ",
+        client_secret: " github-client-secret ",
+      },
+    });
+
+    await expect(t.query(api.functions.mcpServers.list)).resolves.toEqual([
+      {
+        mcpServerId,
+        name: "GitHub MCP",
+        url: "https://api.githubcopilot.com/mcp/",
+        transport: "http",
+        toolPermissions: {},
+        hasOAuth: false,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await expect(
+      t.query(api.functions.mcpServers.listConfigured),
+    ).resolves.toMatchObject([
+      {
+        mcpServerId,
+        oauthStaticClientInfo: {
+          client_id: "github-client-id",
+          client_secret: "github-client-secret",
+        },
+      },
+    ]);
+
+    await t.mutation(api.functions.mcpServers.createOAuthFlow, {
+      mcpServerId,
+      flowId: "flow-1",
+      serverUrl: "https://api.githubcopilot.com/mcp/",
+      codeVerifier: "code-verifier",
+      state: "state-1",
+      clientId: "github-client-id",
+      clientSecret: "github-client-secret",
+      authorizationServerUrl: "https://github.com/login/oauth",
+      tokenEndpoint: "https://github.com/login/oauth/access_token",
+    });
+    await t.mutation(api.functions.mcpServers.saveOAuthTokens, {
+      mcpServerId,
+      flowId: "flow-1",
+      tokens: {
+        access_token: "access-token",
+        token_type: "Bearer",
+      },
+      clientInfo: {
+        client_id: "github-client-id",
+        client_secret: "github-client-secret",
+      },
+      serverMetadata: {
+        authorizationServerUrl: "https://github.com/login/oauth",
+        tokenEndpoint: "https://github.com/login/oauth/access_token",
+      },
+    });
+    await t.mutation(api.functions.mcpServers.clearOAuthTokens, {
+      mcpServerId,
+    });
+
+    await expect(
+      t.query(api.functions.mcpServers.getByIds, {
+        serverIds: [mcpServerId],
+      }),
+    ).resolves.toMatchObject([
+      {
+        mcpServerId,
+        oauthStaticClientInfo: {
+          client_id: "github-client-id",
+          client_secret: "github-client-secret",
+        },
+      },
+    ]);
+  });
+
   it("rejects unsafe or duplicate auth headers", async () => {
     const t = authedTest();
 

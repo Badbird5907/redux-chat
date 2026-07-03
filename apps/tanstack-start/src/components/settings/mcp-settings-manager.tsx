@@ -56,11 +56,17 @@ interface McpServerDraft {
   url: string;
   transport: McpServerTransport;
   authHeaders: AuthHeaderDraft[];
+  oauthStaticClientInfo: OAuthStaticClientInfoDraft;
 }
 
 interface AuthHeaderDraft {
   name: string;
   value: string;
+}
+
+interface OAuthStaticClientInfoDraft {
+  client_id: string;
+  client_secret: string;
 }
 
 interface DiscoveredTool {
@@ -80,12 +86,20 @@ function createDraft(server: {
   url: string;
   transport?: McpServerTransport;
   authHeaders?: AuthHeaderDraft[];
+  oauthStaticClientInfo?: {
+    client_id: string;
+    client_secret?: string;
+  };
 }): McpServerDraft {
   return {
     name: server.name,
     url: server.url,
     transport: server.transport ?? "http",
     authHeaders: server.authHeaders ?? [],
+    oauthStaticClientInfo: {
+      client_id: server.oauthStaticClientInfo?.client_id ?? "",
+      client_secret: server.oauthStaticClientInfo?.client_secret ?? "",
+    },
   };
 }
 
@@ -103,6 +117,30 @@ function compactAuthHeaders(authHeaders: AuthHeaderDraft[]) {
 
 function serializeAuthHeaders(authHeaders: AuthHeaderDraft[]) {
   return JSON.stringify(compactAuthHeaders(authHeaders));
+}
+
+function compactOAuthStaticClientInfo(
+  clientInfo: OAuthStaticClientInfoDraft,
+) {
+  const client_id = clientInfo.client_id.trim();
+  const client_secret = clientInfo.client_secret.trim();
+
+  if (!client_id && !client_secret) {
+    return undefined;
+  }
+
+  return {
+    client_id,
+    ...(client_secret ? { client_secret } : {}),
+  };
+}
+
+function serializeOAuthStaticClientInfo(
+  clientInfo: OAuthStaticClientInfoDraft | undefined,
+) {
+  return JSON.stringify(
+    clientInfo ? compactOAuthStaticClientInfo(clientInfo) : undefined,
+  );
 }
 
 export function McpSettingsManager() {
@@ -148,6 +186,11 @@ export function McpSettingsManager() {
   const [newAuthHeaders, setNewAuthHeaders] = useReducerState<
     AuthHeaderDraft[]
   >([]);
+  const [newOAuthStaticClientInfo, setNewOAuthStaticClientInfo] =
+    useReducerState<OAuthStaticClientInfoDraft>({
+      client_id: "",
+      client_secret: "",
+    });
   const [showAddForm, setShowAddForm] = useReducerState(false);
   const [savingEnabled, setSavingEnabled] = useReducerState(false);
   const [creating, setCreating] = useReducerState(false);
@@ -213,7 +256,17 @@ export function McpSettingsManager() {
             draft.url !== server.url ||
             draft.transport !== server.transport ||
             serializeAuthHeaders(draft.authHeaders) !==
-              serializeAuthHeaders(authHeaders)
+              serializeAuthHeaders(authHeaders) ||
+            serializeOAuthStaticClientInfo(draft.oauthStaticClientInfo) !==
+              serializeOAuthStaticClientInfo(
+                server.oauthStaticClientInfo
+                  ? {
+                      client_id: server.oauthStaticClientInfo.client_id,
+                      client_secret:
+                        server.oauthStaticClientInfo.client_secret ?? "",
+                    }
+                  : undefined,
+              )
             ? [server.mcpServerId]
             : [];
         }),
@@ -224,16 +277,21 @@ export function McpSettingsManager() {
   const handleCreate = async () => {
     setCreating(true);
     try {
+      const oauthStaticClientInfo = compactOAuthStaticClientInfo(
+        newOAuthStaticClientInfo,
+      );
       await createServer({
         name: newServerName,
         url: newServerUrl,
         transport: newServerTransport,
         authHeaders: compactAuthHeaders(newAuthHeaders),
+        ...(oauthStaticClientInfo ? { oauthStaticClientInfo } : {}),
       });
       setNewServerName("");
       setNewServerUrl("");
       setNewServerTransport("http");
       setNewAuthHeaders([]);
+      setNewOAuthStaticClientInfo({ client_id: "", client_secret: "" });
       setShowAddForm(false);
       toast.success("MCP server added");
     } catch (error) {
@@ -251,6 +309,9 @@ export function McpSettingsManager() {
 
     setSavingId(mcpServerId);
     try {
+      const oauthStaticClientInfo = compactOAuthStaticClientInfo(
+        draft.oauthStaticClientInfo,
+      );
       await updateServer({
         mcpServerId,
         patch: {
@@ -258,6 +319,10 @@ export function McpSettingsManager() {
           url: draft.url,
           transport: draft.transport,
           authHeaders: compactAuthHeaders(draft.authHeaders),
+          oauthStaticClientInfo: oauthStaticClientInfo ?? {
+            client_id: "",
+            client_secret: "",
+          },
         },
       });
       setEditingIds((current) => ({ ...current, [mcpServerId]: false }));
@@ -569,6 +634,12 @@ export function McpSettingsManager() {
                   disabled={creating}
                   idPrefix="new-mcp-server"
                   onChange={setNewAuthHeaders}
+                />
+                <OAuthStaticClientEditor
+                  clientInfo={newOAuthStaticClientInfo}
+                  disabled={creating}
+                  idPrefix="new-mcp-server"
+                  onChange={setNewOAuthStaticClientInfo}
                 />
                 <div className="flex justify-end gap-2">
                   <Button
@@ -909,7 +980,7 @@ export function McpSettingsManager() {
                               variant="outline"
                               size="sm"
                               className="h-7 text-xs"
-                              disabled={isConnectingOAuth}
+                              disabled={isConnectingOAuth || isDirty}
                               onClick={() => handleOAuthConnect(mcpServerId)}
                             >
                               {isConnectingOAuth ? (
@@ -926,6 +997,26 @@ export function McpSettingsManager() {
                             ? "OAuth tokens are configured for this server."
                             : "Connect via OAuth if the server requires authorization."}
                         </p>
+                        <OAuthStaticClientEditor
+                          clientInfo={draft.oauthStaticClientInfo}
+                          disabled={isSaving || isDeleting}
+                          idPrefix={`${mcpServerId}-oauth`}
+                          onChange={(oauthStaticClientInfo) =>
+                            setDrafts((current) => ({
+                              ...current,
+                              [mcpServerId]: {
+                                ...(current[mcpServerId] ??
+                                  createDraft(server)),
+                                oauthStaticClientInfo,
+                              },
+                            }))
+                          }
+                        />
+                        {isDirty ? (
+                          <p className="text-muted-foreground text-xs">
+                            Save changes before starting a new OAuth connection.
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="flex justify-end">
@@ -1162,6 +1253,71 @@ function ToolPermissionRow({
           </SelectItem>
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// OAuth Static Client Editor
+// ---------------------------------------------------------------------------
+
+function OAuthStaticClientEditor({
+  clientInfo,
+  disabled,
+  idPrefix,
+  onChange,
+}: {
+  clientInfo: OAuthStaticClientInfoDraft;
+  disabled: boolean;
+  idPrefix: string;
+  onChange: (clientInfo: OAuthStaticClientInfoDraft) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1.5">
+        <Link2 className="text-muted-foreground size-3.5" />
+        <span className="text-xs font-medium">Static OAuth client</span>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Optional credentials for servers that do not support dynamic client
+        registration, such as GitHub Copilot MCP.
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${idPrefix}-oauth-client-id`} className="text-xs">
+            Client ID
+          </Label>
+          <Input
+            id={`${idPrefix}-oauth-client-id`}
+            disabled={disabled}
+            placeholder="OAuth app client ID"
+            value={clientInfo.client_id}
+            className="h-8 text-xs"
+            onChange={(e) =>
+              onChange({ ...clientInfo, client_id: e.target.value })
+            }
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label
+            htmlFor={`${idPrefix}-oauth-client-secret`}
+            className="text-xs"
+          >
+            Client secret
+          </Label>
+          <Input
+            id={`${idPrefix}-oauth-client-secret`}
+            disabled={disabled}
+            placeholder="Optional client secret"
+            type="password"
+            value={clientInfo.client_secret}
+            className="h-8 text-xs"
+            onChange={(e) =>
+              onChange({ ...clientInfo, client_secret: e.target.value })
+            }
+          />
+        </div>
+      </div>
     </div>
   );
 }
