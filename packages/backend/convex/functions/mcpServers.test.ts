@@ -210,7 +210,7 @@ describe("functions/mcpServers", () => {
         name: "GitHub MCP",
         url: "https://api.githubcopilot.com/mcp/",
         oauthStaticClientInfo: {
-          client_id: `${"a".repeat(513)}`,
+          client_id: "a".repeat(513),
         },
       }),
     ).rejects.toThrow("OAuth client ID is too long");
