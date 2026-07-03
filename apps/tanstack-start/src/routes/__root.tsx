@@ -24,6 +24,7 @@ import { Toaster } from "@redux/ui/components/sonner";
 import { ThemeProvider } from "@redux/ui/components/theme";
 import { cn } from "@redux/ui/lib/utils";
 
+import { RouteNavigationProgress } from "@/components/route-navigation-progress";
 import { env } from "@/env";
 import { authClient } from "@/lib/auth/client";
 import { getToken } from "@/lib/auth/server";
@@ -118,6 +119,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           <ChatScrollPreferencesProvider>
             {children}
           </ChatScrollPreferencesProvider>
+          <RouteNavigationProgress />
           {AppTanStackDevtools ? (
             <ClientOnly>
               <Suspense fallback={null}>

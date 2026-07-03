@@ -45,6 +45,9 @@ export function getRouter() {
   const router = createRouter({
     routeTree,
     defaultPreload: "intent",
+    defaultPreloadStaleTime: 60_000,
+    defaultPendingMs: Infinity,
+    defaultGcTime: 10 * 60_000,
     context: { queryClient, convexQueryClient },
     scrollRestoration: true,
     defaultErrorComponent: DefaultRouterError,

@@ -1,9 +1,5 @@
 import { useState } from "react";
-import {
-  createFileRoute,
-  Outlet,
-  useRouteContext,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 import { SidebarProvider } from "@redux/ui/components/sidebar";
 
@@ -16,14 +12,12 @@ import {
   ReasoningLevelSelectorHotkeyRegistration,
   SidebarToggleHotkeyRegistration,
 } from "@/lib/hotkeys";
-import { getSidebarConfig } from "@/server/cookie";
 
 function SettingsLayout() {
-  const { defaultOpen, defaultWidth } = useRouteContext({ from: "/settings" });
   const [commandOpen, setCommandOpen] = useState(false);
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+    <SidebarProvider>
       <CommandPanel open={commandOpen} onOpenChange={setCommandOpen} />
       <NewChatHotkeyRegistration />
       <ModelSwitcherHotkeyRegistration />
@@ -47,17 +41,5 @@ function SettingsLayout() {
 }
 
 export const Route = createFileRoute("/settings")({
-  beforeLoad: async () => {
-    const sidebarConfig = await getSidebarConfig();
-    const [openState, savedWidth] = sidebarConfig?.split(":") ?? [];
-    const defaultOpen =
-      openState !== undefined ? openState === "true" : undefined;
-    const defaultWidth = savedWidth;
-
-    return {
-      defaultOpen,
-      defaultWidth,
-    };
-  },
   component: SettingsLayout,
 });

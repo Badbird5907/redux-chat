@@ -307,6 +307,7 @@ export function Chat({
                   setOptimisticMessage={setOptimisticMessage}
                   setPreviewFile={handleAttachmentPreview}
                   settings={settings}
+                  settingsReady={settingsReady}
                   status={status}
                 />
               </MessageScrollerContent>
