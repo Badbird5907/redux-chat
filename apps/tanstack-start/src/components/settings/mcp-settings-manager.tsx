@@ -319,6 +319,8 @@ export function McpSettingsManager() {
           url: draft.url,
           transport: draft.transport,
           authHeaders: compactAuthHeaders(draft.authHeaders),
+          // Send an empty object when fields are cleared so the backend can
+          // distinguish "clear this" from an omitted, unchanged patch field.
           oauthStaticClientInfo: oauthStaticClientInfo ?? {
             client_id: "",
             client_secret: "",
@@ -844,7 +846,7 @@ export function McpSettingsManager() {
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs"
-                          disabled={isConnectingOAuth}
+                          disabled={isConnectingOAuth || isDirty}
                           onClick={() => handleOAuthConnect(mcpServerId)}
                         >
                           {isConnectingOAuth ? (

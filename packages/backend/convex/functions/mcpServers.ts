@@ -561,6 +561,10 @@ export const update = mutation({
         server.oauthStaticClientInfo,
       );
 
+    if (oauthIdentityChanged) {
+      await deleteOAuthFlowsForServer(ctx, server.mcpServerId);
+    }
+
     await ctx.db.patch(server._id, {
       name: nextName,
       url: nextUrl,
@@ -704,6 +708,22 @@ export const bulkSetToolPermissions = mutation({
 const MAX_OAUTH_FLOWS_PER_USER = 10;
 const OAUTH_FLOW_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
 
+async function deleteOAuthFlowsForServer(
+  ctx: GenericMutationCtx<DataModel> & { userId: string },
+  mcpServerId: string,
+) {
+  const flows = await ctx.db
+    .query("mcpOAuthFlows")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .collect();
+
+  await Promise.all(
+    flows
+      .filter((flow) => flow.mcpServerId === mcpServerId)
+      .map(async (flow) => ctx.db.delete(flow._id)),
+  );
+}
+
 export const createOAuthFlow = mutation({
   args: {
     mcpServerId: v.string(),
@@ -810,6 +830,38 @@ export const saveOAuthTokens = mutation({
   },
   handler: async (ctx, args) => {
     const server = await getMcpServerForUser(ctx, args.mcpServerId);
+    const flow = await ctx.db
+      .query("mcpOAuthFlows")
+      .withIndex("by_flowId", (q) => q.eq("flowId", args.flowId))
+      .first();
+
+    if (
+      flow?.userId !== ctx.userId ||
+      flow.mcpServerId !== server.mcpServerId ||
+      Date.now() - flow.createdAt > OAUTH_FLOW_MAX_AGE_MS
+    ) {
+      throw new ConvexError(
+        "OAuth flow expired or not found. Please try connecting again.",
+      );
+    }
+
+    if (flow.serverUrl !== server.url) {
+      throw new ConvexError(
+        "OAuth flow no longer matches this MCP server. Please reconnect.",
+      );
+    }
+
+    if (server.oauthStaticClientInfo) {
+      const staticClientInfo = server.oauthStaticClientInfo;
+      if (
+        flow.clientId !== staticClientInfo.client_id ||
+        flow.clientSecret !== staticClientInfo.client_secret
+      ) {
+        throw new ConvexError(
+          "OAuth flow no longer matches this MCP server. Please reconnect.",
+        );
+      }
+    }
 
     await ctx.db.patch(server._id, {
       oauthTokens: args.tokens,
@@ -819,14 +871,7 @@ export const saveOAuthTokens = mutation({
       updatedAt: Date.now(),
     });
 
-    // Clean up the flow record
-    const flow = await ctx.db
-      .query("mcpOAuthFlows")
-      .withIndex("by_flowId", (q) => q.eq("flowId", args.flowId))
-      .first();
-    if (flow?.userId === ctx.userId) {
-      await ctx.db.delete(flow._id);
-    }
+    await ctx.db.delete(flow._id);
 
     return { mcpServerId: server.mcpServerId };
   },
