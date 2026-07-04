@@ -1049,71 +1049,63 @@ export function McpSettingsManager() {
                   {hasTools ? (
                     <div className="flex flex-col">
                       {/* Toggle to expand/collapse tools */}
-                      <button
-                        type="button"
-                        className="hover:bg-muted/50 -mx-1 flex items-center gap-2 rounded-md px-1 py-1.5 transition-colors"
-                        onClick={() =>
-                          setExpandedIds((current) => ({
-                            ...current,
-                            [mcpServerId]: !current[mcpServerId],
-                          }))
-                        }
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-                        ) : (
-                          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-                        )}
-                        <span className="text-xs font-medium">
-                          {toolState.tools.length} tool
-                          {toolState.tools.length !== 1 ? "s" : ""}
-                        </span>
+                      <div className="-mx-1 flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="hover:bg-muted/50 flex flex-1 items-center gap-2 rounded-md px-1 py-1.5 transition-colors"
+                          onClick={() =>
+                            setExpandedIds((current) => ({
+                              ...current,
+                              [mcpServerId]: !current[mcpServerId],
+                            }))
+                          }
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                          ) : (
+                            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                          )}
+                          <span className="text-xs font-medium">
+                            {toolState.tools.length} tool
+                            {toolState.tools.length !== 1 ? "s" : ""}
+                          </span>
+                        </button>
 
-                        {/* Bulk permission dropdown */}
                         {isExpanded ? (
-                          <div
-                            className="ml-auto"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ")
-                                e.stopPropagation();
+                          <Select
+                            value={bulkValue ?? ""}
+                            onValueChange={(value) => {
+                              void handleBulkPermission(
+                                mcpServerId,
+                                value as McpToolPermission,
+                                toolState.tools.map((t) => t.name),
+                              );
                             }}
                           >
-                            <Select
-                              value={bulkValue ?? ""}
-                              onValueChange={(value) => {
-                                void handleBulkPermission(
-                                  mcpServerId,
-                                  value as McpToolPermission,
-                                  toolState.tools.map((t) => t.name),
-                                );
-                              }}
+                            <SelectTrigger
+                              size="sm"
+                              className="h-6 gap-1 text-xs"
+                              aria-label="Set all tool permissions"
                             >
-                              <SelectTrigger
-                                size="sm"
-                                className="h-6 gap-1 text-xs"
-                                aria-label="Set all tool permissions"
-                              >
-                                <SelectValue placeholder="Set all" />
-                              </SelectTrigger>
-                              <SelectContent position="popper" align="end">
-                                <SelectItem value="allow">
-                                  <ShieldCheck className="text-emerald-500" />
-                                  Allow all
-                                </SelectItem>
-                                <SelectItem value="ask">
-                                  <ShieldQuestion className="text-yellow-500" />
-                                  Ask all
-                                </SelectItem>
-                                <SelectItem value="deny">
-                                  <ShieldAlert className="text-red-500" />
-                                  Deny all
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                              <SelectValue placeholder="Set all" />
+                            </SelectTrigger>
+                            <SelectContent position="popper" align="end">
+                              <SelectItem value="allow">
+                                <ShieldCheck className="text-emerald-500" />
+                                Allow all
+                              </SelectItem>
+                              <SelectItem value="ask">
+                                <ShieldQuestion className="text-yellow-500" />
+                                Ask all
+                              </SelectItem>
+                              <SelectItem value="deny">
+                                <ShieldAlert className="text-red-500" />
+                                Deny all
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         ) : null}
-                      </button>
+                      </div>
 
                       {/* Tool rows */}
                       {isExpanded ? (
