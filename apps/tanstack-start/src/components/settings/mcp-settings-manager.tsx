@@ -119,9 +119,7 @@ function serializeAuthHeaders(authHeaders: AuthHeaderDraft[]) {
   return JSON.stringify(compactAuthHeaders(authHeaders));
 }
 
-function compactOAuthStaticClientInfo(
-  clientInfo: OAuthStaticClientInfoDraft,
-) {
+function compactOAuthStaticClientInfo(clientInfo: OAuthStaticClientInfoDraft) {
   const client_id = clientInfo.client_id.trim();
   const client_secret = clientInfo.client_secret.trim();
 
