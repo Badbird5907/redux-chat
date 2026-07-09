@@ -14,7 +14,7 @@ export const generatedProviderManifest = {
     doc: "https://platform.openai.com/docs/models",
   },
   openrouter: {
-    modelCount: 336,
+    modelCount: 337,
     doc: "https://openrouter.ai/models",
   },
   vertex: {

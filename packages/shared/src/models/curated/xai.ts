@@ -20,6 +20,11 @@ export const XAI_PROVIDER: CuratedProviderDefinition = {
       providerIds: ["openrouter:x-ai/grok-4.3"],
     },
     {
+      id: "grok-4.5",
+      name: "Grok 4.5",
+      providerIds: ["openrouter:x-ai/grok-4.5"],
+    },
+    {
       id: "grok-4.20-beta",
       name: "Grok 4.20 Beta",
       providerIds: ["openrouter:x-ai/grok-4.20-beta"],

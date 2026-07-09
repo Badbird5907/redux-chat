@@ -113,6 +113,48 @@ const OPENROUTER_MODEL_OVERRIDES = {
       output: 1000000,
     },
   },
+  "x-ai/grok-4.5": {
+    id: "x-ai/grok-4.5",
+    name: "Grok 4.5",
+    family: "grok",
+    attachment: true,
+    reasoning: true,
+    tool_call: true,
+    structured_output: true,
+    temperature: true,
+    release_date: "2026-07-08",
+    last_updated: "2026-07-08",
+    open_weights: false,
+    modalities: {
+      input: ["text", "image", "pdf"],
+      output: ["text"],
+    },
+    cost: {
+      cache_read: 0.5,
+      context_over_200k: {
+        cache_read: 1,
+        input: 4,
+        output: 12,
+      },
+      input: 2,
+      output: 6,
+      tiers: [
+        {
+          cache_read: 1,
+          input: 4,
+          output: 12,
+          tier: {
+            size: 200000,
+            type: "context",
+          },
+        },
+      ],
+    },
+    limit: {
+      context: 500000,
+      output: 500000,
+    },
+  },
 } satisfies Record<string, ModelsDevModelRecord>;
 
 const PROVIDER_MODEL_OVERRIDES = {
