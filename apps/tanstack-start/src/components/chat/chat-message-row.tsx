@@ -313,7 +313,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               <CardContent className="flex items-start gap-3 px-3">
                 <CircleAlert className="mt-0.5 size-4 shrink-0" />
                 <div className="min-w-0 space-y-1">
-                  <p className="font-medium">Message generation failed</p>
+                  <p className="font-medium">
+                    {message.error?.startsWith("MCP server ")
+                      ? "MCP server error"
+                      : "Message generation failed"}
+                  </p>
                   {message.error && (
                     <p className="text-destructive/80 wrap-break-word">
                       {message.error}

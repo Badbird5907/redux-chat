@@ -83,6 +83,65 @@ interface ToolRuntime {
   mcpToolApproval: Record<string, ToolApprovalStatus>;
 }
 
+function getRuntimeErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    const serialized = JSON.stringify(error) as string | undefined;
+    return serialized ?? "Unknown error";
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function formatMcpServerRuntimeError({
+  error,
+  operation,
+  serverName,
+  toolName,
+}: {
+  error: unknown;
+  operation: "connect" | "tool";
+  serverName: string;
+  toolName?: string;
+}) {
+  const detail = getRuntimeErrorMessage(error);
+  const lowerDetail = detail.toLowerCase();
+  const recoveryHint =
+    lowerDetail.includes("authorization") ||
+    lowerDetail.includes("unauthorized") ||
+    lowerDetail.includes("access token") ||
+    lowerDetail.includes("oauth") ||
+    lowerDetail.includes("401") ||
+    lowerDetail.includes("403")
+      ? "Reconnect it with OAuth in Settings > MCP Servers, add the required auth header, or disable this MCP server for the message."
+      : "Check this server in Settings > MCP Servers, or disable it for the message.";
+
+  const action =
+    operation === "connect"
+      ? "failed to connect"
+      : `tool${toolName ? ` "${toolName}"` : ""} failed`;
+
+  return `MCP server "${serverName}" ${action}: ${detail}. ${recoveryHint}`;
+}
+
+function createMcpServerRuntimeError(input: {
+  error: unknown;
+  operation: "connect" | "tool";
+  serverName: string;
+  toolName?: string;
+}) {
+  return new Error(formatMcpServerRuntimeError(input), {
+    cause: input.error,
+  });
+}
+
 const MAX_TOOL_RESULT_STRING_CHARS = 100_000;
 const MAX_TOOL_RESULT_ARRAY_ITEMS = 200;
 const BINARY_SAMPLE_SIZE = 256;
@@ -454,31 +513,46 @@ export async function createToolRuntime(
 
   if (enabledTools.includes("mcpServers")) {
     for (const server of mcpServers) {
-      assertAllowedMcpServerUrl(server.url);
+      let client: Awaited<ReturnType<typeof createMCPClient>> | undefined;
+      let serverTools: Awaited<
+        ReturnType<Awaited<ReturnType<typeof createMCPClient>>["tools"]>
+      >;
+      try {
+        assertAllowedMcpServerUrl(server.url);
 
-      const authProvider = server.oauthTokens
-        ? createChatOAuthProvider(server, async (tokens) => {
-            await onOAuthTokensRefreshed?.(server.mcpServerId, tokens);
-          })
-        : undefined;
+        const authProvider = server.oauthTokens
+          ? createChatOAuthProvider(server, async (tokens) => {
+              await onOAuthTokensRefreshed?.(server.mcpServerId, tokens);
+            })
+          : undefined;
 
-      const client = await createMCPClient({
-        name: `redux-chat-${server.mcpServerId}`,
-        transport: createMcpTransport({
-          url: server.url,
-          transport: server.transport,
-          headers: Object.fromEntries(
-            (server.authHeaders ?? []).map((header) => [
-              header.name,
-              header.value,
-            ]),
-          ),
-          authProvider,
-        }),
-      });
-      mcpClients.push(client);
+        client = await createMCPClient({
+          name: `redux-chat-${server.mcpServerId}`,
+          transport: createMcpTransport({
+            url: server.url,
+            transport: server.transport,
+            headers: Object.fromEntries(
+              (server.authHeaders ?? []).map((header) => [
+                header.name,
+                header.value,
+              ]),
+            ),
+            authProvider,
+          }),
+        });
 
-      const serverTools = await client.tools();
+        serverTools = await client.tools();
+        mcpClients.push(client);
+      } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        await client?.close().catch(() => {});
+        throw createMcpServerRuntimeError({
+          error,
+          operation: "connect",
+          serverName: server.name,
+        });
+      }
+
       const prefix = toToolKeyPrefix(server.name);
       const billingKey = `mcp:${prefix}` satisfies ToolBillingKey;
       const permissions = server.toolPermissions ?? {};
@@ -499,6 +573,13 @@ export async function createToolRuntime(
           toolDefinition,
           billingKey,
           toolUsageCounts,
+          (error) =>
+            createMcpServerRuntimeError({
+              error,
+              operation: "tool",
+              serverName: server.name,
+              toolName,
+            }),
         );
 
         if (permission === "ask") {
@@ -587,6 +668,7 @@ function instrumentTool(
   definition: ToolSet[string],
   billingKey: string,
   usageCounts: Map<string, number>,
+  mapError?: (error: unknown) => Error,
 ) {
   const candidate = definition as ToolSet[string] & {
     execute?: (...args: unknown[]) => unknown;
@@ -600,7 +682,11 @@ function instrumentTool(
     ...candidate,
     execute: async (...args: unknown[]) => {
       usageCounts.set(billingKey, (usageCounts.get(billingKey) ?? 0) + 1);
-      return toConvexSafeValue(await execute(...args)) ?? null;
+      try {
+        return toConvexSafeValue(await execute(...args)) ?? null;
+      } catch (error) {
+        throw mapError?.(error) ?? error;
+      }
     },
   } satisfies ToolSet[string];
 }

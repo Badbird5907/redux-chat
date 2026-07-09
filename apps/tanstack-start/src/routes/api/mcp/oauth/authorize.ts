@@ -47,6 +47,7 @@ export const Route = createFileRoute("/api/mcp/oauth/authorize")({
 
         const provider = new ServerMcpOAuthProvider({
           callbackRedirectUrl: callbackUrl,
+          preloadedClientInfo: server.oauthStaticClientInfo,
         });
 
         try {

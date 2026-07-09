@@ -56,11 +56,17 @@ interface McpServerDraft {
   url: string;
   transport: McpServerTransport;
   authHeaders: AuthHeaderDraft[];
+  oauthStaticClientInfo: OAuthStaticClientInfoDraft;
 }
 
 interface AuthHeaderDraft {
   name: string;
   value: string;
+}
+
+interface OAuthStaticClientInfoDraft {
+  client_id: string;
+  client_secret: string;
 }
 
 interface DiscoveredTool {
@@ -80,12 +86,20 @@ function createDraft(server: {
   url: string;
   transport?: McpServerTransport;
   authHeaders?: AuthHeaderDraft[];
+  oauthStaticClientInfo?: {
+    client_id: string;
+    client_secret?: string;
+  };
 }): McpServerDraft {
   return {
     name: server.name,
     url: server.url,
     transport: server.transport ?? "http",
     authHeaders: server.authHeaders ?? [],
+    oauthStaticClientInfo: {
+      client_id: server.oauthStaticClientInfo?.client_id ?? "",
+      client_secret: server.oauthStaticClientInfo?.client_secret ?? "",
+    },
   };
 }
 
@@ -103,6 +117,28 @@ function compactAuthHeaders(authHeaders: AuthHeaderDraft[]) {
 
 function serializeAuthHeaders(authHeaders: AuthHeaderDraft[]) {
   return JSON.stringify(compactAuthHeaders(authHeaders));
+}
+
+function compactOAuthStaticClientInfo(clientInfo: OAuthStaticClientInfoDraft) {
+  const client_id = clientInfo.client_id.trim();
+  const client_secret = clientInfo.client_secret.trim();
+
+  if (!client_id && !client_secret) {
+    return undefined;
+  }
+
+  return {
+    client_id,
+    ...(client_secret ? { client_secret } : {}),
+  };
+}
+
+function serializeOAuthStaticClientInfo(
+  clientInfo: OAuthStaticClientInfoDraft | undefined,
+) {
+  return JSON.stringify(
+    clientInfo ? compactOAuthStaticClientInfo(clientInfo) : undefined,
+  );
 }
 
 export function McpSettingsManager() {
@@ -148,6 +184,11 @@ export function McpSettingsManager() {
   const [newAuthHeaders, setNewAuthHeaders] = useReducerState<
     AuthHeaderDraft[]
   >([]);
+  const [newOAuthStaticClientInfo, setNewOAuthStaticClientInfo] =
+    useReducerState<OAuthStaticClientInfoDraft>({
+      client_id: "",
+      client_secret: "",
+    });
   const [showAddForm, setShowAddForm] = useReducerState(false);
   const [savingEnabled, setSavingEnabled] = useReducerState(false);
   const [creating, setCreating] = useReducerState(false);
@@ -213,7 +254,17 @@ export function McpSettingsManager() {
             draft.url !== server.url ||
             draft.transport !== server.transport ||
             serializeAuthHeaders(draft.authHeaders) !==
-              serializeAuthHeaders(authHeaders)
+              serializeAuthHeaders(authHeaders) ||
+            serializeOAuthStaticClientInfo(draft.oauthStaticClientInfo) !==
+              serializeOAuthStaticClientInfo(
+                server.oauthStaticClientInfo
+                  ? {
+                      client_id: server.oauthStaticClientInfo.client_id,
+                      client_secret:
+                        server.oauthStaticClientInfo.client_secret ?? "",
+                    }
+                  : undefined,
+              )
             ? [server.mcpServerId]
             : [];
         }),
@@ -224,16 +275,21 @@ export function McpSettingsManager() {
   const handleCreate = async () => {
     setCreating(true);
     try {
+      const oauthStaticClientInfo = compactOAuthStaticClientInfo(
+        newOAuthStaticClientInfo,
+      );
       await createServer({
         name: newServerName,
         url: newServerUrl,
         transport: newServerTransport,
         authHeaders: compactAuthHeaders(newAuthHeaders),
+        ...(oauthStaticClientInfo ? { oauthStaticClientInfo } : {}),
       });
       setNewServerName("");
       setNewServerUrl("");
       setNewServerTransport("http");
       setNewAuthHeaders([]);
+      setNewOAuthStaticClientInfo({ client_id: "", client_secret: "" });
       setShowAddForm(false);
       toast.success("MCP server added");
     } catch (error) {
@@ -251,6 +307,9 @@ export function McpSettingsManager() {
 
     setSavingId(mcpServerId);
     try {
+      const oauthStaticClientInfo = compactOAuthStaticClientInfo(
+        draft.oauthStaticClientInfo,
+      );
       await updateServer({
         mcpServerId,
         patch: {
@@ -258,6 +317,12 @@ export function McpSettingsManager() {
           url: draft.url,
           transport: draft.transport,
           authHeaders: compactAuthHeaders(draft.authHeaders),
+          // Send an empty object when fields are cleared so the backend can
+          // distinguish "clear this" from an omitted, unchanged patch field.
+          oauthStaticClientInfo: oauthStaticClientInfo ?? {
+            client_id: "",
+            client_secret: "",
+          },
         },
       });
       setEditingIds((current) => ({ ...current, [mcpServerId]: false }));
@@ -570,6 +635,12 @@ export function McpSettingsManager() {
                   idPrefix="new-mcp-server"
                   onChange={setNewAuthHeaders}
                 />
+                <OAuthStaticClientEditor
+                  clientInfo={newOAuthStaticClientInfo}
+                  disabled={creating}
+                  idPrefix="new-mcp-server"
+                  onChange={setNewOAuthStaticClientInfo}
+                />
                 <div className="flex justify-end gap-2">
                   <Button
                     variant="outline"
@@ -738,52 +809,59 @@ export function McpSettingsManager() {
 
                   {/* OAuth connect/disconnect (always visible) */}
                   {!isEditing ? (
-                    <div className="flex items-center justify-between">
-                      {server.hasOAuth ? (
-                        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
-                          <Link2 className="size-3.5 text-blue-500" />
-                          OAuth connected
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">
-                          Not authenticated
-                        </span>
-                      )}
-                      {server.hasOAuth ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs text-red-500 hover:text-red-600"
-                          disabled={isDisconnectingOAuth}
-                          onClick={() =>
-                            void handleOAuthDisconnect(mcpServerId)
-                          }
-                        >
-                          {isDisconnectingOAuth ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <Link2Off className="size-3.5" />
-                          )}
-                          Disconnect
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          disabled={isConnectingOAuth}
-                          onClick={() => handleOAuthConnect(mcpServerId)}
-                        >
-                          {isConnectingOAuth ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <Link2 className="size-3.5" />
-                          )}
-                          Connect with OAuth
-                        </Button>
-                      )}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        {server.hasOAuth ? (
+                          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                            <Link2 className="size-3.5 text-blue-500" />
+                            OAuth connected
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">
+                            Not authenticated
+                          </span>
+                        )}
+                        {server.hasOAuth ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs text-red-500 hover:text-red-600"
+                            disabled={isDisconnectingOAuth}
+                            onClick={() =>
+                              void handleOAuthDisconnect(mcpServerId)
+                            }
+                          >
+                            {isDisconnectingOAuth ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Link2Off className="size-3.5" />
+                            )}
+                            Disconnect
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={isConnectingOAuth || isDirty}
+                            onClick={() => handleOAuthConnect(mcpServerId)}
+                          >
+                            {isConnectingOAuth ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Link2 className="size-3.5" />
+                            )}
+                            Connect with OAuth
+                          </Button>
+                        )}
+                      </div>
+                      {isDirty ? (
+                        <p className="text-muted-foreground text-xs">
+                          Save changes before starting a new OAuth connection.
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
 
@@ -909,7 +987,7 @@ export function McpSettingsManager() {
                               variant="outline"
                               size="sm"
                               className="h-7 text-xs"
-                              disabled={isConnectingOAuth}
+                              disabled={isConnectingOAuth || isDirty}
                               onClick={() => handleOAuthConnect(mcpServerId)}
                             >
                               {isConnectingOAuth ? (
@@ -926,6 +1004,26 @@ export function McpSettingsManager() {
                             ? "OAuth tokens are configured for this server."
                             : "Connect via OAuth if the server requires authorization."}
                         </p>
+                        <OAuthStaticClientEditor
+                          clientInfo={draft.oauthStaticClientInfo}
+                          disabled={isSaving || isDeleting}
+                          idPrefix={`${mcpServerId}-oauth`}
+                          onChange={(oauthStaticClientInfo) =>
+                            setDrafts((current) => ({
+                              ...current,
+                              [mcpServerId]: {
+                                ...(current[mcpServerId] ??
+                                  createDraft(server)),
+                                oauthStaticClientInfo,
+                              },
+                            }))
+                          }
+                        />
+                        {isDirty ? (
+                          <p className="text-muted-foreground text-xs">
+                            Save changes before starting a new OAuth connection.
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="flex justify-end">
@@ -949,71 +1047,63 @@ export function McpSettingsManager() {
                   {hasTools ? (
                     <div className="flex flex-col">
                       {/* Toggle to expand/collapse tools */}
-                      <button
-                        type="button"
-                        className="hover:bg-muted/50 -mx-1 flex items-center gap-2 rounded-md px-1 py-1.5 transition-colors"
-                        onClick={() =>
-                          setExpandedIds((current) => ({
-                            ...current,
-                            [mcpServerId]: !current[mcpServerId],
-                          }))
-                        }
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-                        ) : (
-                          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-                        )}
-                        <span className="text-xs font-medium">
-                          {toolState.tools.length} tool
-                          {toolState.tools.length !== 1 ? "s" : ""}
-                        </span>
+                      <div className="-mx-1 flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="hover:bg-muted/50 flex flex-1 items-center gap-2 rounded-md px-1 py-1.5 transition-colors"
+                          onClick={() =>
+                            setExpandedIds((current) => ({
+                              ...current,
+                              [mcpServerId]: !current[mcpServerId],
+                            }))
+                          }
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                          ) : (
+                            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                          )}
+                          <span className="text-xs font-medium">
+                            {toolState.tools.length} tool
+                            {toolState.tools.length !== 1 ? "s" : ""}
+                          </span>
+                        </button>
 
-                        {/* Bulk permission dropdown */}
                         {isExpanded ? (
-                          <div
-                            className="ml-auto"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ")
-                                e.stopPropagation();
+                          <Select
+                            value={bulkValue ?? ""}
+                            onValueChange={(value) => {
+                              void handleBulkPermission(
+                                mcpServerId,
+                                value as McpToolPermission,
+                                toolState.tools.map((t) => t.name),
+                              );
                             }}
                           >
-                            <Select
-                              value={bulkValue ?? ""}
-                              onValueChange={(value) => {
-                                void handleBulkPermission(
-                                  mcpServerId,
-                                  value as McpToolPermission,
-                                  toolState.tools.map((t) => t.name),
-                                );
-                              }}
+                            <SelectTrigger
+                              size="sm"
+                              className="h-6 gap-1 text-xs"
+                              aria-label="Set all tool permissions"
                             >
-                              <SelectTrigger
-                                size="sm"
-                                className="h-6 gap-1 text-xs"
-                                aria-label="Set all tool permissions"
-                              >
-                                <SelectValue placeholder="Set all" />
-                              </SelectTrigger>
-                              <SelectContent position="popper" align="end">
-                                <SelectItem value="allow">
-                                  <ShieldCheck className="text-emerald-500" />
-                                  Allow all
-                                </SelectItem>
-                                <SelectItem value="ask">
-                                  <ShieldQuestion className="text-yellow-500" />
-                                  Ask all
-                                </SelectItem>
-                                <SelectItem value="deny">
-                                  <ShieldAlert className="text-red-500" />
-                                  Deny all
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                              <SelectValue placeholder="Set all" />
+                            </SelectTrigger>
+                            <SelectContent position="popper" align="end">
+                              <SelectItem value="allow">
+                                <ShieldCheck className="text-emerald-500" />
+                                Allow all
+                              </SelectItem>
+                              <SelectItem value="ask">
+                                <ShieldQuestion className="text-yellow-500" />
+                                Ask all
+                              </SelectItem>
+                              <SelectItem value="deny">
+                                <ShieldAlert className="text-red-500" />
+                                Deny all
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         ) : null}
-                      </button>
+                      </div>
 
                       {/* Tool rows */}
                       {isExpanded ? (
@@ -1162,6 +1252,71 @@ function ToolPermissionRow({
           </SelectItem>
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// OAuth Static Client Editor
+// ---------------------------------------------------------------------------
+
+function OAuthStaticClientEditor({
+  clientInfo,
+  disabled,
+  idPrefix,
+  onChange,
+}: {
+  clientInfo: OAuthStaticClientInfoDraft;
+  disabled: boolean;
+  idPrefix: string;
+  onChange: (clientInfo: OAuthStaticClientInfoDraft) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1.5">
+        <Link2 className="text-muted-foreground size-3.5" />
+        <span className="text-xs font-medium">Static OAuth client</span>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Optional credentials for servers that do not support dynamic client
+        registration, such as GitHub Copilot MCP.
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${idPrefix}-oauth-client-id`} className="text-xs">
+            Client ID
+          </Label>
+          <Input
+            id={`${idPrefix}-oauth-client-id`}
+            disabled={disabled}
+            placeholder="OAuth app client ID"
+            value={clientInfo.client_id}
+            className="h-8 text-xs"
+            onChange={(e) =>
+              onChange({ ...clientInfo, client_id: e.target.value })
+            }
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label
+            htmlFor={`${idPrefix}-oauth-client-secret`}
+            className="text-xs"
+          >
+            Client secret
+          </Label>
+          <Input
+            id={`${idPrefix}-oauth-client-secret`}
+            disabled={disabled}
+            placeholder="Optional client secret"
+            type="password"
+            value={clientInfo.client_secret}
+            className="h-8 text-xs"
+            onChange={(e) =>
+              onChange({ ...clientInfo, client_secret: e.target.value })
+            }
+          />
+        </div>
+      </div>
     </div>
   );
 }

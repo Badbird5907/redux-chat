@@ -187,6 +187,12 @@ export default defineSchema({
         client_secret: v.optional(v.string()),
       }),
     ),
+    oauthStaticClientInfo: v.optional(
+      v.object({
+        client_id: v.string(),
+        client_secret: v.optional(v.string()),
+      }),
+    ),
     oauthServerMetadata: v.optional(
       v.object({
         authorizationServerUrl: v.string(),
