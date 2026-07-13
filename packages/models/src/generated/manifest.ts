@@ -10,11 +10,11 @@ export const generatedProviderManifest = {
     doc: "https://ai.google.dev/gemini-api/docs/models",
   },
   openai: {
-    modelCount: 51,
+    modelCount: 54,
     doc: "https://platform.openai.com/docs/models",
   },
   openrouter: {
-    modelCount: 337,
+    modelCount: 340,
     doc: "https://openrouter.ai/models",
   },
   vertex: {

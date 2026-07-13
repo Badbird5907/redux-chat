@@ -6,6 +6,26 @@ import {
   isImageOutputModel,
 } from "./registry";
 
+describe("chat model registry", () => {
+  it("includes GPT-5.6 Sol, Terra, and Luna with OpenAI defaults", () => {
+    for (const modelId of [
+      "openai/gpt-5.6-sol",
+      "openai/gpt-5.6-terra",
+      "openai/gpt-5.6-luna",
+    ] as const) {
+      const model = getChatModelConfig(modelId);
+
+      expect(model, modelId).toBeDefined();
+      expect(model?.defaultProviderId).toBe(modelId.replace("/", ":"));
+      expect(model?.providerIds).toEqual([
+        `openrouter:${modelId}`,
+        modelId.replace("/", ":"),
+      ]);
+      expect(model?.supports.reasoning).toBe(true);
+    }
+  });
+});
+
 describe("image model registry", () => {
   it("includes curated image models with image output capability", () => {
     for (const modelId of [
