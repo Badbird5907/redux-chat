@@ -4149,6 +4149,32 @@ export const openrouterModels = {
         output: 16384,
       },
     },
+    "moonshotai/kimi-k3": {
+      id: "moonshotai/kimi-k3",
+      name: "Kimi K3",
+      family: "kimi-k3",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: false,
+      release_date: "2026-07-16",
+      last_updated: "2026-07-16",
+      open_weights: true,
+      modalities: {
+        input: ["text", "image"],
+        output: ["text"],
+      },
+      cost: {
+        cache_read: 0.3,
+        input: 3,
+        output: 15,
+      },
+      limit: {
+        context: 1048576,
+        output: 1048576,
+      },
+    },
     "morph/morph-v3-fast": {
       id: "morph/morph-v3-fast",
       name: "Morph V3 Fast",
