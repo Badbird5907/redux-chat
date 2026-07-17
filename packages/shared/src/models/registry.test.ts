@@ -7,6 +7,17 @@ import {
 } from "./registry";
 
 describe("chat model registry", () => {
+  it("includes Kimi K3 through OpenRouter", () => {
+    const model = getChatModelConfig("moonshot/kimi-k3");
+
+    expect(model).toBeDefined();
+    expect(model?.defaultProviderId).toBe("openrouter:moonshotai/kimi-k3");
+    expect(model?.providerIds).toEqual(["openrouter:moonshotai/kimi-k3"]);
+    expect(model?.supports.attachments).toBe(true);
+    expect(model?.supports.reasoning).toBe(true);
+    expect(model?.thinkingLevels).toEqual([]);
+  });
+
   it("includes GPT-5.6 Sol, Terra, and Luna with OpenAI defaults", () => {
     for (const modelId of [
       "openai/gpt-5.6-sol",

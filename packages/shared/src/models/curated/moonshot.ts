@@ -8,6 +8,12 @@ export const MOONSHOT_PROVIDER: CuratedProviderDefinition = {
   },
   models: [
     {
+      id: "kimi-k3",
+      name: "Kimi K3",
+      providerIds: ["openrouter:moonshotai/kimi-k3"],
+      thinkingLevels: [],
+    },
+    {
       id: "kimi-k2.7-code",
       name: "Kimi K2.7 Code",
       providerIds: ["workersai:@cf/moonshotai/kimi-k2.7-code"],
