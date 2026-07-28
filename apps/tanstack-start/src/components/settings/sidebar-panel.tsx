@@ -9,6 +9,7 @@ import {
   Palette,
   Shield,
   SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 
 import {
@@ -30,6 +31,7 @@ export function SettingsSidebarPanel() {
   const isChatActive = pathname.startsWith("/settings/chat");
   const isSecurityActive = pathname.startsWith("/settings/security");
   const isInstructionsActive = pathname.startsWith("/settings/instructions");
+  const isSkillsActive = pathname.startsWith("/settings/skills");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
   const isAttachmentsActive = pathname.startsWith("/settings/attachments");
   const isMcpActive = pathname.startsWith("/settings/mcp");
@@ -46,6 +48,16 @@ export function SettingsSidebarPanel() {
             >
               <ArrowLeft />
               <span>Back to Chat</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isSkillsActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/skills" />}
+            >
+              <Sparkles />
+              <span>Skills</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

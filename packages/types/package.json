@@ -9,6 +9,7 @@
     "./chat/instructions/learning": "./src/chat/instructions/learning.ts",
     "./chat/message-settings": "./src/chat/message-settings.ts",
     "./chat/model-config": "./src/chat/model-config.ts",
+    "./skills": "./src/skills.ts",
     "./zod/threads": "./src/zod/threads.ts"
   },
   "autoexport": true,

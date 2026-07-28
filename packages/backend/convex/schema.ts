@@ -48,6 +48,27 @@ const embeddingModality = v.union(
   v.literal("pdf_page"),
 );
 
+const skillSourceType = v.union(
+  v.literal("upload"),
+  v.literal("github"),
+  v.literal("model"),
+);
+
+const skillActivationScope = v.union(v.literal("thread"), v.literal("message"));
+
+const skillUsageTrigger = v.union(
+  v.literal("slash-message"),
+  v.literal("slash-thread"),
+  v.literal("auto"),
+);
+
+const skillProposalStatus = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected"),
+  v.literal("expired"),
+);
+
 const creditBucket = v.union(
   v.literal("gifted"),
   v.literal("monthly"),
@@ -234,6 +255,7 @@ export default defineSchema({
     modelFavoritesInitializedAt: v.optional(v.number()),
     mcpServersEnabled: v.optional(v.boolean()),
     chatScroll: v.optional(chatScrollPreferences),
+    skillActivationScope: v.optional(skillActivationScope),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
@@ -243,6 +265,9 @@ export default defineSchema({
     threadCount: v.number(),
     attachmentCount: v.number(),
     storageBytes: v.number(),
+    skillCount: v.optional(v.number()),
+    skillFileCount: v.optional(v.number()),
+    skillStorageBytes: v.optional(v.number()),
     lastActiveAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -297,6 +322,112 @@ export default defineSchema({
     .index("by_instructionId", ["instructionId"])
     .index("by_userId", ["userId", "updatedAt"])
     .index("by_userId_builtinKey", ["userId", "builtinKey"]),
+
+  skills: defineTable({
+    skillId: v.string(),
+    userId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    slug: v.string(),
+    enabled: v.boolean(),
+    allowAutoLoad: v.boolean(),
+    sourceType: skillSourceType,
+    originalFileName: v.optional(v.string()),
+    githubOriginalUrl: v.optional(v.string()),
+    githubOwner: v.optional(v.string()),
+    githubRepository: v.optional(v.string()),
+    githubRequestedRef: v.optional(v.string()),
+    githubSelectedPath: v.optional(v.string()),
+    githubCommitSha: v.optional(v.string()),
+    proposalId: v.optional(v.string()),
+    sourceThreadId: v.optional(v.string()),
+    sourceMessageId: v.optional(v.string()),
+    entrypointText: v.string(),
+    metadataWasInferred: v.boolean(),
+    fileCount: v.number(),
+    totalBytes: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_skillId", ["skillId"])
+    .index("by_userId", ["userId", "updatedAt"])
+    .index("by_userId_slug", ["userId", "slug"]),
+
+  skillFiles: defineTable({
+    skillFileId: v.string(),
+    skillId: v.string(),
+    userId: v.string(),
+    path: v.string(),
+    mimeType: v.string(),
+    size: v.number(),
+    sha256: v.string(),
+    isText: v.boolean(),
+    lineCount: v.optional(v.number()),
+    isSymlink: v.optional(v.boolean()),
+    lfsPointer: v.optional(v.boolean()),
+    projectId: v.string(),
+    environmentId: v.string(),
+    accessKey: v.string(),
+    fileKeyId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_skillFileId", ["skillFileId"])
+    .index("by_skillId", ["skillId"])
+    .index("by_skillId_path", ["skillId", "path"])
+    .index("by_userId_skillId", ["userId", "skillId"]),
+
+  threadSkills: defineTable({
+    userId: v.string(),
+    threadId: v.string(),
+    skillId: v.string(),
+    activatedAt: v.number(),
+  })
+    .index("by_userId_threadId", ["userId", "threadId", "activatedAt"])
+    .index("by_userId_threadId_skillId", ["userId", "threadId", "skillId"])
+    .index("by_skillId", ["skillId"]),
+
+  skillUsages: defineTable({
+    userId: v.string(),
+    threadId: v.string(),
+    userMessageId: v.string(),
+    assistantMessageId: v.string(),
+    skillId: v.string(),
+    skillName: v.string(),
+    skillSlug: v.string(),
+    trigger: skillUsageTrigger,
+    createdAt: v.number(),
+  })
+    .index("by_assistantMessageId", ["assistantMessageId", "createdAt"])
+    .index("by_assistantMessageId_skillId", ["assistantMessageId", "skillId"])
+    .index("by_skillId", ["skillId", "createdAt"])
+    .index("by_userMessageId", ["userMessageId", "createdAt"]),
+
+  skillProposals: defineTable({
+    proposalId: v.string(),
+    userId: v.string(),
+    threadId: v.string(),
+    messageId: v.string(),
+    toolCallId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    files: v.array(
+      v.object({
+        path: v.string(),
+        content: v.string(),
+        size: v.number(),
+        lineCount: v.number(),
+      }),
+    ),
+    status: skillProposalStatus,
+    approvedSkillId: v.optional(v.string()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_proposalId", ["proposalId"])
+    .index("by_userId", ["userId", "createdAt"])
+    .index("by_expiresAt", ["expiresAt"])
+    .index("by_userId_toolCallId", ["userId", "toolCallId"]),
 
   threads: defineTable({
     threadId: v.string(),

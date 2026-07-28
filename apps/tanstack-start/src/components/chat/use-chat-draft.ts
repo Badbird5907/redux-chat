@@ -24,6 +24,7 @@ export interface DraftAttachment {
 interface StoredDraft {
   version: number;
   text?: string;
+  selectedSkillIds?: string[];
   attachments?: {
     attachmentId: string;
     fileName: string;
@@ -35,7 +36,7 @@ interface StoredDraft {
   updatedAt: number;
 }
 
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 const DRAFT_UPDATED_EVENT = "redux-chat:draft-updated";
 
 export function getChatDraftStorageKey(threadId?: string) {
@@ -59,6 +60,7 @@ export function setStoredChatDraft({
   const draft: StoredDraft = {
     version: STORAGE_VERSION,
     text,
+    selectedSkillIds: [],
     attachments: [],
     updatedAt: Date.now(),
   };
@@ -142,6 +144,7 @@ export function useChatDraft({
   const scopeKey = useMemo(() => getChatDraftStorageKey(threadId), [threadId]);
 
   const [text, setText] = useState("");
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
   const [attachments, setAttachmentsState] = useState<DraftAttachment[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
@@ -218,6 +221,7 @@ export function useChatDraft({
       if (!raw) {
         if (!cancelled) {
           setText("");
+          setSelectedSkillIds([]);
           setAttachments([]);
           setLoadedScopeKey(scopeKey);
           setIsReady(true);
@@ -242,11 +246,21 @@ export function useChatDraft({
         );
 
         if (currentSavedAttachments.length === 0) {
-          if (!(parsed.text ?? "").trim()) {
+          if (
+            !(parsed.text ?? "").trim() &&
+            !(parsed.selectedSkillIds?.length ?? 0)
+          ) {
             window.localStorage.removeItem(scopeKey);
           }
           if (!cancelled) {
             setText(parsed.text ?? "");
+            setSelectedSkillIds(
+              Array.isArray(parsed.selectedSkillIds)
+                ? parsed.selectedSkillIds.filter(
+                    (value): value is string => typeof value === "string",
+                  )
+                : [],
+            );
             setAttachments([]);
             setLoadedScopeKey(scopeKey);
             setIsReady(true);
@@ -293,6 +307,13 @@ export function useChatDraft({
 
         if (!cancelled) {
           setText(parsed.text ?? "");
+          setSelectedSkillIds(
+            Array.isArray(parsed.selectedSkillIds)
+              ? parsed.selectedSkillIds.filter(
+                  (value): value is string => typeof value === "string",
+                )
+              : [],
+          );
           setAttachments(hydratedAttachments);
           setLoadedScopeKey(scopeKey);
           setIsReady(true);
@@ -301,6 +322,7 @@ export function useChatDraft({
         console.error("Failed to load chat draft", error);
         if (!cancelled) {
           setText("");
+          setSelectedSkillIds([]);
           setAttachments([]);
           setLoadedScopeKey(scopeKey);
           setIsReady(true);
@@ -349,7 +371,11 @@ export function useChatDraft({
       ];
     });
 
-    if (!text.trim() && persistedAttachments.length === 0) {
+    if (
+      !text.trim() &&
+      persistedAttachments.length === 0 &&
+      selectedSkillIds.length === 0
+    ) {
       window.localStorage.removeItem(scopeKey);
       return;
     }
@@ -357,6 +383,7 @@ export function useChatDraft({
     const draft: StoredDraft = {
       version: STORAGE_VERSION,
       text,
+      selectedSkillIds,
       attachments: persistedAttachments,
       updatedAt: Date.now(),
     };
@@ -370,6 +397,7 @@ export function useChatDraft({
     scopeKey,
     settingsReady,
     text,
+    selectedSkillIds,
   ]);
 
   useEffect(() => {
@@ -390,6 +418,7 @@ export function useChatDraft({
       const raw = window.localStorage.getItem(scopeKey);
       if (!raw) {
         setTextRef.current("");
+        setSelectedSkillIds([]);
         setAttachmentsRef.current([]);
         setLoadedScopeKeyRef.current(scopeKey);
         setIsReadyRef.current(true);
@@ -399,6 +428,13 @@ export function useChatDraft({
       try {
         const parsed = JSON.parse(raw) as StoredDraft;
         setTextRef.current(parsed.text ?? "");
+        setSelectedSkillIds(
+          Array.isArray(parsed.selectedSkillIds)
+            ? parsed.selectedSkillIds.filter(
+                (value): value is string => typeof value === "string",
+              )
+            : [],
+        );
         setAttachmentsRef.current([]);
         setLoadedScopeKeyRef.current(scopeKey);
         setIsReadyRef.current(true);
@@ -462,6 +498,7 @@ export function useChatDraft({
 
   const clearDraft = useCallback(() => {
     setText("");
+    setSelectedSkillIds([]);
     setAttachments((previous) => {
       previous.forEach(revokeObjectUrl);
       return [];
@@ -476,6 +513,8 @@ export function useChatDraft({
   return {
     text,
     setText,
+    selectedSkillIds,
+    setSelectedSkillIds,
     attachments,
     isReady,
     appendAttachment,

@@ -33,6 +33,10 @@ import { Shimmer } from "@/components/ai/shimmer";
 import { isAdjacentPreviewSupported } from "@/components/chat/attachment-side-panel";
 import { requestFilePreview } from "@/components/chat/file-preview-events";
 import { FileTypeIcon } from "@/components/chat/file-type-icon";
+import {
+  normalizeSkillProposalOutput,
+  SkillProposalCard,
+} from "@/components/chat/skill-proposal-card";
 import { AnalysisDetailsButton } from "@/components/chat/tools/analysis";
 import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 import {
@@ -228,6 +232,18 @@ export function AssistantMessageParts({
               <GeneratedImageBlock
                 image={generatedImage}
                 key={`${message.id}:generated-image:${getGeneratedImageKey(generatedImage)}`}
+              />
+            );
+          }
+
+          const skillProposal = isToolUIPart(part)
+            ? normalizeSkillProposalOutput(getToolOutput(part))
+            : null;
+          if (skillProposal) {
+            return (
+              <SkillProposalCard
+                key={`${message.id}:skill-proposal:${skillProposal.proposalId}`}
+                proposal={skillProposal}
               />
             );
           }

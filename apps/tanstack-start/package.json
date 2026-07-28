@@ -87,6 +87,7 @@
     "unpdf": "^1.6.1",
     "vscode-icons-js": "^11.6.1",
     "xlsx": "^0.18.5",
+    "yaml": "^2.9.0",
     "zod": "catalog:"
   },
   "devDependencies": {

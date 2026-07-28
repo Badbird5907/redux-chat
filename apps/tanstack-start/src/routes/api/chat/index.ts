@@ -1,3 +1,4 @@
+import type { SkillRuntimeContext } from "@/lib/ai/tools/skills";
 import type { RetrievedChunk } from "@/server/rag/vector-store";
 import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/ai/tools/bash-fs-persistence";
 import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
+import { formatSkillSystemPrompt } from "@/lib/ai/tools/skills";
 import {
   fetchAuthAction,
   fetchAuthMutation,
@@ -786,6 +788,11 @@ export const Route = createFileRoute("/api/chat/")({
           let selectedInstructionPrompt: string | undefined;
           let projectContextBlock: string | undefined;
           let projectToolInstruction: string | undefined;
+          let skillRuntimeContext: SkillRuntimeContext = {
+            explicit: [],
+            autoCatalog: [],
+          };
+          let skillSystemPrompt: string | undefined;
           let chatProjectId: string | undefined;
           let threadUserId: string | undefined;
           let bashFsState: { accessKey: string; fileKeyId: string } | undefined;
@@ -820,6 +827,37 @@ export const Route = createFileRoute("/api/chat/")({
             }
           } catch (error) {
             console.error("Failed to load chat instructions", error);
+          }
+
+          if (lastUserMessageId) {
+            try {
+              skillRuntimeContext = await fetchAuthQuery(
+                api.functions.skills.backend_getRuntimeContext,
+                {
+                  secret: env.INTERNAL_CONVEX_SECRET,
+                  userId: requestUserId,
+                  threadId,
+                  userMessageId: lastUserMessageId,
+                  assistantMessageId,
+                },
+              );
+              skillSystemPrompt = formatSkillSystemPrompt(skillRuntimeContext);
+              await Promise.all(
+                skillRuntimeContext.explicit.map((skill) =>
+                  fetchAuthMutation(api.functions.skills.backend_recordUsage, {
+                    secret: env.INTERNAL_CONVEX_SECRET,
+                    userId: requestUserId,
+                    threadId,
+                    userMessageId: lastUserMessageId,
+                    assistantMessageId,
+                    skillId: skill.skillId,
+                    trigger: skill.trigger,
+                  }),
+                ),
+              );
+            } catch (error) {
+              console.error("Failed to load chat skills", error);
+            }
           }
 
           if (chatProjectId) {
@@ -934,7 +972,9 @@ export const Route = createFileRoute("/api/chat/")({
               userId: requestUserId,
               threadId,
               messageId: assistantMessageId,
+              userMessageId: lastUserMessageId ?? "",
             },
+            skills: skillRuntimeContext,
             previousBashFiles,
           });
           let didCleanupTools = false;
@@ -1195,6 +1235,7 @@ export const Route = createFileRoute("/api/chat/")({
             BASE_SYSTEM_PROMPT,
             selectedInstructionPrompt,
             projectInstructions,
+            skillSystemPrompt,
             projectToolInstruction,
             projectContextBlock,
           ]

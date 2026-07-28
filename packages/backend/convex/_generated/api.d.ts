@@ -31,6 +31,7 @@ import type * as functions_modelFavorites from "../functions/modelFavorites.js";
 import type * as functions_modelGeneratedFiles from "../functions/modelGeneratedFiles.js";
 import type * as functions_projects from "../functions/projects.js";
 import type * as functions_promotions from "../functions/promotions.js";
+import type * as functions_skills from "../functions/skills.js";
 import type * as functions_threadShares from "../functions/threadShares.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "functions/modelGeneratedFiles": typeof functions_modelGeneratedFiles;
   "functions/projects": typeof functions_projects;
   "functions/promotions": typeof functions_promotions;
+  "functions/skills": typeof functions_skills;
   "functions/threadShares": typeof functions_threadShares;
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;

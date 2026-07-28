@@ -275,6 +275,12 @@ function getToolLabel(toolName: string, title: string | undefined) {
       return "Read File";
     case "writefile":
       return "Write File";
+    case "load_skill":
+      return "Load Skill";
+    case "read_skill_file":
+      return "Read Skill File";
+    case "propose_skill":
+      return "Propose Skill";
     default:
       return title ?? humanizeToolName(toolName);
   }
@@ -353,6 +359,22 @@ function getToolDescription(
 
   if (normalizedToolName === "writefile") {
     return getWriteFileToolDescription(part);
+  }
+
+  if (normalizedToolName === "load_skill") {
+    return part.state === "output-available" ? "Loaded skill" : "Loading skill";
+  }
+
+  if (normalizedToolName === "read_skill_file") {
+    return part.state === "output-available"
+      ? "Read skill file"
+      : "Reading skill file";
+  }
+
+  if (normalizedToolName === "propose_skill") {
+    return part.state === "output-available"
+      ? "Prepared skill proposal"
+      : "Preparing skill proposal";
   }
 
   if (normalizedToolName === "present_file") {

@@ -23,6 +23,11 @@ import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
 import { normalizeInstructionIdForUser } from "./instructions";
 import { internalAction, internalMutation } from "./internal";
+import {
+  applySelectedSkillsToMessage,
+  copyMessageSkillUsages,
+  copyUserMessageSkillUsages,
+} from "./skills";
 
 const THREAD_TITLE_GENERATION_COOLDOWN_MS = 60_000;
 const THREAD_TITLE_PROMPT_MAX_LENGTH = 2_000;
@@ -794,6 +799,7 @@ export const sendMessage = mutation({
     parentMessageId: v.optional(v.string()),
     attachmentIds: v.optional(v.array(v.string())),
     chatProjectId: v.optional(v.string()),
+    selectedSkillIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     // 1. Decode & verify userMessageId
@@ -932,6 +938,13 @@ export const sendMessage = mutation({
       thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
+    await applySelectedSkillsToMessage(ctx, {
+      threadId,
+      userMessageId: userMsgId,
+      assistantMessageId: assistantMsgId,
+      selectedSkillIds: args.selectedSkillIds,
+    });
+
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
       10 * 60 * 1000,
       internal.functions.threads.internal_checkMessageDead,
@@ -980,6 +993,7 @@ export const editUserMessageBranch = mutation({
     settings: messageSettingsValidator,
     retainedAttachmentIds: v.optional(v.array(v.string())),
     draftAttachmentIds: v.optional(v.array(v.string())),
+    selectedSkillIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const thread = await getThreadForUser(ctx, args.threadId);
@@ -1053,6 +1067,22 @@ export const editUserMessageBranch = mutation({
       model: args.model,
       thinkingLevel: normalizedSettings.thinkingLevel,
     });
+
+    if (args.selectedSkillIds !== undefined) {
+      await applySelectedSkillsToMessage(ctx, {
+        threadId: args.threadId,
+        userMessageId: userMsgId,
+        assistantMessageId: assistantMsgId,
+        selectedSkillIds: args.selectedSkillIds,
+      });
+    } else {
+      await copyUserMessageSkillUsages(ctx, {
+        sourceUserMessageId: sourceMessage.messageId,
+        targetUserMessageId: userMsgId,
+        targetAssistantMessageId: assistantMsgId,
+        threadId: args.threadId,
+      });
+    }
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
       10 * 60 * 1000,
@@ -1136,6 +1166,15 @@ export const regenerateAssistantMessageBranch = mutation({
       model: args.model,
       thinkingLevel: normalizedSettings.thinkingLevel,
     });
+
+    if (sourceMessage.parentId) {
+      await copyMessageSkillUsages(ctx, {
+        sourceAssistantMessageId: sourceMessage.messageId,
+        targetAssistantMessageId: assistantMsgId,
+        userMessageId: sourceMessage.parentId,
+        threadId: args.threadId,
+      });
+    }
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
       10 * 60 * 1000,

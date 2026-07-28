@@ -25,6 +25,13 @@ export const SETTINGS_NAV_ITEMS = [
     searchBlob: "instructions prompts styles presets system prompts",
   },
   {
+    value: "settings-skills",
+    to: "/settings/skills" as const,
+    title: "Skills",
+    subtitle: "Manage reusable model skill packages",
+    searchBlob: "skills slash commands github prompts repositories",
+  },
+  {
     value: "settings-mcp",
     to: "/settings/mcp" as const,
     title: "MCP Servers",
