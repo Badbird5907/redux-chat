@@ -33,10 +33,8 @@ import { Shimmer } from "@/components/ai/shimmer";
 import { isAdjacentPreviewSupported } from "@/components/chat/attachment-side-panel";
 import { requestFilePreview } from "@/components/chat/file-preview-events";
 import { FileTypeIcon } from "@/components/chat/file-type-icon";
-import {
-  normalizeSkillProposalOutput,
-  SkillProposalCard,
-} from "@/components/chat/skill-proposal-card";
+import { SkillProposalCard } from "@/components/chat/skill-proposal-card";
+import { normalizeSkillProposalOutput } from "@/components/chat/skill-proposal-output";
 import { AnalysisDetailsButton } from "@/components/chat/tools/analysis";
 import { StreamingMarkdown } from "@/components/markdown/streaming-markdown";
 import {

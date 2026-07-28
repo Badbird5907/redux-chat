@@ -52,11 +52,8 @@ import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
 import { MessageQueueCard } from "./message-queue-card";
-import {
-  parseLeadingSkillCommands,
-  SkillSelectionBar,
-  useSkillSlashMenu,
-} from "./skill-selection";
+import { parseLeadingSkillCommands } from "./skill-command-utils";
+import { SkillSelectionBar, useSkillSlashMenu } from "./skill-selection";
 import { useFileUpload } from "./use-file-upload";
 import { isAttachmentExpired } from "./utils";
 

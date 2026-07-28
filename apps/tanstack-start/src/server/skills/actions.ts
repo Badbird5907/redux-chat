@@ -65,7 +65,7 @@ export const importMarkdownSkill = createServerFn({ method: "POST" })
   });
 
 export const importGitHubSkill = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ url: z.string().url().max(2048) }))
+  .inputValidator(z.object({ url: z.url().max(2048) }))
   .handler(async ({ data }) => {
     const resolved = await resolveGitHubSkill(data.url);
     return storeSkillPackage({

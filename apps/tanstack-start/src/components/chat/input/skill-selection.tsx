@@ -10,39 +10,6 @@ import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import { cn } from "@redux/ui/lib/utils";
 
-export function parseLeadingSkillCommands(
-  text: string,
-  skills: SkillSummary[],
-) {
-  const bySlug = new Map(
-    skills
-      .filter((skill) => skill.enabled)
-      .map((skill) => [skill.slug.toLowerCase(), skill] as const),
-  );
-  const selectedSkillIds: string[] = [];
-  let remaining = text.trimStart();
-  while (remaining.startsWith("/")) {
-    const match = /^\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\s+|$)/i.exec(remaining);
-    if (!match) break;
-    const slug = match[1]?.toLowerCase() ?? "";
-    const skill = bySlug.get(slug);
-    if (!skill) {
-      return {
-        cleanedText: text,
-        selectedSkillIds,
-        unknownCommand: slug,
-      };
-    }
-    selectedSkillIds.push(skill.skillId);
-    remaining = remaining.slice(match[0].length).trimStart();
-  }
-  return {
-    cleanedText: remaining,
-    selectedSkillIds: [...new Set(selectedSkillIds)],
-    unknownCommand: undefined,
-  };
-}
-
 export function useSkillSlashMenu(input: {
   text: string;
   setText: (value: string) => void;
@@ -52,19 +19,23 @@ export function useSkillSlashMenu(input: {
 }) {
   const match = /^\/([a-z0-9-]*)$/i.exec(input.text);
   const query = match?.[1]?.toLowerCase();
+  const selectedSkillIdSet = useMemo(
+    () => new Set(input.selectedSkillIds),
+    [input.selectedSkillIds],
+  );
   const matches = useMemo(() => {
     if (query === undefined) return [];
     return input.skills
       .filter(
         (skill) =>
           skill.enabled &&
-          !input.selectedSkillIds.includes(skill.skillId) &&
+          !selectedSkillIdSet.has(skill.skillId) &&
           `${skill.slug} ${skill.name} ${skill.description}`
             .toLowerCase()
             .includes(query),
       )
       .slice(0, 8);
-  }, [input.selectedSkillIds, input.skills, query]);
+  }, [input.skills, query, selectedSkillIdSet]);
   const [menuSelection, setMenuSelection] = useState<{
     query?: string;
     index: number;

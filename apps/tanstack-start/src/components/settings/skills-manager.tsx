@@ -56,8 +56,8 @@ import { ShikiCodeBlock } from "@/components/markdown/shiki-code-block";
 import {
   importGitHubSkill,
   importMarkdownSkill,
-  refreshGitHubSkill,
 } from "@/server/skills/actions";
+import { useSkillActions } from "./use-skill-actions";
 
 type SkillRecord = SkillSummary;
 type SkillFileRecord = SkillFileSummary;
@@ -175,24 +175,23 @@ function SkillFilePreview({ file }: { file: SkillFileRecord }) {
   useEffect(() => {
     let cancelled = false;
     if (!file.isText) return;
-    void fetch(url, { credentials: "same-origin" })
-      .then(async (response) => {
+    const loadFile = async () => {
+      try {
+        const response = await fetch(url, { credentials: "same-origin" });
         if (!response.ok) throw new Error("Failed to load file");
-        return response.text();
-      })
-      .then((content) => {
+        const content = await response.text();
         if (!cancelled) setText(content);
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         if (!cancelled) {
           toast.error(
             error instanceof Error ? error.message : "Failed to load file",
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+    void loadFile();
     return () => {
       cancelled = true;
     };
@@ -215,7 +214,12 @@ function SkillFilePreview({ file }: { file: SkillFileRecord }) {
         <Button
           variant="outline"
           size="sm"
-          render={<a href={`${url}?download=1`} />}
+          render={
+            <a
+              href={`${url}?download=1`}
+              aria-label={`Download ${file.path}`}
+            />
+          }
         >
           <Download className="size-4" />
           Download
@@ -253,6 +257,7 @@ function SkillFilePreview({ file }: { file: SkillFileRecord }) {
           <iframe
             src={url}
             title={file.path}
+            sandbox=""
             className="h-[60vh] w-full rounded-md"
           />
         ) : (
@@ -585,17 +590,18 @@ export function SkillsManager() {
     [queriedSkills],
   );
   const activationScope = useQuery(api.functions.skills.getActivationScope, {});
-  const updateScope = useMutation(api.functions.skills.updateActivationScope);
-  const setEnabled = useMutation(api.functions.skills.setEnabled);
-  const setAutoLoad = useMutation(api.functions.skills.setAutoLoad);
-  const deleteSkill = useMutation(api.functions.skills.deleteSkill);
-  const refreshSkill = useServerFn(refreshGitHubSkill);
-  const posthog = usePostHog();
+  const {
+    handleAutoLoadChange,
+    handleDelete,
+    handleEnabledChange,
+    handleRefresh,
+    handleScopeChange,
+    refreshingId,
+  } = useSkillActions();
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [viewSkill, setViewSkill] = useState<SkillRecord>();
   const [editSkill, setEditSkill] = useState<SkillRecord>();
-  const [refreshingId, setRefreshingId] = useState<string>();
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -607,43 +613,6 @@ export function SkillsManager() {
         )
       : skills;
   }, [search, skills]);
-
-  const handleDelete = async (skill: SkillRecord) => {
-    if (
-      !window.confirm(
-        `Delete "${skill.name}" and its ${skill.fileCount} file${skill.fileCount === 1 ? "" : "s"}?`,
-      )
-    )
-      return;
-    try {
-      await deleteSkill({ skillId: skill.skillId });
-      posthog.capture("skill_deleted", { source_type: skill.sourceType });
-      toast.success("Skill deleted");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete skill",
-      );
-    }
-  };
-
-  const handleRefresh = async (skill: SkillRecord) => {
-    setRefreshingId(skill.skillId);
-    try {
-      const result = await refreshSkill({ data: { skillId: skill.skillId } });
-      posthog.capture("skill_refreshed", { changed: result.changed });
-      toast.success(
-        result.changed
-          ? "GitHub skill refreshed"
-          : "Skill is already up to date",
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to refresh skill",
-      );
-    } finally {
-      setRefreshingId(undefined);
-    }
-  };
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -695,11 +664,7 @@ export function SkillsManager() {
                   ? "border-primary bg-primary/5"
                   : "hover:bg-muted/50",
               )}
-              onClick={() =>
-                void updateScope({ scope }).then(() =>
-                  posthog.capture("skill_activation_scope_updated", { scope }),
-                )
-              }
+              onClick={() => void handleScopeChange(scope)}
             >
               <div className="text-sm font-medium">{title}</div>
               <div className="text-muted-foreground mt-1 text-xs">
@@ -811,15 +776,7 @@ export function SkillsManager() {
                     <Switch
                       checked={skill.enabled}
                       onCheckedChange={(checked) =>
-                        void setEnabled({
-                          skillId: skill.skillId,
-                          enabled: checked,
-                        }).then(() =>
-                          posthog.capture("skill_toggled", {
-                            setting: "enabled",
-                            value: checked,
-                          }),
-                        )
+                        void handleEnabledChange(skill.skillId, checked)
                       }
                     />
                   </label>
@@ -836,15 +793,7 @@ export function SkillsManager() {
                       disabled={!skill.enabled}
                       checked={skill.allowAutoLoad}
                       onCheckedChange={(checked) =>
-                        void setAutoLoad({
-                          skillId: skill.skillId,
-                          allowAutoLoad: checked,
-                        }).then(() =>
-                          posthog.capture("skill_toggled", {
-                            setting: "automatic_loading",
-                            value: checked,
-                          }),
-                        )
+                        void handleAutoLoadChange(skill.skillId, checked)
                       }
                     />
                   </label>
