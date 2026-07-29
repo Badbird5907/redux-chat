@@ -18,6 +18,9 @@ export function getStripeSdkClient() {
 
 export function getStripePlanPrices() {
   const env = backendEnv();
+  if (!env.STRIPE_BASE_PRICE_ID) {
+    throw new Error("STRIPE_BASE_PRICE_ID is not set.");
+  }
   if (!env.STRIPE_PLUS_PRICE_ID) {
     throw new Error("STRIPE_PLUS_PRICE_ID is not set.");
   }
@@ -25,6 +28,7 @@ export function getStripePlanPrices() {
     throw new Error("STRIPE_PRO_PRICE_ID is not set.");
   }
   return {
+    base: env.STRIPE_BASE_PRICE_ID,
     plus: env.STRIPE_PLUS_PRICE_ID,
     pro: env.STRIPE_PRO_PRICE_ID,
   } as const;
@@ -32,6 +36,7 @@ export function getStripePlanPrices() {
 
 export function priceIdForTier(tier: PlanTier): string | undefined {
   const prices = getStripePlanPrices();
+  if (tier === "base") return prices.base;
   if (tier === "plus") return prices.plus;
   if (tier === "pro") return prices.pro;
   return undefined;
@@ -39,6 +44,7 @@ export function priceIdForTier(tier: PlanTier): string | undefined {
 
 export function tierFromStripePriceId(priceId: string): PlanTier {
   const prices = getStripePlanPrices();
+  if (priceId === prices.base) return "base";
   if (priceId === prices.plus) return "plus";
   if (priceId === prices.pro) return "pro";
   throw new Error("That price is not a configured plan.");
@@ -46,5 +52,7 @@ export function tierFromStripePriceId(priceId: string): PlanTier {
 
 export function isConfiguredStripePlanPrice(priceId: string): boolean {
   const prices = getStripePlanPrices();
-  return priceId === prices.plus || priceId === prices.pro;
+  return (
+    priceId === prices.base || priceId === prices.plus || priceId === prices.pro
+  );
 }

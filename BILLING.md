@@ -13,10 +13,10 @@ and webhooks. Credit balances are authoritative in Convex.
    free monthly credits when needed, reads the Convex credit ledger, and fetches
    live Stripe schedule details such as cancel-at-period-end and pending price
    changes.
-4. If `spendableCredits <= 0` and overage is disabled, chat returns `402` with
-   `{ error: "out_of_credits" }`.
-5. On generation finish, `api.functions.billing.recordUsageEvent` debits the
-   Convex ledger.
+4. Hosted model routes and app-funded paid tools require spendable credits.
+   Pure BYOK model requests can run at zero Redux Chat credits.
+5. On generation finish, `api.functions.billing.recordUsageEvent` debits only
+   platform-funded model and tool costs from the Convex ledger.
 
 ## Source Of Truth
 
@@ -55,7 +55,8 @@ tracking.
 
 ## Stripe Dashboard Requirements
 
-- Recurring prices exist for Plus and Pro and match:
+- Recurring prices exist for Base, Plus, and Pro and match:
+  - `STRIPE_BASE_PRICE_ID` ($2/month)
   - `STRIPE_PLUS_PRICE_ID`
   - `STRIPE_PRO_PRICE_ID`
 - Stripe webhook route points at `<convex-site-url>/stripe/webhook`.
@@ -81,9 +82,11 @@ tracking.
 ```bash
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+STRIPE_BASE_PRICE_ID=
 STRIPE_PLUS_PRICE_ID=
 STRIPE_PRO_PRICE_ID=
 STRIPE_CREDIT_TOP_UP_PRODUCT_ID=
+BYOK_ENCRYPTION_KEY= # base64-encoded 32-byte key; app server only
 ```
 
 ## Key Files

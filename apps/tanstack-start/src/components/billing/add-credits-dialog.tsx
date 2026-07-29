@@ -4,6 +4,7 @@ import { CreditCard } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 
+import type { PlanEntitlements, PlanTier } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   calculatePurchasedCreditsFromCents,
@@ -25,7 +26,8 @@ import { cn } from "@redux/ui/lib/utils";
 import { formatNumber } from "@/components/billing/format-number";
 
 type AddCreditsBillingState = {
-  tier?: "free" | "plus" | "pro";
+  tier?: PlanTier;
+  entitlements: PlanEntitlements;
 };
 
 type AddCreditsDialogProps = {
@@ -89,8 +91,7 @@ export function AddCreditsDialog({
     amountCents !== null && amountCents > 0
       ? calculatePurchasedCreditsFromCents(amountCents)
       : 0;
-  const isPaidPlan =
-    billingState?.tier === "plus" || billingState?.tier === "pro";
+  const isPaidPlan = billingState?.entitlements.creditTopUps === true;
   const amountTooLow =
     amountCents !== null && amountCents < MIN_CREDIT_TOP_UP_USD_CENTS;
   const amountTooHigh =

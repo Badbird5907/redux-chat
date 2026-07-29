@@ -93,7 +93,31 @@ const promotionRedemptionStatus = v.union(
   v.literal("revoked"),
 );
 
-const paidPlanTier = v.union(v.literal("plus"), v.literal("pro"));
+const paidPlanTier = v.union(
+  v.literal("base"),
+  v.literal("plus"),
+  v.literal("pro"),
+);
+
+const byokProvider = v.union(
+  v.literal("openai"),
+  v.literal("anthropic"),
+  v.literal("vertex"),
+  v.literal("workersai"),
+  v.literal("openrouter"),
+);
+
+const modelRoutingOverride = v.union(
+  v.object({
+    modelId: v.string(),
+    kind: v.literal("byok"),
+    routeId: v.string(),
+  }),
+  v.object({
+    modelId: v.string(),
+    kind: v.literal("hosted"),
+  }),
+);
 
 const threadShareSettings = v.object({
   onlyCurrentBranch: v.boolean(),
@@ -237,6 +261,35 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  providerCredentials: defineTable({
+    userId: v.string(),
+    provider: byokProvider,
+    ciphertext: v.string(),
+    iv: v.string(),
+    authTag: v.string(),
+    keyVersion: v.number(),
+    displaySuffix: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId", "updatedAt"])
+    .index("by_userId_provider", ["userId", "provider"])
+    .index("by_provider", ["provider", "updatedAt"]),
+
+  userModelRouting: defineTable({
+    userId: v.string(),
+    preset: v.union(
+      v.literal("native_first"),
+      v.literal("openrouter_first"),
+      v.literal("custom"),
+    ),
+    providerPriority: v.array(byokProvider),
+    hostedFallback: v.boolean(),
+    overrides: v.array(modelRoutingOverride),
+    catalogVersion: v.string(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   userUsageStats: defineTable({
     userId: v.string(),
     userMessageCount: v.number(),
@@ -356,6 +409,10 @@ export default defineSchema({
     siblingIndex: v.number(),
     mutation: mutationInfo,
     model: v.optional(v.string()),
+    providerRouteId: v.optional(v.string()),
+    fundingSource: v.optional(
+      v.union(v.literal("user"), v.literal("platform")),
+    ),
     canceledAt: v.optional(v.number()),
     usage: v.optional(
       v.object({

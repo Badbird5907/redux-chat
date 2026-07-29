@@ -118,10 +118,9 @@ export function ChatInput({
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
-  const isPaidPlan =
-    billingState?.tier === "plus" || billingState?.tier === "pro";
+  const isPaidPlan = billingState?.entitlements.creditTopUps === true;
   const attachmentLimits =
-    billingState?.tier === "free"
+    billingState?.entitlements.featureLevel === "free"
       ? {
           maxPerMessage: FREE_PLAN_MAX_ATTACHMENTS,
           maxFileSizeBytes: FREE_PLAN_MAX_FILE_SIZE_BYTES,

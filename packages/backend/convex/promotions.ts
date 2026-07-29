@@ -173,7 +173,12 @@ function assertEligiblePlanTiers(
   const seen = new Set<PlanTier>();
   for (const tierValue of value) {
     const tier = tierValue as unknown;
-    if (tier !== "free" && tier !== "plus" && tier !== "pro") {
+    if (
+      tier !== "free" &&
+      tier !== "base" &&
+      tier !== "plus" &&
+      tier !== "pro"
+    ) {
       throw new ConvexError("Eligible plan tier is invalid.");
     }
     if (seen.has(tier)) {

@@ -25,6 +25,7 @@ export {
   getModelAttachmentExpects,
   getModelRouteBehavior,
   getModelRoute,
+  getModelRoutes,
   isRegisteredModelId,
   isFileAllowedForModel,
   isImageGenerationToolModel,
@@ -35,3 +36,4 @@ export {
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "./registry";
+export * from "./routing";

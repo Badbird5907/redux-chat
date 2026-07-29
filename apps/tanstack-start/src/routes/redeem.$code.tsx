@@ -15,12 +15,17 @@ import {
 import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 
-import type { SubscriptionPromotionConfig } from "@redux/shared";
+import type {
+  PromotionSubscriptionTier,
+  SubscriptionPromotionConfig,
+} from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   DEFAULT_BILLING_CONFIG,
   discountedPriceCentsFromList,
   getPlanConfig,
+  getPlanTierRank,
+  planTierLabel as sharedPlanTierLabel,
 } from "@redux/shared";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
@@ -36,6 +41,7 @@ import { loadPublicPromotion } from "./redeem.$code-loader";
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
 type StripeConfiguredPrices = {
+  base: { id: string; amount: number | null; currency: string | null };
   plus: { id: string; amount: number | null; currency: string | null };
   pro: { id: string; amount: number | null; currency: string | null };
 };
@@ -51,15 +57,16 @@ type PaidPlanSwitchPreview = {
 };
 
 function tierRank(tier: string | undefined): number {
-  if (tier === "free") return 0;
-  if (tier === "plus") return 1;
-  if (tier === "pro") return 2;
+  if (tier === "free" || tier === "base" || tier === "plus" || tier === "pro") {
+    return getPlanTierRank(tier);
+  }
   return -1;
 }
 
 function planTierLabel(tier: string | undefined): string {
-  if (tier === "plus") return "Plus";
-  if (tier === "pro") return "Pro";
+  if (tier === "base" || tier === "plus" || tier === "pro" || tier === "free") {
+    return sharedPlanTierLabel(tier);
+  }
   return "Free";
 }
 
@@ -180,7 +187,7 @@ function RedeemPromotionPage() {
     api.functions.promotions.cancelPendingPromotionCheckout,
   );
   const [targetTier, setTargetTier] = useReducerState<
-    "plus" | "pro" | undefined
+    PromotionSubscriptionTier | undefined
   >(undefined);
   const [result, setResult] = useReducerState<{
     type?: string;
@@ -198,7 +205,7 @@ function RedeemPromotionPage() {
   );
   const [pending, setPending] = useReducerState(false);
   const [upgradePreview, setUpgradePreview] = useReducerState<{
-    targetTier: "plus" | "pro";
+    targetTier: PromotionSubscriptionTier;
     loading: boolean;
     data: PaidPlanSwitchPreview | null;
     error: string | null;
@@ -397,7 +404,7 @@ function RedeemPromotionPage() {
     setUpgradePreview,
   ]);
 
-  const selectSubscriptionTargetTier = (tier: "plus" | "pro") => {
+  const selectSubscriptionTargetTier = (tier: PromotionSubscriptionTier) => {
     setTargetTier(tier);
     setUpgradePreview(null);
   };
@@ -519,7 +526,43 @@ function RedeemPromotionPage() {
           {requiresTierSelection ? (
             <div className="mt-6 grid gap-3">
               <p className="text-sm font-medium">Choose your plan</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {promotion.redeemableTargetTiers.includes("base") ? (
+                  <PlanTierMarketingCard
+                    name="Base"
+                    plan={getPlanConfig("base", billingConfig)}
+                    {...redeemPlanPriceLabels(
+                      configuredStripePrices?.base,
+                      promotionDiscount,
+                    )}
+                    renewalLine={undefined}
+                    state={
+                      freeUserPromotionUnavailable ||
+                      (currentTierRank > 0 &&
+                        tierRank("base") <= currentTierRank)
+                        ? "inactive"
+                        : "available"
+                    }
+                    emphasize={false}
+                    selected={targetTier === "base"}
+                    onSelect={() => selectSubscriptionTargetTier("base")}
+                    footer={
+                      <p className="text-muted-foreground text-center text-xs">
+                        {currentTierRank > 0 &&
+                        (freeUserPromotionUnavailable ||
+                          tierRank("base") <= currentTierRank)
+                          ? freeUserPromotionUnavailable
+                            ? "Free plan only"
+                            : currentTier === "base"
+                              ? "Already on Base"
+                              : "On a higher plan"
+                          : targetTier === "base"
+                            ? "Selected for checkout"
+                            : "Apply promotion to Base"}
+                      </p>
+                    }
+                  />
+                ) : null}
                 {promotion.redeemableTargetTiers.includes("plus") ? (
                   <PlanTierMarketingCard
                     name="Plus"

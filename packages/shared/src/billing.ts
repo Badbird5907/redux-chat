@@ -7,9 +7,33 @@ import {
   resolveModelRoute,
 } from "./models";
 
-export const PLAN_TIERS = ["free", "plus", "pro"] as const;
+export const PLAN_TIERS = ["free", "base", "plus", "pro"] as const;
 
 export type PlanTier = (typeof PLAN_TIERS)[number];
+
+export const PAID_PLAN_TIERS = ["base", "plus", "pro"] as const;
+export type PaidPlanTier = (typeof PAID_PLAN_TIERS)[number];
+
+export type PlanFeatureLevel = "free" | "plus" | "pro";
+
+export interface PlanEntitlements {
+  paidSubscription: boolean;
+  byok: boolean;
+  creditTopUps: boolean;
+  featureLevel: PlanFeatureLevel;
+}
+
+export function getPlanTierRank(tier: PlanTier): number {
+  return PLAN_TIERS.indexOf(tier);
+}
+
+export function isPaidPlanTier(tier: PlanTier): tier is PaidPlanTier {
+  return tier !== "free";
+}
+
+export function planTierLabel(tier: PlanTier): string {
+  return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
 
 /**
  * Credit buckets are spendable lots categorized by source/policy. Allocation
@@ -70,6 +94,7 @@ export interface UserBillingState extends Pick<
   markupMultiplier: number;
   includedMonthlyCredits: number;
   overageAllowed: boolean;
+  entitlements: PlanEntitlements;
   currentPeriodStart: number | undefined;
   currentPeriodEnd: number | undefined;
   url: string | undefined;
@@ -99,6 +124,7 @@ export interface PlanConfig {
   includedMonthlyCredits: number;
   markupMultiplier: number;
   overageAllowed: boolean;
+  entitlements: PlanEntitlements;
   allowedModelIds?: string[];
 }
 
@@ -110,13 +136,17 @@ export interface ToolBillingConfig {
 export interface BillableToolCall {
   billingKey: ToolBillingKey;
   invocationCount: number;
+  fundingSource?: ModelFundingSource;
 }
+
+export type ModelFundingSource = "user" | "platform";
 
 export interface UsageChargeComputationInput {
   routeId: string;
   usage: ModelCostComputationInput;
   toolCalls?: BillableToolCall[];
   tier: PlanTier;
+  modelFundingSource?: ModelFundingSource;
 }
 
 export interface UsageChargeComputationResult {
@@ -153,6 +183,25 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
       includedMonthlyCredits: 100_000,
       markupMultiplier: 2,
       overageAllowed: false,
+      entitlements: {
+        paidSubscription: false,
+        byok: false,
+        creditTopUps: false,
+        featureLevel: "free",
+      },
+    },
+    base: {
+      tier: "base",
+      // Base keeps the free allowance while unlocking BYOK and top-ups.
+      includedMonthlyCredits: 100_000,
+      markupMultiplier: 2,
+      overageAllowed: false,
+      entitlements: {
+        paidSubscription: true,
+        byok: true,
+        creditTopUps: true,
+        featureLevel: "free",
+      },
     },
     plus: {
       tier: "plus",
@@ -160,6 +209,12 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
       includedMonthlyCredits: 1_000_000,
       markupMultiplier: 1.5,
       overageAllowed: false,
+      entitlements: {
+        paidSubscription: true,
+        byok: true,
+        creditTopUps: true,
+        featureLevel: "plus",
+      },
     },
     pro: {
       tier: "pro",
@@ -167,6 +222,12 @@ export const DEFAULT_BILLING_CONFIG: BillingConfig = {
       includedMonthlyCredits: 3_500_000,
       markupMultiplier: 1.25,
       overageAllowed: false,
+      entitlements: {
+        paidSubscription: true,
+        byok: true,
+        creditTopUps: true,
+        featureLevel: "pro",
+      },
     },
   },
   tools: {
@@ -202,6 +263,20 @@ export function getPlanConfig(
   return config.plans[tier];
 }
 
+export function getPlanEntitlements(
+  tier: PlanTier,
+  config: BillingConfig = DEFAULT_BILLING_CONFIG,
+): PlanEntitlements {
+  return getPlanConfig(tier, config).entitlements;
+}
+
+export function usesFreeFeatureLimits(
+  tier: PlanTier,
+  config: BillingConfig = DEFAULT_BILLING_CONFIG,
+): boolean {
+  return getPlanEntitlements(tier, config).featureLevel === "free";
+}
+
 export function getToolBillingConfig(
   billingKey: string,
   config: BillingConfig = DEFAULT_BILLING_CONFIG,
@@ -230,6 +305,9 @@ export function calculateToolUsdCost(
   }
 
   return toolCalls.reduce((total, toolCall) => {
+    if (toolCall.fundingSource === "user") {
+      return total;
+    }
     const toolConfig = getToolBillingConfig(toolCall.billingKey, config);
     if (!toolConfig.enabled || toolCall.invocationCount <= 0) {
       return total;
@@ -336,6 +414,21 @@ export function calculateUsageCharge(
   const route =
     getModelRoute(input.routeId) ?? resolveModelRoute(input.routeId);
   const toolUsdCost = calculateToolUsdCost(input.toolCalls, config);
+
+  if (input.modelFundingSource === "user") {
+    const rawUsdCost = toolUsdCost;
+    const effectiveUsdCost = rawUsdCost * plan.markupMultiplier;
+    return {
+      modelUsdCost: 0,
+      toolUsdCost,
+      rawUsdCost,
+      effectiveUsdCost,
+      markupMultiplier: plan.markupMultiplier,
+      credits: Math.ceil(effectiveUsdCost / config.creditUsdValue),
+      displayMultiplier: calculateDisplayMultiplier(input.routeId, input.tier),
+      usedPricingFallback: false,
+    };
+  }
 
   if (!route) {
     const fallback = calculateFallbackFourXCharge(

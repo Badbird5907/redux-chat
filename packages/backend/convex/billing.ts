@@ -87,6 +87,10 @@ export function resolveTierFromSubscription(
     return "plus" satisfies PlanTier;
   }
 
+  if (subscription.priceId === env.STRIPE_BASE_PRICE_ID) {
+    return "base" satisfies PlanTier;
+  }
+
   return "free" satisfies PlanTier;
 }
 

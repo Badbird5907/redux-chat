@@ -4,7 +4,7 @@ import { isIP } from "node:net";
 import { Readable } from "node:stream";
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
 import type { OAuthClientProvider, OAuthTokens } from "@ai-sdk/mcp";
-import type { ToolApprovalStatus, ToolSet } from "ai";
+import type { ImageModel, ToolApprovalStatus, ToolSet } from "ai";
 import type { Value } from "convex/values";
 import type { InMemoryFs } from "just-bash";
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -12,7 +12,12 @@ import { webSearch } from "@exalabs/ai-sdk";
 import { generateImage, tool } from "ai";
 import { z } from "zod";
 
-import type { BillableToolCall, ToolBillingKey } from "@redux/shared";
+import type {
+  BillableToolCall,
+  ModelFundingSource,
+  ToolBillingKey,
+} from "@redux/shared";
+import type { ModelRouteInfo } from "@redux/shared/models";
 import type { MessageSettings } from "@redux/types";
 import { isImageGenerationToolModel } from "@redux/shared/models";
 import { getEnabledMessageTools, getEnabledToolSettings } from "@redux/types";
@@ -73,6 +78,11 @@ interface ToolRuntimeOptions {
     messageId: string;
   };
   previousBashFiles?: Record<string, string | Uint8Array>;
+  resolveImageModel?: (modelId: string) => {
+    model: ImageModel;
+    route: ModelRouteInfo;
+    fundingSource: ModelFundingSource;
+  };
 }
 
 interface ToolRuntime {
@@ -386,11 +396,12 @@ export async function createToolRuntime(
     projectContext,
     generationContext,
     previousBashFiles,
+    resolveImageModel,
   }: ToolRuntimeOptions = {},
 ): Promise<ToolRuntime> {
   const enabledTools = getEnabledMessageTools(settings.tools);
   const tools: ToolSet = {};
-  const toolUsageCounts = new Map<string, number>();
+  const toolUsageCounts = new Map<string, BillableToolCall>();
 
   let sandboxRuntime: ReturnType<typeof createSandboxRuntime> | undefined;
   let bashWorkspaceRuntime:
@@ -606,6 +617,10 @@ export async function createToolRuntime(
       "imageGeneration",
     )?.modelId;
     if (modelId && generationContext && isImageGenerationToolModel(modelId)) {
+      const resolvedImage = resolveImageModel?.(modelId) ?? {
+        ...resolveAiSdkImageModel(modelId),
+        fundingSource: "platform" as const,
+      };
       tools.generate_image = instrumentTool(
         tool({
           description:
@@ -617,9 +632,8 @@ export async function createToolRuntime(
               .describe("A detailed prompt describing the image to generate."),
           }),
           execute: async ({ prompt }, options) => {
-            const resolved = resolveAiSdkImageModel(modelId);
             const result = await generateImage({
-              model: resolved.model,
+              model: resolvedImage.model,
               prompt,
             });
             const toolCallId =
@@ -632,7 +646,7 @@ export async function createToolRuntime(
             return await storeGeneratedImage({
               ...generationContext,
               modelId,
-              route: resolved.route,
+              route: resolvedImage.route,
               prompt,
               image: result.image,
               toolCallId,
@@ -641,18 +655,14 @@ export async function createToolRuntime(
         }),
         "image_generation",
         toolUsageCounts,
+        undefined,
+        resolvedImage.fundingSource,
       );
     }
   }
 
   return {
-    getBillableToolCalls: () =>
-      Array.from(toolUsageCounts.entries()).map(
-        ([billingKey, invocationCount]) => ({
-          billingKey,
-          invocationCount,
-        }),
-      ),
+    getBillableToolCalls: () => Array.from(toolUsageCounts.values()),
     tools,
     getBashFs: () => bashWorkspaceRuntime?.fs,
     mcpToolApproval,
@@ -667,8 +677,9 @@ export async function createToolRuntime(
 function instrumentTool(
   definition: ToolSet[string],
   billingKey: string,
-  usageCounts: Map<string, number>,
+  usageCounts: Map<string, BillableToolCall>,
   mapError?: (error: unknown) => Error,
+  fundingSource: ModelFundingSource = "platform",
 ) {
   const candidate = definition as ToolSet[string] & {
     execute?: (...args: unknown[]) => unknown;
@@ -681,7 +692,13 @@ function instrumentTool(
   return {
     ...candidate,
     execute: async (...args: unknown[]) => {
-      usageCounts.set(billingKey, (usageCounts.get(billingKey) ?? 0) + 1);
+      const usageKey = `${billingKey}:${fundingSource}`;
+      const existing = usageCounts.get(usageKey);
+      usageCounts.set(usageKey, {
+        billingKey,
+        invocationCount: (existing?.invocationCount ?? 0) + 1,
+        fundingSource,
+      });
       try {
         return toConvexSafeValue(await execute(...args)) ?? null;
       } catch (error) {

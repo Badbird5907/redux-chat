@@ -42,6 +42,7 @@ export function backendEnv() {
       INTERNAL_CONVEX_SECRET: z.string().min(1),
       STRIPE_SECRET_KEY: z.string().min(1).optional(),
       STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+      STRIPE_BASE_PRICE_ID: z.string().min(1).optional(),
       STRIPE_PLUS_PRICE_ID: z.string().min(1).optional(),
       STRIPE_PRO_PRICE_ID: z.string().min(1).optional(),
       STRIPE_CREDIT_TOP_UP_PRODUCT_ID: z.string().min(1).optional(),
@@ -68,6 +69,7 @@ export function backendEnv() {
       INTERNAL_CONVEX_SECRET: process.env.INTERNAL_CONVEX_SECRET,
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+      STRIPE_BASE_PRICE_ID: process.env.STRIPE_BASE_PRICE_ID,
       STRIPE_PLUS_PRICE_ID: process.env.STRIPE_PLUS_PRICE_ID,
       STRIPE_PRO_PRICE_ID: process.env.STRIPE_PRO_PRICE_ID,
       STRIPE_CREDIT_TOP_UP_PRODUCT_ID:

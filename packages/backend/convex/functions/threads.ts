@@ -622,6 +622,10 @@ export const internal_updateMessageUsage = backendMutation({
         tokensPerSecond: v.number(),
       }),
     ),
+    providerRouteId: v.optional(v.string()),
+    fundingSource: v.optional(
+      v.union(v.literal("user"), v.literal("platform")),
+    ),
   },
   handler: async (ctx, args) => {
     await getThreadForOwner(ctx, args.threadId, args.userId);
@@ -642,6 +646,8 @@ export const internal_updateMessageUsage = backendMutation({
     await ctx.db.patch(message._id, {
       usage: args.usage,
       generationStats: args.generationStats,
+      providerRouteId: args.providerRouteId,
+      fundingSource: args.fundingSource,
     });
   },
 });

@@ -6,6 +6,7 @@ import { createSiloUpload } from "@silo-storage/sdk-server";
 import { z } from "zod";
 
 import { api } from "@redux/backend/convex/_generated/api";
+import { usesFreeFeatureLimits } from "@redux/shared";
 import { getModelAttachmentExpects } from "@redux/types";
 
 import { fetchAuthQuery, getRequestUserIdFromHeaders } from "@/lib/auth/server";
@@ -93,7 +94,7 @@ export const fileRouter = {
     })
     .expects(({ modelId, tier }) => {
       const baseExpects = getModelAttachmentExpects(modelId);
-      if (tier === "free" && baseExpects.length > 0) {
+      if (usesFreeFeatureLimits(tier) && baseExpects.length > 0) {
         return baseExpects.map((bucket) => ({
           ...bucket,
           maxFileCount: FREE_PLAN_MAX_ATTACHMENTS,
@@ -125,8 +126,9 @@ export const fileRouter = {
         expiresAt: metadata.expiresAt
           ? new Date(metadata.expiresAt).getTime()
           : undefined,
-        maxUserDraftAttachments:
-          metadata.tier === "free" ? FREE_PLAN_MAX_ATTACHMENTS : undefined,
+        maxUserDraftAttachments: usesFreeFeatureLimits(metadata.tier)
+          ? FREE_PLAN_MAX_ATTACHMENTS
+          : undefined,
       });
 
       return {

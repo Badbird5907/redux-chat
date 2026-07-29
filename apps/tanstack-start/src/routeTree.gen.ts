@@ -22,6 +22,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as SettingsSupportRouteImport } from './routes/settings/support'
 import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
+import { Route as SettingsModelsRouteImport } from './routes/settings/models'
 import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
@@ -48,6 +49,8 @@ import { Route as ApiSsoFeaturebaseRouteImport } from './routes/api/sso/featureb
 import { Route as ApiMcpDiscoverToolsRouteImport } from './routes/api/mcp/discover-tools'
 import { Route as ApiDevLoginUserRouteImport } from './routes/api/dev-login/user'
 import { Route as ApiDevLoginAdminRouteImport } from './routes/api/dev-login/admin'
+import { Route as ApiByokRoutingRouteImport } from './routes/api/byok/routing'
+import { Route as ApiByokReconcileRouteImport } from './routes/api/byok/reconcile'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
 import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/promotions.$promotionId'
@@ -56,6 +59,7 @@ import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
 import { Route as ApiMcpOauthCallbackRouteImport } from './routes/api/mcp/oauth/callback'
 import { Route as ApiMcpOauthAuthorizeRouteImport } from './routes/api/mcp/oauth/authorize'
+import { Route as ApiByokCredentialsProviderRouteImport } from './routes/api/byok/credentials.$provider'
 import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -120,6 +124,11 @@ const SettingsSupportRoute = SettingsSupportRouteImport.update({
 const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
   id: '/security',
   path: '/security',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsModelsRoute = SettingsModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsMcpRoute = SettingsMcpRouteImport.update({
@@ -252,6 +261,16 @@ const ApiDevLoginAdminRoute = ApiDevLoginAdminRouteImport.update({
   path: '/api/dev-login/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiByokRoutingRoute = ApiByokRoutingRouteImport.update({
+  id: '/api/byok/routing',
+  path: '/api/byok/routing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiByokReconcileRoute = ApiByokReconcileRouteImport.update({
+  id: '/api/byok/reconcile',
+  path: '/api/byok/reconcile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -293,6 +312,12 @@ const ApiMcpOauthAuthorizeRoute = ApiMcpOauthAuthorizeRouteImport.update({
   path: '/api/mcp/oauth/authorize',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiByokCredentialsProviderRoute =
+  ApiByokCredentialsProviderRouteImport.update({
+    id: '/api/byok/credentials/$provider',
+    path: '/api/byok/credentials/$provider',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiChatIdStreamIndexRoute = ApiChatIdStreamIndexRouteImport.update({
   id: '/api/chat/$id/stream/',
   path: '/api/chat/$id/stream/',
@@ -322,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/support': typeof SettingsSupportRoute
   '/admin/': typeof AdminIndexRoute
@@ -334,6 +360,8 @@ export interface FileRoutesByFullPath {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/byok/reconcile': typeof ApiByokReconcileRoute
+  '/api/byok/routing': typeof ApiByokRoutingRoute
   '/api/dev-login/admin': typeof ApiDevLoginAdminRoute
   '/api/dev-login/user': typeof ApiDevLoginUserRoute
   '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
@@ -344,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/dev-login/': typeof ApiDevLoginIndexRoute
+  '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -366,6 +395,7 @@ export interface FileRoutesByTo {
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/support': typeof SettingsSupportRoute
   '/': typeof AppIndexRoute
@@ -379,6 +409,8 @@ export interface FileRoutesByTo {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/byok/reconcile': typeof ApiByokReconcileRoute
+  '/api/byok/routing': typeof ApiByokRoutingRoute
   '/api/dev-login/admin': typeof ApiDevLoginAdminRoute
   '/api/dev-login/user': typeof ApiDevLoginUserRoute
   '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
@@ -389,6 +421,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
   '/api/dev-login': typeof ApiDevLoginIndexRoute
+  '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
@@ -417,6 +450,7 @@ export interface FileRoutesById {
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/support': typeof SettingsSupportRoute
   '/_app/': typeof AppIndexRoute
@@ -430,6 +464,8 @@ export interface FileRoutesById {
   '/admin/promotions/$promotionId': typeof AdminPromotionsPromotionIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/byok/reconcile': typeof ApiByokReconcileRoute
+  '/api/byok/routing': typeof ApiByokRoutingRoute
   '/api/dev-login/admin': typeof ApiDevLoginAdminRoute
   '/api/dev-login/user': typeof ApiDevLoginUserRoute
   '/api/mcp/discover-tools': typeof ApiMcpDiscoverToolsRoute
@@ -440,6 +476,7 @@ export interface FileRoutesById {
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/dev-login/': typeof ApiDevLoginIndexRoute
+  '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
@@ -469,6 +506,7 @@ export interface FileRouteTypes {
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/mcp'
+    | '/settings/models'
     | '/settings/security'
     | '/settings/support'
     | '/admin/'
@@ -481,6 +519,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/byok/reconcile'
+    | '/api/byok/routing'
     | '/api/dev-login/admin'
     | '/api/dev-login/user'
     | '/api/mcp/discover-tools'
@@ -491,6 +531,7 @@ export interface FileRouteTypes {
     | '/admin/users/'
     | '/api/chat/'
     | '/api/dev-login/'
+    | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream/'
@@ -513,6 +554,7 @@ export interface FileRouteTypes {
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/mcp'
+    | '/settings/models'
     | '/settings/security'
     | '/settings/support'
     | '/'
@@ -526,6 +568,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/byok/reconcile'
+    | '/api/byok/routing'
     | '/api/dev-login/admin'
     | '/api/dev-login/user'
     | '/api/mcp/discover-tools'
@@ -536,6 +580,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/chat'
     | '/api/dev-login'
+    | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream'
@@ -563,6 +608,7 @@ export interface FileRouteTypes {
     | '/settings/hotkeys'
     | '/settings/instructions'
     | '/settings/mcp'
+    | '/settings/models'
     | '/settings/security'
     | '/settings/support'
     | '/_app/'
@@ -576,6 +622,8 @@ export interface FileRouteTypes {
     | '/admin/promotions/$promotionId'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/byok/reconcile'
+    | '/api/byok/routing'
     | '/api/dev-login/admin'
     | '/api/dev-login/user'
     | '/api/mcp/discover-tools'
@@ -586,6 +634,7 @@ export interface FileRouteTypes {
     | '/admin/users/'
     | '/api/chat/'
     | '/api/dev-login/'
+    | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
     | '/api/chat/$id/stream/'
@@ -605,6 +654,8 @@ export interface RootRouteChildren {
   LogosIndexRoute: typeof LogosIndexRoute
   TestIndexRoute: typeof TestIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiByokReconcileRoute: typeof ApiByokReconcileRoute
+  ApiByokRoutingRoute: typeof ApiByokRoutingRoute
   ApiDevLoginAdminRoute: typeof ApiDevLoginAdminRoute
   ApiDevLoginUserRoute: typeof ApiDevLoginUserRoute
   ApiMcpDiscoverToolsRoute: typeof ApiMcpDiscoverToolsRoute
@@ -612,6 +663,7 @@ export interface RootRouteChildren {
   ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiDevLoginIndexRoute: typeof ApiDevLoginIndexRoute
+  ApiByokCredentialsProviderRoute: typeof ApiByokCredentialsProviderRoute
   ApiMcpOauthAuthorizeRoute: typeof ApiMcpOauthAuthorizeRoute
   ApiMcpOauthCallbackRoute: typeof ApiMcpOauthCallbackRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
@@ -708,6 +760,13 @@ declare module '@tanstack/react-router' {
       path: '/security'
       fullPath: '/settings/security'
       preLoaderRoute: typeof SettingsSecurityRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/models': {
+      id: '/settings/models'
+      path: '/models'
+      fullPath: '/settings/models'
+      preLoaderRoute: typeof SettingsModelsRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/mcp': {
@@ -892,6 +951,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDevLoginAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/byok/routing': {
+      id: '/api/byok/routing'
+      path: '/api/byok/routing'
+      fullPath: '/api/byok/routing'
+      preLoaderRoute: typeof ApiByokRoutingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/byok/reconcile': {
+      id: '/api/byok/reconcile'
+      path: '/api/byok/reconcile'
+      fullPath: '/api/byok/reconcile'
+      preLoaderRoute: typeof ApiByokReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -946,6 +1019,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mcp/oauth/authorize'
       fullPath: '/api/mcp/oauth/authorize'
       preLoaderRoute: typeof ApiMcpOauthAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/byok/credentials/$provider': {
+      id: '/api/byok/credentials/$provider'
+      path: '/api/byok/credentials/$provider'
+      fullPath: '/api/byok/credentials/$provider'
+      preLoaderRoute: typeof ApiByokCredentialsProviderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat/$id/stream/': {
@@ -1041,6 +1121,7 @@ interface SettingsRouteChildren {
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
   SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsMcpRoute: typeof SettingsMcpRoute
+  SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsSecurityRoute: typeof SettingsSecurityRoute
   SettingsSupportRoute: typeof SettingsSupportRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -1053,6 +1134,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsHotkeysRoute: SettingsHotkeysRoute,
   SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsMcpRoute: SettingsMcpRoute,
+  SettingsModelsRoute: SettingsModelsRoute,
   SettingsSecurityRoute: SettingsSecurityRoute,
   SettingsSupportRoute: SettingsSupportRoute,
   SettingsIndexRoute: SettingsIndexRoute,
@@ -1076,6 +1158,8 @@ const rootRouteChildren: RootRouteChildren = {
   LogosIndexRoute: LogosIndexRoute,
   TestIndexRoute: TestIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiByokReconcileRoute: ApiByokReconcileRoute,
+  ApiByokRoutingRoute: ApiByokRoutingRoute,
   ApiDevLoginAdminRoute: ApiDevLoginAdminRoute,
   ApiDevLoginUserRoute: ApiDevLoginUserRoute,
   ApiMcpDiscoverToolsRoute: ApiMcpDiscoverToolsRoute,
@@ -1083,6 +1167,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhookStripeRoute: ApiWebhookStripeRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiDevLoginIndexRoute: ApiDevLoginIndexRoute,
+  ApiByokCredentialsProviderRoute: ApiByokCredentialsProviderRoute,
   ApiMcpOauthAuthorizeRoute: ApiMcpOauthAuthorizeRoute,
   ApiMcpOauthCallbackRoute: ApiMcpOauthCallbackRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,

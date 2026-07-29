@@ -19,7 +19,10 @@ import { z } from "zod";
 
 import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
-import { getChatModelConfig } from "@redux/shared/models";
+import {
+  DEFAULT_MODEL_ROUTING_CONFIG,
+  getChatModelConfig,
+} from "@redux/shared/models";
 import {
   getEnabledToolSettings,
   isToolEnabled,
@@ -49,12 +52,13 @@ import {
 import { createUpstashPubSub } from "@/lib/upstash-resumable-stream";
 import { throttle } from "@/lib/utils/throttle";
 import { storeGeneratedImage } from "@/server/ai/generated-images";
-import {
-  resolveAiSdkImageModel,
-  resolveAiSdkModel,
-} from "@/server/ai/model-runtime";
 import { identifyPostHogUser, withPostHogTracing } from "@/server/ai/telemetry";
 import { resolveServingAttachment } from "@/server/attachments-core/resolve-serving-attachment";
+import {
+  resolveRoutedAiSdkImageModel,
+  resolveRoutedAiSdkModel,
+} from "@/server/byok/model-resolution";
+import { loadByokRuntimeContext } from "@/server/byok/runtime";
 import { materializeAttachmentsForRoute } from "@/server/chat-attachments/materialize";
 import { retrieveProjectContext } from "@/server/rag/retrieve";
 import { getPostHogClient } from "@/utils/posthog-server";
@@ -716,8 +720,74 @@ export const Route = createFileRoute("/api/chat/")({
           email: userBillingInfo.email,
           name: userBillingInfo.name,
         });
+        const byokEnabled = billingSnapshot.entitlements.byok;
+        const byokContext = byokEnabled
+          ? await loadByokRuntimeContext(requestUserId)
+          : {
+              credentials: new Map(),
+              routing: DEFAULT_MODEL_ROUTING_CONFIG,
+            };
+        const selectedModelConfig = getChatModelConfig(settings.model);
+        if (!selectedModelConfig) {
+          return new Response("Unknown model", { status: 400 });
+        }
+        let routedTextModel:
+          | ReturnType<typeof resolveRoutedAiSdkModel>
+          | undefined;
+        let routedImageModel:
+          | ReturnType<typeof resolveRoutedAiSdkImageModel>
+          | undefined;
+        const imageToolModelId = getEnabledToolSettings(
+          settings.tools,
+          "imageGeneration",
+        )?.modelId;
+        let routedImageToolModel:
+          | ReturnType<typeof resolveRoutedAiSdkImageModel>
+          | undefined;
+        try {
+          if (selectedModelConfig.supports.imageOutput) {
+            routedImageModel = resolveRoutedAiSdkImageModel({
+              modelId: settings.model,
+              byokEnabled,
+              context: byokContext,
+            });
+          } else {
+            routedTextModel = resolveRoutedAiSdkModel({
+              modelId: settings.model,
+              byokEnabled,
+              context: byokContext,
+            });
+          }
+          if (imageToolModelId) {
+            routedImageToolModel = resolveRoutedAiSdkImageModel({
+              modelId: imageToolModelId,
+              byokEnabled,
+              context: byokContext,
+            });
+          }
+        } catch (error) {
+          const message = getErrorMessage(error).slice(0, 1000);
+          await fetchAuthMutation(api.functions.threads.internal_failStream, {
+            secret: env.INTERNAL_CONVEX_SECRET,
+            userId: requestUserId,
+            threadId,
+            assistantMessageId,
+            error: message,
+          });
+          return Response.json(
+            { error: "byok_route_unavailable", message },
+            { status: 422 },
+          );
+        }
+        const mainFundingSource =
+          routedTextModel?.fundingSource ?? routedImageModel?.fundingSource;
+        const hasPotentiallyPaidTool =
+          isSearchEnabled ||
+          isToolEnabled(settings.tools, "analysisWorkspace") ||
+          routedImageToolModel?.fundingSource === "platform";
         const spendableCredits = billingState.spendableCredits;
         if (
+          (mainFundingSource === "platform" || hasPotentiallyPaidTool) &&
           spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
           !billingState.overageAllowed
         ) {
@@ -936,6 +1006,14 @@ export const Route = createFileRoute("/api/chat/")({
               messageId: assistantMessageId,
             },
             previousBashFiles,
+            resolveImageModel: (modelId) =>
+              routedImageToolModel?.modelConfig.id === modelId
+                ? routedImageToolModel
+                : resolveRoutedAiSdkImageModel({
+                    modelId,
+                    byokEnabled,
+                    context: byokContext,
+                  }),
           });
           let didCleanupTools = false;
           cleanupTools = async () => {
@@ -983,8 +1061,7 @@ export const Route = createFileRoute("/api/chat/")({
             await toolRuntime.cleanup();
           };
 
-          const selectedModelConfig = getChatModelConfig(settings.model);
-          if (selectedModelConfig?.supports.imageOutput) {
+          if (selectedModelConfig.supports.imageOutput) {
             await fetchAuthQuery(
               api.functions.threads.internal_validateGenerationMessage,
               {
@@ -1000,7 +1077,10 @@ export const Route = createFileRoute("/api/chat/")({
             if (!queryText) {
               throw new Error("Image generation requires a text prompt.");
             }
-            const imageModel = resolveAiSdkImageModel(settings.model);
+            const imageModel = routedImageModel;
+            if (!imageModel) {
+              throw new Error("Unable to resolve image model route.");
+            }
             const imageAbortController = new AbortController();
             const stream = createUIMessageStream({
               originalMessages: messages,
@@ -1074,6 +1154,8 @@ export const Route = createFileRoute("/api/chat/")({
                         totalDurationMs: Date.now() - startedAt,
                         tokensPerSecond: 0,
                       },
+                      providerRouteId: imageModel.route.id,
+                      fundingSource: imageModel.fundingSource,
                     },
                   );
                   await fetchAuthMutation(
@@ -1096,6 +1178,7 @@ export const Route = createFileRoute("/api/chat/")({
                         messageId: assistantMessageId,
                         threadId,
                         routeId: imageModel.route.id,
+                        modelFundingSource: imageModel.fundingSource,
                         usage: {
                           inputTokens: 0,
                           outputTokens: 0,
@@ -1109,6 +1192,7 @@ export const Route = createFileRoute("/api/chat/")({
                           {
                             billingKey: "image_generation",
                             invocationCount: 1,
+                            fundingSource: imageModel.fundingSource,
                           },
                         ],
                       },
@@ -1154,7 +1238,10 @@ export const Route = createFileRoute("/api/chat/")({
             });
           }
           console.log("resolving model", settings.model);
-          const resolvedModel = resolveAiSdkModel(settings.model);
+          const resolvedModel = routedTextModel;
+          if (!resolvedModel) {
+            throw new Error("Unable to resolve model route.");
+          }
           const reasoning = resolveReasoningParam(
             resolvedModel.route.supports.reasoning,
             resolvedModel.modelConfig.thinkingLevels,
@@ -1330,6 +1417,8 @@ export const Route = createFileRoute("/api/chat/")({
                       totalTokens: 0,
                     },
                     generationStats,
+                    providerRouteId: resolvedModel.route.id,
+                    fundingSource: resolvedModel.fundingSource,
                   },
                 );
 
@@ -1338,6 +1427,8 @@ export const Route = createFileRoute("/api/chat/")({
                   event: "chat_stream_completed",
                   properties: {
                     model: settings.model,
+                    provider_route: resolvedModel.route.id,
+                    funding_source: resolvedModel.fundingSource,
                     trigger: parsedBody.trigger,
                     input_tokens: usage.inputTokens,
                     output_tokens: usage.outputTokens,
@@ -1357,6 +1448,7 @@ export const Route = createFileRoute("/api/chat/")({
                       messageId: assistantMessageId,
                       threadId,
                       routeId: resolvedModel.route.id,
+                      modelFundingSource: resolvedModel.fundingSource,
                       usage: {
                         inputTokens: usage.inputTokens,
                         outputTokens: usage.outputTokens,

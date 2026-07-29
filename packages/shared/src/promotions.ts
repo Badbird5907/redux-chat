@@ -43,7 +43,7 @@ export type AppCreditsPromotionConfig = {
   note?: string;
 };
 
-export type PromotionSubscriptionTier = "plus" | "pro";
+export type PromotionSubscriptionTier = "base" | "plus" | "pro";
 
 export type SubscriptionTargetTiers =
   | "all"
@@ -140,7 +140,7 @@ export function generatePromotionCode(prefix = "PROMO"): string {
 export function getPromotionRedeemableTiers(
   config: SubscriptionPromotionConfig,
 ): PromotionSubscriptionTier[] {
-  if (config.targetTiers === "all") return ["plus", "pro"];
+  if (config.targetTiers === "all") return ["base", "plus", "pro"];
   return [...config.targetTiers];
 }
 
@@ -269,8 +269,12 @@ export function assertStripeInvoiceCreditPromotionConfig(
 export function getAppCreditEligiblePlanTiers(
   config: AppCreditsPromotionConfig,
 ): PlanTier[] {
-  if (config.eligiblePlanTiers === undefined) return ["free", "plus", "pro"];
-  if (config.eligiblePlanTiers === "all") return ["free", "plus", "pro"];
+  if (config.eligiblePlanTiers === undefined) {
+    return ["free", "base", "plus", "pro"];
+  }
+  if (config.eligiblePlanTiers === "all") {
+    return ["free", "base", "plus", "pro"];
+  }
   return [...config.eligiblePlanTiers];
 }
 
@@ -291,7 +295,7 @@ function assertTargetTiers(
   if (!Array.isArray(value) || value.length !== 1) {
     throw new Error("Subscription target tiers are invalid.");
   }
-  if (value[0] !== "plus" && value[0] !== "pro") {
+  if (value[0] !== "base" && value[0] !== "plus" && value[0] !== "pro") {
     throw new Error("Subscription target tier is invalid.");
   }
 }

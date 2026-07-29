@@ -27,6 +27,7 @@ export const env = createEnv({
     SILO_TOKEN: z.string().min(1),
     EXA_API_KEY: z.string().min(1),
     E2B_API_KEY: z.string().min(1),
+    BYOK_ENCRYPTION_KEY: z.string().min(1),
     ANTHROPIC_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1),

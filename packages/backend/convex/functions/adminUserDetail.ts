@@ -2,7 +2,7 @@ import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import type { UserBillingState } from "@redux/shared";
-import { getPlanConfig } from "@redux/shared";
+import { getPlanConfig, getPlanTierRank } from "@redux/shared";
 
 import { components } from "../_generated/api";
 import {
@@ -235,8 +235,9 @@ export const getBillingStateForUser = adminQuery({
       .reduce<ReturnType<typeof toSubscriptionSnapshot>>((best, candidate) => {
         const bestTier = resolveTierFromSubscription(best);
         const candidateTier = resolveTierFromSubscription(candidate);
-        const rank = { free: 0, plus: 1, pro: 2 } as const;
-        return rank[candidateTier] > rank[bestTier] ? candidate : best;
+        return getPlanTierRank(candidateTier) > getPlanTierRank(bestTier)
+          ? candidate
+          : best;
       }, null);
     const tier = resolveTierFromSubscription(subscription);
     const plan = getPlanConfig(tier, getBillingConfig());
@@ -251,6 +252,7 @@ export const getBillingStateForUser = adminQuery({
       markupMultiplier: plan.markupMultiplier,
       includedMonthlyCredits: plan.includedMonthlyCredits,
       overageAllowed: plan.overageAllowed,
+      entitlements: plan.entitlements,
       currentPeriodStart:
         subscription?.currentPeriodStart ?? freePeriodBounds?.start,
       currentPeriodEnd: subscription?.currentPeriodEnd ?? freePeriodBounds?.end,

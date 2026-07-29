@@ -1,9 +1,11 @@
 import type { DragEvent } from "react";
+import { useMemo } from "react";
 import { Sparkles, Star } from "lucide-react";
 import { LayoutGroup, m } from "motion/react";
 
 import type { PlanTier } from "@redux/shared";
-import type { ChatModelConfig } from "@redux/shared/models";
+import type { ByokProviderId, ChatModelConfig } from "@redux/shared/models";
+import { api } from "@redux/backend/convex/_generated/api";
 import {
   getModelDisplayName,
   isModelNewlyReleased,
@@ -14,6 +16,7 @@ import { cn } from "@redux/ui/lib/utils";
 
 import type { ModelSelectorState } from "./use-model-selector-state";
 import { useBillingState } from "@/components/chat/use-billing-state";
+import { useQuery } from "@/lib/hooks/convex";
 import { Capabilities } from "./capabilities";
 import { panelSpring } from "./constants";
 import { ModelRowSubtitle } from "./model-row-subtitle";
@@ -62,7 +65,17 @@ export function ModelSelectorModelList(props: ModelListProps) {
     favoritesLayoutGroupId,
   } = props;
   const { billingState } = useBillingState();
+  const byokSummary = useQuery(api.functions.byok.getSettingsSummary, {});
   const currentTier: PlanTier = billingState?.tier ?? "free";
+  const configuredProviders = useMemo(
+    () =>
+      new Set<ByokProviderId>(
+        (byokSummary?.credentials ?? []).map(
+          (credential) => credential.provider,
+        ),
+      ),
+    [byokSummary?.credentials],
+  );
 
   const emptyMessage =
     activeSidebar === "favorites" &&
@@ -104,6 +117,9 @@ export function ModelSelectorModelList(props: ModelListProps) {
                 model={model}
                 rowIndex={rowIndex}
                 tier={currentTier}
+                routing={byokSummary?.routing}
+                configuredProviders={configuredProviders}
+                byokEnabled={billingState?.entitlements.byok === true}
                 listProps={props}
               />
             ))}
@@ -118,11 +134,17 @@ function ModelRow({
   model,
   rowIndex,
   tier,
+  routing,
+  configuredProviders,
+  byokEnabled,
   listProps,
 }: {
   model: ChatModelConfig;
   rowIndex: number;
   tier: PlanTier;
+  routing: Parameters<typeof ModelRowSubtitle>[0]["routing"];
+  configuredProviders: ReadonlySet<ByokProviderId>;
+  byokEnabled: boolean;
   listProps: ModelListProps;
 }) {
   const selected = model.id === listProps.selectedModel;
@@ -230,7 +252,13 @@ function ModelRow({
             </span>
           ) : null}
         </div>
-        <ModelRowSubtitle model={model} tier={tier} />
+        <ModelRowSubtitle
+          model={model}
+          tier={tier}
+          routing={routing}
+          configuredProviders={configuredProviders}
+          byokEnabled={byokEnabled}
+        />
       </div>
       <div className="shrink-0 self-start">
         <Capabilities model={model} />

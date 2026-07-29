@@ -48,6 +48,10 @@ describe("billing helpers", () => {
         DEFAULT_BILLING_CONFIG.creditUsdValue,
     ).toBeCloseTo(0.5);
     expect(
+      DEFAULT_BILLING_CONFIG.plans.base.includedMonthlyCredits *
+        DEFAULT_BILLING_CONFIG.creditUsdValue,
+    ).toBeCloseTo(0.5);
+    expect(
       DEFAULT_BILLING_CONFIG.plans.plus.includedMonthlyCredits *
         DEFAULT_BILLING_CONFIG.creditUsdValue,
     ).toBeCloseTo(5);
@@ -64,6 +68,7 @@ describe("billing helpers", () => {
   });
 
   it("blocks paid plans at zero credits instead of allowing overages", () => {
+    expect(DEFAULT_BILLING_CONFIG.plans.base.overageAllowed).toBe(false);
     expect(DEFAULT_BILLING_CONFIG.plans.plus.overageAllowed).toBe(false);
     expect(DEFAULT_BILLING_CONFIG.plans.pro.overageAllowed).toBe(false);
   });
@@ -98,6 +103,43 @@ describe("billing helpers", () => {
       DEFAULT_BILLING_CONFIG,
     );
 
+    expect(charge.credits).toBeGreaterThan(0);
+  });
+
+  it("does not charge model usage routed through a user key", () => {
+    const charge = calculateUsageCharge({
+      routeId: "openai:gpt-5.6-sol",
+      usage: { inputTokens: 1000, outputTokens: 500 },
+      tier: "base",
+      modelFundingSource: "user",
+    });
+
+    expect(charge.modelUsdCost).toBe(0);
+    expect(charge.credits).toBe(0);
+  });
+
+  it("charges app-funded tools but ignores user-funded tools", () => {
+    const charge = calculateUsageCharge({
+      routeId: "openai:gpt-5.6-sol",
+      usage: { inputTokens: 1000, outputTokens: 500 },
+      tier: "base",
+      modelFundingSource: "user",
+      toolCalls: [
+        {
+          billingKey: "search",
+          invocationCount: 1,
+          fundingSource: "platform",
+        },
+        {
+          billingKey: "image_generation",
+          invocationCount: 1,
+          fundingSource: "user",
+        },
+      ],
+    });
+
+    expect(charge.modelUsdCost).toBe(0);
+    expect(charge.toolUsdCost).toBeCloseTo(0.007);
     expect(charge.credits).toBeGreaterThan(0);
   });
 });
