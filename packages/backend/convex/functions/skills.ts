@@ -30,6 +30,8 @@ const skillUsageTriggerValidator = v.union(
   v.literal("auto"),
 );
 
+const APPROVAL_CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
+
 const storedSkillFileValidator = v.object({
   skillFileId: v.string(),
   path: v.string(),
@@ -430,6 +432,51 @@ export async function applySelectedSkillsToMessage(
     throw new ConvexError("The selected skills are too large to load together");
   }
 
+  if (scope === "thread") {
+    const activeRows = await ctx.db
+      .query("threadSkills")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
+    const activeIds = new Set(activeRows.map((row) => row.skillId));
+    const hasNewActivations = skills.some(
+      (skill) => !activeIds.has(skill.skillId),
+    );
+    if (hasNewActivations) {
+      const activeSkills = await Promise.all(
+        activeRows.map((row) =>
+          ctx.db
+            .query("skills")
+            .withIndex("by_skillId", (q) => q.eq("skillId", row.skillId))
+            .first(),
+        ),
+      );
+      const resultingSkills = new Map<string, Doc<"skills">>();
+      for (const activeSkill of activeSkills) {
+        if (activeSkill?.userId === ctx.userId && activeSkill.enabled) {
+          resultingSkills.set(activeSkill.skillId, activeSkill);
+        }
+      }
+      for (const skill of skills) resultingSkills.set(skill.skillId, skill);
+      if (resultingSkills.size > SKILL_LIMITS.maxExplicitSkills) {
+        throw new ConvexError(
+          `A thread can have at most ${SKILL_LIMITS.maxExplicitSkills} active skills`,
+        );
+      }
+      const combinedBytes = [...resultingSkills.values()].reduce(
+        (total, skill) =>
+          total + new TextEncoder().encode(skill.entrypointText).byteLength,
+        0,
+      );
+      if (combinedBytes > SKILL_LIMITS.maxCombinedEntrypointBytes) {
+        throw new ConvexError(
+          "The active thread skills are too large to load together",
+        );
+      }
+    }
+  }
+
   const now = Date.now();
   for (const skill of skills) {
     const trigger = scope === "thread" ? "slash-thread" : "slash-message";
@@ -617,11 +664,28 @@ export const internal_cleanupExpiredProposals = internalMutation({
     const proposals = await ctx.db
       .query("skillProposals")
       .withIndex("by_expiresAt", (q) => q.lt("expiresAt", now))
+      .filter((q) => q.eq(q.field("cleanedAt"), undefined))
       .take(500);
+    let cleaned = 0;
     for (const proposal of proposals) {
-      await ctx.db.delete(proposal._id);
+      if (
+        proposal.status === "approving" &&
+        (proposal.approvalClaimedAt ?? 0) > now - APPROVAL_CLAIM_TIMEOUT_MS
+      ) {
+        continue;
+      }
+      await ctx.db.patch(proposal._id, {
+        status:
+          proposal.status === "pending" || proposal.status === "approving"
+            ? "expired"
+            : proposal.status,
+        files: proposal.files.map((file) => ({ ...file, content: "" })),
+        cleanedAt: now,
+        updatedAt: now,
+      });
+      cleaned += 1;
     }
-    return { deleted: proposals.length };
+    return { cleaned };
   },
 });
 
@@ -635,8 +699,10 @@ export const rejectProposal = mutation({
     if (proposal?.userId !== ctx.userId) {
       throw new ConvexError("Skill proposal not found");
     }
-    if (proposal.status === "approved") {
-      throw new ConvexError("Approved skill proposals cannot be rejected");
+    if (proposal.status === "approved" || proposal.status === "approving") {
+      throw new ConvexError(
+        "Skill proposals being approved cannot be rejected",
+      );
     }
     await ctx.db.patch(proposal._id, {
       status: "rejected",
@@ -841,8 +907,7 @@ export const backend_getSkillFile = backendQuery({
       .query("skillFiles")
       .withIndex("by_skillFileId", (q) => q.eq("skillFileId", args.skillFileId))
       .first();
-    if (file?.userId !== args.userId)
-      throw new ConvexError("Skill file not found");
+    if (file?.userId !== args.userId) return null;
     return file;
   },
 });
@@ -866,12 +931,14 @@ export const backend_getRuntimeContext = backendQuery({
       .withIndex("by_assistantMessageId", (q) =>
         q.eq("assistantMessageId", args.assistantMessageId),
       )
+      .order("desc")
       .collect();
     const threadRows = await ctx.db
       .query("threadSkills")
       .withIndex("by_userId_threadId", (q) =>
         q.eq("userId", args.userId).eq("threadId", args.threadId),
       )
+      .order("desc")
       .collect();
     const triggerBySkillId = new Map(
       selectedUsages
@@ -883,6 +950,7 @@ export const backend_getRuntimeContext = backendQuery({
       ...threadRows.map((row) => row.skillId),
     ]);
     const explicit = [];
+    const droppedExplicit: { skillId: string; name: string }[] = [];
     let combinedBytes = 0;
     for (const skillId of explicitIds) {
       const skill = await ctx.db
@@ -891,14 +959,18 @@ export const backend_getRuntimeContext = backendQuery({
         .first();
       if (skill?.userId !== args.userId) continue;
       if (!skill.enabled) continue;
-      combinedBytes += new TextEncoder().encode(
+      const entrypointBytes = new TextEncoder().encode(
         skill.entrypointText,
       ).byteLength;
-      if (combinedBytes > SKILL_LIMITS.maxCombinedEntrypointBytes) {
-        throw new ConvexError(
-          "Active skills exceed the combined context limit",
-        );
+      if (
+        explicit.length >= SKILL_LIMITS.maxExplicitSkills ||
+        combinedBytes + entrypointBytes >
+          SKILL_LIMITS.maxCombinedEntrypointBytes
+      ) {
+        droppedExplicit.push({ skillId: skill.skillId, name: skill.name });
+        continue;
       }
+      combinedBytes += entrypointBytes;
       const files = await ctx.db
         .query("skillFiles")
         .withIndex("by_skillId", (q) => q.eq("skillId", skill.skillId))
@@ -919,6 +991,7 @@ export const backend_getRuntimeContext = backendQuery({
       .collect();
     return {
       explicit,
+      droppedExplicit,
       autoCatalog: autoSkills
         .filter((skill) => skill.enabled && skill.allowAutoLoad)
         .map((skill) => ({
@@ -1097,8 +1170,8 @@ export const backend_createProposal = backendMutation({
   },
 });
 
-export const backend_getProposalForApproval = backendQuery({
-  args: { userId: v.string(), proposalId: v.string() },
+export const backend_claimProposalApproval = backendMutation({
+  args: { userId: v.string(), proposalId: v.string(), claimId: v.string() },
   handler: async (ctx, args) => {
     const proposal = await ctx.db
       .query("skillProposals")
@@ -1106,12 +1179,52 @@ export const backend_getProposalForApproval = backendQuery({
       .first();
     if (proposal?.userId !== args.userId)
       throw new ConvexError("Skill proposal not found");
-    return proposal;
+    if (proposal.status === "approved") {
+      return {
+        state: "approved" as const,
+        skillId: proposal.approvedSkillId,
+      };
+    }
+    const now = Date.now();
+    if (
+      proposal.status === "approving" &&
+      (proposal.approvalClaimedAt ?? 0) > now - APPROVAL_CLAIM_TIMEOUT_MS
+    ) {
+      return { state: "in_progress" as const };
+    }
+    if (
+      (proposal.status !== "pending" && proposal.status !== "approving") ||
+      proposal.expiresAt <= now
+    ) {
+      throw new ConvexError("Skill proposal is no longer available");
+    }
+    await ctx.db.patch(proposal._id, {
+      status: "approving",
+      approvalClaimId: args.claimId,
+      approvalClaimedAt: now,
+      updatedAt: now,
+    });
+    return {
+      state: "claimed" as const,
+      proposal: {
+        proposalId: proposal.proposalId,
+        threadId: proposal.threadId,
+        messageId: proposal.messageId,
+        name: proposal.name,
+        description: proposal.description,
+        files: proposal.files,
+      },
+    };
   },
 });
 
-export const backend_markProposalApproved = backendMutation({
-  args: { userId: v.string(), proposalId: v.string(), skillId: v.string() },
+export const backend_finalizeProposalApproval = backendMutation({
+  args: {
+    userId: v.string(),
+    proposalId: v.string(),
+    claimId: v.string(),
+    skillId: v.string(),
+  },
   handler: async (ctx, args) => {
     const proposal = await ctx.db
       .query("skillProposals")
@@ -1122,14 +1235,43 @@ export const backend_markProposalApproved = backendMutation({
     if (proposal.status === "approved") {
       return { skillId: proposal.approvedSkillId ?? args.skillId };
     }
-    if (proposal.status !== "pending" || proposal.expiresAt <= Date.now()) {
-      throw new ConvexError("Skill proposal is no longer available");
+    if (
+      proposal.status !== "approving" ||
+      proposal.approvalClaimId !== args.claimId
+    ) {
+      throw new ConvexError("Skill proposal approval claim was lost");
     }
     await ctx.db.patch(proposal._id, {
       status: "approved",
       approvedSkillId: args.skillId,
+      approvalClaimId: undefined,
+      approvalClaimedAt: undefined,
       updatedAt: Date.now(),
     });
     return { skillId: args.skillId };
+  },
+});
+
+export const backend_releaseProposalApproval = backendMutation({
+  args: { userId: v.string(), proposalId: v.string(), claimId: v.string() },
+  handler: async (ctx, args) => {
+    const proposal = await ctx.db
+      .query("skillProposals")
+      .withIndex("by_proposalId", (q) => q.eq("proposalId", args.proposalId))
+      .first();
+    if (proposal?.userId !== args.userId) return { released: false as const };
+    if (
+      proposal.status !== "approving" ||
+      proposal.approvalClaimId !== args.claimId
+    ) {
+      return { released: false as const };
+    }
+    await ctx.db.patch(proposal._id, {
+      status: "pending",
+      approvalClaimId: undefined,
+      approvalClaimedAt: undefined,
+      updatedAt: Date.now(),
+    });
+    return { released: true as const };
   },
 });

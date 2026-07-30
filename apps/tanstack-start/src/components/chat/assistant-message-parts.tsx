@@ -234,9 +234,10 @@ export function AssistantMessageParts({
             );
           }
 
-          const skillProposal = isToolUIPart(part)
-            ? normalizeSkillProposalOutput(getToolOutput(part))
-            : null;
+          const skillProposal =
+            part.type === "tool-propose_skill" && isToolUIPart(part)
+              ? normalizeSkillProposalOutput(getToolOutput(part))
+              : null;
           if (skillProposal) {
             return (
               <SkillProposalCard

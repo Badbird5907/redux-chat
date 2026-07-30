@@ -26,7 +26,7 @@ export const importMarkdownSkill = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       fileName: z.string().min(1).max(255),
-      content: z.string().min(1),
+      content: z.string().min(1).max(SKILL_LIMITS.maxEntrypointBytes),
     }),
   )
   .handler(async ({ data }) => {
@@ -127,50 +127,98 @@ export const approveSkillProposal = createServerFn({ method: "POST" })
   .inputValidator(z.object({ proposalId: z.string().min(1) }))
   .handler(async ({ data }) => {
     const userId = await getCurrentUserId();
-    const proposal = await fetchAuthQuery(
-      api.functions.skills.backend_getProposalForApproval,
+    const claimId = crypto.randomUUID();
+    const claim = await fetchAuthMutation(
+      api.functions.skills.backend_claimProposalApproval,
       {
         secret: env.INTERNAL_CONVEX_SECRET,
         userId,
         proposalId: data.proposalId,
+        claimId,
       },
     );
-    if (proposal.status === "approved" && proposal.approvedSkillId) {
-      return { skillId: proposal.approvedSkillId };
+    if (claim.state === "approved") {
+      if (!claim.skillId) throw new Error("Approved skill was not found");
+      return { skillId: claim.skillId };
     }
-    if (proposal.status !== "pending" || proposal.expiresAt <= Date.now()) {
-      throw new Error("This skill proposal is no longer available");
+    if (claim.state === "in_progress") {
+      throw new Error("This skill proposal is already being approved");
     }
-    const files = await Promise.all(
-      proposal.files.map((file) =>
-        buildSkillPackageFile({
-          path: file.path,
-          bytes: new TextEncoder().encode(file.content),
-        }),
-      ),
-    );
-    const { entrypoint } = validateSkillPackage(files);
-    const stored = await storeSkillPackage({
-      name: proposal.name,
-      description: proposal.description,
-      requestedSlug: proposal.name,
-      entrypointText: entrypoint.text ?? "",
-      metadataWasInferred: false,
-      enabled: true,
-      allowAutoLoad: true,
-      source: {
-        sourceType: "model",
-        proposalId: proposal.proposalId,
-        sourceThreadId: proposal.threadId,
-        sourceMessageId: proposal.messageId,
-      },
-      files,
-    });
-    await fetchAuthMutation(api.functions.skills.backend_markProposalApproved, {
-      secret: env.INTERNAL_CONVEX_SECRET,
-      userId,
-      proposalId: proposal.proposalId,
-      skillId: stored.skillId,
-    });
-    return { skillId: stored.skillId };
+    const proposal = claim.proposal;
+    let storedSkillId: string | undefined;
+    try {
+      const files = await Promise.all(
+        proposal.files.map((file) =>
+          buildSkillPackageFile({
+            path: file.path,
+            bytes: new TextEncoder().encode(file.content),
+          }),
+        ),
+      );
+      const { entrypoint } = validateSkillPackage(files);
+      const stored = await storeSkillPackage({
+        name: proposal.name,
+        description: proposal.description,
+        requestedSlug: proposal.name,
+        entrypointText: entrypoint.text ?? "",
+        metadataWasInferred: false,
+        enabled: true,
+        allowAutoLoad: true,
+        source: {
+          sourceType: "model",
+          proposalId: proposal.proposalId,
+          sourceThreadId: proposal.threadId,
+          sourceMessageId: proposal.messageId,
+        },
+        files,
+      });
+      storedSkillId = stored.skillId;
+      const finalized = await fetchAuthMutation(
+        api.functions.skills.backend_finalizeProposalApproval,
+        {
+          secret: env.INTERNAL_CONVEX_SECRET,
+          userId,
+          proposalId: proposal.proposalId,
+          claimId,
+          skillId: stored.skillId,
+        },
+      );
+      return { skillId: finalized.skillId };
+    } catch (error) {
+      if (storedSkillId) {
+        const currentProposal = await fetchAuthQuery(
+          api.functions.skills.getProposal,
+          { proposalId: proposal.proposalId },
+        ).catch(() => null);
+        if (
+          currentProposal?.status === "approved" &&
+          currentProposal.approvedSkillId === storedSkillId
+        ) {
+          return { skillId: storedSkillId };
+        }
+        await fetchAuthMutation(api.functions.skills.deleteSkill, {
+          skillId: storedSkillId,
+        }).catch((cleanupError) => {
+          console.error(
+            "Failed to roll back approved skill package",
+            cleanupError,
+          );
+        });
+      }
+      await fetchAuthMutation(
+        api.functions.skills.backend_releaseProposalApproval,
+        {
+          secret: env.INTERNAL_CONVEX_SECRET,
+          userId,
+          proposalId: proposal.proposalId,
+          claimId,
+        },
+      ).catch((releaseError) => {
+        console.error(
+          "Failed to release skill proposal approval",
+          releaseError,
+        );
+      });
+      throw error;
+    }
   });

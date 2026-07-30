@@ -27,14 +27,20 @@ export const Route = createFileRoute("/api/skills/files/$skillFileId")({
         const userId = await getRequestUserIdFromHeaders(request.headers);
         if (!userId) return new Response("Unauthorized", { status: 401 });
 
-        const file = await fetchAuthQuery(
-          api.functions.skills.backend_getSkillFile,
-          {
-            secret: env.INTERNAL_CONVEX_SECRET,
-            userId,
-            skillFileId: params.skillFileId,
-          },
-        ).catch(() => undefined);
+        let file;
+        try {
+          file = await fetchAuthQuery(
+            api.functions.skills.backend_getSkillFile,
+            {
+              secret: env.INTERNAL_CONVEX_SECRET,
+              userId,
+              skillFileId: params.skillFileId,
+            },
+          );
+        } catch (error) {
+          console.error("Failed to load skill file metadata", error);
+          return new Response("Failed to load skill file", { status: 500 });
+        }
         if (!file) return new Response("Not found", { status: 404 });
         const source = await downloadPrivateSkillFile({
           accessKey: file.accessKey,
@@ -47,12 +53,13 @@ export const Route = createFileRoute("/api/skills/files/$skillFileId")({
           download || !INLINE_MIME_TYPES.has(file.mimeType)
             ? "attachment"
             : "inline";
+        const upstreamLength = source.headers.get("content-length");
         return new Response(source.body, {
           status: source.status,
           headers: {
             "Cache-Control": "private, no-store",
             "Content-Disposition": `${disposition}; filename="${safeFileName(file.path)}"`,
-            "Content-Length": String(file.size),
+            ...(upstreamLength ? { "Content-Length": upstreamLength } : {}),
             "Content-Security-Policy": "default-src 'none'; sandbox",
             "Content-Type": file.mimeType,
             "X-Content-Type-Options": "nosniff",

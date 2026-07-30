@@ -52,16 +52,6 @@ export function SettingsSidebarPanel() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
-              isActive={isSkillsActive}
-              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
-              render={<Link to="/settings/skills" />}
-            >
-              <Sparkles />
-              <span>Skills</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
               isActive={isGeneralActive}
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
               render={<Link to="/settings" />}
@@ -78,6 +68,16 @@ export function SettingsSidebarPanel() {
             >
               <BookText />
               <span>Instructions</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isSkillsActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/skills" />}
+            >
+              <Sparkles />
+              <span>Skills</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

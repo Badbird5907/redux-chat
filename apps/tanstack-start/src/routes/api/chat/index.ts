@@ -796,40 +796,43 @@ export const Route = createFileRoute("/api/chat/")({
           let chatProjectId: string | undefined;
           let threadUserId: string | undefined;
           let bashFsState: { accessKey: string; fileKeyId: string } | undefined;
-          try {
-            const thread = await fetchAuthQuery(
-              api.functions.threads.getThread,
-              { threadId },
-            );
-            bashFsState = thread?.bashFsState ?? undefined;
-            if (thread?.chatProjectId) {
-              threadUserId = thread.userId;
-              chatProjectId = thread.chatProjectId;
-              const project = await fetchAuthQuery(
-                api.functions.projects.getProject,
-                { projectId: thread.chatProjectId },
+          const loadChatInstructions = async () => {
+            try {
+              const thread = await fetchAuthQuery(
+                api.functions.threads.getThread,
+                { threadId },
               );
-              const instructions = project?.instructions?.trim();
-              if (instructions) {
-                projectInstructions = instructions;
+              bashFsState = thread?.bashFsState ?? undefined;
+              if (thread?.chatProjectId) {
+                threadUserId = thread.userId;
+                chatProjectId = thread.chatProjectId;
+                const project = await fetchAuthQuery(
+                  api.functions.projects.getProject,
+                  { projectId: thread.chatProjectId },
+                );
+                const instructions = project?.instructions?.trim();
+                if (instructions) {
+                  projectInstructions = instructions;
+                }
               }
+              const selectedInstruction = await fetchAuthQuery(
+                api.functions.instructions.getEffectiveInstruction,
+                { instructionId: thread?.settings.instructionId },
+              );
+              const prompt =
+                selectedInstruction === null
+                  ? undefined
+                  : selectedInstruction.prompt.trim();
+              if (prompt) {
+                selectedInstructionPrompt = prompt;
+              }
+            } catch (error) {
+              console.error("Failed to load chat instructions", error);
             }
-            const selectedInstruction = await fetchAuthQuery(
-              api.functions.instructions.getEffectiveInstruction,
-              { instructionId: thread?.settings.instructionId },
-            );
-            const prompt =
-              selectedInstruction === null
-                ? undefined
-                : selectedInstruction.prompt.trim();
-            if (prompt) {
-              selectedInstructionPrompt = prompt;
-            }
-          } catch (error) {
-            console.error("Failed to load chat instructions", error);
-          }
+          };
 
-          if (lastUserMessageId) {
+          const loadChatSkills = async () => {
+            if (!lastUserMessageId) return;
             try {
               skillRuntimeContext = await fetchAuthQuery(
                 api.functions.skills.backend_getRuntimeContext,
@@ -841,8 +844,20 @@ export const Route = createFileRoute("/api/chat/")({
                   assistantMessageId,
                 },
               );
-              skillSystemPrompt = formatSkillSystemPrompt(skillRuntimeContext);
-              await Promise.all(
+              if (
+                skillRuntimeContext.explicit.length > 0 ||
+                skillRuntimeContext.autoCatalog.length > 0
+              ) {
+                skillSystemPrompt =
+                  formatSkillSystemPrompt(skillRuntimeContext);
+              }
+              if (skillRuntimeContext.droppedExplicit?.length) {
+                console.warn("Some active skills were omitted from context", {
+                  threadId,
+                  skills: skillRuntimeContext.droppedExplicit,
+                });
+              }
+              const usageResults = await Promise.allSettled(
                 skillRuntimeContext.explicit.map((skill) =>
                   fetchAuthMutation(api.functions.skills.backend_recordUsage, {
                     secret: env.INTERNAL_CONVEX_SECRET,
@@ -855,10 +870,17 @@ export const Route = createFileRoute("/api/chat/")({
                   }),
                 ),
               );
+              for (const result of usageResults) {
+                if (result.status === "rejected") {
+                  console.error("Failed to record skill usage", result.reason);
+                }
+              }
             } catch (error) {
               console.error("Failed to load chat skills", error);
             }
-          }
+          };
+
+          await Promise.all([loadChatInstructions(), loadChatSkills()]);
 
           if (chatProjectId) {
             projectToolInstruction = [

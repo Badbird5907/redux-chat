@@ -1,15 +1,18 @@
+const MAX_ENTRYPOINT_BYTES = 128 * 1024;
+const MAX_EXPLICIT_SKILLS = 5;
+
 export const SKILL_LIMITS = {
   maxSkillsPerUser: 100,
   maxFilesPerSkill: 200,
   maxTotalBytes: 20 * 1024 * 1024,
   maxFileBytes: 5 * 1024 * 1024,
-  maxEntrypointBytes: 128 * 1024,
+  maxEntrypointBytes: MAX_ENTRYPOINT_BYTES,
   maxNameLength: 80,
   maxDescriptionLength: 500,
   maxSlugLength: 48,
   maxPathLength: 512,
-  maxExplicitSkills: 5,
-  maxCombinedEntrypointBytes: 128 * 1024,
+  maxExplicitSkills: MAX_EXPLICIT_SKILLS,
+  maxCombinedEntrypointBytes: MAX_EXPLICIT_SKILLS * MAX_ENTRYPOINT_BYTES,
   maxReadLines: 400,
   maxReadBytes: 64 * 1024,
   maxProposalFiles: 25,

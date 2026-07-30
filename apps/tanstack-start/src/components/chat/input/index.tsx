@@ -1049,8 +1049,7 @@ export function ChatInput({
           retainedAttachmentIds,
           draftAttachmentIds,
           text: cleanedInput,
-          selectedSkillIds:
-            resolvedSkillIds.length > 0 ? resolvedSkillIds : undefined,
+          selectedSkillIds: resolvedSkillIds,
           attachmentMetadata: currentAttachments.map((attachment) => ({
             attachmentId: attachment.attachmentId,
             generatingDerivative: attachmentsUsingDerivative.some(

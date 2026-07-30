@@ -1,8 +1,14 @@
 import { Buffer } from "node:buffer";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { createGunzip } from "node:zlib";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+import * as tar from "tar-stream";
 
 import { SKILL_LIMITS } from "@redux/types";
 
 import { env } from "@/env";
+import { mapWithConcurrency } from "@/server/skills/concurrency";
 import {
   buildSkillPackageFile,
   normalizeSkillMarkdown,
@@ -30,12 +36,6 @@ interface GitHubTreeResponse {
   truncated: boolean;
 }
 
-interface GitHubBlobResponse {
-  content: string;
-  encoding: string;
-  size: number;
-}
-
 export interface ResolvedGitHubSkill {
   name: string;
   description: string;
@@ -53,15 +53,36 @@ export interface ResolvedGitHubSkill {
   };
 }
 
-function githubHeaders() {
+function githubHeaders(accept = "application/vnd.github+json") {
   return {
-    Accept: "application/vnd.github+json",
+    Accept: accept,
     "User-Agent": "redux-chat-skill-importer",
     "X-GitHub-Api-Version": "2022-11-28",
     ...(env.GITHUB_IMPORT_TOKEN
       ? { Authorization: `Bearer ${env.GITHUB_IMPORT_TOKEN}` }
       : {}),
   };
+}
+
+function throwGitHubResponseError(response: Response): never {
+  const remaining = response.headers.get("x-ratelimit-remaining");
+  const reset = response.headers.get("x-ratelimit-reset");
+  if (response.status === 403 && remaining === "0") {
+    const resetText = reset
+      ? new Date(Number(reset) * 1000).toLocaleTimeString()
+      : "later";
+    throw new Error(
+      `GitHub import rate limit reached. Try again after ${resetText}.`,
+    );
+  }
+  if (response.status === 404) {
+    throw new Error(
+      "GitHub repository or path was not found. Only public repositories are supported.",
+    );
+  }
+  throw new Error(
+    `GitHub import failed: ${response.status} ${response.statusText}`,
+  );
 }
 
 async function githubFetch<T>(path: string, allowNotFound = false) {
@@ -72,28 +93,9 @@ async function githubFetch<T>(path: string, allowNotFound = false) {
       headers: githubHeaders(),
       signal: controller.signal,
     });
+    if (response.ok) return (await response.json()) as T;
     if (allowNotFound && response.status === 404) return undefined;
-    if (!response.ok) {
-      const remaining = response.headers.get("x-ratelimit-remaining");
-      const reset = response.headers.get("x-ratelimit-reset");
-      if (response.status === 403 && remaining === "0") {
-        const resetText = reset
-          ? new Date(Number(reset) * 1000).toLocaleTimeString()
-          : "later";
-        throw new Error(
-          `GitHub import rate limit reached. Try again after ${resetText}.`,
-        );
-      }
-      if (response.status === 404) {
-        throw new Error(
-          "GitHub repository or path was not found. Only public repositories are supported.",
-        );
-      }
-      throw new Error(
-        `GitHub import failed: ${response.status} ${response.statusText}`,
-      );
-    }
-    return (await response.json()) as T;
+    throwGitHubResponseError(response);
   } finally {
     clearTimeout(timeout);
   }
@@ -190,28 +192,86 @@ async function resolveRef(input: {
   );
 }
 
-function decodeBase64(value: string) {
-  return Uint8Array.from(Buffer.from(value.replace(/\s+/g, ""), "base64"));
-}
+async function downloadGitHubTarball(input: {
+  owner: string;
+  repository: string;
+  commitSha: string;
+  blobs: (GitHubTreeEntry & { relativePath: string })[];
+}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repository)}/tarball/${encodeURIComponent(input.commitSha)}`,
+      {
+        headers: githubHeaders("application/vnd.github+json"),
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) throwGitHubResponseError(response);
+    if (!response.body) throw new Error("GitHub archive response was empty");
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T) => Promise<R>,
-) {
-  const results = new Array<R>(items.length);
-  let nextIndex = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-      while (nextIndex < items.length) {
-        const index = nextIndex;
-        nextIndex += 1;
-        const item = items[index];
-        if (item !== undefined) results[index] = await mapper(item);
+    const expectedByPath = new Map(
+      input.blobs.map((blob) => [blob.path, blob] as const),
+    );
+    const extracted = new Map<string, Uint8Array>();
+    const extract = tar.extract();
+    extract.on("entry", (header, stream, next) => {
+      const repositoryPath = header.name.split("/").slice(1).join("/");
+      const blob = expectedByPath.get(repositoryPath);
+      if (!blob) {
+        stream.on("end", next);
+        stream.resume();
+        return;
       }
-    }),
-  );
-  return results;
+
+      const chunks: Buffer[] = [];
+      let totalBytes = 0;
+      let settled = false;
+      const finish = (error?: Error | null) => {
+        if (settled) return;
+        settled = true;
+        next(error ?? undefined);
+      };
+      stream.on("data", (chunk: Buffer) => {
+        totalBytes += chunk.byteLength;
+        if (totalBytes > SKILL_LIMITS.maxFileBytes) {
+          stream.destroy(new Error(`${blob.relativePath} is too large`));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      stream.on("error", finish);
+      stream.on("end", () => {
+        if (settled) return;
+        const bytes =
+          blob.mode === "120000"
+            ? Buffer.from(header.linkname ?? "", "utf8")
+            : Buffer.concat(chunks);
+        extracted.set(blob.path, Uint8Array.from(bytes));
+        finish();
+      });
+    });
+
+    await pipeline(
+      Readable.fromWeb(response.body as NodeReadableStream),
+      createGunzip(),
+      extract,
+    );
+
+    return mapWithConcurrency(input.blobs, 6, async (blob) => {
+      const bytes = extracted.get(blob.path);
+      if (!bytes)
+        throw new Error(`GitHub archive omitted ${blob.relativePath}`);
+      return buildSkillPackageFile({
+        path: blob.relativePath,
+        bytes,
+        isSymlink: blob.mode === "120000",
+      });
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function resolveGitHubSkill(
@@ -262,18 +322,11 @@ export async function resolveGitHubSkill(
     );
   }
 
-  const files = await mapWithConcurrency(blobs, 6, async (entry) => {
-    const blob = await githubFetch<GitHubBlobResponse>(
-      `/repos/${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repository)}/git/blobs/${encodeURIComponent(entry.sha)}`,
-    );
-    if (blob?.encoding !== "base64") {
-      throw new Error(`Unable to decode ${entry.relativePath}`);
-    }
-    return buildSkillPackageFile({
-      path: entry.relativePath,
-      bytes: decodeBase64(blob.content),
-      isSymlink: entry.mode === "120000",
-    });
+  const files = await downloadGitHubTarball({
+    owner: parsed.owner,
+    repository: parsed.repository,
+    commitSha: resolved.commitSha,
+    blobs,
   });
   const { entrypoint } = validateSkillPackage(files);
   const normalized = normalizeSkillMarkdown({

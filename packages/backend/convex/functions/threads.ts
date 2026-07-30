@@ -1548,6 +1548,24 @@ export const deleteThread = mutation({
       .query("modelGeneratedFiles")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
+    const threadSkills = await ctx.db
+      .query("threadSkills")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
+    const skillUsages = await ctx.db
+      .query("skillUsages")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
+    const skillProposals = await ctx.db
+      .query("skillProposals")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
     const uniqueFiles = new Map<
       string,
       {
@@ -1634,7 +1652,12 @@ export const deleteThread = mutation({
       );
     }
 
-    await Promise.all(messages.map((message) => ctx.db.delete(message._id)));
+    await Promise.all([
+      ...messages.map((message) => ctx.db.delete(message._id)),
+      ...threadSkills.map((entry) => ctx.db.delete(entry._id)),
+      ...skillUsages.map((usage) => ctx.db.delete(usage._id)),
+      ...skillProposals.map((proposal) => ctx.db.delete(proposal._id)),
+    ]);
     await ctx.db.delete(thread._id);
     await updateUserUsageStats(ctx, ctx.userId, {
       threadsDelta: -1,

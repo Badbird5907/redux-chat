@@ -226,11 +226,7 @@ export function normalizeSkillMarkdown(input: {
     return { name, description, content: input.content, metadataWasInferred };
   }
 
-  const frontmatter = stringify({
-    ...metadata,
-    name,
-    description,
-  }).trimEnd();
+  const frontmatter = stringify({ name, description }).trimEnd();
   return {
     name,
     description,
@@ -268,7 +264,10 @@ export async function buildSkillPackageFile(input: {
 }
 
 export function validateSkillPackage(files: SkillPackageFile[]) {
-  if (files.length === 0 || files.length > SKILL_LIMITS.maxFilesPerSkill) {
+  if (files.length === 0) {
+    throw new Error("Skill package must contain at least one file");
+  }
+  if (files.length > SKILL_LIMITS.maxFilesPerSkill) {
     throw new Error(
       `Skills support up to ${SKILL_LIMITS.maxFilesPerSkill} files`,
     );

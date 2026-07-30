@@ -8,6 +8,7 @@ import { SKILL_LIMITS } from "@redux/types";
 import { env } from "@/env";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { downloadPrivateSkillFile } from "@/server/skills/storage";
+import { normalizeSkillPath } from "@/server/skills/validation";
 import { getPostHogClient } from "@/utils/posthog-server";
 
 export interface SkillRuntimeContext {
@@ -35,6 +36,10 @@ export interface SkillRuntimeContext {
     description: string;
     slug: string;
   }[];
+  droppedExplicit?: {
+    skillId: string;
+    name: string;
+  }[];
 }
 
 interface SkillGenerationContext {
@@ -42,6 +47,14 @@ interface SkillGenerationContext {
   threadId: string;
   userMessageId: string;
   assistantMessageId: string;
+}
+
+function escapePseudoXml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function formatFileManifest(
@@ -54,7 +67,7 @@ function formatFileManifest(
         file.isSymlink ? "symlink pointer" : undefined,
         file.lfsPointer ? "Git LFS pointer" : undefined,
       ].filter(Boolean);
-      return `- ${file.path} (${file.mimeType}, ${file.size} bytes${annotations.length ? `, ${annotations.join(", ")}` : ""})`;
+      return `- ${escapePseudoXml(file.path)} (${escapePseudoXml(file.mimeType)}, ${file.size} bytes${annotations.length ? `, ${escapePseudoXml(annotations.join(", "))}` : ""})`;
     })
     .join("\n");
 }
@@ -68,26 +81,31 @@ export function formatSkillSystemPrompt(context: SkillRuntimeContext) {
     "When the user asks you to create or save a reusable skill, call propose_skill with a complete text-only file tree containing a root SKILL.md. The user will approve it separately.",
   ].join("\n");
   const explicit = context.explicit
-    .map((skill) =>
-      [
-        `<active_skill id="${skill.skillId}" slash="/${skill.slug}" name="${skill.name}">`,
-        `<description>${skill.description}</description>`,
+    .map((skill) => {
+      const skillId = escapePseudoXml(skill.skillId);
+      const slug = escapePseudoXml(skill.slug);
+      const name = escapePseudoXml(skill.name);
+      const description = escapePseudoXml(skill.description);
+      const entrypoint = escapePseudoXml(skill.entrypointText);
+      return [
+        `<active_skill id="${skillId}" slash="/${slug}" name="${name}">`,
+        `<description>${description}</description>`,
         "<skill_entrypoint>",
-        skill.entrypointText,
+        entrypoint,
         "</skill_entrypoint>",
         "<skill_files>",
         formatFileManifest(skill.files),
         "</skill_files>",
         "</active_skill>",
-      ].join("\n"),
-    )
+      ].join("\n");
+    })
     .join("\n\n");
   const catalog = context.autoCatalog.length
     ? [
         "<automatic_skill_catalog>",
         ...context.autoCatalog.map(
           (skill) =>
-            `- id=${skill.skillId}; slash=/${skill.slug}; name=${skill.name}; description=${skill.description}`,
+            `- id=${escapePseudoXml(skill.skillId)}; slash=/${escapePseudoXml(skill.slug)}; name=${escapePseudoXml(skill.name)}; description=${escapePseudoXml(skill.description)}`,
         ),
         "</automatic_skill_catalog>",
       ].join("\n")
@@ -260,6 +278,23 @@ export function createSkillTools(input: {
     }),
     execute: async ({ name, description, files }, options) => {
       const toolCallId = options.toolCallId;
+      const normalizedFiles = files.map((file) => ({
+        ...file,
+        path: normalizeSkillPath(file.path),
+      }));
+      const seenPaths = new Set<string>();
+      for (const file of normalizedFiles) {
+        const key = file.path.toLowerCase();
+        if (seenPaths.has(key)) {
+          throw new Error(`Duplicate skill path: ${file.path}`);
+        }
+        seenPaths.add(key);
+      }
+      if (
+        normalizedFiles.filter((file) => file.path === "SKILL.md").length !== 1
+      ) {
+        throw new Error("Skill proposals require exactly one root SKILL.md");
+      }
       const proposal = await fetchAuthMutation(
         api.functions.skills.backend_createProposal,
         {
@@ -270,15 +305,15 @@ export function createSkillTools(input: {
           toolCallId,
           name,
           description,
-          files,
+          files: normalizedFiles,
         },
       );
       getPostHogClient()?.capture({
         distinctId: input.generation.userId,
         event: "skill_proposed",
         properties: {
-          file_count: files.length,
-          total_bytes: files.reduce(
+          file_count: normalizedFiles.length,
+          total_bytes: normalizedFiles.reduce(
             (total, file) =>
               total + new TextEncoder().encode(file.content).byteLength,
             0,
@@ -290,7 +325,7 @@ export function createSkillTools(input: {
         name,
         description,
         status: proposal.status,
-        files: files.map((file) => ({
+        files: normalizedFiles.map((file) => ({
           path: file.path,
           size: new TextEncoder().encode(file.content).byteLength,
           lineCount: file.content.split(/\r?\n/).length,

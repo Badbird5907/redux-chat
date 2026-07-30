@@ -64,6 +64,7 @@ const skillUsageTrigger = v.union(
 
 const skillProposalStatus = v.union(
   v.literal("pending"),
+  v.literal("approving"),
   v.literal("approved"),
   v.literal("rejected"),
   v.literal("expired"),
@@ -397,6 +398,7 @@ export default defineSchema({
     trigger: skillUsageTrigger,
     createdAt: v.number(),
   })
+    .index("by_userId_threadId", ["userId", "threadId", "createdAt"])
     .index("by_assistantMessageId", ["assistantMessageId", "createdAt"])
     .index("by_assistantMessageId_skillId", ["assistantMessageId", "skillId"])
     .index("by_skillId", ["skillId", "createdAt"])
@@ -420,12 +422,16 @@ export default defineSchema({
     ),
     status: skillProposalStatus,
     approvedSkillId: v.optional(v.string()),
+    approvalClaimId: v.optional(v.string()),
+    approvalClaimedAt: v.optional(v.number()),
+    cleanedAt: v.optional(v.number()),
     expiresAt: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_proposalId", ["proposalId"])
     .index("by_userId", ["userId", "createdAt"])
+    .index("by_userId_threadId", ["userId", "threadId", "createdAt"])
     .index("by_expiresAt", ["expiresAt"])
     .index("by_userId_toolCallId", ["userId", "toolCallId"]),
 

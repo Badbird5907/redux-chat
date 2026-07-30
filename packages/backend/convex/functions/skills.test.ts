@@ -8,6 +8,7 @@ import { modules } from "../test.setup";
 const USER_ID = "user-1";
 const OTHER_USER_ID = "user-2";
 const NOW = 1_700_000_000_000;
+const INTERNAL_SECRET = "test-internal-secret";
 
 function authedTest(userId = USER_ID) {
   return convexTest(schema, modules).withIdentity({ subject: userId });
@@ -45,11 +46,13 @@ async function insertSkill(
 
 describe("functions/skills", () => {
   beforeEach(() => {
+    vi.stubEnv("INTERNAL_CONVEX_SECRET", INTERNAL_SECRET);
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.useRealTimers();
   });
 
@@ -170,30 +173,100 @@ describe("functions/skills", () => {
     expect(associations).toEqual([]);
   });
 
-  it("removes expired model-created skill proposals", async () => {
+  it("claims proposal approval atomically before finalizing", async () => {
     const t = authedTest();
     await t.run(async (ctx) => {
       await ctx.db.insert("skillProposals", {
-        proposalId: "expired",
+        proposalId: "proposal-1",
         userId: USER_ID,
         threadId: "thread-1",
         messageId: "message-1",
         toolCallId: "tool-call-1",
-        name: "Expired proposal",
+        name: "Proposed skill",
         description: "Temporary",
         files: [
           {
             path: "SKILL.md",
-            content: "# Expired",
-            size: 9,
+            content: "# Proposed",
+            size: 10,
             lineCount: 1,
           },
         ],
         status: "pending",
-        expiresAt: NOW - 1,
-        createdAt: NOW - 1_000,
-        updatedAt: NOW - 1_000,
+        expiresAt: NOW + 60_000,
+        createdAt: NOW,
+        updatedAt: NOW,
       });
+    });
+
+    await expect(
+      t.mutation(api.functions.skills.backend_claimProposalApproval, {
+        secret: INTERNAL_SECRET,
+        userId: USER_ID,
+        proposalId: "proposal-1",
+        claimId: "claim-1",
+      }),
+    ).resolves.toEqual(expect.objectContaining({ state: "claimed" }));
+    await expect(
+      t.mutation(api.functions.skills.backend_claimProposalApproval, {
+        secret: INTERNAL_SECRET,
+        userId: USER_ID,
+        proposalId: "proposal-1",
+        claimId: "claim-2",
+      }),
+    ).resolves.toEqual({ state: "in_progress" });
+    await expect(
+      t.mutation(api.functions.skills.backend_finalizeProposalApproval, {
+        secret: INTERNAL_SECRET,
+        userId: USER_ID,
+        proposalId: "proposal-1",
+        claimId: "claim-2",
+        skillId: "skill-1",
+      }),
+    ).rejects.toThrow("claim was lost");
+    await expect(
+      t.mutation(api.functions.skills.backend_finalizeProposalApproval, {
+        secret: INTERNAL_SECRET,
+        userId: USER_ID,
+        proposalId: "proposal-1",
+        claimId: "claim-1",
+        skillId: "skill-1",
+      }),
+    ).resolves.toEqual({ skillId: "skill-1" });
+  });
+
+  it("tombstones expired proposals while preserving terminal and live records", async () => {
+    const t = authedTest();
+    await t.run(async (ctx) => {
+      for (const [proposalId, status, expiresAt] of [
+        ["expired", "pending", NOW - 1],
+        ["approved", "approved", NOW - 1],
+        ["rejected", "rejected", NOW - 1],
+        ["live", "pending", NOW + 1],
+      ] as const) {
+        await ctx.db.insert("skillProposals", {
+          proposalId,
+          userId: USER_ID,
+          threadId: "thread-1",
+          messageId: `message-${proposalId}`,
+          toolCallId: `tool-call-${proposalId}`,
+          name: `${proposalId} proposal`,
+          description: "Temporary",
+          files: [
+            {
+              path: "SKILL.md",
+              content: `# ${proposalId}`,
+              size: proposalId.length + 2,
+              lineCount: 1,
+            },
+          ],
+          status,
+          approvedSkillId: status === "approved" ? "skill-1" : undefined,
+          expiresAt,
+          createdAt: NOW - 1_000,
+          updatedAt: NOW - 1_000,
+        });
+      }
     });
 
     await expect(
@@ -201,11 +274,36 @@ describe("functions/skills", () => {
         internal.functions.skills.internal_cleanupExpiredProposals,
         {},
       ),
-    ).resolves.toEqual({ deleted: 1 });
+    ).resolves.toEqual({ cleaned: 3 });
 
     const proposals = await t.run((ctx) =>
       ctx.db.query("skillProposals").collect(),
     );
-    expect(proposals).toEqual([]);
+    expect(proposals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          proposalId: "expired",
+          status: "expired",
+          cleanedAt: NOW,
+          files: [expect.objectContaining({ content: "" })],
+        }),
+        expect.objectContaining({
+          proposalId: "approved",
+          status: "approved",
+          approvedSkillId: "skill-1",
+          cleanedAt: NOW,
+        }),
+        expect.objectContaining({
+          proposalId: "rejected",
+          status: "rejected",
+          cleanedAt: NOW,
+        }),
+        expect.objectContaining({
+          proposalId: "live",
+          status: "pending",
+          files: [expect.objectContaining({ content: "# live" })],
+        }),
+      ]),
+    );
   });
 });

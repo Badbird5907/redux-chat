@@ -404,18 +404,27 @@ export async function createToolRuntime(
   const mcpClients: Awaited<ReturnType<typeof createMCPClient>>[] = [];
 
   if (generationContext) {
-    Object.assign(
-      tools,
-      createSkillTools({
-        runtime: skills ?? { explicit: [], autoCatalog: [] },
-        generation: {
-          userId: generationContext.userId,
-          threadId: generationContext.threadId,
-          userMessageId: generationContext.userMessageId,
-          assistantMessageId: generationContext.messageId,
-        },
-      }),
-    );
+    const runtime = skills ?? { explicit: [], autoCatalog: [] };
+    const skillTools = createSkillTools({
+      runtime,
+      generation: {
+        userId: generationContext.userId,
+        threadId: generationContext.threadId,
+        userMessageId: generationContext.userMessageId,
+        assistantMessageId: generationContext.messageId,
+      },
+    });
+    const hasAvailableSkills =
+      runtime.explicit.length > 0 || runtime.autoCatalog.length > 0;
+    for (const [name, skillTool] of Object.entries(skillTools)) {
+      if (
+        !hasAvailableSkills &&
+        (name === "load_skill" || name === "read_skill_file")
+      ) {
+        continue;
+      }
+      tools[name] = instrumentTool(skillTool, "skills", toolUsageCounts);
+    }
   }
 
   if (enabledTools.includes("search")) {

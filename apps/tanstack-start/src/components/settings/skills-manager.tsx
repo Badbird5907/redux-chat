@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "convex/react";
@@ -9,6 +9,7 @@ import {
   Bot,
   ChevronRight,
   Download,
+  ExternalLink,
   File,
   FileCode2,
   Folder,
@@ -20,6 +21,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
@@ -28,7 +30,7 @@ import type { SkillFileSummary, SkillSummary } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
-import { Card, CardContent, CardHeader } from "@redux/ui/components/card";
+import { Card, CardContent } from "@redux/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +41,8 @@ import {
 } from "@redux/ui/components/dialog";
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
+import { RadioGroup, RadioGroupItem } from "@redux/ui/components/radio-group";
+import { Skeleton } from "@redux/ui/components/skeleton";
 import { Switch } from "@redux/ui/components/switch";
 import {
   Tabs,
@@ -61,6 +65,26 @@ import { useSkillActions } from "./use-skill-actions";
 
 type SkillRecord = SkillSummary;
 type SkillFileRecord = SkillFileSummary;
+
+/** `capitalize` renders "Github"; source types also read better as past-tense origins. */
+const SOURCE_LABELS: Record<SkillRecord["sourceType"], string> = {
+  github: "GitHub",
+  model: "Created in chat",
+  upload: "Uploaded",
+};
+
+const ACTIVATION_SCOPES = [
+  {
+    value: "thread",
+    label: "Keep active for this thread",
+    hint: "The default for reusable workflows.",
+  },
+  {
+    value: "message",
+    label: "Use for one message",
+    hint: "Clear the selected skill after sending.",
+  },
+] as const;
 
 interface TreeNode {
   name: string;
@@ -286,10 +310,6 @@ function SkillViewerDialog({
   ) as SkillFileRecord[] | undefined;
   const [selectedFile, setSelectedFile] = useState<SkillFileRecord>();
   const [fileSearch, setFileSearch] = useState("");
-  const visibleSelectedFile =
-    selectedFile ??
-    files?.find((file) => file.path === "SKILL.md") ??
-    files?.[0];
 
   const filteredFiles = useMemo(
     () =>
@@ -298,6 +318,13 @@ function SkillViewerDialog({
       ),
     [fileSearch, files],
   );
+  const visibleSelectedFile =
+    (selectedFile &&
+    filteredFiles.some((file) => file.skillFileId === selectedFile.skillFileId)
+      ? selectedFile
+      : undefined) ??
+    filteredFiles.find((file) => file.path === "SKILL.md") ??
+    filteredFiles[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -583,6 +610,183 @@ function EditSkillDialog({
   );
 }
 
+function SkillCard({
+  skill,
+  refreshing,
+  onAutoLoadChange,
+  onDelete,
+  onEdit,
+  onEnabledChange,
+  onRefresh,
+  onViewFiles,
+}: {
+  skill: SkillRecord;
+  refreshing: boolean;
+  onAutoLoadChange: (allowAutoLoad: boolean) => void;
+  onDelete: () => void;
+  onEdit: () => void;
+  onEnabledChange: (enabled: boolean) => void;
+  onRefresh: () => void;
+  onViewFiles: () => void;
+}) {
+  const id = useId();
+  const nameId = `${id}-name`;
+  const enabledId = `${id}-enabled`;
+  const autoLoadId = `${id}-auto-load`;
+  const autoLoadHintId = `${id}-auto-load-hint`;
+  const commitUrl = skill.github
+    ? `https://github.com/${skill.github.owner}/${skill.github.repository}/tree/${skill.github.commitSha}`
+    : undefined;
+
+  return (
+    <Card size="sm" className={cn(!skill.enabled && "bg-card/25")}>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h2 id={nameId} className="text-sm font-medium">
+                {skill.name}
+              </h2>
+              <Badge variant="secondary" className="font-mono">
+                /{skill.slug}
+              </Badge>
+              <Badge variant="outline" color="muted">
+                {SOURCE_LABELS[skill.sourceType]}
+              </Badge>
+              {!skill.enabled ? (
+                <Badge variant="outline" color="yellow">
+                  Disabled
+                </Badge>
+              ) : null}
+            </div>
+            <p className="text-muted-foreground line-clamp-2 text-sm text-pretty">
+              {skill.description}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <Button variant="ghost" size="sm" onClick={onViewFiles}>
+              <Folder />
+              Files
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Edit ${skill.name}`}
+              tooltip="Edit metadata"
+              onClick={onEdit}
+            >
+              <Pencil />
+            </Button>
+            {skill.sourceType === "github" ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={refreshing}
+                aria-label={`Refresh ${skill.name} from GitHub`}
+                tooltip="Refresh from GitHub"
+                onClick={onRefresh}
+              >
+                <RefreshCw className={cn(refreshing && "animate-spin")} />
+              </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Delete ${skill.name}`}
+              tooltip="Delete skill"
+              onClick={onDelete}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-border/60 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t pt-3">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
+            <span>
+              {skill.fileCount} file{skill.fileCount === 1 ? "" : "s"}
+            </span>
+            <span aria-hidden>·</span>
+            <span>{formatBytes(skill.totalBytes)}</span>
+            {skill.github && commitUrl ? (
+              <>
+                <span aria-hidden>·</span>
+                <a
+                  href={commitUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-foreground inline-flex items-center gap-1 font-mono underline-offset-4 hover:underline"
+                >
+                  {skill.github.owner}/{skill.github.repository}@
+                  {skill.github.commitSha.slice(0, 7)}
+                  <ExternalLink className="size-3" aria-hidden />
+                  <span className="sr-only">(opens GitHub)</span>
+                </a>
+              </>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                id={enabledId}
+                aria-describedby={nameId}
+                checked={skill.enabled}
+                onCheckedChange={onEnabledChange}
+              />
+              <Label htmlFor={enabledId} className="text-xs font-normal">
+                Enabled
+              </Label>
+            </div>
+            <div
+              className="flex items-center gap-2"
+              title={
+                skill.enabled
+                  ? undefined
+                  : "Turn the skill on to allow automatic loading."
+              }
+            >
+              <Switch
+                id={autoLoadId}
+                aria-describedby={`${nameId} ${autoLoadHintId}`}
+                disabled={!skill.enabled}
+                checked={skill.allowAutoLoad}
+                onCheckedChange={onAutoLoadChange}
+              />
+              <Label htmlFor={autoLoadId} className="text-xs font-normal">
+                Load automatically
+              </Label>
+              <span id={autoLoadHintId} className="sr-only">
+                {skill.enabled
+                  ? "Lets a matching model load this skill without a slash command."
+                  : "Turn the skill on to allow automatic loading."}
+              </span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SkillCardSkeleton() {
+  return (
+    <Card size="sm">
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+        <div className="border-border/60 flex items-center justify-between border-t pt-3">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-4 w-44" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SkillsManager() {
   const queriedSkills = useQuery(api.functions.skills.list, {});
   const skills = useMemo(
@@ -602,9 +806,14 @@ export function SkillsManager() {
   const [addOpen, setAddOpen] = useState(false);
   const [viewSkill, setViewSkill] = useState<SkillRecord>();
   const [editSkill, setEditSkill] = useState<SkillRecord>();
+  const [deleteSkillTarget, setDeleteSkillTarget] = useState<SkillRecord>();
+  const [deleting, setDeleting] = useState(false);
+
+  const loading = queriedSkills === undefined;
+  const trimmedSearch = search.trim();
 
   const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = trimmedSearch.toLowerCase();
     return query
       ? skills.filter((skill) =>
           `${skill.name} ${skill.description} ${skill.slug}`
@@ -612,194 +821,180 @@ export function SkillsManager() {
             .includes(query),
         )
       : skills;
-  }, [search, skills]);
+  }, [trimmedSearch, skills]);
+
+  const resultSummary = loading
+    ? ""
+    : trimmedSearch
+      ? `${filtered.length} of ${skills.length} skill${skills.length === 1 ? "" : "s"} match “${trimmedSearch}”`
+      : `${skills.length} skill${skills.length === 1 ? "" : "s"}`;
+
+  const confirmDelete = async () => {
+    if (!deleteSkillTarget) return;
+    setDeleting(true);
+    try {
+      if (await handleDelete(deleteSkillTarget)) {
+        setDeleteSkillTarget(undefined);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <div className="flex items-start gap-2">
             <MobileSidebarTrigger className="mt-1" />
             <h1 className="text-2xl font-semibold tracking-tight">Skills</h1>
           </div>
-          <p className="text-muted-foreground max-w-2xl text-sm">
+          <p className="text-muted-foreground max-w-2xl text-sm text-pretty">
             Give models reusable, read-only instruction packages with supporting
             files.
           </p>
         </div>
         <Button onClick={() => setAddOpen(true)}>
-          <Plus className="size-4" /> Add skill
+          <Plus /> Add skill
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="space-y-1">
-          <div className="text-sm font-medium">Slash command activation</div>
-          <div className="text-muted-foreground text-sm">
-            This changes future invocations. Existing thread skills stay active
-            until removed.
+      <Card size="sm">
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-sm font-medium">Slash command activation</h2>
+            <p className="text-muted-foreground text-xs text-pretty">
+              Applies the next time you run a slash command. Skills already
+              active in a thread stay until you remove them.
+            </p>
           </div>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          {(
-            [
-              [
-                "thread",
-                "Keep active for this thread",
-                "The default for reusable workflows.",
-              ],
-              [
-                "message",
-                "Use for one message",
-                "Clear the selected skill after sending.",
-              ],
-            ] as const
-          ).map(([scope, title, description]) => (
-            <button
-              key={scope}
-              type="button"
-              className={cn(
-                "rounded-lg border p-4 text-left transition-colors",
-                activationScope === scope
-                  ? "border-primary bg-primary/5"
-                  : "hover:bg-muted/50",
-              )}
-              onClick={() => void handleScopeChange(scope)}
-            >
-              <div className="text-sm font-medium">{title}</div>
-              <div className="text-muted-foreground mt-1 text-xs">
-                {description}
-              </div>
-            </button>
-          ))}
+          <RadioGroup
+            orientation="horizontal"
+            aria-label="Slash command activation"
+            className="gap-2"
+            value={activationScope ?? null}
+            onValueChange={(next) => {
+              const value = typeof next === "string" ? next : "";
+              if (value === "thread" || value === "message") {
+                void handleScopeChange(value);
+              }
+            }}
+          >
+            {ACTIVATION_SCOPES.map((scope) => (
+              <Label
+                key={scope.value}
+                className="hover:bg-muted/50 [&:has([data-checked])]:border-primary [&:has([data-checked])]:bg-primary/5 flex flex-1 basis-56 cursor-pointer items-start gap-2.5 rounded-lg border p-3 font-normal transition-colors"
+              >
+                <RadioGroupItem value={scope.value} className="mt-0.5" />
+                <span className="min-w-0 flex-1 leading-snug">
+                  <span className="block text-sm font-medium">
+                    {scope.label}
+                  </span>
+                  <span className="text-muted-foreground mt-0.5 block text-xs">
+                    {scope.hint}
+                  </span>
+                </span>
+              </Label>
+            ))}
+          </RadioGroup>
         </CardContent>
       </Card>
 
-      <div className="relative">
-        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="pl-9"
-          placeholder="Search skills"
-        />
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="skills-search" className="sr-only">
+          Search skills
+        </Label>
+        <div className="relative">
+          <Search
+            aria-hidden
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+          />
+          <Input
+            id="skills-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="pr-10 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
+            placeholder="Search by name, description, or command"
+          />
+          {search ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Clear search"
+              className="absolute top-1/2 right-1 -translate-y-1/2"
+              onClick={() => setSearch("")}
+            >
+              <X />
+            </Button>
+          ) : null}
+        </div>
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-muted-foreground min-h-4 text-xs tabular-nums"
+        >
+          {resultSummary}
+        </p>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col gap-3">
+          <SkillCardSkeleton />
+          <SkillCardSkeleton />
+        </div>
+      ) : filtered.length === 0 ? (
         <Card>
-          <CardContent className="text-muted-foreground flex flex-col items-center gap-3 py-12 text-center text-sm">
-            <Sparkles className="size-8" />
-            {skills.length === 0
-              ? "No skills yet. Import one or ask a model to create it."
-              : "No skills match your search."}
+          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+            <Sparkles className="text-muted-foreground size-8" aria-hidden />
+            {skills.length === 0 ? (
+              <>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">No skills yet</p>
+                  <p className="text-muted-foreground max-w-sm text-sm text-pretty">
+                    A skill packages instructions and supporting files that a
+                    model can load with a slash command.
+                  </p>
+                </div>
+                <Button onClick={() => setAddOpen(true)}>
+                  <Plus /> Add skill
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">
+                    No skills match “{trimmedSearch}”
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    Try a different name, description, or slash command.
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => setSearch("")}>
+                  Clear search
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-3">
           {filtered.map((skill) => (
-            <Card key={skill.skillId}>
-              <CardContent className="flex flex-col gap-4 p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{skill.name}</span>
-                      <Badge variant="secondary">/{skill.slug}</Badge>
-                      <Badge variant="outline" className="capitalize">
-                        {skill.sourceType}
-                      </Badge>
-                      {!skill.enabled ? (
-                        <Badge variant="secondary">Disabled</Badge>
-                      ) : null}
-                    </div>
-                    <p className="text-muted-foreground text-sm">
-                      {skill.description}
-                    </p>
-                    <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                      <span>
-                        {skill.fileCount} file{skill.fileCount === 1 ? "" : "s"}
-                      </span>
-                      <span>{formatBytes(skill.totalBytes)}</span>
-                      {skill.github ? (
-                        <span>Commit {skill.github.commitSha.slice(0, 7)}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewSkill(skill)}
-                    >
-                      <Folder className="size-4" /> Files
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditSkill(skill)}
-                    >
-                      <Pencil className="size-4" /> Edit
-                    </Button>
-                    {skill.sourceType === "github" ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={refreshingId === skill.skillId}
-                        onClick={() => void handleRefresh(skill)}
-                      >
-                        <RefreshCw
-                          className={cn(
-                            "size-4",
-                            refreshingId === skill.skillId && "animate-spin",
-                          )}
-                        />{" "}
-                        Refresh
-                      </Button>
-                    ) : null}
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Delete ${skill.name}`}
-                      onClick={() => void handleDelete(skill)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
-                  <label className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
-                    <span>
-                      <span className="block text-sm font-medium">Enabled</span>
-                      <span className="text-muted-foreground block text-xs">
-                        Available through /{skill.slug}
-                      </span>
-                    </span>
-                    <Switch
-                      checked={skill.enabled}
-                      onCheckedChange={(checked) =>
-                        void handleEnabledChange(skill.skillId, checked)
-                      }
-                    />
-                  </label>
-                  <label className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
-                    <span>
-                      <span className="block text-sm font-medium">
-                        Allow automatic loading
-                      </span>
-                      <span className="text-muted-foreground block text-xs">
-                        Let matching models load it on demand
-                      </span>
-                    </span>
-                    <Switch
-                      disabled={!skill.enabled}
-                      checked={skill.allowAutoLoad}
-                      onCheckedChange={(checked) =>
-                        void handleAutoLoadChange(skill.skillId, checked)
-                      }
-                    />
-                  </label>
-                </div>
-              </CardContent>
-            </Card>
+            <SkillCard
+              key={skill.skillId}
+              skill={skill}
+              refreshing={refreshingId === skill.skillId}
+              onViewFiles={() => setViewSkill(skill)}
+              onEdit={() => setEditSkill(skill)}
+              onRefresh={() => void handleRefresh(skill)}
+              onDelete={() => setDeleteSkillTarget(skill)}
+              onEnabledChange={(enabled) =>
+                void handleEnabledChange(skill.skillId, enabled)
+              }
+              onAutoLoadChange={(allowAutoLoad) =>
+                void handleAutoLoadChange(skill.skillId, allowAutoLoad)
+              }
+            />
           ))}
         </div>
       )}
@@ -817,6 +1012,40 @@ export function SkillsManager() {
         open={editSkill !== undefined}
         onOpenChange={(open) => !open && setEditSkill(undefined)}
       />
+      <Dialog
+        open={deleteSkillTarget !== undefined}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteSkillTarget(undefined);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete skill?</DialogTitle>
+            <DialogDescription>
+              {deleteSkillTarget
+                ? `Delete “${deleteSkillTarget.name}” and its ${deleteSkillTarget.fileCount} file${deleteSkillTarget.fileCount === 1 ? "" : "s"}? This cannot be undone.`
+                : "This cannot be undone."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={deleting}
+              onClick={() => setDeleteSkillTarget(undefined)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting || !deleteSkillTarget}
+              onClick={() => void confirmDelete()}
+            >
+              {deleting ? <Loader2 className="size-4 animate-spin" /> : null}
+              Delete skill
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

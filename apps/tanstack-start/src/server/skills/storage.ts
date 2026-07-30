@@ -5,6 +5,7 @@ import { api } from "@redux/backend/convex/_generated/api";
 import { env } from "@/env";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
 import { getSiloCore } from "@/lib/silo/core.server";
+import { mapWithConcurrency } from "@/server/skills/concurrency";
 
 export interface SkillImportSource {
   sourceType: "upload" | "github" | "model";
@@ -34,26 +35,6 @@ interface UploadedSkillFile {
   environmentId: string;
   accessKey: string;
   fileKeyId: string;
-}
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T, index: number) => Promise<R>,
-) {
-  const results = new Array<R>(items.length);
-  let nextIndex = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-      while (nextIndex < items.length) {
-        const index = nextIndex;
-        nextIndex += 1;
-        const item = items[index];
-        if (item !== undefined) results[index] = await mapper(item, index);
-      }
-    }),
-  );
-  return results;
 }
 
 async function uploadSkillFiles(
@@ -211,9 +192,46 @@ export async function downloadPrivateSkillFile(input: {
     fileName: input.fileName,
     isPublic: false,
   });
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to read skill file: ${response.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      clearTimeout(timeout);
+      throw new Error(`Failed to read skill file: ${response.status}`);
+    }
+    if (!response.body) {
+      clearTimeout(timeout);
+      return response;
+    }
+    const reader = response.body.getReader();
+    const body = new ReadableStream<Uint8Array>({
+      pull: async (streamController) => {
+        try {
+          const result = await reader.read();
+          if (result.done) {
+            clearTimeout(timeout);
+            streamController.close();
+          } else {
+            streamController.enqueue(result.value);
+          }
+        } catch (error) {
+          clearTimeout(timeout);
+          streamController.error(error);
+        }
+      },
+      cancel: async (reason) => {
+        clearTimeout(timeout);
+        await reader.cancel(reason);
+      },
+    });
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  } catch (error) {
+    clearTimeout(timeout);
+    throw error;
   }
-  return response;
 }

@@ -21,20 +21,16 @@ export function useSkillActions() {
   const [refreshingId, setRefreshingId] = useState<string>();
 
   const handleDelete = async (skill: SkillSummary) => {
-    if (
-      !window.confirm(
-        `Delete "${skill.name}" and its ${skill.fileCount} file${skill.fileCount === 1 ? "" : "s"}?`,
-      )
-    )
-      return;
     try {
       await deleteSkill({ skillId: skill.skillId });
       posthog.capture("skill_deleted", { source_type: skill.sourceType });
       toast.success("Skill deleted");
+      return true;
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to delete skill",
       );
+      return false;
     }
   };
 
