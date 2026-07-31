@@ -35,6 +35,22 @@ describe("chat model registry", () => {
       expect(model?.supports.reasoning).toBe(true);
     }
   });
+
+  it("includes DeepSeek V4 Flash through OpenRouter", () => {
+    const model = getChatModelConfig("deepseek/deepseek-v4-flash");
+
+    expect(model).toBeDefined();
+    expect(model?.name).toBe("DeepSeek V4 Flash");
+    expect(model?.defaultProviderId).toBe(
+      "openrouter:deepseek/deepseek-v4-flash",
+    );
+    expect(model?.providerIds).toEqual([
+      "openrouter:deepseek/deepseek-v4-flash",
+    ]);
+    expect(model?.supports.reasoning).toBe(true);
+    expect(model?.supports.toolCalling).toBe(true);
+    expect(model?.supports.structuredOutput).toBe(true);
+  });
 });
 
 describe("image model registry", () => {
