@@ -4,7 +4,6 @@ import { useState } from "react";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
 import {
   ArrowUp,
-  BookText,
   FlaskConical,
   Hammer,
   ImageIcon,
@@ -15,7 +14,6 @@ import {
   Search,
   Square,
   Terminal,
-  Trash2,
 } from "lucide-react";
 
 import type { ThinkingLevel } from "@redux/shared/models";
@@ -51,17 +49,7 @@ interface ChatInputToolbarProps {
   onDropdownOpenChange: (open: boolean) => void;
   onOpenFilePicker: () => void;
   onOpenMcpSettings: () => void;
-  instructions: {
-    instructionId: string;
-    name: string;
-    isDefault: boolean;
-    isBuiltin: boolean;
-  }[];
-  selectedInstructionId?: string;
-  selectedInstructionName?: string;
-  onInstructionChange: (instructionId: string) => void;
   state: {
-    instructionsReady: boolean;
     canUploadFiles: boolean;
     isAnalysisWorkspaceEnabled: boolean;
     isImageGenerationEnabled: boolean;
@@ -116,10 +104,6 @@ export function ChatInputToolbar({
   onDropdownOpenChange,
   onOpenFilePicker,
   onOpenMcpSettings,
-  instructions,
-  selectedInstructionId,
-  selectedInstructionName,
-  onInstructionChange,
   state,
   imageGenerationModels,
   selectedImageGenerationModelId,
@@ -146,7 +130,6 @@ export function ChatInputToolbar({
 }: ChatInputToolbarProps) {
   const uploadFileHotkey = useResolvedHotkey("chat.uploadFile");
   const {
-    instructionsReady,
     canUploadFiles,
     isAnalysisWorkspaceEnabled,
     isImageGenerationEnabled,
@@ -207,42 +190,6 @@ export function ChatInputToolbar({
                 {formatForDisplay(uploadFileHotkey)}
               </DropdownMenuShortcut>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger
-                disabled={!instructionsReady || !settingsReady}
-              >
-                <BookText className="size-4 shrink-0" />
-                <span className="min-w-0 grow whitespace-nowrap">
-                  Instructions
-                </span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="min-w-64">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Choose instruction</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={selectedInstructionId ?? ""}
-                    onValueChange={onInstructionChange}
-                  >
-                    {instructions.map((instruction) => (
-                      <DropdownMenuRadioItem
-                        key={instruction.instructionId}
-                        value={instruction.instructionId}
-                      >
-                        <span className="min-w-0 grow whitespace-nowrap">
-                          {instruction.name}
-                        </span>
-                        {!instruction.isDefault ? (
-                          <span className="text-muted-foreground text-xs">
-                            {instruction.isBuiltin ? "Built-in" : "Custom"}
-                          </span>
-                        ) : null}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={!settingsReady}>
@@ -380,19 +327,6 @@ export function ChatInputToolbar({
             </TooltipContent>
           </Tooltip>
         )} */}
-        {selectedInstructionName ? (
-          <button
-            type="button"
-            onClick={() => onInstructionChange("")}
-            title="Clear instruction"
-            aria-label={`Clear instruction: ${selectedInstructionName}`}
-            className="group border-border bg-muted/50 text-muted-foreground hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors"
-          >
-            <BookText className="size-3.5 shrink-0 group-hover:hidden" />
-            <Trash2 className="hidden size-3.5 shrink-0 group-hover:block" />
-            <span className="min-w-0 truncate">{selectedInstructionName}</span>
-          </button>
-        ) : null}
       </div>
 
       <div className="flex min-w-0 shrink-0 items-center gap-2">

@@ -39,7 +39,6 @@ import {
 } from "@/components/chat/use-message-queue";
 import { submitMessage } from "@/components/chat/use-submit-message";
 import { useQuery } from "@/lib/hooks/convex";
-import { useInstructions } from "@/lib/hooks/use-instructions";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { useAppHotkey } from "@/lib/hotkeys";
 import { deleteDraftAttachment } from "@/server/attachments";
@@ -114,12 +113,6 @@ export function ChatInput({
   const { allocate: allocateSignedIds } = useSignedCid();
   const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
   const isMobile = useIsMobile();
-  const {
-    instructions,
-    instructionsById,
-    defaultInstruction,
-    isReady: instructionsReady,
-  } = useInstructions();
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
@@ -405,10 +398,6 @@ export function ChatInput({
     [settings.tools],
   );
   const showErrorBorder = status === "error";
-  const selectedInstruction =
-    (settings.instructionId
-      ? instructionsById.get(settings.instructionId)
-      : undefined) ?? defaultInstruction;
   const currentModelConfig = getChatModelConfig(selectedModel);
   const currentModelRoute = resolveModelRoute(selectedModel);
   const availableThinkingLevels = currentModelConfig?.thinkingLevels ?? [];
@@ -565,16 +554,6 @@ export function ChatInput({
       });
     },
     [onSettingsChange],
-  );
-
-  const handleInstructionChange = useCallback(
-    (instructionId: string) => {
-      void onSettingsChange({
-        instructionId: instructionId === "" ? undefined : instructionId,
-      });
-      setDropdownOpen(false);
-    },
-    [onSettingsChange, setDropdownOpen],
   );
 
   const handleThinkingLevelChange = useCallback(
@@ -1328,21 +1307,7 @@ export function ChatInput({
                 setDropdownOpen(false);
                 void navigate({ to: "/settings/mcp" });
               }}
-              instructions={instructions.map((instruction) => ({
-                instructionId: instruction.instructionId,
-                name: instruction.name,
-                isDefault: instruction.isDefault,
-                isBuiltin: instruction.isBuiltin,
-              }))}
-              selectedInstructionId={selectedInstruction?.instructionId}
-              selectedInstructionName={
-                selectedInstruction && !selectedInstruction.isDefault
-                  ? selectedInstruction.name
-                  : undefined
-              }
-              onInstructionChange={handleInstructionChange}
               state={{
-                instructionsReady,
                 canUploadFiles,
                 isAnalysisWorkspaceEnabled,
                 isImageGenerationEnabled,

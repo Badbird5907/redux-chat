@@ -4,7 +4,6 @@ export const modules: Record<string, () => Promise<unknown>> = {
     import("./functions/chatScrollPreferences"),
   "./functions/defaultMessageSettings.ts": () =>
     import("./functions/defaultMessageSettings"),
-  "./functions/instructions.ts": () => import("./functions/instructions"),
   "./functions/skills.ts": () => import("./functions/skills"),
   "./functions/mcpServers.ts": () => import("./functions/mcpServers"),
   "./functions/migrations.ts": () => import("./functions/migrations"),

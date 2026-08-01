@@ -46,6 +46,39 @@ const storedSkillFileValidator = v.object({
   environmentId: v.string(),
   accessKey: v.string(),
   fileKeyId: v.string(),
+  chunkCount: v.number(),
+});
+
+const skillChunkRouteValidator = v.object({
+  chunkIndex: v.number(),
+  startLine: v.number(),
+  endLine: v.number(),
+  startByteInLine: v.number(),
+  endByteInLine: v.number(),
+  uncompressedBytes: v.number(),
+  storedBytes: v.number(),
+});
+
+const storedSkillChunkValidator = v.object({
+  skillFileId: v.string(),
+  chunkIndex: v.number(),
+  startLine: v.number(),
+  endLine: v.number(),
+  startByteInLine: v.number(),
+  endByteInLine: v.number(),
+  uncompressedBytes: v.number(),
+  storedBytes: v.number(),
+  encoding: v.union(v.literal("identity"), v.literal("gzip")),
+  projectId: v.string(),
+  environmentId: v.string(),
+  accessKey: v.string(),
+  fileKeyId: v.string(),
+});
+
+const storedChunkManifestValidator = v.object({
+  skillFileId: v.string(),
+  totalLines: v.number(),
+  chunks: v.array(skillChunkRouteValidator),
 });
 
 const skillSourceValidator = v.object({
@@ -173,6 +206,24 @@ async function requireSkill(ctx: SkillCtx, userId: string, skillId: string) {
   return skill;
 }
 
+async function requireSkillEntrypoint(ctx: SkillCtx, skillId: string) {
+  const entrypoint = await ctx.db
+    .query("skillEntrypoints")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .first();
+  if (!entrypoint) throw new ConvexError("Skill entrypoint is unavailable");
+  return entrypoint;
+}
+
+async function requireSkillManifest(ctx: SkillCtx, skillId: string) {
+  const manifest = await ctx.db
+    .query("skillManifests")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .first();
+  if (!manifest) throw new ConvexError("Skill manifest is unavailable");
+  return manifest;
+}
+
 function toSummary(skill: Doc<"skills">) {
   return {
     skillId: skill.skillId,
@@ -208,7 +259,17 @@ function toSummary(skill: Doc<"skills">) {
   };
 }
 
-function toFileSummary(file: Doc<"skillFiles">) {
+function toFileSummary(file: {
+  skillFileId: string;
+  path: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+  isText: boolean;
+  lineCount?: number;
+  isSymlink?: boolean;
+  lfsPointer?: boolean;
+}) {
   return {
     skillFileId: file.skillFileId,
     path: file.path,
@@ -244,13 +305,10 @@ export const listFiles = query({
   args: { skillId: v.string() },
   handler: async (ctx, args) => {
     await requireSkill(ctx, ctx.userId, args.skillId);
-    const files = await ctx.db
-      .query("skillFiles")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .collect();
-    return files
-      .filter((file) => file.userId === ctx.userId)
-      .map(toFileSummary);
+    const manifest = await requireSkillManifest(ctx, args.skillId);
+    if (manifest.userId !== ctx.userId)
+      throw new ConvexError("Skill not found");
+    return manifest.files.map(toFileSummary);
   },
 });
 
@@ -423,9 +481,7 @@ export async function applySelectedSkillsToMessage(
   for (const skillId of selectedSkillIds) {
     const skill = await requireSkill(ctx, ctx.userId, skillId);
     if (!skill.enabled) throw new ConvexError(`${skill.name} is disabled`);
-    entrypointBytes += new TextEncoder().encode(
-      skill.entrypointText,
-    ).byteLength;
+    entrypointBytes += skill.entrypointBytes;
     skills.push(skill);
   }
   if (entrypointBytes > SKILL_LIMITS.maxCombinedEntrypointBytes) {
@@ -465,8 +521,7 @@ export async function applySelectedSkillsToMessage(
         );
       }
       const combinedBytes = [...resultingSkills.values()].reduce(
-        (total, skill) =>
-          total + new TextEncoder().encode(skill.entrypointText).byteLength,
+        (total, skill) => total + skill.entrypointBytes,
         0,
       );
       if (combinedBytes > SKILL_LIMITS.maxCombinedEntrypointBytes) {
@@ -602,6 +657,14 @@ export const deleteSkill = mutation({
       .query("skillFiles")
       .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
       .collect();
+    const chunks = await ctx.db
+      .query("skillFileChunks")
+      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
+      .collect();
+    const chunkManifests = await ctx.db
+      .query("skillFileChunkManifests")
+      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
+      .collect();
     for (const file of files) {
       if (file.userId !== ctx.userId) continue;
       await ctx.scheduler.runAfter(
@@ -616,6 +679,31 @@ export const deleteSkill = mutation({
       );
       await ctx.db.delete(file._id);
     }
+    for (const chunk of chunks) {
+      if (chunk.userId !== ctx.userId) continue;
+      await ctx.scheduler.runAfter(
+        0,
+        internal.functions.attachments.internal_deleteFileFromSilo,
+        {
+          projectId: chunk.projectId,
+          environmentId: chunk.environmentId,
+          fileKeyId: chunk.fileKeyId,
+          accessKey: chunk.accessKey,
+        },
+      );
+      await ctx.db.delete(chunk._id);
+    }
+    for (const manifest of chunkManifests) await ctx.db.delete(manifest._id);
+    const entrypoint = await ctx.db
+      .query("skillEntrypoints")
+      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
+      .first();
+    if (entrypoint) await ctx.db.delete(entrypoint._id);
+    const manifest = await ctx.db
+      .query("skillManifests")
+      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
+      .first();
+    if (manifest) await ctx.db.delete(manifest._id);
     const activeRows = await ctx.db
       .query("threadSkills")
       .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
@@ -627,7 +715,7 @@ export const deleteSkill = mutation({
     await updateUserUsageStats(ctx, ctx.userId, {
       skillsDelta: -1,
       skillFilesDelta: -files.length,
-      skillStorageBytesDelta: -skill.totalBytes,
+      skillStorageBytesDelta: -skill.storageBytes,
       lastActiveAt: Date.now(),
     });
     return { success: true as const };
@@ -647,13 +735,22 @@ export const getProposal = query({
       name: proposal.name,
       description: proposal.description,
       files: proposal.files,
-      status:
-        proposal.status === "pending" && proposal.expiresAt <= Date.now()
-          ? ("expired" as const)
-          : proposal.status,
+      status: proposal.status,
       approvedSkillId: proposal.approvedSkillId,
       expiresAt: proposal.expiresAt,
     };
+  },
+});
+
+export const getProposalPayload = query({
+  args: { proposalId: v.string() },
+  handler: async (ctx, args) => {
+    const payload = await ctx.db
+      .query("skillProposalPayloads")
+      .withIndex("by_proposalId", (q) => q.eq("proposalId", args.proposalId))
+      .first();
+    if (payload?.userId !== ctx.userId) return null;
+    return { files: payload.files };
   },
 });
 
@@ -661,13 +758,23 @@ export const internal_cleanupExpiredProposals = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const proposals = await ctx.db
-      .query("skillProposals")
+    const payloads = await ctx.db
+      .query("skillProposalPayloads")
       .withIndex("by_expiresAt", (q) => q.lt("expiresAt", now))
-      .filter((q) => q.eq(q.field("cleanedAt"), undefined))
       .take(500);
     let cleaned = 0;
-    for (const proposal of proposals) {
+    for (const payload of payloads) {
+      const proposal = await ctx.db
+        .query("skillProposals")
+        .withIndex("by_proposalId", (q) =>
+          q.eq("proposalId", payload.proposalId),
+        )
+        .first();
+      if (!proposal) {
+        await ctx.db.delete(payload._id);
+        cleaned += 1;
+        continue;
+      }
       if (
         proposal.status === "approving" &&
         (proposal.approvalClaimedAt ?? 0) > now - APPROVAL_CLAIM_TIMEOUT_MS
@@ -679,10 +786,11 @@ export const internal_cleanupExpiredProposals = internalMutation({
           proposal.status === "pending" || proposal.status === "approving"
             ? "expired"
             : proposal.status,
-        files: proposal.files.map((file) => ({ ...file, content: "" })),
-        cleanedAt: now,
+        approvalClaimId: undefined,
+        approvalClaimedAt: undefined,
         updatedAt: now,
       });
+      await ctx.db.delete(payload._id);
       cleaned += 1;
     }
     return { cleaned };
@@ -708,6 +816,11 @@ export const rejectProposal = mutation({
       status: "rejected",
       updatedAt: Date.now(),
     });
+    const payload = await ctx.db
+      .query("skillProposalPayloads")
+      .withIndex("by_proposalId", (q) => q.eq("proposalId", args.proposalId))
+      .first();
+    if (payload) await ctx.db.delete(payload._id);
     return { success: true as const };
   },
 });
@@ -725,10 +838,16 @@ export const backend_commitSkillImport = backendMutation({
     allowAutoLoad: v.boolean(),
     source: skillSourceValidator,
     files: v.array(storedSkillFileValidator),
+    chunks: v.array(storedSkillChunkValidator),
+    chunkManifests: v.array(storedChunkManifestValidator),
+    storageBytes: v.number(),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     const totalBytes = args.files.reduce((sum, file) => sum + file.size, 0);
+    const computedStorageBytes =
+      totalBytes +
+      args.chunks.reduce((sum, chunk) => sum + chunk.storedBytes, 0);
     if (
       args.files.length === 0 ||
       args.files.length > SKILL_LIMITS.maxFilesPerSkill ||
@@ -742,7 +861,15 @@ export const backend_commitSkillImport = backendMutation({
     if (entrypointBytes > SKILL_LIMITS.maxEntrypointBytes) {
       throw new ConvexError("SKILL.md is too large");
     }
+    if (args.storageBytes !== computedStorageBytes) {
+      throw new ConvexError(
+        "Skill storage size does not match uploaded objects",
+      );
+    }
     const seenPaths = new Set<string>();
+    const filesById = new Map(
+      args.files.map((file) => [file.skillFileId, file]),
+    );
     for (const file of args.files) {
       const path = normalizePath(file.path);
       const key = path.toLowerCase();
@@ -756,19 +883,70 @@ export const backend_commitSkillImport = backendMutation({
     if (!seenPaths.has("skill.md")) {
       throw new ConvexError("Skill package must contain a root SKILL.md");
     }
+    const entrypointFile = args.files.find((file) => file.path === "SKILL.md");
+    if (!entrypointFile?.isText || entrypointFile.size !== entrypointBytes) {
+      throw new ConvexError("SKILL.md metadata does not match its content");
+    }
+    const manifestsByFileId = new Map(
+      args.chunkManifests.map((manifest) => [manifest.skillFileId, manifest]),
+    );
+    if (manifestsByFileId.size !== args.chunkManifests.length) {
+      throw new ConvexError("Duplicate skill chunk manifest");
+    }
+    const chunksByFileId = new Map<string, typeof args.chunks>();
+    for (const chunk of args.chunks) {
+      if (!filesById.has(chunk.skillFileId)) {
+        throw new ConvexError("Skill chunk references an unknown file");
+      }
+      const list = chunksByFileId.get(chunk.skillFileId) ?? [];
+      list.push(chunk);
+      chunksByFileId.set(chunk.skillFileId, list);
+    }
+    for (const file of args.files) {
+      const chunks = (chunksByFileId.get(file.skillFileId) ?? []).sort(
+        (a, b) => a.chunkIndex - b.chunkIndex,
+      );
+      const manifest = manifestsByFileId.get(file.skillFileId);
+      if (!file.isText && (chunks.length > 0 || manifest)) {
+        throw new ConvexError(`${file.path} is binary but has text chunks`);
+      }
+      if (file.isText && !manifest) {
+        throw new ConvexError(`${file.path} is missing its chunk manifest`);
+      }
+      const manifestChunkCount = manifest ? manifest.chunks.length : 0;
+      if (
+        chunks.length !== file.chunkCount ||
+        manifestChunkCount !== chunks.length
+      ) {
+        throw new ConvexError(`${file.path} has incomplete chunk metadata`);
+      }
+      chunks.forEach((chunk, index) => {
+        if (
+          chunk.chunkIndex !== index ||
+          manifest?.chunks[index]?.chunkIndex !== index
+        ) {
+          throw new ConvexError(`${file.path} has non-contiguous chunks`);
+        }
+      });
+    }
 
     let skill: Doc<"skills"> | null = null;
     let oldFiles: Doc<"skillFiles">[] = [];
+    let oldChunks: Doc<"skillFileChunks">[] = [];
+    let oldChunkManifests: Doc<"skillFileChunkManifests">[] = [];
+    let oldEntrypoint: Doc<"skillEntrypoints"> | null = null;
+    let oldManifest: Doc<"skillManifests"> | null = null;
     if (!args.replacingSkillId && args.source.proposalId) {
       const existingSkills = await ctx.db
         .query("skills")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-        .collect();
-      const existingProposalSkill = existingSkills.find(
-        (candidate) => candidate.proposalId === args.source.proposalId,
-      );
+        .withIndex("by_proposalId", (q) =>
+          q.eq("proposalId", args.source.proposalId),
+        )
+        .first();
+      const existingProposalSkill =
+        existingSkills?.userId === args.userId ? existingSkills : null;
       if (existingProposalSkill) {
-        for (const file of args.files) {
+        for (const file of [...args.files, ...args.chunks]) {
           await ctx.scheduler.runAfter(
             0,
             internal.functions.attachments.internal_deleteFileFromSilo,
@@ -798,6 +976,30 @@ export const backend_commitSkillImport = backendMutation({
           q.eq("skillId", args.replacingSkillId ?? ""),
         )
         .collect();
+      oldChunks = await ctx.db
+        .query("skillFileChunks")
+        .withIndex("by_skillId", (q) =>
+          q.eq("skillId", args.replacingSkillId ?? ""),
+        )
+        .collect();
+      oldChunkManifests = await ctx.db
+        .query("skillFileChunkManifests")
+        .withIndex("by_skillId", (q) =>
+          q.eq("skillId", args.replacingSkillId ?? ""),
+        )
+        .collect();
+      oldEntrypoint = await ctx.db
+        .query("skillEntrypoints")
+        .withIndex("by_skillId", (q) =>
+          q.eq("skillId", args.replacingSkillId ?? ""),
+        )
+        .first();
+      oldManifest = await ctx.db
+        .query("skillManifests")
+        .withIndex("by_skillId", (q) =>
+          q.eq("skillId", args.replacingSkillId ?? ""),
+        )
+        .first();
     } else {
       const existingSkills = await ctx.db
         .query("skills")
@@ -817,7 +1019,7 @@ export const backend_commitSkillImport = backendMutation({
       skill?.description ?? normalizeDescription(args.description);
     if (skill) {
       await ctx.db.patch(skill._id, {
-        entrypointText: args.entrypointText,
+        entrypointBytes,
         metadataWasInferred: args.metadataWasInferred,
         sourceType: args.source.sourceType,
         originalFileName: args.source.originalFileName,
@@ -832,9 +1034,16 @@ export const backend_commitSkillImport = backendMutation({
         sourceMessageId: args.source.sourceMessageId,
         fileCount: args.files.length,
         totalBytes,
+        storageBytes: args.storageBytes,
         updatedAt: now,
       });
       for (const oldFile of oldFiles) await ctx.db.delete(oldFile._id);
+      for (const oldChunk of oldChunks) await ctx.db.delete(oldChunk._id);
+      for (const oldChunkManifest of oldChunkManifests) {
+        await ctx.db.delete(oldChunkManifest._id);
+      }
+      if (oldEntrypoint) await ctx.db.delete(oldEntrypoint._id);
+      if (oldManifest) await ctx.db.delete(oldManifest._id);
     } else {
       await ctx.db.insert("skills", {
         skillId,
@@ -845,14 +1054,31 @@ export const backend_commitSkillImport = backendMutation({
         enabled: args.enabled,
         allowAutoLoad: args.allowAutoLoad,
         ...args.source,
-        entrypointText: args.entrypointText,
+        entrypointBytes,
         metadataWasInferred: args.metadataWasInferred,
         fileCount: args.files.length,
         totalBytes,
+        storageBytes: args.storageBytes,
         createdAt: now,
         updatedAt: now,
       });
     }
+    await ctx.db.insert("skillEntrypoints", {
+      skillId,
+      userId: args.userId,
+      text: args.entrypointText,
+      size: entrypointBytes,
+      sha256: entrypointFile.sha256,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.insert("skillManifests", {
+      skillId,
+      userId: args.userId,
+      files: args.files.map(toFileSummary),
+      createdAt: now,
+      updatedAt: now,
+    });
     for (const file of args.files) {
       await ctx.db.insert("skillFiles", {
         ...file,
@@ -862,7 +1088,23 @@ export const backend_commitSkillImport = backendMutation({
         createdAt: now,
       });
     }
-    for (const oldFile of oldFiles) {
+    for (const manifest of args.chunkManifests) {
+      await ctx.db.insert("skillFileChunkManifests", {
+        ...manifest,
+        skillId,
+        userId: args.userId,
+        createdAt: now,
+      });
+    }
+    for (const chunk of args.chunks) {
+      await ctx.db.insert("skillFileChunks", {
+        ...chunk,
+        skillId,
+        userId: args.userId,
+        createdAt: now,
+      });
+    }
+    for (const oldFile of [...oldFiles, ...oldChunks]) {
       await ctx.scheduler.runAfter(
         0,
         internal.functions.attachments.internal_deleteFileFromSilo,
@@ -877,7 +1119,7 @@ export const backend_commitSkillImport = backendMutation({
     await updateUserUsageStats(ctx, args.userId, {
       skillsDelta: skill ? 0 : 1,
       skillFilesDelta: args.files.length - oldFiles.length,
-      skillStorageBytesDelta: totalBytes - (skill?.totalBytes ?? 0),
+      skillStorageBytesDelta: args.storageBytes - (skill?.storageBytes ?? 0),
       lastActiveAt: now,
     });
     return { skillId, slug };
@@ -894,7 +1136,6 @@ export const backend_getSkillSource = backendQuery({
     );
     return {
       ...toSummary(skill),
-      entrypointText: skill.entrypointText,
       githubOriginalUrl: skill.githubOriginalUrl,
     };
   },
@@ -912,11 +1153,10 @@ export const backend_getSkillFile = backendQuery({
   },
 });
 
-export const backend_getRuntimeContext = backendQuery({
+export const backend_getSelectedSkillRefs = backendQuery({
   args: {
     userId: v.string(),
     threadId: v.string(),
-    userMessageId: v.string(),
     assistantMessageId: v.string(),
   },
   handler: async (ctx, args) => {
@@ -945,62 +1185,34 @@ export const backend_getRuntimeContext = backendQuery({
         .filter((usage) => usage.userId === args.userId)
         .map((usage) => [usage.skillId, usage.trigger] as const),
     );
-    const explicitIds = new Set([
-      ...triggerBySkillId.keys(),
-      ...threadRows.map((row) => row.skillId),
-    ]);
-    const explicit = [];
-    const droppedExplicit: { skillId: string; name: string }[] = [];
-    let combinedBytes = 0;
-    for (const skillId of explicitIds) {
-      const skill = await ctx.db
-        .query("skills")
-        .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
-        .first();
-      if (skill?.userId !== args.userId) continue;
-      if (!skill.enabled) continue;
-      const entrypointBytes = new TextEncoder().encode(
-        skill.entrypointText,
-      ).byteLength;
-      if (
-        explicit.length >= SKILL_LIMITS.maxExplicitSkills ||
-        combinedBytes + entrypointBytes >
-          SKILL_LIMITS.maxCombinedEntrypointBytes
-      ) {
-        droppedExplicit.push({ skillId: skill.skillId, name: skill.name });
-        continue;
-      }
-      combinedBytes += entrypointBytes;
-      const files = await ctx.db
-        .query("skillFiles")
-        .withIndex("by_skillId", (q) => q.eq("skillId", skill.skillId))
-        .collect();
-      explicit.push({
-        skillId: skill.skillId,
-        name: skill.name,
-        description: skill.description,
-        slug: skill.slug,
-        entrypointText: skill.entrypointText,
-        trigger: triggerBySkillId.get(skill.skillId) ?? "slash-thread",
-        files: files.map(toFileSummary),
-      });
+    const refs = new Map<string, "slash-message" | "slash-thread" | "auto">();
+    for (const [skillId, trigger] of triggerBySkillId)
+      refs.set(skillId, trigger);
+    for (const row of threadRows) {
+      if (!refs.has(row.skillId)) refs.set(row.skillId, "slash-thread");
     }
-    const autoSkills = await ctx.db
+    return [...refs].map(([skillId, trigger]) => ({ skillId, trigger }));
+  },
+});
+
+export const backend_getAutoSkillCatalog = backendQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const skills = await ctx.db
       .query("skills")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId_enabled_autoLoad", (q) =>
+        q
+          .eq("userId", args.userId)
+          .eq("enabled", true)
+          .eq("allowAutoLoad", true),
+      )
       .collect();
-    return {
-      explicit,
-      droppedExplicit,
-      autoCatalog: autoSkills
-        .filter((skill) => skill.enabled && skill.allowAutoLoad)
-        .map((skill) => ({
-          skillId: skill.skillId,
-          name: skill.name,
-          description: skill.description,
-          slug: skill.slug,
-        })),
-    };
+    return skills.map((skill) => ({
+      skillId: skill.skillId,
+      name: skill.name,
+      description: skill.description,
+      slug: skill.slug,
+    }));
   },
 });
 
@@ -1013,24 +1225,35 @@ export const backend_getSkillForRuntime = backendQuery({
       args.skillId,
     );
     if (!skill.enabled) throw new ConvexError("Skill is disabled");
-    const files = await ctx.db
-      .query("skillFiles")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .collect();
+    const [entrypoint, manifest] = await Promise.all([
+      requireSkillEntrypoint(ctx as AuthenticatedQueryCtx, args.skillId),
+      requireSkillManifest(ctx as AuthenticatedQueryCtx, args.skillId),
+    ]);
+    if (entrypoint.userId !== args.userId || manifest.userId !== args.userId) {
+      throw new ConvexError("Skill not found");
+    }
     return {
       skillId: skill.skillId,
       name: skill.name,
       description: skill.description,
       slug: skill.slug,
-      entrypointText: skill.entrypointText,
+      entrypointText: entrypoint.text,
+      entrypointBytes: entrypoint.size,
       allowAutoLoad: skill.allowAutoLoad,
-      files: files.map(toFileSummary),
+      files: manifest.files.map(toFileSummary),
     };
   },
 });
 
-export const backend_getSkillFileForRuntime = backendQuery({
-  args: { userId: v.string(), skillId: v.string(), path: v.string() },
+export const backend_getSkillFileReadPlan = backendQuery({
+  args: {
+    userId: v.string(),
+    skillId: v.string(),
+    path: v.string(),
+    startLine: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    maxLines: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const skill = await requireSkill(
       ctx as AuthenticatedQueryCtx,
@@ -1049,7 +1272,92 @@ export const backend_getSkillFileForRuntime = backendQuery({
       throw new ConvexError("Skill file not found");
     if (!file.isText)
       throw new ConvexError("Only text skill files can be loaded");
-    return file;
+    const manifest = await ctx.db
+      .query("skillFileChunkManifests")
+      .withIndex("by_skillFileId", (q) => q.eq("skillFileId", file.skillFileId))
+      .first();
+    if (manifest?.userId !== args.userId) {
+      throw new ConvexError("Skill file chunk manifest not found");
+    }
+    if (manifest.chunks.length === 0) {
+      return {
+        skillFileId: file.skillFileId,
+        path: file.path,
+        totalLines: manifest.totalLines,
+        requestedLine: 1,
+        initialByteOffset: 0,
+        chunks: [],
+      };
+    }
+
+    let chunkIndex: number;
+    let initialByteOffset = 0;
+    let requestedLine = Math.max(
+      1,
+      Math.min(Math.floor(args.startLine ?? 1), manifest.totalLines),
+    );
+    if (args.cursor) {
+      const match = /^v1:([^:]+):(\d+):(\d+)$/.exec(args.cursor);
+      if (match?.[1] !== file.skillFileId) {
+        throw new ConvexError("Invalid skill file cursor");
+      }
+      chunkIndex = Number(match[2]);
+      initialByteOffset = Number(match[3]);
+      const route = manifest.chunks[chunkIndex];
+      if (!route || initialByteOffset > route.uncompressedBytes) {
+        throw new ConvexError("Invalid skill file cursor");
+      }
+      requestedLine = route.startLine;
+    } else {
+      chunkIndex = manifest.chunks.findIndex(
+        (route) =>
+          route.startLine <= requestedLine &&
+          (route.endLine > requestedLine ||
+            (route.endLine === requestedLine && route.endByteInLine > 0)),
+      );
+      if (chunkIndex < 0) chunkIndex = manifest.chunks.length - 1;
+    }
+    const routes = manifest.chunks.slice(
+      chunkIndex,
+      chunkIndex + SKILL_LIMITS.maxReadPlanChunks,
+    );
+    const chunks = await Promise.all(
+      routes.map((route) =>
+        ctx.db
+          .query("skillFileChunks")
+          .withIndex("by_skillFileId_chunkIndex", (q) =>
+            q
+              .eq("skillFileId", file.skillFileId)
+              .eq("chunkIndex", route.chunkIndex),
+          )
+          .first(),
+      ),
+    );
+    const availableChunks: Doc<"skillFileChunks">[] = [];
+    for (const chunk of chunks) {
+      if (chunk?.userId !== args.userId) {
+        throw new ConvexError("Skill file chunk not found");
+      }
+      availableChunks.push(chunk);
+    }
+    return {
+      skillFileId: file.skillFileId,
+      path: file.path,
+      totalLines: manifest.totalLines,
+      requestedLine,
+      initialByteOffset,
+      chunks: availableChunks.map((chunk) => ({
+        chunkIndex: chunk.chunkIndex,
+        startLine: chunk.startLine,
+        endLine: chunk.endLine,
+        uncompressedBytes: chunk.uncompressedBytes,
+        encoding: chunk.encoding,
+        projectId: chunk.projectId,
+        environmentId: chunk.environmentId,
+        accessKey: chunk.accessKey,
+        fileKeyId: chunk.fileKeyId,
+      })),
+    };
   },
 });
 
@@ -1127,7 +1435,7 @@ export const backend_createProposal = backendMutation({
     }
     let totalBytes = 0;
     const seen = new Set<string>();
-    const files = args.files.map((file) => {
+    const payloadFiles = args.files.map((file) => {
       const path = normalizePath(file.path);
       const key = path.toLowerCase();
       if (seen.has(key)) throw new ConvexError(`Duplicate skill path: ${path}`);
@@ -1152,6 +1460,7 @@ export const backend_createProposal = backendMutation({
     }
     const now = Date.now();
     const proposalId = generateId();
+    const expiresAt = now + 7 * 24 * 60 * 60 * 1000;
     await ctx.db.insert("skillProposals", {
       proposalId,
       userId: args.userId,
@@ -1160,11 +1469,23 @@ export const backend_createProposal = backendMutation({
       toolCallId: args.toolCallId,
       name: normalizeName(args.name),
       description: normalizeDescription(args.description),
-      files,
+      files: payloadFiles.map(({ path, size, lineCount }) => ({
+        path,
+        size,
+        lineCount,
+      })),
       status: "pending",
-      expiresAt: now + 7 * 24 * 60 * 60 * 1000,
+      expiresAt,
       createdAt: now,
       updatedAt: now,
+    });
+    await ctx.db.insert("skillProposalPayloads", {
+      proposalId,
+      userId: args.userId,
+      threadId: args.threadId,
+      files: payloadFiles,
+      expiresAt,
+      createdAt: now,
     });
     return { proposalId, status: "pending" as const };
   },
@@ -1198,6 +1519,13 @@ export const backend_claimProposalApproval = backendMutation({
     ) {
       throw new ConvexError("Skill proposal is no longer available");
     }
+    const payload = await ctx.db
+      .query("skillProposalPayloads")
+      .withIndex("by_proposalId", (q) => q.eq("proposalId", args.proposalId))
+      .first();
+    if (payload?.userId !== args.userId) {
+      throw new ConvexError("Skill proposal payload is unavailable");
+    }
     await ctx.db.patch(proposal._id, {
       status: "approving",
       approvalClaimId: args.claimId,
@@ -1212,7 +1540,7 @@ export const backend_claimProposalApproval = backendMutation({
         messageId: proposal.messageId,
         name: proposal.name,
         description: proposal.description,
-        files: proposal.files,
+        files: payload.files,
       },
     };
   },
@@ -1248,6 +1576,11 @@ export const backend_finalizeProposalApproval = backendMutation({
       approvalClaimedAt: undefined,
       updatedAt: Date.now(),
     });
+    const payload = await ctx.db
+      .query("skillProposalPayloads")
+      .withIndex("by_proposalId", (q) => q.eq("proposalId", args.proposalId))
+      .first();
+    if (payload) await ctx.db.delete(payload._id);
     return { skillId: args.skillId };
   },
 });

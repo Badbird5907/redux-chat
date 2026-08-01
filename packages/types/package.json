@@ -4,9 +4,6 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./chat/instructions/default": "./src/chat/instructions/default.ts",
-    "./chat/instructions/index": "./src/chat/instructions/index.ts",
-    "./chat/instructions/learning": "./src/chat/instructions/learning.ts",
     "./chat/message-settings": "./src/chat/message-settings.ts",
     "./chat/model-config": "./src/chat/model-config.ts",
     "./skills": "./src/skills.ts",

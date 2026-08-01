@@ -21,7 +21,6 @@ import {
 } from "../usageStats";
 import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
-import { normalizeInstructionIdForUser } from "./instructions";
 import { internalAction, internalMutation } from "./internal";
 import {
   applySelectedSkillsToMessage,
@@ -72,7 +71,6 @@ const emptyToolPatchValidator = v.union(
 const messageSettingsValidator = v.object({
   model: v.string(),
   thinkingLevel: v.optional(thinkingLevelValidator),
-  instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
   tools: v.object({
     search: v.optional(emptyStoredToolValidator),
@@ -818,11 +816,6 @@ export const sendMessage = mutation({
     let depth = 0;
     let siblingIndex = 0;
     const normalizedSettings = normalizeMessageSettings(args.settings);
-    normalizedSettings.instructionId = await normalizeInstructionIdForUser(
-      ctx,
-      ctx.userId,
-      normalizedSettings.instructionId,
-    );
 
     // 3. Insert thread if needed
     if (threadId.includes(":")) {
@@ -1377,8 +1370,6 @@ export const updateThreadSettings = mutation({
   args: {
     threadId: v.string(),
     patch: v.object({
-      instructionId: v.optional(v.string()),
-      clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
       thinkingLevel: v.optional(thinkingLevelValidator),
       tools: v.optional(v.union(messageSettingsToolPatchValidator, v.null())),
@@ -1394,15 +1385,9 @@ export const updateThreadSettings = mutation({
       throw new ConvexError("Thread not found");
     }
 
-    const { clearInstructionId, ...settingsPatch } = args.patch;
     const mergedSettings = mergePersistedMessageSettings(
       thread.settings,
-      settingsPatch,
-    );
-    mergedSettings.instructionId = await normalizeInstructionIdForUser(
-      ctx,
-      ctx.userId,
-      clearInstructionId ? undefined : mergedSettings.instructionId,
+      args.patch,
     );
 
     await ctx.db.patch(thread._id, {
@@ -1566,6 +1551,12 @@ export const deleteThread = mutation({
         q.eq("userId", ctx.userId).eq("threadId", args.threadId),
       )
       .collect();
+    const skillProposalPayloads = await ctx.db
+      .query("skillProposalPayloads")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
     const uniqueFiles = new Map<
       string,
       {
@@ -1657,6 +1648,7 @@ export const deleteThread = mutation({
       ...threadSkills.map((entry) => ctx.db.delete(entry._id)),
       ...skillUsages.map((usage) => ctx.db.delete(usage._id)),
       ...skillProposals.map((proposal) => ctx.db.delete(proposal._id)),
+      ...skillProposalPayloads.map((payload) => ctx.db.delete(payload._id)),
     ]);
     await ctx.db.delete(thread._id);
     await updateUserUsageStats(ctx, ctx.userId, {

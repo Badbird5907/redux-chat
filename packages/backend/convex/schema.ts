@@ -157,7 +157,6 @@ export const messageSettings = v.object({
   model: v.string(),
   tools: messageTools,
   thinkingLevel: v.optional(thinkingLevel),
-  instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
 });
 
@@ -298,31 +297,11 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(),
     description: v.optional(v.string()),
-    instructions: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_projectId", ["projectId"])
     .index("by_userId", ["userId", "updatedAt"]),
-
-  instructions: defineTable({
-    instructionId: v.string(),
-    userId: v.string(),
-    name: v.string(),
-    description: v.string(),
-    prompt: v.optional(v.string()),
-    defaultPrompt: v.optional(v.string()),
-    userEdited: v.optional(v.boolean()),
-    hidden: v.optional(v.boolean()),
-    builtinKey: v.optional(
-      v.union(v.literal("default"), v.literal("learning")),
-    ),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_instructionId", ["instructionId"])
-    .index("by_userId", ["userId", "updatedAt"])
-    .index("by_userId_builtinKey", ["userId", "builtinKey"]),
 
   skills: defineTable({
     skillId: v.string(),
@@ -343,16 +322,49 @@ export default defineSchema({
     proposalId: v.optional(v.string()),
     sourceThreadId: v.optional(v.string()),
     sourceMessageId: v.optional(v.string()),
-    entrypointText: v.string(),
+    entrypointBytes: v.number(),
     metadataWasInferred: v.boolean(),
     fileCount: v.number(),
     totalBytes: v.number(),
+    storageBytes: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_skillId", ["skillId"])
     .index("by_userId", ["userId", "updatedAt"])
-    .index("by_userId_slug", ["userId", "slug"]),
+    .index("by_userId_slug", ["userId", "slug"])
+    .index("by_userId_enabled_autoLoad", ["userId", "enabled", "allowAutoLoad"])
+    .index("by_proposalId", ["proposalId"]),
+
+  skillEntrypoints: defineTable({
+    skillId: v.string(),
+    userId: v.string(),
+    text: v.string(),
+    size: v.number(),
+    sha256: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_skillId", ["skillId"]),
+
+  skillManifests: defineTable({
+    skillId: v.string(),
+    userId: v.string(),
+    files: v.array(
+      v.object({
+        skillFileId: v.string(),
+        path: v.string(),
+        mimeType: v.string(),
+        size: v.number(),
+        sha256: v.string(),
+        isText: v.boolean(),
+        lineCount: v.optional(v.number()),
+        isSymlink: v.optional(v.boolean()),
+        lfsPointer: v.optional(v.boolean()),
+      }),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_skillId", ["skillId"]),
 
   skillFiles: defineTable({
     skillFileId: v.string(),
@@ -370,12 +382,55 @@ export default defineSchema({
     environmentId: v.string(),
     accessKey: v.string(),
     fileKeyId: v.string(),
+    chunkCount: v.number(),
     createdAt: v.number(),
   })
     .index("by_skillFileId", ["skillFileId"])
     .index("by_skillId", ["skillId"])
     .index("by_skillId_path", ["skillId", "path"])
     .index("by_userId_skillId", ["userId", "skillId"]),
+
+  skillFileChunkManifests: defineTable({
+    skillFileId: v.string(),
+    skillId: v.string(),
+    userId: v.string(),
+    totalLines: v.number(),
+    chunks: v.array(
+      v.object({
+        chunkIndex: v.number(),
+        startLine: v.number(),
+        endLine: v.number(),
+        startByteInLine: v.number(),
+        endByteInLine: v.number(),
+        uncompressedBytes: v.number(),
+        storedBytes: v.number(),
+      }),
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_skillFileId", ["skillFileId"])
+    .index("by_skillId", ["skillId"]),
+
+  skillFileChunks: defineTable({
+    skillFileId: v.string(),
+    skillId: v.string(),
+    userId: v.string(),
+    chunkIndex: v.number(),
+    startLine: v.number(),
+    endLine: v.number(),
+    startByteInLine: v.number(),
+    endByteInLine: v.number(),
+    uncompressedBytes: v.number(),
+    storedBytes: v.number(),
+    encoding: v.union(v.literal("identity"), v.literal("gzip")),
+    projectId: v.string(),
+    environmentId: v.string(),
+    accessKey: v.string(),
+    fileKeyId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_skillFileId_chunkIndex", ["skillFileId", "chunkIndex"])
+    .index("by_skillId", ["skillId"]),
 
   threadSkills: defineTable({
     userId: v.string(),
@@ -415,7 +470,6 @@ export default defineSchema({
     files: v.array(
       v.object({
         path: v.string(),
-        content: v.string(),
         size: v.number(),
         lineCount: v.number(),
       }),
@@ -424,7 +478,6 @@ export default defineSchema({
     approvedSkillId: v.optional(v.string()),
     approvalClaimId: v.optional(v.string()),
     approvalClaimedAt: v.optional(v.number()),
-    cleanedAt: v.optional(v.number()),
     expiresAt: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -432,8 +485,26 @@ export default defineSchema({
     .index("by_proposalId", ["proposalId"])
     .index("by_userId", ["userId", "createdAt"])
     .index("by_userId_threadId", ["userId", "threadId", "createdAt"])
-    .index("by_expiresAt", ["expiresAt"])
     .index("by_userId_toolCallId", ["userId", "toolCallId"]),
+
+  skillProposalPayloads: defineTable({
+    proposalId: v.string(),
+    userId: v.string(),
+    threadId: v.string(),
+    files: v.array(
+      v.object({
+        path: v.string(),
+        content: v.string(),
+        size: v.number(),
+        lineCount: v.number(),
+      }),
+    ),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_proposalId", ["proposalId"])
+    .index("by_expiresAt", ["expiresAt"])
+    .index("by_userId_threadId", ["userId", "threadId"]),
 
   threads: defineTable({
     threadId: v.string(),

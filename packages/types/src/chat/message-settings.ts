@@ -87,10 +87,8 @@ export interface MessageSettings {
   model: string;
   tools: MessageToolSettings;
   thinkingLevel?: ThinkingLevel;
-  instructionId?: string;
   /** Max newline-separated lines before showing "Show more". `0` disables collapsing. */
   userMessagePreviewMaxLines?: number;
-  [key: string]: unknown;
 }
 
 export interface MessageSettingsInput extends Omit<
@@ -113,7 +111,6 @@ export const DEFAULT_MESSAGE_SETTINGS: MessageSettings = {
     mcpServers: { serverIds: [] },
     imageGeneration: { modelId: DEFAULT_IMAGE_GENERATION_MODEL_ID },
   },
-  instructionId: undefined,
   userMessagePreviewMaxLines: DEFAULT_USER_MESSAGE_PREVIEW_MAX_LINES,
 };
 
@@ -144,20 +141,18 @@ function normalizeMessageSettingsWithTools(
   input: MessageSettingsInput | null | undefined,
   tools: MessageToolSettings,
 ): MessageSettings {
-  const rest = input ?? {};
+  const settings = input ?? {};
   const normalizedModel =
-    typeof rest.model === "string"
-      ? (normalizeModelId(rest.model) ?? DEFAULT_MESSAGE_SETTINGS.model)
+    typeof settings.model === "string"
+      ? (normalizeModelId(settings.model) ?? DEFAULT_MESSAGE_SETTINGS.model)
       : DEFAULT_MESSAGE_SETTINGS.model;
 
   return {
-    ...DEFAULT_MESSAGE_SETTINGS,
-    ...rest,
     model: normalizedModel,
-    thinkingLevel: normalizeThinkingLevel(rest.thinkingLevel),
+    thinkingLevel: normalizeThinkingLevel(settings.thinkingLevel),
     tools,
     userMessagePreviewMaxLines: normalizeUserMessagePreviewMaxLines(
-      rest.userMessagePreviewMaxLines,
+      settings.userMessagePreviewMaxLines,
     ),
   };
 }

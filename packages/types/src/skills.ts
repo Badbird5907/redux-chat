@@ -15,6 +15,9 @@ export const SKILL_LIMITS = {
   maxCombinedEntrypointBytes: MAX_EXPLICIT_SKILLS * MAX_ENTRYPOINT_BYTES,
   maxReadLines: 400,
   maxReadBytes: 64 * 1024,
+  chunkTargetBytes: 48 * 1024,
+  chunkMaxLines: 400,
+  maxReadPlanChunks: 3,
   maxProposalFiles: 25,
   maxProposalBytes: 256 * 1024,
   maxProposalFileBytes: 64 * 1024,
@@ -72,4 +75,22 @@ export interface SkillProposalFileSummary {
   path: string;
   size: number;
   lineCount: number;
+}
+
+export type SkillChunkEncoding = "identity" | "gzip";
+
+export interface SkillFileChunkRoute {
+  chunkIndex: number;
+  startLine: number;
+  endLine: number;
+  startByteInLine: number;
+  endByteInLine: number;
+  uncompressedBytes: number;
+  storedBytes: number;
+}
+
+export interface SkillFileReadCursor {
+  skillFileId: string;
+  chunkIndex: number;
+  byteOffset: number;
 }

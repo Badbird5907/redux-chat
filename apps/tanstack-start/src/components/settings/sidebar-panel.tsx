@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  BookText,
   FileText,
   Keyboard,
   MessageSquareHeart,
@@ -30,7 +29,6 @@ export function SettingsSidebarPanel() {
   const isAppearanceActive = pathname.startsWith("/settings/appearance");
   const isChatActive = pathname.startsWith("/settings/chat");
   const isSecurityActive = pathname.startsWith("/settings/security");
-  const isInstructionsActive = pathname.startsWith("/settings/instructions");
   const isSkillsActive = pathname.startsWith("/settings/skills");
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
   const isAttachmentsActive = pathname.startsWith("/settings/attachments");
@@ -58,16 +56,6 @@ export function SettingsSidebarPanel() {
             >
               <SlidersHorizontal />
               <span>General</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={isInstructionsActive}
-              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
-              render={<Link to="/settings/instructions" />}
-            >
-              <BookText />
-              <span>Instructions</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

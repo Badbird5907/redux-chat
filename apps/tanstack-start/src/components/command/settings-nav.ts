@@ -18,13 +18,6 @@ export const SETTINGS_NAV_ITEMS = [
       "security authentication auth account email password oauth github google social connections",
   },
   {
-    value: "settings-instructions",
-    to: "/settings/instructions" as const,
-    title: "Instructions",
-    subtitle: "Manage reusable chat behavior presets",
-    searchBlob: "instructions prompts styles presets system prompts",
-  },
-  {
     value: "settings-skills",
     to: "/settings/skills" as const,
     title: "Skills",

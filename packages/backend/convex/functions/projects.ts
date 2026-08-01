@@ -40,7 +40,6 @@ export const createProject = mutation({
   args: {
     name: v.string(),
     description: v.optional(v.string()),
-    instructions: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const name = args.name.trim().slice(0, 120);
@@ -56,7 +55,6 @@ export const createProject = mutation({
       userId: ctx.userId,
       name,
       description: normalizeOptionalText(args.description?.trim()),
-      instructions: normalizeOptionalText(args.instructions?.trim()),
       createdAt: now,
       updatedAt: now,
     });
@@ -78,7 +76,6 @@ export const getProjects = query({
       projectId: project.projectId,
       name: project.name,
       description: project.description,
-      instructions: project.instructions,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     }));
@@ -110,7 +107,6 @@ export const getProject = query({
       projectId: project.projectId,
       name: project.name,
       description: project.description,
-      instructions: project.instructions,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     };
@@ -159,7 +155,6 @@ export const updateProject = mutation({
     patch: v.object({
       name: v.optional(v.string()),
       description: v.optional(v.string()),
-      instructions: v.optional(v.string()),
     }),
   },
   handler: async (ctx, args) => {
@@ -184,11 +179,6 @@ export const updateProject = mutation({
       const description = args.patch.description.trim();
       update.description = description.length > 0 ? description : undefined;
     }
-    if (args.patch.instructions !== undefined) {
-      const instructions = args.patch.instructions.trim();
-      update.instructions = instructions.length > 0 ? instructions : undefined;
-    }
-
     await ctx.db.patch(project._id, {
       ...update,
       updatedAt: Date.now(),

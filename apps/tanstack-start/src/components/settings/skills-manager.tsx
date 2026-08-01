@@ -664,9 +664,14 @@ function SkillCard({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
-            <Button variant="ghost" size="sm" onClick={onViewFiles}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View files"
+              tooltip="View files"
+              onClick={onViewFiles}
+            >
               <Folder />
-              Files
             </Button>
             <Button
               variant="ghost"

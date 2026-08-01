@@ -24,7 +24,6 @@ import { Route as SettingsSupportRouteImport } from './routes/settings/support'
 import { Route as SettingsSkillsRouteImport } from './routes/settings/skills'
 import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
 import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
-import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsChatRouteImport } from './routes/settings/chat'
 import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
@@ -132,11 +131,6 @@ const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
 const SettingsMcpRoute = SettingsMcpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
-  getParentRoute: () => SettingsRoute,
-} as any)
-const SettingsInstructionsRoute = SettingsInstructionsRouteImport.update({
-  id: '/instructions',
-  path: '/instructions',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsHotkeysRoute = SettingsHotkeysRouteImport.update({
@@ -333,7 +327,6 @@ export interface FileRoutesByFullPath {
   '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
-  '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/skills': typeof SettingsSkillsRoute
@@ -379,7 +372,6 @@ export interface FileRoutesByTo {
   '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
-  '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/skills': typeof SettingsSkillsRoute
@@ -432,7 +424,6 @@ export interface FileRoutesById {
   '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
-  '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/security': typeof SettingsSecurityRoute
   '/settings/skills': typeof SettingsSkillsRoute
@@ -486,7 +477,6 @@ export interface FileRouteTypes {
     | '/settings/attachments'
     | '/settings/chat'
     | '/settings/hotkeys'
-    | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/security'
     | '/settings/skills'
@@ -532,7 +522,6 @@ export interface FileRouteTypes {
     | '/settings/attachments'
     | '/settings/chat'
     | '/settings/hotkeys'
-    | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/security'
     | '/settings/skills'
@@ -584,7 +573,6 @@ export interface FileRouteTypes {
     | '/settings/attachments'
     | '/settings/chat'
     | '/settings/hotkeys'
-    | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/security'
     | '/settings/skills'
@@ -748,13 +736,6 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/settings/mcp'
       preLoaderRoute: typeof SettingsMcpRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/instructions': {
-      id: '/settings/instructions'
-      path: '/instructions'
-      fullPath: '/settings/instructions'
-      preLoaderRoute: typeof SettingsInstructionsRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/hotkeys': {
@@ -1079,7 +1060,6 @@ interface SettingsRouteChildren {
   SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
   SettingsChatRoute: typeof SettingsChatRoute
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
-  SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsMcpRoute: typeof SettingsMcpRoute
   SettingsSecurityRoute: typeof SettingsSecurityRoute
   SettingsSkillsRoute: typeof SettingsSkillsRoute
@@ -1092,7 +1072,6 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAttachmentsRoute: SettingsAttachmentsRoute,
   SettingsChatRoute: SettingsChatRoute,
   SettingsHotkeysRoute: SettingsHotkeysRoute,
-  SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsMcpRoute: SettingsMcpRoute,
   SettingsSecurityRoute: SettingsSecurityRoute,
   SettingsSkillsRoute: SettingsSkillsRoute,

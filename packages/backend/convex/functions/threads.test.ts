@@ -84,6 +84,14 @@ describe("threads", () => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
+      await ctx.db.insert("skillProposalPayloads", {
+        proposalId: "proposal-1",
+        userId: USER_ID,
+        threadId: "thread-1",
+        files: [],
+        expiresAt: Date.now() + 60_000,
+        createdAt: Date.now(),
+      });
     });
 
     await t.mutation(api.functions.threads.deleteThread, {
@@ -95,12 +103,16 @@ describe("threads", () => {
       threadSkills: await ctx.db.query("threadSkills").collect(),
       skillUsages: await ctx.db.query("skillUsages").collect(),
       skillProposals: await ctx.db.query("skillProposals").collect(),
+      skillProposalPayloads: await ctx.db
+        .query("skillProposalPayloads")
+        .collect(),
     }));
     expect(remaining).toEqual({
       generatedImages: [],
       threadSkills: [],
       skillUsages: [],
       skillProposals: [],
+      skillProposalPayloads: [],
     });
   });
 });

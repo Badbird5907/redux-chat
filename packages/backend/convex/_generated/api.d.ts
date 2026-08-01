@@ -23,7 +23,6 @@ import type * as functions_devAuth from "../functions/devAuth.js";
 import type * as functions_embeddings from "../functions/embeddings.js";
 import type * as functions_generatedImages from "../functions/generatedImages.js";
 import type * as functions_index from "../functions/index.js";
-import type * as functions_instructions from "../functions/instructions.js";
 import type * as functions_internal from "../functions/internal.js";
 import type * as functions_mcpServers from "../functions/mcpServers.js";
 import type * as functions_migrations from "../functions/migrations.js";
@@ -64,7 +63,6 @@ declare const fullApi: ApiFromModules<{
   "functions/embeddings": typeof functions_embeddings;
   "functions/generatedImages": typeof functions_generatedImages;
   "functions/index": typeof functions_index;
-  "functions/instructions": typeof functions_instructions;
   "functions/internal": typeof functions_internal;
   "functions/mcpServers": typeof functions_mcpServers;
   "functions/migrations": typeof functions_migrations;

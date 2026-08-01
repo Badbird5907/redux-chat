@@ -36,7 +36,14 @@ export function SkillProposalCard({
   const approve = useServerFn(approveSkillProposal);
   const posthog = usePostHog();
   const [busy, setBusy] = useState<"approve" | "reject">();
+  const [filesOpen, setFilesOpen] = useState(false);
   const status = stored?.status ?? proposal.status;
+  const payload = useQuery(
+    api.functions.skills.getProposalPayload,
+    filesOpen && status === "pending"
+      ? { proposalId: proposal.proposalId }
+      : "skip",
+  );
 
   const handleApprove = async () => {
     setBusy("approve");
@@ -92,7 +99,11 @@ export function SkillProposalCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <details className="group rounded-lg border">
+        <details
+          className="group rounded-lg border"
+          open={filesOpen}
+          onToggle={(event) => setFilesOpen(event.currentTarget.open)}
+        >
           <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium">
             <span>
               {proposal.files.length} proposed file
@@ -102,25 +113,29 @@ export function SkillProposalCard({
           </summary>
           <div className="border-t p-3">
             <div className="space-y-2">
-              {(stored?.files ?? proposal.files).map((file) => (
-                <details key={file.path} className="rounded-md border">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm">
-                    <FileCode2 className="text-muted-foreground size-4" />
-                    <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {file.lineCount} lines
-                    </span>
-                  </summary>
-                  {"content" in file && typeof file.content === "string" ? (
-                    <div className="max-h-72 overflow-auto border-t p-3">
-                      <ShikiCodeBlock
-                        code={file.content}
-                        info={file.path.split(".").pop()}
-                      />
-                    </div>
-                  ) : null}
-                </details>
-              ))}
+              {(payload?.files ?? stored?.files ?? proposal.files).map(
+                (file) => (
+                  <details key={file.path} className="rounded-md border">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm">
+                      <FileCode2 className="text-muted-foreground size-4" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {file.path}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {file.lineCount} lines
+                      </span>
+                    </summary>
+                    {"content" in file && typeof file.content === "string" ? (
+                      <div className="max-h-72 overflow-auto border-t p-3">
+                        <ShikiCodeBlock
+                          code={file.content}
+                          info={file.path.split(".").pop()}
+                        />
+                      </div>
+                    ) : null}
+                  </details>
+                ),
+              )}
             </div>
           </div>
         </details>

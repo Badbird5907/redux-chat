@@ -34,10 +34,27 @@ async function insertSkill(
       enabled: input.enabled ?? true,
       allowAutoLoad: input.allowAutoLoad ?? false,
       sourceType: "upload",
-      entrypointText: "# Skill",
+      entrypointBytes: 7,
       metadataWasInferred: false,
       fileCount: 0,
       totalBytes: 0,
+      storageBytes: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await ctx.db.insert("skillEntrypoints", {
+      skillId: input.skillId,
+      userId: input.userId ?? USER_ID,
+      text: "# Skill",
+      size: 7,
+      sha256: "entrypoint-sha",
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await ctx.db.insert("skillManifests", {
+      skillId: input.skillId,
+      userId: input.userId ?? USER_ID,
+      files: [],
       createdAt: NOW,
       updatedAt: NOW,
     });
@@ -67,6 +84,100 @@ describe("functions/skills", () => {
 
     await expect(t.query(api.functions.skills.list, {})).resolves.toEqual([
       expect.objectContaining({ skillId: "mine", slug: "mine" }),
+    ]);
+  });
+
+  it("returns only enabled automatic skills from the catalog", async () => {
+    const t = authedTest();
+    await insertSkill(t, {
+      skillId: "automatic",
+      slug: "automatic",
+      allowAutoLoad: true,
+    });
+    await insertSkill(t, {
+      skillId: "manual",
+      slug: "manual",
+      allowAutoLoad: false,
+    });
+    await insertSkill(t, {
+      skillId: "disabled",
+      slug: "disabled",
+      allowAutoLoad: true,
+      enabled: false,
+    });
+
+    await expect(
+      t.query(api.functions.skills.backend_getAutoSkillCatalog, {
+        secret: INTERNAL_SECRET,
+        userId: USER_ID,
+      }),
+    ).resolves.toEqual([expect.objectContaining({ skillId: "automatic" })]);
+  });
+
+  it("loads runtime content from the entrypoint and public manifest", async () => {
+    const t = authedTest();
+    await insertSkill(t, { skillId: "writer", slug: "writer" });
+    await expect(
+      t.query(api.functions.skills.backend_getSkillForRuntime, {
+        secret: INTERNAL_SECRET,
+        userId: USER_ID,
+        skillId: "writer",
+      }),
+    ).resolves.toMatchObject({
+      skillId: "writer",
+      entrypointText: "# Skill",
+      entrypointBytes: 7,
+      files: [],
+    });
+  });
+
+  it("returns message triggers before deduplicated thread activations", async () => {
+    const t = authedTest();
+    await insertSkill(t, { skillId: "one", slug: "one" });
+    await insertSkill(t, { skillId: "two", slug: "two" });
+    await t.run(async (ctx) => {
+      await ctx.db.insert("threads", {
+        threadId: "thread-1",
+        userId: USER_ID,
+        name: "Thread",
+        status: "completed",
+        settings: { model: "openai/gpt-5", tools: {} },
+        updatedAt: NOW,
+      });
+      await ctx.db.insert("threadSkills", {
+        userId: USER_ID,
+        threadId: "thread-1",
+        skillId: "one",
+        activatedAt: NOW,
+      });
+      await ctx.db.insert("threadSkills", {
+        userId: USER_ID,
+        threadId: "thread-1",
+        skillId: "two",
+        activatedAt: NOW - 1,
+      });
+      await ctx.db.insert("skillUsages", {
+        userId: USER_ID,
+        threadId: "thread-1",
+        userMessageId: "user-1",
+        assistantMessageId: "assistant-1",
+        skillId: "one",
+        skillName: "One",
+        skillSlug: "one",
+        trigger: "slash-message",
+        createdAt: NOW,
+      });
+    });
+    await expect(
+      t.query(api.functions.skills.backend_getSelectedSkillRefs, {
+        secret: INTERNAL_SECRET,
+        userId: USER_ID,
+        threadId: "thread-1",
+        assistantMessageId: "assistant-1",
+      }),
+    ).resolves.toEqual([
+      { skillId: "one", trigger: "slash-message" },
+      { skillId: "two", trigger: "slash-thread" },
     ]);
   });
 
@@ -187,7 +298,6 @@ describe("functions/skills", () => {
         files: [
           {
             path: "SKILL.md",
-            content: "# Proposed",
             size: 10,
             lineCount: 1,
           },
@@ -196,6 +306,21 @@ describe("functions/skills", () => {
         expiresAt: NOW + 60_000,
         createdAt: NOW,
         updatedAt: NOW,
+      });
+      await ctx.db.insert("skillProposalPayloads", {
+        proposalId: "proposal-1",
+        userId: USER_ID,
+        threadId: "thread-1",
+        files: [
+          {
+            path: "SKILL.md",
+            content: "# Proposed",
+            size: 10,
+            lineCount: 1,
+          },
+        ],
+        expiresAt: NOW + 60_000,
+        createdAt: NOW,
       });
     });
 
@@ -233,6 +358,13 @@ describe("functions/skills", () => {
         skillId: "skill-1",
       }),
     ).resolves.toEqual({ skillId: "skill-1" });
+    const payload = await t.run((ctx) =>
+      ctx.db
+        .query("skillProposalPayloads")
+        .withIndex("by_proposalId", (q) => q.eq("proposalId", "proposal-1"))
+        .first(),
+    );
+    expect(payload).toBeNull();
   });
 
   it("tombstones expired proposals while preserving terminal and live records", async () => {
@@ -255,7 +387,6 @@ describe("functions/skills", () => {
           files: [
             {
               path: "SKILL.md",
-              content: `# ${proposalId}`,
               size: proposalId.length + 2,
               lineCount: 1,
             },
@@ -265,6 +396,21 @@ describe("functions/skills", () => {
           expiresAt,
           createdAt: NOW - 1_000,
           updatedAt: NOW - 1_000,
+        });
+        await ctx.db.insert("skillProposalPayloads", {
+          proposalId,
+          userId: USER_ID,
+          threadId: "thread-1",
+          files: [
+            {
+              path: "SKILL.md",
+              content: `# ${proposalId}`,
+              size: proposalId.length + 2,
+              lineCount: 1,
+            },
+          ],
+          expiresAt,
+          createdAt: NOW - 1_000,
         });
       }
     });
@@ -284,26 +430,31 @@ describe("functions/skills", () => {
         expect.objectContaining({
           proposalId: "expired",
           status: "expired",
-          cleanedAt: NOW,
-          files: [expect.objectContaining({ content: "" })],
         }),
         expect.objectContaining({
           proposalId: "approved",
           status: "approved",
           approvedSkillId: "skill-1",
-          cleanedAt: NOW,
         }),
         expect.objectContaining({
           proposalId: "rejected",
           status: "rejected",
-          cleanedAt: NOW,
         }),
         expect.objectContaining({
           proposalId: "live",
           status: "pending",
-          files: [expect.objectContaining({ content: "# live" })],
         }),
       ]),
     );
+    const payloads = await t.run((ctx) =>
+      ctx.db.query("skillProposalPayloads").collect(),
+    );
+    expect(payloads).toEqual([expect.objectContaining({ proposalId: "live" })]);
+    await expect(
+      t.mutation(
+        internal.functions.skills.internal_cleanupExpiredProposals,
+        {},
+      ),
+    ).resolves.toEqual({ cleaned: 0 });
   });
 });
