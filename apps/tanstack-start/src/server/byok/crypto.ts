@@ -16,7 +16,7 @@ export interface EncryptedProviderCredential {
   keyVersion: number;
 }
 
-const KEY_VERSION = 1;
+const CURRENT_KEY_VERSION = 1;
 
 export function encryptProviderCredential(args: {
   userId: string;
@@ -24,8 +24,14 @@ export function encryptProviderCredential(args: {
   payload: ProviderCredentialPayload;
 }): EncryptedProviderCredential {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
-  cipher.setAAD(additionalData(args.userId, args.provider));
+  const cipher = createCipheriv(
+    "aes-256-gcm",
+    encryptionKeyForVersion(CURRENT_KEY_VERSION),
+    iv,
+  );
+  cipher.setAAD(
+    additionalData(CURRENT_KEY_VERSION, args.userId, args.provider),
+  );
   const encrypted = Buffer.concat([
     cipher.update(JSON.stringify(args.payload), "utf8"),
     cipher.final(),
@@ -34,7 +40,7 @@ export function encryptProviderCredential(args: {
     ciphertext: encrypted.toString("base64"),
     iv: iv.toString("base64"),
     authTag: cipher.getAuthTag().toString("base64"),
-    keyVersion: KEY_VERSION,
+    keyVersion: CURRENT_KEY_VERSION,
   };
 }
 
@@ -43,15 +49,13 @@ export function decryptProviderCredential(args: {
   provider: ByokProviderId;
   encrypted: EncryptedProviderCredential;
 }): ProviderCredentialPayload {
-  if (args.encrypted.keyVersion !== KEY_VERSION) {
-    throw new Error("Unsupported BYOK encryption key version.");
-  }
+  const keyVersion = args.encrypted.keyVersion;
   const decipher = createDecipheriv(
     "aes-256-gcm",
-    encryptionKey(),
+    encryptionKeyForVersion(keyVersion),
     Buffer.from(args.encrypted.iv, "base64"),
   );
-  decipher.setAAD(additionalData(args.userId, args.provider));
+  decipher.setAAD(additionalData(keyVersion, args.userId, args.provider));
   decipher.setAuthTag(Buffer.from(args.encrypted.authTag, "base64"));
   const plaintext = Buffer.concat([
     decipher.update(Buffer.from(args.encrypted.ciphertext, "base64")),
@@ -73,14 +77,26 @@ export function decryptProviderCredential(args: {
   };
 }
 
-function encryptionKey(): Buffer {
-  const key = Buffer.from(env.BYOK_ENCRYPTION_KEY, "base64");
+function encryptionKeyForVersion(keyVersion: number): Buffer {
+  const encodedKey = (() => {
+    switch (keyVersion) {
+      case 1:
+        return env.BYOK_ENCRYPTION_KEY;
+      default:
+        throw new Error("Unsupported BYOK encryption key version.");
+    }
+  })();
+  const key = Buffer.from(encodedKey, "base64");
   if (key.byteLength !== 32) {
     throw new Error("BYOK_ENCRYPTION_KEY must decode to exactly 32 bytes.");
   }
   return key;
 }
 
-function additionalData(userId: string, provider: ByokProviderId): Buffer {
-  return Buffer.from(`redux-chat:byok:v${KEY_VERSION}:${userId}:${provider}`);
+function additionalData(
+  keyVersion: number,
+  userId: string,
+  provider: ByokProviderId,
+): Buffer {
+  return Buffer.from(`redux-chat:byok:v${keyVersion}:${userId}:${provider}`);
 }

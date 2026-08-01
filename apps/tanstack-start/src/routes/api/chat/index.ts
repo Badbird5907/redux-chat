@@ -731,6 +731,7 @@ export const Route = createFileRoute("/api/chat/")({
         if (!selectedModelConfig) {
           return new Response("Unknown model", { status: 400 });
         }
+        const canInvokeTools = !selectedModelConfig.supports.imageOutput;
         let routedTextModel:
           | ReturnType<typeof resolveRoutedAiSdkModel>
           | undefined;
@@ -758,7 +759,7 @@ export const Route = createFileRoute("/api/chat/")({
               context: byokContext,
             });
           }
-          if (imageToolModelId) {
+          if (canInvokeTools && imageToolModelId) {
             routedImageToolModel = resolveRoutedAiSdkImageModel({
               modelId: imageToolModelId,
               byokEnabled,
@@ -774,17 +775,28 @@ export const Route = createFileRoute("/api/chat/")({
             assistantMessageId,
             error: message,
           });
+          if (
+            error instanceof Error &&
+            error.name === "ByokRouteUnavailableError"
+          ) {
+            return Response.json(
+              { error: "byok_route_unavailable", message },
+              { status: 422 },
+            );
+          }
+          console.error("Model route resolution failed", error);
           return Response.json(
-            { error: "byok_route_unavailable", message },
-            { status: 422 },
+            { error: "model_route_unavailable" },
+            { status: 500 },
           );
         }
         const mainFundingSource =
           routedTextModel?.fundingSource ?? routedImageModel?.fundingSource;
         const hasPotentiallyPaidTool =
-          isSearchEnabled ||
-          isToolEnabled(settings.tools, "analysisWorkspace") ||
-          routedImageToolModel?.fundingSource === "platform";
+          canInvokeTools &&
+          (isSearchEnabled ||
+            isToolEnabled(settings.tools, "analysisWorkspace") ||
+            routedImageToolModel?.fundingSource === "platform");
         const spendableCredits = billingState.spendableCredits;
         if (
           (mainFundingSource === "platform" || hasPotentiallyPaidTool) &&

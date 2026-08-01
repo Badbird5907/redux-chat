@@ -10,7 +10,10 @@ import {
   calculateDisplayMultiplier,
   getRoundedMultiplierLabel,
 } from "@redux/shared";
-import { resolveEffectiveModelRoute } from "@redux/shared/models";
+import {
+  getModelDisplayName,
+  resolveEffectiveModelRoute,
+} from "@redux/shared/models";
 import { Badge } from "@redux/ui/components/badge";
 import { useTheme } from "@redux/ui/components/theme";
 import {
@@ -103,7 +106,7 @@ export function ModelRowSubtitle({
                   "text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2",
                   props.className,
                 )}
-                aria-label={`Routing information for ${model.name}`}
+                aria-label={`Routing information for ${getModelDisplayName(model.id)}`}
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}
               >

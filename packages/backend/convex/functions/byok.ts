@@ -12,27 +12,11 @@ import {
   sanitizeModelRoutingConfig,
 } from "@redux/shared/models";
 
+import {
+  byokProviderValidator,
+  modelRoutingOverrideValidator,
+} from "../byokValidators";
 import { backendMutation, backendQuery, query } from "./index";
-
-const providerValidator = v.union(
-  v.literal("openai"),
-  v.literal("anthropic"),
-  v.literal("vertex"),
-  v.literal("workersai"),
-  v.literal("openrouter"),
-);
-
-const routingOverrideValidator = v.union(
-  v.object({
-    modelId: v.string(),
-    kind: v.literal("byok"),
-    routeId: v.string(),
-  }),
-  v.object({
-    modelId: v.string(),
-    kind: v.literal("hosted"),
-  }),
-);
 
 const routingArgs = {
   preset: v.union(
@@ -40,9 +24,9 @@ const routingArgs = {
     v.literal("openrouter_first"),
     v.literal("custom"),
   ),
-  providerPriority: v.array(providerValidator),
+  providerPriority: v.array(byokProviderValidator),
   hostedFallback: v.boolean(),
-  overrides: v.array(routingOverrideValidator),
+  overrides: v.array(modelRoutingOverrideValidator),
 };
 
 export const getSettingsSummary = query({
@@ -51,7 +35,7 @@ export const getSettingsSummary = query({
     const [credentials, routing] = await Promise.all([
       ctx.db
         .query("providerCredentials")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .withIndex("by_userId_and_updatedAt", (q) => q.eq("userId", ctx.userId))
         .collect(),
       ctx.db
         .query("userModelRouting")
@@ -86,7 +70,9 @@ export const internal_getEncryptedBundle = backendQuery({
     const [credentials, routing] = await Promise.all([
       ctx.db
         .query("providerCredentials")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+        .withIndex("by_userId_and_updatedAt", (q) =>
+          q.eq("userId", args.userId),
+        )
         .collect(),
       ctx.db
         .query("userModelRouting")
@@ -112,7 +98,7 @@ export const internal_getEncryptedBundle = backendQuery({
 export const internal_upsertCredential = backendMutation({
   args: {
     userId: v.string(),
-    provider: providerValidator,
+    provider: byokProviderValidator,
     ciphertext: v.string(),
     iv: v.string(),
     authTag: v.string(),
@@ -150,7 +136,7 @@ export const internal_upsertCredential = backendMutation({
 });
 
 export const internal_deleteCredential = backendMutation({
-  args: { userId: v.string(), provider: providerValidator },
+  args: { userId: v.string(), provider: byokProviderValidator },
   handler: async (ctx, args) => {
     const credential = await ctx.db
       .query("providerCredentials")
@@ -168,7 +154,9 @@ export const internal_deleteCredential = backendMutation({
     if (routing) {
       const credentials = await ctx.db
         .query("providerCredentials")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+        .withIndex("by_userId_and_updatedAt", (q) =>
+          q.eq("userId", args.userId),
+        )
         .collect();
       const config = filterRoutingForProviders(
         sanitizeModelRoutingConfig(routing),
@@ -189,7 +177,7 @@ export const internal_updateRouting = backendMutation({
   handler: async (ctx, args) => {
     const credentials = await ctx.db
       .query("providerCredentials")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId_and_updatedAt", (q) => q.eq("userId", args.userId))
       .collect();
     const config = filterRoutingForProviders(
       sanitizeModelRoutingConfig(args),
@@ -218,7 +206,9 @@ export const internal_reconcileUser = backendMutation({
     const [credentials, routing] = await Promise.all([
       ctx.db
         .query("providerCredentials")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+        .withIndex("by_userId_and_updatedAt", (q) =>
+          q.eq("userId", args.userId),
+        )
         .collect(),
       ctx.db
         .query("userModelRouting")
@@ -241,7 +231,7 @@ export const internal_reconcileUser = backendMutation({
       sanitizeModelRoutingConfig(routing ?? DEFAULT_MODEL_ROUTING_CONFIG),
       availableProviders,
     );
-    if (routing) {
+    if (routing && !routingConfigsEqual(routing, config)) {
       await ctx.db.patch(routing._id, { ...config, updatedAt: Date.now() });
     }
     return { removedCredentials: unsupported.length, config };
@@ -264,4 +254,32 @@ function filterRoutingForProviders(
     );
   });
   return { ...config, overrides };
+}
+
+function routingConfigsEqual(
+  current: UserModelRoutingConfig,
+  next: UserModelRoutingConfig,
+): boolean {
+  return (
+    current.preset === next.preset &&
+    current.hostedFallback === next.hostedFallback &&
+    current.catalogVersion === next.catalogVersion &&
+    current.providerPriority.length === next.providerPriority.length &&
+    current.providerPriority.every(
+      (provider, index) => provider === next.providerPriority[index],
+    ) &&
+    current.overrides.length === next.overrides.length &&
+    current.overrides.every((override, index) => {
+      const candidate = next.overrides[index];
+      if (override.modelId !== candidate?.modelId) {
+        return false;
+      }
+      if (override.kind === "hosted") {
+        return candidate.kind === "hosted";
+      }
+      return (
+        candidate.kind === "byok" && override.routeId === candidate.routeId
+      );
+    })
+  );
 }

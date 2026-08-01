@@ -53,6 +53,22 @@ describe("model routing", () => {
     expect(resolved?.reason).toBe("override");
   });
 
+  it("honors a hosted override when global fallback is disabled", () => {
+    const resolved = resolveEffectiveModelRoute({
+      modelId: MODEL_ID,
+      config: {
+        ...DEFAULT_MODEL_ROUTING_CONFIG,
+        hostedFallback: false,
+        overrides: [{ modelId: MODEL_ID, kind: "hosted" }],
+      },
+      availableProviders: new Set(["openai"]),
+      byokEnabled: true,
+    });
+
+    expect(resolved?.fundingSource).toBe("platform");
+    expect(resolved?.reason).toBe("override");
+  });
+
   it("returns no route when fallback is disabled and no key is available", () => {
     const resolved = resolveEffectiveModelRoute({
       modelId: MODEL_ID,

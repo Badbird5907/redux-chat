@@ -171,10 +171,7 @@ function ModelsRouteComponent() {
         body: JSON.stringify(next),
       });
       if (!response.ok) throw new Error("Could not save routing settings.");
-      const payload = (await response.json()) as {
-        routing?: UserModelRoutingConfig;
-      };
-      if (payload.routing) setRoutingOverride(payload.routing);
+      setRoutingOverride(null);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Routing save failed",

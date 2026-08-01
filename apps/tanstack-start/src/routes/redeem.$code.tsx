@@ -442,12 +442,9 @@ function RedeemPromotionPage() {
 
   const requiresTierSelection =
     isSubscriptionPromo && promotion.requiresTargetTierSelection;
-  const selectedTierLabel =
-    selectedTargetTier === "pro"
-      ? "Pro"
-      : selectedTargetTier === "plus"
-        ? "Plus"
-        : undefined;
+  const selectedTierLabel = selectedTargetTier
+    ? planTierLabel(selectedTargetTier)
+    : undefined;
   const selectedTargetIsNotUpgrade =
     isSubscriptionPromo &&
     currentTierRank > 0 &&

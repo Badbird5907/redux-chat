@@ -39,7 +39,9 @@ export const Route = createFileRoute("/api/byok/credentials/$provider")({
             { status: 403 },
           );
         }
-        const parsed = credentialInput.safeParse(await request.json());
+        const parsed = credentialInput.safeParse(
+          await request.json().catch(() => undefined),
+        );
         if (!parsed.success) {
           return Response.json(
             { error: "invalid_credentials" },

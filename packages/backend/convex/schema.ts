@@ -1,6 +1,11 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+import {
+  byokProviderValidator,
+  modelRoutingOverrideValidator,
+} from "./byokValidators";
+
 const messageStatus = v.union(
   v.literal("generating"),
   v.literal("completed"),
@@ -97,26 +102,6 @@ const paidPlanTier = v.union(
   v.literal("base"),
   v.literal("plus"),
   v.literal("pro"),
-);
-
-const byokProvider = v.union(
-  v.literal("openai"),
-  v.literal("anthropic"),
-  v.literal("vertex"),
-  v.literal("workersai"),
-  v.literal("openrouter"),
-);
-
-const modelRoutingOverride = v.union(
-  v.object({
-    modelId: v.string(),
-    kind: v.literal("byok"),
-    routeId: v.string(),
-  }),
-  v.object({
-    modelId: v.string(),
-    kind: v.literal("hosted"),
-  }),
 );
 
 const threadShareSettings = v.object({
@@ -263,7 +248,7 @@ export default defineSchema({
 
   providerCredentials: defineTable({
     userId: v.string(),
-    provider: byokProvider,
+    provider: byokProviderValidator,
     ciphertext: v.string(),
     iv: v.string(),
     authTag: v.string(),
@@ -272,9 +257,9 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_userId", ["userId", "updatedAt"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId_provider", ["userId", "provider"])
-    .index("by_provider", ["provider", "updatedAt"]),
+    .index("by_provider_and_updatedAt", ["provider", "updatedAt"]),
 
   userModelRouting: defineTable({
     userId: v.string(),
@@ -283,9 +268,9 @@ export default defineSchema({
       v.literal("openrouter_first"),
       v.literal("custom"),
     ),
-    providerPriority: v.array(byokProvider),
+    providerPriority: v.array(byokProviderValidator),
     hostedFallback: v.boolean(),
-    overrides: v.array(modelRoutingOverride),
+    overrides: v.array(modelRoutingOverrideValidator),
     catalogVersion: v.string(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),

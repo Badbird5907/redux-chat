@@ -47,7 +47,9 @@ export const Route = createFileRoute("/api/byok/routing")({
             { status: 403 },
           );
         }
-        const parsed = input.safeParse(await request.json());
+        const parsed = input.safeParse(
+          await request.json().catch(() => undefined),
+        );
         if (!parsed.success) {
           return Response.json({ error: "invalid_routing" }, { status: 400 });
         }

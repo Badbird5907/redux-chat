@@ -894,15 +894,6 @@ export const recordUsageEvent = action({
 
     const eventId = crypto.randomUUID();
     const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
-    if (creditsToDebit === 0) {
-      return {
-        eventId,
-        credits: 0,
-        tier: subscriptionState.tier,
-        debitId: undefined,
-        overdraftAmount: 0,
-      };
-    }
     const debit = await ctx.runMutation(
       internal.functions.credits.internal_debitCredits,
       {

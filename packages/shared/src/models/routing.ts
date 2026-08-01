@@ -153,7 +153,7 @@ export function resolveEffectiveModelRoute(args: {
   const config = sanitizeModelRoutingConfig(args.config);
   const override = config.overrides.find((item) => item.modelId === model.id);
 
-  if (override?.kind === "hosted" && config.hostedFallback) {
+  if (override?.kind === "hosted") {
     const route = getModelRoute(model.defaultProviderId);
     return route
       ? { route, fundingSource: "platform", reason: "override" }
