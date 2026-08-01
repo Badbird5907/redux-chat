@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthOptions } from "./auth";
 
@@ -22,28 +22,18 @@ const REQUIRED_ENV = {
 } as const;
 
 function withRequiredEnv<T>(callback: () => T) {
-  const originalEnv = new Map(
-    Object.keys(REQUIRED_ENV).map((key) => [key, process.env[key]]),
-  );
-
   for (const [key, value] of Object.entries(REQUIRED_ENV)) {
-    process.env[key] = value;
+    vi.stubEnv(key, value);
   }
 
-  try {
-    return callback();
-  } finally {
-    for (const [key, value] of originalEnv) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
+  return callback();
 }
 
 describe("createAuthOptions", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("keeps active user sessions for the longest practical browser lifetime", () => {
     const options = withRequiredEnv(() =>
       createAuthOptions({} as Parameters<typeof createAuthOptions>[0]),
