@@ -1,7 +1,9 @@
+import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { getPlanConfig } from "@redux/shared";
 
+import type { DataModel } from "../_generated/dataModel";
 import { components, internal } from "../_generated/api";
 import { getBillingConfig, getUtcMonthBounds } from "../billing";
 import {
@@ -35,6 +37,10 @@ type SimulationState = {
   periodEnd: number;
 };
 
+type BillingSimulationActionCtx = GenericActionCtx<DataModel> & {
+  userId: string;
+};
+
 export const getCurrentUserBillingSimulation = query({
   args: {},
   handler: async (ctx) => {
@@ -60,45 +66,7 @@ export const setCurrentUserBillingSimulation = action({
   args: { tier: billingSimulationTierValidator },
   handler: async (ctx, args): Promise<SimulationState> => {
     assertBillingSimulationAvailable();
-    const [subscriptions, componentCustomer, customerOverride] =
-      await Promise.all([
-        ctx.runQuery(components.stripe.public.listSubscriptionsByUserId, {
-          userId: ctx.userId,
-        }),
-        ctx.runQuery(components.stripe.public.getCustomerByUserId, {
-          userId: ctx.userId,
-        }),
-        ctx.runQuery(
-          internal.functions.billing.internal_getStripeCustomerOverride,
-          { userId: ctx.userId },
-        ),
-      ]);
-    let hasPaidSubscription = hasActiveRealStripeSubscription(subscriptions);
-    if (!hasPaidSubscription) {
-      const customerId =
-        customerOverride?.stripeCustomerId ??
-        componentCustomer?.stripeCustomerId;
-      if (customerId) {
-        const stripe = getStripeSdkClient();
-        hasPaidSubscription = await hasActiveRealStripeSubscriptionForCustomer(
-          {
-            listSubscriptions: async (listedCustomerId) => {
-              const listed = await withTimeout(
-                stripe.subscriptions.list({
-                  customer: listedCustomerId,
-                  status: "all",
-                  limit: 100,
-                }),
-                STRIPE_NETWORK_TIMEOUT_MS,
-                "stripe.subscriptions.list(simulation guard)",
-              );
-              return listed.data;
-            },
-          },
-          customerId,
-        );
-      }
-    }
+    const hasPaidSubscription = await hasCurrentUserPaidStripeSubscription(ctx);
     if (hasPaidSubscription) {
       throw new ConvexError(
         "Billing simulation cannot be enabled while a real paid subscription is active.",
@@ -131,11 +99,7 @@ export const clearCurrentUserBillingSimulation = action({
   args: {},
   handler: async (ctx): Promise<{ ok: true }> => {
     assertBillingSimulationAvailable();
-    const subscriptions = await ctx.runQuery(
-      components.stripe.public.listSubscriptionsByUserId,
-      { userId: ctx.userId },
-    );
-    const hasPaidSubscription = hasActiveRealStripeSubscription(subscriptions);
+    const hasPaidSubscription = await hasCurrentUserPaidStripeSubscription(ctx);
     await ctx.runMutation(
       internal.functions.billingSimulation.internal_clearBillingSimulation,
       { userId: ctx.userId, restoreFreeGrant: !hasPaidSubscription },
@@ -265,6 +229,48 @@ export const internal_cleanupExpiredBillingSimulation = internalMutation({
     return { cleaned: true };
   },
 });
+
+async function hasCurrentUserPaidStripeSubscription(
+  ctx: BillingSimulationActionCtx,
+): Promise<boolean> {
+  const [subscriptions, componentCustomer, customerOverride] =
+    await Promise.all([
+      ctx.runQuery(components.stripe.public.listSubscriptionsByUserId, {
+        userId: ctx.userId,
+      }),
+      ctx.runQuery(components.stripe.public.getCustomerByUserId, {
+        userId: ctx.userId,
+      }),
+      ctx.runQuery(
+        internal.functions.billing.internal_getStripeCustomerOverride,
+        { userId: ctx.userId },
+      ),
+    ]);
+  if (hasActiveRealStripeSubscription(subscriptions)) return true;
+
+  const customerId =
+    customerOverride?.stripeCustomerId ?? componentCustomer?.stripeCustomerId;
+  if (!customerId) return false;
+
+  const stripe = getStripeSdkClient();
+  return await hasActiveRealStripeSubscriptionForCustomer(
+    {
+      listSubscriptions: async (listedCustomerId) => {
+        const listed = await withTimeout(
+          stripe.subscriptions.list({
+            customer: listedCustomerId,
+            status: "all",
+            limit: 100,
+          }),
+          STRIPE_NETWORK_TIMEOUT_MS,
+          "stripe.subscriptions.list(simulation guard)",
+        );
+        return listed.data;
+      },
+    },
+    customerId,
+  );
+}
 
 async function withTimeout<T>(
   promise: Promise<T>,
