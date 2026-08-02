@@ -435,7 +435,9 @@ export const reconcileCurrentUserStripeSubscriptions = action({
   }> => {
     const isLegacyCheckoutCallback =
       args.checkoutSessionId === LEGACY_CHECKOUT_SESSION_ID;
-    if (!args.checkoutSessionId) {
+    if (
+      requiresSimulationResetForStripeReconciliation(args.checkoutSessionId)
+    ) {
       await assertNoActiveBillingSimulation(ctx);
     }
     const stripe = getStripeSdkClient();
@@ -1390,6 +1392,12 @@ export function assertCanRestoreFreeAfterStripeReconciliation(
       "Stripe has not returned the completed subscription yet. Retry Stripe sync in a moment.",
     );
   }
+}
+
+export function requiresSimulationResetForStripeReconciliation(
+  checkoutSessionId: string | undefined,
+): boolean {
+  return checkoutSessionId === undefined;
 }
 
 async function resolveActualCurrentSubscriptionState(

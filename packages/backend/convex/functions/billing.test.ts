@@ -7,6 +7,7 @@ import { modules } from "../test.setup";
 import {
   assertCanRestoreFreeAfterStripeReconciliation,
   billingSimulationNeedsCleanup,
+  requiresSimulationResetForStripeReconciliation,
   selectEffectiveSubscriptionState,
 } from "./billing";
 
@@ -85,6 +86,16 @@ describe("billing subscription precedence", () => {
     expect(() =>
       assertCanRestoreFreeAfterStripeReconciliation(false),
     ).not.toThrow();
+  });
+
+  it("blocks portal reconciliation during simulation but allows Checkout recovery", () => {
+    expect(requiresSimulationResetForStripeReconciliation(undefined)).toBe(
+      true,
+    );
+    expect(requiresSimulationResetForStripeReconciliation("")).toBe(false);
+    expect(requiresSimulationResetForStripeReconciliation("cs_123")).toBe(
+      false,
+    );
   });
 });
 
