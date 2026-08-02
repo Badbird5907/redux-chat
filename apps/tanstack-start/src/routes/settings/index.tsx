@@ -1,7 +1,7 @@
 import type { StripePlanPrice } from "@/components/billing/plan-tier-marketing-utils";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction } from "convex/react";
 import { ChevronRight, CreditCard, TriangleAlert } from "lucide-react";
 
@@ -20,6 +20,7 @@ import {
 } from "@redux/ui/components/dialog";
 
 import { AddCreditsDialog } from "@/components/billing/add-credits-dialog";
+import { BillingSimulationPanel } from "@/components/billing/billing-simulation-panel";
 import { CreditBalancePanel } from "@/components/billing/credit-balance-panel";
 import { CreditGrantHistoryDialog } from "@/components/billing/credit-grant-history";
 import { PlanTierMarketingCard } from "@/components/billing/plan-tier-marketing-card";
@@ -28,7 +29,22 @@ import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger
 import { useQuery } from "@/lib/hooks/convex";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 
+type SettingsSearch = {
+  checkout?: "success" | "cancelled";
+  session_id?: string;
+  billingPortal?: "return";
+};
+
 export const Route = createFileRoute("/settings/")({
+  validateSearch: (search): SettingsSearch => ({
+    checkout:
+      search.checkout === "success" || search.checkout === "cancelled"
+        ? search.checkout
+        : undefined,
+    session_id:
+      typeof search.session_id === "string" ? search.session_id : undefined,
+    billingPortal: search.billingPortal === "return" ? "return" : undefined,
+  }),
   component: RouteComponent,
 });
 
@@ -201,6 +217,8 @@ function coerceSubscriptionSchedule(input: unknown): {
 }
 
 function RouteComponent() {
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const stripePrices = useQuery(
     api.functions.billing.getConfiguredStripePrices,
     {},
@@ -223,6 +241,9 @@ function RouteComponent() {
   );
   const createCustomerPortal = useAction(
     api.functions.billing.createCurrentUserCustomerPortal,
+  );
+  const reconcileStripeSubscriptions = useAction(
+    api.functions.billing.reconcileCurrentUserStripeSubscriptions,
   );
   const refreshBillingStatus = useAction(
     api.functions.billing.refreshCurrentUserBillingState,
@@ -276,11 +297,73 @@ function RouteComponent() {
   const [hasPaymentMethod, setHasPaymentMethod] = useReducerState<
     boolean | null
   >(null);
+  const [stripeSyncState, setStripeSyncState] = useReducerState<{
+    status: "idle" | "loading" | "error";
+    sessionId?: string;
+    error?: string;
+  }>({ status: "idle" });
 
   const hydratedScheduleForSubIdRef = useRef<string | null>(null);
+  const callbackProcessedRef = useRef(false);
   const billingQuerySettled = baseBillingState !== undefined;
   const subscriptionIdForHydration =
     baseBillingState?.subscription?.subscriptionId;
+
+  const clearBillingCallbackSearch = useCallback(async () => {
+    await navigate({
+      search: (previous) => ({
+        ...previous,
+        checkout: undefined,
+        session_id: undefined,
+        billingPortal: undefined,
+      }),
+      replace: true,
+    });
+  }, [navigate]);
+
+  const runStripeReconciliation = useCallback(
+    async (sessionId: string | undefined) => {
+      setStripeSyncState({ status: "loading", sessionId });
+      try {
+        await reconcileStripeSubscriptions({
+          checkoutSessionId: sessionId,
+        });
+        setStripeSyncState({ status: "idle" });
+      } catch (error) {
+        setStripeSyncState({
+          status: "error",
+          sessionId,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Could not synchronize your Stripe subscription.",
+        });
+      }
+    },
+    [reconcileStripeSubscriptions, setStripeSyncState],
+  );
+
+  useEffect(() => {
+    const hasCallback =
+      search.checkout !== undefined || search.billingPortal === "return";
+    if (!hasCallback || callbackProcessedRef.current) return;
+    callbackProcessedRef.current = true;
+
+    const sessionId =
+      search.checkout === "success" ? search.session_id : undefined;
+    void clearBillingCallbackSearch();
+
+    if (search.checkout === "cancelled") return;
+    if (search.checkout === "success" || search.billingPortal === "return") {
+      void runStripeReconciliation(sessionId);
+    }
+  }, [
+    clearBillingCallbackSearch,
+    runStripeReconciliation,
+    search.billingPortal,
+    search.checkout,
+    search.session_id,
+  ]);
 
   useEffect(() => {
     if (!billingQuerySettled) {
@@ -321,8 +404,11 @@ function RouteComponent() {
     typeof billingState?.includedMonthlyCredits === "number"
       ? billingState.includedMonthlyCredits
       : undefined;
+  const isSimulationActive = billingState?.billingMode === "simulation";
   const showStripeCustomerBalance =
-    stripeCustomerBalance !== null && stripeCustomerBalance.balanceCount > 0;
+    !isSimulationActive &&
+    stripeCustomerBalance !== null &&
+    stripeCustomerBalance.balanceCount > 0;
 
   const currentTier = billingState?.tier ?? "free";
   const plusPrice = configuredStripePrices?.plus ?? null;
@@ -343,10 +429,12 @@ function RouteComponent() {
     subscriptionId != null && subscriptionId !== ""
       ? liveSubscriptionSchedule
       : undefined;
-  const showPaidManage = tierRank(currentTier) >= 1;
-  const isOnPaidPlan = showPaidManage;
+  const showPaidManage = tierRank(currentTier) >= 1 && !isSimulationActive;
+  const isOnPaidPlan = tierRank(currentTier) >= 1;
+  const hasRealPaidSubscription =
+    billingState?.billingMode === "actual" && isOnPaidPlan;
   const showMissingPaymentMethodNag =
-    isOnPaidPlan && hasPaymentMethod === false;
+    isOnPaidPlan && !isSimulationActive && hasPaymentMethod === false;
 
   const renewSummary = renewalSummary(billingState?.currentPeriodEnd);
 
@@ -427,7 +515,10 @@ function RouteComponent() {
       pendingTierLive !== currentTier);
 
   const showBillingSchedulePanel =
-    scheduleNotice !== null || showRescindCancellation || hasPendingPlanChange;
+    !isSimulationActive &&
+    (scheduleNotice !== null ||
+      showRescindCancellation ||
+      hasPendingPlanChange);
 
   const stayOnPlanButtonLabel =
     pendingTierLive === null || !configuredStripePrices
@@ -453,6 +544,10 @@ function RouteComponent() {
   }, [getStripePriceDetails, setStripePriceDetails]);
 
   useEffect(() => {
+    if (isSimulationActive) {
+      setStripeCustomerBalance(null);
+      return;
+    }
     let cancelled = false;
     void getStripeCustomerBalance({})
       .then((customerBalance) => {
@@ -469,11 +564,12 @@ function RouteComponent() {
     return () => {
       cancelled = true;
     };
-  }, [getStripeCustomerBalance, setStripeCustomerBalance]);
+  }, [getStripeCustomerBalance, isSimulationActive, setStripeCustomerBalance]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!isOnPaidPlan) {
+    if (!isOnPaidPlan || isSimulationActive) {
+      setHasPaymentMethod(null);
       return;
     }
     void getPaymentMethodStatus({})
@@ -491,7 +587,12 @@ function RouteComponent() {
     return () => {
       cancelled = true;
     };
-  }, [isOnPaidPlan, getPaymentMethodStatus, setHasPaymentMethod]);
+  }, [
+    isOnPaidPlan,
+    isSimulationActive,
+    getPaymentMethodStatus,
+    setHasPaymentMethod,
+  ]);
 
   useEffect(() => {
     const confirm = planSwitchConfirm;
@@ -692,6 +793,41 @@ function RouteComponent() {
         </div>
       </header>
 
+      <BillingSimulationPanel
+        hasRealPaidSubscription={hasRealPaidSubscription}
+      />
+
+      {stripeSyncState.status === "loading" ? (
+        <Card className="border-primary/25 bg-primary/6 ring-primary/15 gap-1 px-5 py-4 ring-1">
+          <p className="text-sm font-semibold">Finalizing subscription…</p>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            Synchronizing the latest Stripe subscription and monthly credits.
+          </p>
+        </Card>
+      ) : stripeSyncState.status === "error" ? (
+        <Card className="border-destructive/35 bg-destructive/10 gap-3 px-5 py-4">
+          <div className="space-y-1">
+            <p className="text-destructive text-sm font-semibold">
+              Stripe subscription sync failed
+            </p>
+            <p className="text-destructive/90 text-xs leading-relaxed">
+              {stripeSyncState.error}
+            </p>
+          </div>
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                void runStripeReconciliation(stripeSyncState.sessionId)
+              }
+            >
+              Retry Stripe sync
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
       {billingError ? (
         <div
           className="border-destructive/35 bg-destructive/10 text-destructive rounded-2xl border px-4 py-3 text-sm leading-snug"
@@ -879,7 +1015,7 @@ function RouteComponent() {
       </Dialog>
 
       <AddCreditsDialog
-        open={addCreditsOpen}
+        open={addCreditsOpen && !isSimulationActive}
         onOpenChange={setAddCreditsOpen}
         billingState={billingState}
         triggerContext="settings"
@@ -895,7 +1031,7 @@ function RouteComponent() {
           footer={
             <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
               <div className="flex shrink-0 items-center">
-                {isOnPaidPlan ? (
+                {isOnPaidPlan && !isSimulationActive ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -997,18 +1133,18 @@ function RouteComponent() {
             state={
               rank === 1 ? "current" : rank === 0 ? "available" : "available"
             }
-            priceId={plusPrice?.id}
+            priceId={isSimulationActive ? undefined : plusPrice?.id}
             buttonLabel="Plus"
             emphasize={rank === 0}
             renewalSummary={renewSummary}
             checkoutLoading={checkoutLoadingPriceId === plusPrice?.id}
             onSubscribe={
-              plusPrice?.id
+              !isSimulationActive && plusPrice?.id
                 ? () => void subscribeToPrice(plusPrice.id)
                 : undefined
             }
             paidSwitch={
-              isOnPaidPlan && rank === 2 && plusPrice?.id
+              !isSimulationActive && isOnPaidPlan && rank === 2 && plusPrice?.id
                 ? {
                     isUpgrade: false,
                     onRequest: () =>
@@ -1026,18 +1162,18 @@ function RouteComponent() {
             plan={getPlanConfig("pro", billingConfig)}
             priceLabel={formatStripeRecurringPrice(proPrice ?? undefined)}
             state={rank === 2 ? "current" : rank < 2 ? "available" : "inactive"}
-            priceId={proPrice?.id}
+            priceId={isSimulationActive ? undefined : proPrice?.id}
             buttonLabel="Pro"
             emphasize={rank === 1}
             renewalSummary={renewSummary}
             checkoutLoading={checkoutLoadingPriceId === proPrice?.id}
             onSubscribe={
-              proPrice?.id
+              !isSimulationActive && proPrice?.id
                 ? () => void subscribeToPrice(proPrice.id)
                 : undefined
             }
             paidSwitch={
-              isOnPaidPlan && rank === 1 && proPrice?.id
+              !isSimulationActive && isOnPaidPlan && rank === 1 && proPrice?.id
                 ? {
                     isUpgrade: true,
                     onRequest: () =>

@@ -36,6 +36,7 @@ const bucketValidator = v.union(
 const grantSourceValidator = v.union(
   v.literal("stripe_subscription_renewal"),
   v.literal("stripe_one_time_purchase"),
+  v.literal("billing_simulation"),
   v.literal("free_monthly_reset"),
   v.literal("admin_grant"),
   v.literal("promotion"),

@@ -26,6 +26,7 @@ import {
   subscriptionScheduleFromStripeSubscription,
   toSubscriptionSnapshot,
 } from "../billing";
+import { isBillingSimulationAvailable } from "../billingSimulation";
 import { getCreditBalanceForUser } from "../credits";
 import { backendEnv } from "../env";
 import {
@@ -35,6 +36,15 @@ import {
   stripeComponent,
   tierFromStripePriceId,
 } from "../stripe";
+import { recordStripeAuditEvent } from "../stripeAudit";
+import { loadStripeSubscriptionsForReconciliation } from "../stripeSubscriptionReconciliation";
+import {
+  revokeStripeSubscriptionAllowance,
+  syncStripeCheckoutSessionRecord,
+  syncStripeLatestInvoice,
+  syncStripeSubscriptionAllowance,
+  upsertStripeSubscriptionRecord,
+} from "../stripeSubscriptionSync";
 import { action, query } from "./index";
 import { internalMutation, internalQuery } from "./internal";
 
@@ -51,11 +61,18 @@ type BillingActionCtx = GenericActionCtx<DataModel> & {
 type BillingSubscriptionState = {
   tier: PlanTier;
   subscription: ReturnType<typeof toSubscriptionSnapshot>;
+  billingMode: "actual" | "simulation";
+  simulation?: {
+    tier: "plus" | "pro";
+    periodStart: number;
+    periodEnd: number;
+  };
   fromFallback?: boolean;
 };
 
 type BillingRefreshResult = {
   tier: PlanTier;
+  billingMode: "actual" | "simulation";
   availableCredits: number | undefined;
   overageCredits: number | undefined;
   spendableCredits: number;
@@ -189,6 +206,9 @@ export const getCurrentUserStripeCustomerBalance = action({
     balanceCount: number;
     balances: StripeCustomerBalanceCredit[];
   }> => {
+    if (await hasActiveBillingSimulation(ctx)) {
+      return { balanceCount: 0, balances: [] };
+    }
     const customerId = await ensureStripeCustomerForCurrentUser(ctx);
     const stripe = getStripeSdkClient();
     const customer = await withTimeout(
@@ -230,6 +250,9 @@ export const getCurrentUserStripeCustomerBalance = action({
 export const getCurrentUserPaymentMethodStatus = action({
   args: {},
   handler: async (ctx): Promise<{ hasPaymentMethod: boolean | null }> => {
+    if (await hasActiveBillingSimulation(ctx)) {
+      return { hasPaymentMethod: null };
+    }
     const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
       ctx,
       ctx.userId,
@@ -289,6 +312,14 @@ export const getCurrentBillingState = query({
     return {
       tier: subscriptionState.tier,
       subscription: subscriptionState.subscription,
+      billingMode: subscriptionState.billingMode,
+      billingSimulation: {
+        available: isBillingSimulationAvailable(),
+        active: subscriptionState.billingMode === "simulation",
+        tier: subscriptionState.simulation?.tier,
+        periodStart: subscriptionState.simulation?.periodStart,
+        periodEnd: subscriptionState.simulation?.periodEnd,
+      },
       availableCredits,
       overageCredits,
       spendableCredits: balance.spendableCredits,
@@ -298,9 +329,11 @@ export const getCurrentBillingState = query({
       includedMonthlyCredits: plan.includedMonthlyCredits,
       overageAllowed: plan.overageAllowed,
       currentPeriodStart:
+        subscriptionState.simulation?.periodStart ??
         subscriptionState.subscription?.currentPeriodStart ??
         freePeriodBounds?.start,
       currentPeriodEnd:
+        subscriptionState.simulation?.periodEnd ??
         subscriptionState.subscription?.currentPeriodEnd ??
         freePeriodBounds?.end,
       syncedAt: undefined,
@@ -311,6 +344,7 @@ export const getCurrentBillingState = query({
 export const createCurrentUserSubscriptionCheckout = action({
   args: { priceId: v.string() },
   handler: async (ctx, args): Promise<{ url: string }> => {
+    await assertNoActiveBillingSimulation(ctx);
     if (!isConfiguredStripePlanPrice(args.priceId)) {
       throw new Error("That price is not a configured plan.");
     }
@@ -338,8 +372,8 @@ export const createCurrentUserSubscriptionCheckout = action({
       priceId: args.priceId,
       customerId,
       mode: "subscription",
-      successUrl: `${siteUrl}/settings?checkout=success`,
-      cancelUrl: `${siteUrl}/settings`,
+      successUrl: `${siteUrl}/settings?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${siteUrl}/settings?checkout=cancelled`,
       metadata: {
         userId: ctx.userId,
         priceId: args.priceId,
@@ -361,13 +395,141 @@ export const createCurrentUserSubscriptionCheckout = action({
 export const createCurrentUserCustomerPortal = action({
   args: {},
   handler: async (ctx): Promise<{ url: string }> => {
+    await assertNoActiveBillingSimulation(ctx);
     const env = backendEnv();
     const siteUrl = env.SITE_URL.replace(/\/+$/, "");
     const customerId = await ensureStripeCustomerForCurrentUser(ctx);
     return await stripeComponent.createCustomerPortalSession(ctx, {
       customerId,
-      returnUrl: `${siteUrl}/settings`,
+      returnUrl: `${siteUrl}/settings?billingPortal=return`,
     });
+  },
+});
+
+export const reconcileCurrentUserStripeSubscriptions = action({
+  args: { checkoutSessionId: v.optional(v.string()) },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    status: "reconciled" | "no_subscription";
+    reconciledSubscriptionCount: number;
+    selectedSubscriptionId?: string;
+    tier: PlanTier;
+  }> => {
+    await assertNoActiveBillingSimulation(ctx);
+    const stripe = getStripeSdkClient();
+    let checkoutSession: Stripe.Checkout.Session | undefined;
+
+    try {
+      const customerId = await ensureStripeCustomerForCurrentUser(ctx);
+      const loaded = await loadStripeSubscriptionsForReconciliation(
+        {
+          retrieveCheckoutSession: async (checkoutSessionId) =>
+            await withTimeout(
+              stripe.checkout.sessions.retrieve(checkoutSessionId, {
+                expand: ["subscription"],
+              }),
+              STRIPE_NETWORK_TIMEOUT_MS,
+              "stripe.checkout.sessions.retrieve",
+            ),
+          retrieveSubscription: async (subscriptionId) =>
+            await withTimeout(
+              stripe.subscriptions.retrieve(subscriptionId, {
+                expand: ["latest_invoice"],
+              }),
+              STRIPE_NETWORK_TIMEOUT_MS,
+              "stripe.subscriptions.retrieve",
+            ),
+          listSubscriptions: async (listedCustomerId) => {
+            const listed = await withTimeout(
+              stripe.subscriptions.list({
+                customer: listedCustomerId,
+                status: "all",
+                limit: 100,
+                expand: ["data.latest_invoice"],
+              }),
+              STRIPE_NETWORK_TIMEOUT_MS,
+              "stripe.subscriptions.list",
+            );
+            return listed.data;
+          },
+        },
+        {
+          userId: ctx.userId,
+          customerId,
+          checkoutSessionId: args.checkoutSessionId,
+        },
+      );
+      checkoutSession = loaded.checkoutSession;
+      if (checkoutSession) {
+        await syncStripeCheckoutSessionRecord(ctx, checkoutSession);
+      }
+
+      const normalized = loaded.subscriptions;
+      const selected = loaded.selected;
+      for (const subscription of normalized) {
+        await upsertStripeSubscriptionRecord(ctx, subscription);
+        if (subscription.id !== selected?.id) {
+          await revokeStripeSubscriptionAllowance(
+            ctx,
+            subscription,
+            isPaidSubscriptionStatus(subscription.status)
+              ? "stripe_subscription_not_selected"
+              : "stripe_subscription_inactive",
+            false,
+          );
+        }
+      }
+
+      if (selected) {
+        await syncStripeSubscriptionAllowance(ctx, selected);
+        await syncStripeLatestInvoice(ctx, stripe, selected);
+      } else {
+        await ctx.runMutation(
+          internal.functions.credits
+            .internal_ensureFreeMonthlyCreditsAfterPaidCancellation,
+          { userId: ctx.userId, reason: "stripe_subscription_reconciliation" },
+        );
+      }
+
+      const tier: PlanTier = selected
+        ? resolveTierFromSubscription(toSubscriptionSnapshot(selected))
+        : "free";
+      const result = {
+        status: selected
+          ? ("reconciled" as const)
+          : ("no_subscription" as const),
+        reconciledSubscriptionCount: normalized.length,
+        selectedSubscriptionId: selected?.id,
+        tier,
+      };
+      await recordStripeAuditEvent(ctx, {
+        userId: ctx.userId,
+        action: "stripe:subscription_reconciliation",
+        status: "success",
+        severity: "medium",
+        metadata: {
+          checkoutSessionId: checkoutSession?.id,
+          selectedSubscriptionId: selected?.id,
+          tier,
+          reconciledSubscriptionCount: normalized.length,
+        },
+      });
+      return result;
+    } catch (error) {
+      await recordStripeAuditEvent(ctx, {
+        userId: ctx.userId,
+        action: "stripe:subscription_reconciliation",
+        status: "failed",
+        severity: "high",
+        metadata: {
+          checkoutSessionId: checkoutSession?.id ?? args.checkoutSessionId,
+          error: getSanitizedReconciliationError(error),
+        },
+      });
+      throw error;
+    }
   },
 });
 
@@ -382,6 +544,7 @@ export const createCurrentUserCreditTopUpCheckout = action({
     amountCents: number;
     credits: number;
   }> => {
+    await assertNoActiveBillingSimulation(ctx);
     const amountCents = args.amountCents;
     if (!Number.isInteger(amountCents)) {
       throw new Error("Enter an amount in whole cents.");
@@ -527,6 +690,7 @@ export const refreshCurrentUserBillingState = action({
 export const previewCurrentUserPaidPlanSwitch = action({
   args: { priceId: v.string() },
   handler: async (ctx, args): Promise<PaidPlanSwitchPreview> => {
+    await assertNoActiveBillingSimulation(ctx);
     const subscriptionState = await resolveCurrentSubscriptionState(
       ctx,
       ctx.userId,
@@ -631,6 +795,7 @@ export const switchCurrentUserPaidPlan = action({
     prorationBehavior: "invoice" | "next_period";
     targetTier: PlanTier;
   }> => {
+    await assertNoActiveBillingSimulation(ctx);
     const subscriptionState = await resolveCurrentSubscriptionState(
       ctx,
       ctx.userId,
@@ -697,18 +862,14 @@ export const switchCurrentUserPaidPlan = action({
         "stripe.subscriptions.update",
       );
       await withTimeout(
-        syncStripeSubscriptionToConvex(ctx, updatedSubscription),
+        upsertStripeSubscriptionRecord(ctx, updatedSubscription),
         STRIPE_NETWORK_TIMEOUT_MS,
-        "syncStripeSubscriptionToConvex",
+        "upsertStripeSubscriptionRecord",
       );
       await withTimeout(
-        upsertSubscriptionMonthlyAllowance(
-          ctx,
-          updatedSubscription,
-          targetTier,
-        ),
+        syncStripeSubscriptionAllowance(ctx, updatedSubscription),
         STRIPE_NETWORK_TIMEOUT_MS,
-        "upsertSubscriptionMonthlyAllowance",
+        "syncStripeSubscriptionAllowance",
       );
       return { prorationBehavior: "invoice", targetTier };
     }
@@ -730,6 +891,7 @@ export const switchCurrentUserPaidPlan = action({
 export const rescindPaidSubscriptionCancellation = action({
   args: {},
   handler: async (ctx): Promise<{ ok: true }> => {
+    await assertNoActiveBillingSimulation(ctx);
     const subscriptionState = await resolveCurrentSubscriptionState(
       ctx,
       ctx.userId,
@@ -752,6 +914,7 @@ export const rescindPaidSubscriptionCancellation = action({
 export const discardScheduledPaidPlanChange = action({
   args: {},
   handler: async (ctx): Promise<{ ok: true }> => {
+    await assertNoActiveBillingSimulation(ctx);
     const subscriptionState = await resolveCurrentSubscriptionState(
       ctx,
       ctx.userId,
@@ -1034,16 +1197,39 @@ async function refreshBillingStateForUser(
   ctx: BillingActionCtx,
   userId: string,
 ): Promise<BillingRefreshResult> {
-  const subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
+  let subscriptionState = await resolveCurrentSubscriptionStateWithFallback(
     ctx,
     userId,
   );
-  await ensureStripeCustomerForCurrentUser(ctx);
+  const simulationState = await getBillingSimulationState(ctx, userId);
+  if (simulationState.override && !simulationState.active) {
+    const actualState = await resolveActualCurrentSubscriptionStateWithFallback(
+      ctx,
+      userId,
+    );
+    await ctx.runMutation(
+      internal.functions.billingSimulation
+        .internal_cleanupExpiredBillingSimulation,
+      {
+        userId,
+        restoreFreeGrant:
+          !actualState.fromFallback && actualState.tier === "free",
+      },
+    );
+    subscriptionState = actualState;
+  }
+
+  if (subscriptionState.billingMode === "actual") {
+    await ensureStripeCustomerForCurrentUser(ctx);
+  }
   const periodKey = getPeriodKeyForTier(subscriptionState);
   const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
 
   let grantApplied = false;
-  if (subscriptionState.tier === "free") {
+  if (
+    subscriptionState.billingMode === "actual" &&
+    subscriptionState.tier === "free"
+  ) {
     try {
       const grant = await ctx.runMutation(
         internal.functions.credits.internal_ensureMonthlyFreeCredits,
@@ -1070,7 +1256,10 @@ async function refreshBillingStateForUser(
     pendingAppliesAtMs: undefined,
   };
 
-  const subscriptionId = snapshot?.subscriptionId;
+  const subscriptionId =
+    subscriptionState.billingMode === "actual"
+      ? snapshot?.subscriptionId
+      : undefined;
   if (subscriptionId) {
     try {
       const stripe = getStripeSdkClient();
@@ -1092,6 +1281,7 @@ async function refreshBillingStateForUser(
 
   return {
     tier: subscriptionState.tier,
+    billingMode: subscriptionState.billingMode,
     availableCredits: balance.spendableCredits,
     overageCredits: 0,
     spendableCredits: balance.spendableCredits,
@@ -1105,6 +1295,27 @@ async function refreshBillingStateForUser(
 }
 
 async function resolveCurrentSubscriptionState(
+  ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
+  userId: string,
+): Promise<BillingSubscriptionState> {
+  const simulationState = await getBillingSimulationState(ctx, userId);
+  if (simulationState.active && simulationState.override) {
+    return {
+      tier: simulationState.override.tier,
+      subscription: null,
+      billingMode: "simulation",
+      simulation: {
+        tier: simulationState.override.tier,
+        periodStart: simulationState.override.periodStart,
+        periodEnd: simulationState.override.periodEnd,
+      },
+    };
+  }
+
+  return await resolveActualCurrentSubscriptionState(ctx, userId);
+}
+
+async function resolveActualCurrentSubscriptionState(
   ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
   userId: string,
 ): Promise<BillingSubscriptionState> {
@@ -1135,6 +1346,31 @@ async function resolveCurrentSubscriptionStateWithFallback(
     return {
       tier: "free",
       subscription: null,
+      billingMode: "actual",
+      fromFallback: true,
+    };
+  }
+}
+
+async function resolveActualCurrentSubscriptionStateWithFallback(
+  ctx: BillingActionCtx,
+  userId: string,
+): Promise<BillingSubscriptionState> {
+  try {
+    return await withTimeout(
+      resolveActualCurrentSubscriptionState(ctx, userId),
+      STRIPE_NETWORK_TIMEOUT_MS,
+      "resolveActualCurrentSubscriptionState",
+    );
+  } catch (error) {
+    console.error("actual_billing_subscription_resolution_failed", {
+      userId,
+      error: getErrorText(error),
+    });
+    return {
+      tier: "free",
+      subscription: null,
+      billingMode: "actual",
       fromFallback: true,
     };
   }
@@ -1151,11 +1387,45 @@ function selectBestSubscriptionState(
       }
       const tier = resolveTierFromSubscription(subscription);
       return planTierRank(tier) > planTierRank(best.tier)
-        ? { tier, subscription }
+        ? { tier, subscription, billingMode: "actual" }
         : best;
     },
-    { tier: "free", subscription: null },
+    { tier: "free", subscription: null, billingMode: "actual" },
   );
+}
+
+async function getBillingSimulationState(
+  ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
+  userId: string,
+): Promise<{
+  available: boolean;
+  active: boolean;
+  override: {
+    tier: "plus" | "pro";
+    periodStart: number;
+    periodEnd: number;
+  } | null;
+}> {
+  return await ctx.runQuery(
+    internal.functions.billingSimulation.internal_getBillingSimulation,
+    { userId },
+  );
+}
+
+async function hasActiveBillingSimulation(
+  ctx: BillingActionCtx,
+): Promise<boolean> {
+  return (await getBillingSimulationState(ctx, ctx.userId)).active;
+}
+
+async function assertNoActiveBillingSimulation(
+  ctx: BillingActionCtx,
+): Promise<void> {
+  if (await hasActiveBillingSimulation(ctx)) {
+    throw new ConvexError(
+      "Reset preview billing simulation before using Stripe billing controls.",
+    );
+  }
 }
 
 export async function ensureStripeCustomerForCurrentUser(
@@ -1389,59 +1659,10 @@ async function createOrReplaceDowngradeSchedule(
   );
 }
 
-async function syncStripeSubscriptionToConvex(
-  ctx: BillingActionCtx,
-  subscription: Stripe.Subscription,
-): Promise<void> {
-  const item = subscription.items.data[0];
-  if (!item) {
-    throw new Error("Stripe subscription is missing an item.");
-  }
-
-  await ctx.runMutation(components.stripe.private.handleSubscriptionUpdated, {
-    stripeSubscriptionId: subscription.id,
-    status: subscription.status,
-    currentPeriodEnd: item.current_period_end,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end,
-    cancelAt: subscription.cancel_at ?? undefined,
-    quantity: item.quantity ?? 1,
-    priceId: item.price.id,
-    metadata: subscription.metadata,
-  });
-}
-
-async function upsertSubscriptionMonthlyAllowance(
-  ctx: BillingActionCtx,
-  subscription: Stripe.Subscription,
-  tier: PlanTier,
-): Promise<void> {
-  const item = subscription.items.data[0];
-  if (!item?.current_period_start || !item.current_period_end) {
-    return;
-  }
-
-  const plan = getPlanConfig(tier, getBillingConfig());
-  const periodStart = item.current_period_start * 1000;
-  const periodEnd = item.current_period_end * 1000;
-
-  await ctx.runMutation(
-    internal.functions.credits.internal_upsertSubscriptionMonthlyCredits,
-    {
-      userId: ctx.userId,
-      amount: plan.includedMonthlyCredits,
-      sourceId: `${subscription.id}:${periodStart}`,
-      periodKey: new Date(periodStart).toISOString().slice(0, 7),
-      expiresAt: periodEnd,
-      metadata: {
-        subscriptionId: subscription.id,
-        tier,
-        priceId: item.price.id,
-      },
-    },
-  );
-}
-
 function getPeriodKeyForTier(subscriptionState: BillingSubscriptionState) {
+  if (subscriptionState.simulation?.periodStart !== undefined) {
+    return getBillingPeriodKey(subscriptionState.simulation.periodStart);
+  }
   if (
     subscriptionState.tier !== "free" &&
     subscriptionState.subscription?.currentPeriodStart !== undefined
@@ -1463,6 +1684,16 @@ function getErrorText(error: unknown): string {
   } catch {
     return "";
   }
+}
+
+function getSanitizedReconciliationError(error: unknown): string {
+  const text =
+    error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : typeof error === "string"
+        ? error
+        : "Stripe reconciliation failed";
+  return text.replace(/[\r\n]+/g, " ").slice(0, 500);
 }
 
 function isStripeProrationLine(line: Stripe.InvoiceLineItem): boolean {

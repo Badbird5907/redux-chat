@@ -1,0 +1,217 @@
+import { ConvexError, v } from "convex/values";
+
+import { getPlanConfig } from "@redux/shared";
+
+import { components, internal } from "../_generated/api";
+import { getBillingConfig, getUtcMonthBounds } from "../billing";
+import {
+  assertBillingSimulationAvailable,
+  billingSimulationSourceId,
+  billingSimulationTierValidator,
+  getActiveBillingSimulation,
+  getBillingSimulationOverride,
+  hasActiveRealStripeSubscription,
+  isBillingSimulationAvailable,
+} from "../billingSimulation";
+import {
+  ensureFreeMonthlyCreditsAfterPaidCancellationTx,
+  getMonthlyPeriodKey,
+  revokeBillingSimulationMonthlyCreditsTx,
+  revokeFreeMonthlyCreditsTx,
+  upsertBillingSimulationMonthlyCreditsTx,
+} from "../credits";
+import { action, query } from "./index";
+import { internalMutation, internalQuery } from "./internal";
+
+type SimulationState = {
+  available: true;
+  active: true;
+  tier: "plus" | "pro";
+  periodStart: number;
+  periodEnd: number;
+};
+
+export const getCurrentUserBillingSimulation = query({
+  args: {},
+  handler: async (ctx) => {
+    const override = await getActiveBillingSimulation(ctx, ctx.userId);
+    return {
+      available: isBillingSimulationAvailable(),
+      active: override !== null,
+      tier: override?.tier,
+      periodStart: override?.periodStart,
+      periodEnd: override?.periodEnd,
+    };
+  },
+});
+
+export const setCurrentUserBillingSimulation = action({
+  args: { tier: billingSimulationTierValidator },
+  handler: async (ctx, args): Promise<SimulationState> => {
+    assertBillingSimulationAvailable();
+    const subscriptions = await ctx.runQuery(
+      components.stripe.public.listSubscriptionsByUserId,
+      { userId: ctx.userId },
+    );
+    const hasPaidSubscription = hasActiveRealStripeSubscription(subscriptions);
+    if (hasPaidSubscription) {
+      throw new ConvexError(
+        "Billing simulation cannot be enabled while a real paid subscription is active.",
+      );
+    }
+
+    const period = getUtcMonthBounds();
+    const plan = getPlanConfig(args.tier, getBillingConfig());
+    await ctx.runMutation(
+      internal.functions.billingSimulation.internal_setBillingSimulation,
+      {
+        userId: ctx.userId,
+        tier: args.tier,
+        periodStart: period.start,
+        periodEnd: period.end,
+        amount: plan.includedMonthlyCredits,
+      },
+    );
+    return {
+      available: true,
+      active: true,
+      tier: args.tier,
+      periodStart: period.start,
+      periodEnd: period.end,
+    };
+  },
+});
+
+export const clearCurrentUserBillingSimulation = action({
+  args: {},
+  handler: async (ctx): Promise<{ ok: true }> => {
+    assertBillingSimulationAvailable();
+    const subscriptions = await ctx.runQuery(
+      components.stripe.public.listSubscriptionsByUserId,
+      { userId: ctx.userId },
+    );
+    const hasPaidSubscription = hasActiveRealStripeSubscription(subscriptions);
+    await ctx.runMutation(
+      internal.functions.billingSimulation.internal_clearBillingSimulation,
+      { userId: ctx.userId, restoreFreeGrant: !hasPaidSubscription },
+    );
+    return { ok: true };
+  },
+});
+
+export const internal_setBillingSimulation = internalMutation({
+  args: {
+    userId: v.string(),
+    tier: billingSimulationTierValidator,
+    periodStart: v.number(),
+    periodEnd: v.number(),
+    amount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const existing = await getBillingSimulationOverride(ctx, args.userId);
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        tier: args.tier,
+        periodStart: args.periodStart,
+        periodEnd: args.periodEnd,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("billingSimulationOverrides", {
+        userId: args.userId,
+        tier: args.tier,
+        periodStart: args.periodStart,
+        periodEnd: args.periodEnd,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await revokeFreeMonthlyCreditsTx(ctx, {
+      userId: args.userId,
+      reason: "billing_simulation_enabled",
+    });
+    await upsertBillingSimulationMonthlyCreditsTx(ctx, {
+      userId: args.userId,
+      amount: args.amount,
+      sourceId: billingSimulationSourceId(
+        args.userId,
+        getMonthlyPeriodKey(args.periodStart),
+      ),
+      periodKey: getMonthlyPeriodKey(args.periodStart),
+      expiresAt: args.periodEnd,
+      metadata: { tier: args.tier, simulated: true },
+    });
+
+    return {
+      available: true,
+      active: true,
+      tier: args.tier,
+      periodStart: args.periodStart,
+      periodEnd: args.periodEnd,
+    };
+  },
+});
+
+export const internal_getBillingSimulation = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const override = await getBillingSimulationOverride(ctx, args.userId);
+    return {
+      available: isBillingSimulationAvailable(),
+      override,
+      active:
+        isBillingSimulationAvailable() &&
+        override !== null &&
+        override.periodEnd > Date.now(),
+    };
+  },
+});
+
+export const internal_clearBillingSimulation = internalMutation({
+  args: { userId: v.string(), restoreFreeGrant: v.boolean() },
+  handler: async (ctx, args) => {
+    const existing = await getBillingSimulationOverride(ctx, args.userId);
+    if (existing) await ctx.db.delete(existing._id);
+    await revokeBillingSimulationMonthlyCreditsTx(ctx, {
+      userId: args.userId,
+      reason: "billing_simulation_cleared",
+    });
+    if (args.restoreFreeGrant) {
+      await ensureFreeMonthlyCreditsAfterPaidCancellationTx(ctx, {
+        userId: args.userId,
+        reason: "billing_simulation_cleared",
+      });
+    }
+    return { ok: true };
+  },
+});
+
+export const internal_cleanupExpiredBillingSimulation = internalMutation({
+  args: { userId: v.string(), restoreFreeGrant: v.boolean() },
+  handler: async (ctx, args) => {
+    const existing = await getBillingSimulationOverride(ctx, args.userId);
+    if (
+      !existing ||
+      (isBillingSimulationAvailable() && existing.periodEnd > Date.now())
+    ) {
+      return { cleaned: false };
+    }
+    const reason = isBillingSimulationAvailable()
+      ? "billing_simulation_expired"
+      : "billing_simulation_disabled";
+    await ctx.db.delete(existing._id);
+    await revokeBillingSimulationMonthlyCreditsTx(ctx, {
+      userId: args.userId,
+      reason,
+    });
+    if (args.restoreFreeGrant) {
+      await ensureFreeMonthlyCreditsAfterPaidCancellationTx(ctx, {
+        userId: args.userId,
+        reason,
+      });
+    }
+    return { cleaned: true };
+  },
+});
