@@ -28,6 +28,34 @@ async function buildArchive() {
     "---\nname: Archive Skill\ndescription: Imported from one archive\n---\n\n# Skill",
   );
   pack.entry({ name: "owner-repo-abcdef/skill/guide.md" }, "Supporting guide");
+  pack.entry(
+    { name: "owner-repo-abcdef/skill/agents/openai.yaml" },
+    "interface:\n  display_name: Archive Skill",
+  );
+  pack.entry(
+    { name: "owner-repo-abcdef/skill/references/data.json" },
+    '{"ignored":true}',
+  );
+  pack.entry(
+    { name: "owner-repo-abcdef/skill/references/config.yml" },
+    "ignored: true",
+  );
+  pack.entry(
+    { name: "owner-repo-abcdef/skill/references/config.yaml" },
+    "ignored: true",
+  );
+  pack.entry(
+    { name: "owner-repo-abcdef/skill/.claude/command.md" },
+    "Ignored Claude config",
+  );
+  pack.entry(
+    { name: "owner-repo-abcdef/skill/nested/.agents/notes.md" },
+    "Ignored agent config",
+  );
+  pack.entry(
+    { name: "owner-repo-abcdef/skill/.github/workflows/check.yml" },
+    "Ignored GitHub workflow",
+  );
   pack.entry({
     name: "owner-repo-abcdef/skill/guide-link",
     type: "symlink",
@@ -72,6 +100,55 @@ describe("resolveGitHubSkill", () => {
                 size: 16,
               },
               {
+                path: "skill/agents/openai.yaml",
+                mode: "100644",
+                type: "blob",
+                sha: "metadata-sha",
+                size: 40,
+              },
+              {
+                path: "skill/references/data.json",
+                mode: "100644",
+                type: "blob",
+                sha: "json-sha",
+                size: 16,
+              },
+              {
+                path: "skill/references/config.yml",
+                mode: "100644",
+                type: "blob",
+                sha: "yml-sha",
+                size: 13,
+              },
+              {
+                path: "skill/references/config.yaml",
+                mode: "100644",
+                type: "blob",
+                sha: "yaml-sha",
+                size: 13,
+              },
+              {
+                path: "skill/.claude/command.md",
+                mode: "100644",
+                type: "blob",
+                sha: "claude-sha",
+                size: 21,
+              },
+              {
+                path: "skill/nested/.agents/notes.md",
+                mode: "100644",
+                type: "blob",
+                sha: "agents-sha",
+                size: 20,
+              },
+              {
+                path: "skill/.github/workflows/check.yml",
+                mode: "100644",
+                type: "blob",
+                sha: "github-sha",
+                size: 23,
+              },
+              {
                 path: "skill/guide-link",
                 mode: "120000",
                 type: "blob",
@@ -101,9 +178,10 @@ describe("resolveGitHubSkill", () => {
     expect(result.files.map((file) => file.path)).toEqual([
       "SKILL.md",
       "guide.md",
+      "agents/openai.yaml",
       "guide-link",
     ]);
-    expect(result.files[2]).toMatchObject({
+    expect(result.files[3]).toMatchObject({
       isSymlink: true,
       text: "guide.md",
     });

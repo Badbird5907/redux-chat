@@ -36,6 +36,14 @@ interface GitHubTreeResponse {
   truncated: boolean;
 }
 
+const IGNORED_GITHUB_SKILL_DIRECTORIES = new Set([
+  ".agents",
+  ".claude",
+  ".github",
+]);
+
+const PRESERVED_GITHUB_SKILL_METADATA = new Set(["agents/openai.yaml"]);
+
 export interface ResolvedGitHubSkill {
   name: string;
   description: string;
@@ -62,6 +70,27 @@ function githubHeaders(accept = "application/vnd.github+json") {
       ? { Authorization: `Bearer ${env.GITHUB_IMPORT_TOKEN}` }
       : {}),
   };
+}
+
+function shouldImportGitHubSkillEntry(
+  entry: GitHubTreeEntry & { relativePath: string },
+) {
+  const normalizedPath = entry.relativePath.toLowerCase();
+  const segments = normalizedPath.split("/");
+  const directorySegments =
+    entry.type === "blob" ? segments.slice(0, -1) : segments;
+
+  if (
+    directorySegments.some((segment) =>
+      IGNORED_GITHUB_SKILL_DIRECTORIES.has(segment),
+    )
+  ) {
+    return false;
+  }
+
+  if (PRESERVED_GITHUB_SKILL_METADATA.has(normalizedPath)) return true;
+
+  return !/\.(?:json|ya?ml)$/i.test(normalizedPath);
 }
 
 function throwGitHubResponseError(response: Response): never {
@@ -290,8 +319,9 @@ export async function resolveGitHubSkill(
   const entries = tree.tree.flatMap((entry) => {
     if (entry.type === "tree" || !entry.path.startsWith(prefix)) return [];
     const relativePath = entry.path.slice(prefix.length);
-    if (!relativePath || relativePath.includes("/.git/")) return [];
-    return [{ ...entry, relativePath }];
+    if (!relativePath) return [];
+    const skillEntry = { ...entry, relativePath };
+    return shouldImportGitHubSkillEntry(skillEntry) ? [skillEntry] : [];
   });
   if (
     entries.some((entry) => entry.type === "commit" || entry.mode === "160000")
