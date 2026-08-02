@@ -90,6 +90,14 @@ export async function syncStripeSubscriptionAllowance(
 
   const plan = getPlanConfig(tier, getBillingConfig());
   await ctx.runMutation(
+    internal.functions.billingSimulation.internal_clearBillingSimulation,
+    {
+      userId,
+      restoreFreeGrant: false,
+      reason: "real_subscription_activated",
+    },
+  );
+  await ctx.runMutation(
     internal.functions.credits.internal_revokeFreeMonthlyCredits,
     { userId, reason: "upgraded_to_paid" },
   );

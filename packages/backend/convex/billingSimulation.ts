@@ -44,7 +44,10 @@ export function isBillingSimulationAvailableFor(
       url.hostname === "::1" ||
       url.hostname === "[::1]");
   const vercelPreview =
-    url.protocol === "https:" && url.hostname.endsWith(".vercel.app");
+    url.protocol === "https:" &&
+    /^[a-z0-9][a-z0-9-]*-git-[a-z0-9][a-z0-9-]*-[a-z0-9][a-z0-9-]*\.vercel\.app$/.test(
+      url.hostname,
+    );
   return localHost || vercelPreview;
 }
 

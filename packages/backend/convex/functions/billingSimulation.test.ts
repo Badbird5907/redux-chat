@@ -105,12 +105,70 @@ describe("billing simulation mutations", () => {
         .withIndex("by_user_granted_at", (q) => q.eq("userId", USER_ID))
         .collect(),
     );
+    const simulationGrant = grants.find(
+      (grant) => grant.source === "billing_simulation",
+    );
+    expect(simulationGrant).toMatchObject({ status: "revoked", remaining: 0 });
     expect(
-      grants.find((grant) => grant.source === "billing_simulation"),
-    ).toMatchObject({ status: "revoked", remaining: 0 });
+      (simulationGrant?.metadata as Record<string, unknown> | undefined)
+        ?.revokedReason,
+    ).toBe("billing_simulation_cleared");
     expect(
       grants.find((grant) => grant.source === "free_monthly_reset"),
     ).toMatchObject({ status: "active", remaining: 100_000 });
+  });
+
+  it("clears superseded simulation without restoring free or revoking Stripe credits", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(
+      internal.functions.billingSimulation.internal_setBillingSimulation,
+      {
+        userId: USER_ID,
+        tier: "plus",
+        periodStart: PERIOD_START,
+        periodEnd: PERIOD_END,
+        amount: 1_000_000,
+      },
+    );
+    await t.mutation(internal.functions.credits.internal_grantCredits, {
+      userId: USER_ID,
+      bucket: "monthly",
+      amount: 3_500_000,
+      source: "stripe_subscription_renewal",
+      sourceId: "sub_real:2024-01",
+      expiresAt: PERIOD_END,
+      metadata: { subscriptionId: "sub_real" },
+    });
+
+    await t.mutation(
+      internal.functions.billingSimulation.internal_clearBillingSimulation,
+      {
+        userId: USER_ID,
+        restoreFreeGrant: false,
+        reason: "real_subscription_activated",
+      },
+    );
+
+    const grants = await t.run(async (ctx) =>
+      ctx.db
+        .query("creditGrants")
+        .withIndex("by_user_granted_at", (q) => q.eq("userId", USER_ID))
+        .collect(),
+    );
+    const simulationGrant = grants.find(
+      (grant) => grant.source === "billing_simulation",
+    );
+    expect(simulationGrant).toMatchObject({ status: "revoked", remaining: 0 });
+    expect(
+      (simulationGrant?.metadata as Record<string, unknown> | undefined)
+        ?.revokedReason,
+    ).toBe("real_subscription_activated");
+    expect(
+      grants.find((grant) => grant.source === "stripe_subscription_renewal"),
+    ).toMatchObject({ status: "active", remaining: 3_500_000 });
+    expect(
+      grants.find((grant) => grant.source === "free_monthly_reset"),
+    ).toBeUndefined();
   });
 
   it("lazily cleans an expired override and restores free credits", async () => {

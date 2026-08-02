@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import {
   revokeStripeSubscriptionAllowance,
   syncStripeCheckoutSessionRecord,
@@ -118,6 +118,32 @@ describe("shared Stripe subscription synchronization", () => {
       expiresAt: 1_702_592_000_000,
     });
     expect(upsertCalls[1]?.[1]).toEqual(upsertCalls[0]?.[1]);
+  });
+
+  it("clears simulation before granting a real subscription allowance", async () => {
+    const ctx = mutationContext();
+    await syncStripeSubscriptionAllowance(
+      ctx as Parameters<typeof syncStripeSubscriptionAllowance>[0],
+      subscription(),
+    );
+
+    expect(ctx.runMutation).toHaveBeenNthCalledWith(
+      1,
+      internal.functions.billingSimulation.internal_clearBillingSimulation,
+      {
+        userId: USER_ID,
+        restoreFreeGrant: false,
+        reason: "real_subscription_activated",
+      },
+    );
+    expect(ctx.runMutation.mock.calls[1]?.[1]).toEqual({
+      userId: USER_ID,
+      reason: "upgraded_to_paid",
+    });
+    expect(ctx.runMutation.mock.calls[2]?.[1]).toMatchObject({
+      userId: USER_ID,
+      sourceId: "sub_1:1700000000000",
+    });
   });
 
   it("revokes only the requested non-selected subscription allowance", async () => {

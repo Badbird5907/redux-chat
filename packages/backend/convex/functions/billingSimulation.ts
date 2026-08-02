@@ -34,13 +34,20 @@ type SimulationState = {
 export const getCurrentUserBillingSimulation = query({
   args: {},
   handler: async (ctx) => {
-    const override = await getActiveBillingSimulation(ctx, ctx.userId);
+    const [override, subscriptions] = await Promise.all([
+      getActiveBillingSimulation(ctx, ctx.userId),
+      ctx.runQuery(components.stripe.public.listSubscriptionsByUserId, {
+        userId: ctx.userId,
+      }),
+    ]);
+    const active =
+      override !== null && !hasActiveRealStripeSubscription(subscriptions);
     return {
       available: isBillingSimulationAvailable(),
-      active: override !== null,
-      tier: override?.tier,
-      periodStart: override?.periodStart,
-      periodEnd: override?.periodEnd,
+      active,
+      tier: active ? override.tier : undefined,
+      periodStart: active ? override.periodStart : undefined,
+      periodEnd: active ? override.periodEnd : undefined,
     };
   },
 });
@@ -170,18 +177,23 @@ export const internal_getBillingSimulation = internalQuery({
 });
 
 export const internal_clearBillingSimulation = internalMutation({
-  args: { userId: v.string(), restoreFreeGrant: v.boolean() },
+  args: {
+    userId: v.string(),
+    restoreFreeGrant: v.boolean(),
+    reason: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
+    const reason = args.reason ?? "billing_simulation_cleared";
     const existing = await getBillingSimulationOverride(ctx, args.userId);
     if (existing) await ctx.db.delete(existing._id);
     await revokeBillingSimulationMonthlyCreditsTx(ctx, {
       userId: args.userId,
-      reason: "billing_simulation_cleared",
+      reason,
     });
     if (args.restoreFreeGrant) {
       await ensureFreeMonthlyCreditsAfterPaidCancellationTx(ctx, {
         userId: args.userId,
-        reason: "billing_simulation_cleared",
+        reason,
       });
     }
     return { ok: true };

@@ -21,6 +21,9 @@ export async function recordStripeAuditEvent(
       args,
     );
   } catch (error) {
-    console.error("audit_log_record_failed", { action: args.action, error });
+    console.error("audit_log_record_failed", {
+      action: args.action,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }

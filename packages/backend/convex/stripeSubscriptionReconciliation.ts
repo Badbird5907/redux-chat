@@ -17,6 +17,10 @@ export type StripeSubscriptionReconciliationClient = {
     subscriptionId: string,
   ) => Promise<Stripe.Subscription>;
   listSubscriptions: (customerId: string) => Promise<Stripe.Subscription[]>;
+  updateSubscriptionMetadata: (
+    subscriptionId: string,
+    metadata: Stripe.MetadataParam,
+  ) => Promise<void>;
 };
 
 export type LoadedStripeSubscriptionReconciliation = {
@@ -64,10 +68,14 @@ export async function loadStripeSubscriptionsForReconciliation(
     );
   }
 
-  const normalized = subscriptions.map((subscription) => ({
-    ...subscription,
-    metadata: { ...subscription.metadata, userId: args.userId },
-  }));
+  const normalized = await Promise.all(
+    subscriptions.map(async (subscription) => {
+      if (subscription.metadata.userId) return subscription;
+      const metadata = { ...subscription.metadata, userId: args.userId };
+      await client.updateSubscriptionMetadata(subscription.id, metadata);
+      return { ...subscription, metadata };
+    }),
+  );
   return {
     checkoutSession,
     subscriptions: normalized,

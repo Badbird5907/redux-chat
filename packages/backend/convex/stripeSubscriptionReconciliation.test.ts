@@ -16,6 +16,7 @@ function subscription(
     status?: Stripe.Subscription.Status;
     userId?: string;
     created?: number;
+    metadata?: Stripe.Metadata;
   } = {},
 ): Stripe.Subscription {
   return {
@@ -25,7 +26,7 @@ function subscription(
     customer: CUSTOMER_ID,
     status: args.status ?? "active",
     cancel_at_period_end: false,
-    metadata: { userId: args.userId ?? USER_ID },
+    metadata: args.metadata ?? { userId: args.userId ?? USER_ID },
     items: {
       object: "list",
       data: [
@@ -68,6 +69,7 @@ function clientFor(session: Stripe.Checkout.Session) {
       Promise.resolve(subscription(id)),
     ),
     listSubscriptions: vi.fn(() => Promise.resolve([])),
+    updateSubscriptionMetadata: vi.fn(() => Promise.resolve()),
   };
 }
 
@@ -101,6 +103,7 @@ describe("Stripe subscription reconciliation loading", () => {
       expect(loaded.subscriptions).toHaveLength(1);
       expect(loaded.selected?.id).toBe("sub_1");
       expect(client.listSubscriptions).not.toHaveBeenCalled();
+      expect(client.updateSubscriptionMetadata).not.toHaveBeenCalled();
     },
   );
 
@@ -178,15 +181,16 @@ describe("Stripe subscription reconciliation loading", () => {
     expect(loaded.selected?.id).toBe("sub_by_id");
   });
 
-  it("lists portal subscriptions, ignores unknown prices, and fills missing user metadata", async () => {
+  it("lists portal subscriptions, ignores unknown prices, and persists missing user metadata", async () => {
     const listed = [
       subscription("sub_unknown", { priceId: "price_unknown" }),
-      subscription("sub_plus", { userId: "" }),
+      subscription("sub_plus", { metadata: { legacy: "value" } }),
     ];
     const client = {
       retrieveCheckoutSession: vi.fn(),
       retrieveSubscription: vi.fn(),
       listSubscriptions: vi.fn(() => Promise.resolve(listed)),
+      updateSubscriptionMetadata: vi.fn(() => Promise.resolve()),
     };
     const loaded = await loadStripeSubscriptionsForReconciliation(client, {
       userId: USER_ID,
@@ -195,6 +199,10 @@ describe("Stripe subscription reconciliation loading", () => {
     expect(client.listSubscriptions).toHaveBeenCalledWith(CUSTOMER_ID);
     expect(loaded.subscriptions.map((sub) => sub.id)).toEqual(["sub_plus"]);
     expect(loaded.subscriptions[0]?.metadata.userId).toBe(USER_ID);
+    expect(client.updateSubscriptionMetadata).toHaveBeenCalledWith("sub_plus", {
+      legacy: "value",
+      userId: USER_ID,
+    });
   });
 
   it("rejects a portal subscription explicitly owned by another user", async () => {
@@ -204,6 +212,7 @@ describe("Stripe subscription reconciliation loading", () => {
       listSubscriptions: vi.fn(() =>
         Promise.resolve([subscription("sub_other", { userId: "other-user" })]),
       ),
+      updateSubscriptionMetadata: vi.fn(() => Promise.resolve()),
     };
     await expect(
       loadStripeSubscriptionsForReconciliation(client, {
@@ -234,6 +243,7 @@ describe("Stripe subscription reconciliation loading", () => {
       listSubscriptions: vi.fn(() =>
         Promise.resolve([subscription("sub_canceled", { status: "canceled" })]),
       ),
+      updateSubscriptionMetadata: vi.fn(() => Promise.resolve()),
     };
     const loaded = await loadStripeSubscriptionsForReconciliation(client, {
       userId: USER_ID,

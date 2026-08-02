@@ -10,13 +10,13 @@ describe("billing simulation security gate", () => {
     expect(
       isBillingSimulationAvailableFor(
         false,
-        "https://redux-chat-git-feature.vercel.app",
+        "https://redux-chat-git-feature-badbird.vercel.app",
       ),
     ).toBe(false);
     expect(
       isBillingSimulationAvailableFor(
         undefined,
-        "https://redux-chat-git-feature.vercel.app",
+        "https://redux-chat-git-feature-badbird.vercel.app",
       ),
     ).toBe(false);
   });
@@ -25,7 +25,7 @@ describe("billing simulation security gate", () => {
     "http://localhost:3712",
     "http://127.0.0.1:3712",
     "http://[::1]:3712",
-    "https://redux-chat-git-feature.vercel.app",
+    "https://redux-chat-git-feature-badbird.vercel.app",
   ])("accepts eligible origin %s", (siteUrl) => {
     expect(isBillingSimulationAvailableFor(true, siteUrl)).toBe(true);
   });
@@ -37,6 +37,8 @@ describe("billing simulation security gate", () => {
     "https://localhost.attacker.test",
     "http://preview.vercel.app",
     "https://vercel.app",
+    "https://redux-chat.vercel.app",
+    "https://redux-chat-a1b2c3-badbird.vercel.app",
     "not a URL",
   ])("rejects production, custom, or spoofed origin %s", (siteUrl) => {
     expect(isBillingSimulationAvailableFor(true, siteUrl)).toBe(false);

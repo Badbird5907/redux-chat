@@ -4,9 +4,52 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
+import { selectEffectiveSubscriptionState } from "./billing";
 
 const USER_ID = "user-1";
 const NOW = 1_700_000_000_000;
+
+describe("billing subscription precedence", () => {
+  const simulationState = {
+    available: true,
+    active: true,
+    override: {
+      tier: "plus" as const,
+      periodStart: NOW,
+      periodEnd: NOW + 1_000,
+    },
+  };
+
+  it("keeps an actual paid subscription ahead of an active simulation", () => {
+    const actualState = {
+      tier: "pro" as const,
+      subscription: {
+        subscriptionId: "sub_real",
+        priceId: "price_pro",
+        status: "active",
+      },
+      billingMode: "actual" as const,
+    };
+
+    expect(selectEffectiveSubscriptionState(actualState, simulationState)).toBe(
+      actualState,
+    );
+  });
+
+  it("uses active simulation only when actual billing is free", () => {
+    expect(
+      selectEffectiveSubscriptionState(
+        { tier: "free", subscription: null, billingMode: "actual" },
+        simulationState,
+      ),
+    ).toMatchObject({
+      tier: "plus",
+      subscription: null,
+      billingMode: "simulation",
+      simulation: simulationState.override,
+    });
+  });
+});
 
 describe("functions/billing credit top-ups", () => {
   beforeEach(() => {

@@ -35,6 +35,69 @@ type SettingsSearch = {
   billingPortal?: "return";
 };
 
+type PendingStripeBillingCallback =
+  | { kind: "checkout"; sessionId?: string }
+  | { kind: "portal" };
+
+const PENDING_STRIPE_BILLING_CALLBACK_KEY =
+  "redux-chat:pending-stripe-billing-callback";
+
+function isPendingStripeBillingCallback(
+  value: unknown,
+): value is PendingStripeBillingCallback {
+  if (!value || typeof value !== "object") return false;
+  const callback = value as Record<string, unknown>;
+  if (callback.kind === "portal") return true;
+  return (
+    callback.kind === "checkout" &&
+    (callback.sessionId === undefined || typeof callback.sessionId === "string")
+  );
+}
+
+function readPendingStripeBillingCallback(): PendingStripeBillingCallback | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(
+      PENDING_STRIPE_BILLING_CALLBACK_KEY,
+    );
+    if (raw === null) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (isPendingStripeBillingCallback(parsed)) return parsed;
+    window.sessionStorage.removeItem(PENDING_STRIPE_BILLING_CALLBACK_KEY);
+  } catch {
+    try {
+      window.sessionStorage.removeItem(PENDING_STRIPE_BILLING_CALLBACK_KEY);
+    } catch {
+      // Session storage is unavailable; the callback URL remains the fallback.
+    }
+  }
+  return null;
+}
+
+function persistPendingStripeBillingCallback(
+  callback: PendingStripeBillingCallback,
+): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.setItem(
+      PENDING_STRIPE_BILLING_CALLBACK_KEY,
+      JSON.stringify(callback),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearPendingStripeBillingCallback(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(PENDING_STRIPE_BILLING_CALLBACK_KEY);
+  } catch {
+    // Reconciliation remains recoverable through the callback URL.
+  }
+}
+
 export const Route = createFileRoute("/settings/")({
   validateSearch: (search): SettingsSearch => ({
     checkout:
@@ -299,7 +362,7 @@ function RouteComponent() {
   >(null);
   const [stripeSyncState, setStripeSyncState] = useReducerState<{
     status: "idle" | "loading" | "error";
-    sessionId?: string;
+    callback?: PendingStripeBillingCallback;
     error?: string;
   }>({ status: "idle" });
 
@@ -322,41 +385,64 @@ function RouteComponent() {
   }, [navigate]);
 
   const runStripeReconciliation = useCallback(
-    async (sessionId: string | undefined) => {
-      setStripeSyncState({ status: "loading", sessionId });
+    async (callback: PendingStripeBillingCallback) => {
+      setStripeSyncState({ status: "loading", callback });
       try {
         await reconcileStripeSubscriptions({
-          checkoutSessionId: sessionId,
+          checkoutSessionId:
+            callback.kind === "checkout" ? callback.sessionId : undefined,
         });
-        setStripeSyncState({ status: "idle" });
       } catch (error) {
         setStripeSyncState({
           status: "error",
-          sessionId,
+          callback,
           error:
             error instanceof Error
               ? error.message
               : "Could not synchronize your Stripe subscription.",
         });
+        return;
       }
+
+      clearPendingStripeBillingCallback();
+      try {
+        await clearBillingCallbackSearch();
+      } catch {
+        // The server reconciliation is idempotent if callback params remain.
+      }
+      setStripeSyncState({ status: "idle" });
     },
-    [reconcileStripeSubscriptions, setStripeSyncState],
+    [
+      clearBillingCallbackSearch,
+      reconcileStripeSubscriptions,
+      setStripeSyncState,
+    ],
   );
 
   useEffect(() => {
-    const hasCallback =
-      search.checkout !== undefined || search.billingPortal === "return";
-    if (!hasCallback || callbackProcessedRef.current) return;
+    if (callbackProcessedRef.current) return;
+
+    if (search.checkout === "cancelled") {
+      callbackProcessedRef.current = true;
+      clearPendingStripeBillingCallback();
+      void clearBillingCallbackSearch();
+      return;
+    }
+
+    const urlCallback: PendingStripeBillingCallback | null =
+      search.checkout === "success"
+        ? { kind: "checkout", sessionId: search.session_id }
+        : search.billingPortal === "return"
+          ? { kind: "portal" }
+          : null;
+    const callback = urlCallback ?? readPendingStripeBillingCallback();
+    if (!callback) return;
     callbackProcessedRef.current = true;
 
-    const sessionId =
-      search.checkout === "success" ? search.session_id : undefined;
-    void clearBillingCallbackSearch();
-
-    if (search.checkout === "cancelled") return;
-    if (search.checkout === "success" || search.billingPortal === "return") {
-      void runStripeReconciliation(sessionId);
+    if (urlCallback && persistPendingStripeBillingCallback(urlCallback)) {
+      void clearBillingCallbackSearch();
     }
+    void runStripeReconciliation(callback);
   }, [
     clearBillingCallbackSearch,
     runStripeReconciliation,
@@ -405,6 +491,13 @@ function RouteComponent() {
       ? billingState.includedMonthlyCredits
       : undefined;
   const isSimulationActive = billingState?.billingMode === "simulation";
+
+  useEffect(() => {
+    if (isSimulationActive) {
+      setAddCreditsOpen(false);
+    }
+  }, [isSimulationActive, setAddCreditsOpen]);
+
   const showStripeCustomerBalance =
     !isSimulationActive &&
     stripeCustomerBalance !== null &&
@@ -819,8 +912,11 @@ function RouteComponent() {
               type="button"
               variant="outline"
               onClick={() =>
-                void runStripeReconciliation(stripeSyncState.sessionId)
+                stripeSyncState.callback
+                  ? void runStripeReconciliation(stripeSyncState.callback)
+                  : undefined
               }
+              disabled={!stripeSyncState.callback}
             >
               Retry Stripe sync
             </Button>

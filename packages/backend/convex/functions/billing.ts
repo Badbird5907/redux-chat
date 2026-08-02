@@ -58,7 +58,7 @@ type BillingActionCtx = GenericActionCtx<DataModel> & {
   userId: string;
 };
 
-type BillingSubscriptionState = {
+export type BillingSubscriptionState = {
   tier: PlanTier;
   subscription: ReturnType<typeof toSubscriptionSnapshot>;
   billingMode: "actual" | "simulation";
@@ -68,6 +68,16 @@ type BillingSubscriptionState = {
     periodEnd: number;
   };
   fromFallback?: boolean;
+};
+
+type BillingSimulationState = {
+  available: boolean;
+  active: boolean;
+  override: {
+    tier: "plus" | "pro";
+    periodStart: number;
+    periodEnd: number;
+  } | null;
 };
 
 type BillingRefreshResult = {
@@ -417,7 +427,9 @@ export const reconcileCurrentUserStripeSubscriptions = action({
     selectedSubscriptionId?: string;
     tier: PlanTier;
   }> => {
-    await assertNoActiveBillingSimulation(ctx);
+    if (!args.checkoutSessionId) {
+      await assertNoActiveBillingSimulation(ctx);
+    }
     const stripe = getStripeSdkClient();
     let checkoutSession: Stripe.Checkout.Session | undefined;
 
@@ -454,6 +466,13 @@ export const reconcileCurrentUserStripeSubscriptions = action({
             );
             return listed.data;
           },
+          updateSubscriptionMetadata: async (subscriptionId, metadata) => {
+            await withTimeout(
+              stripe.subscriptions.update(subscriptionId, { metadata }),
+              STRIPE_NETWORK_TIMEOUT_MS,
+              "stripe.subscriptions.update(metadata)",
+            );
+          },
         },
         {
           userId: ctx.userId,
@@ -484,7 +503,11 @@ export const reconcileCurrentUserStripeSubscriptions = action({
 
       if (selected) {
         await syncStripeSubscriptionAllowance(ctx, selected);
-        await syncStripeLatestInvoice(ctx, stripe, selected);
+        await withTimeout(
+          syncStripeLatestInvoice(ctx, stripe, selected),
+          STRIPE_NETWORK_TIMEOUT_MS,
+          "syncStripeLatestInvoice",
+        );
       } else {
         await ctx.runMutation(
           internal.functions.credits
@@ -1202,7 +1225,21 @@ async function refreshBillingStateForUser(
     userId,
   );
   const simulationState = await getBillingSimulationState(ctx, userId);
-  if (simulationState.override && !simulationState.active) {
+  if (
+    simulationState.override &&
+    !subscriptionState.fromFallback &&
+    subscriptionState.billingMode === "actual" &&
+    subscriptionState.tier !== "free"
+  ) {
+    await ctx.runMutation(
+      internal.functions.billingSimulation.internal_clearBillingSimulation,
+      {
+        userId,
+        restoreFreeGrant: false,
+        reason: "real_subscription_activated",
+      },
+    );
+  } else if (simulationState.override && !simulationState.active) {
     const actualState = await resolveActualCurrentSubscriptionStateWithFallback(
       ctx,
       userId,
@@ -1298,21 +1335,29 @@ async function resolveCurrentSubscriptionState(
   ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
   userId: string,
 ): Promise<BillingSubscriptionState> {
-  const simulationState = await getBillingSimulationState(ctx, userId);
-  if (simulationState.active && simulationState.override) {
-    return {
-      tier: simulationState.override.tier,
-      subscription: null,
-      billingMode: "simulation",
-      simulation: {
-        tier: simulationState.override.tier,
-        periodStart: simulationState.override.periodStart,
-        periodEnd: simulationState.override.periodEnd,
-      },
-    };
-  }
+  const actualState = await resolveActualCurrentSubscriptionState(ctx, userId);
+  if (actualState.tier !== "free") return actualState;
 
-  return await resolveActualCurrentSubscriptionState(ctx, userId);
+  const simulationState = await getBillingSimulationState(ctx, userId);
+  return selectEffectiveSubscriptionState(actualState, simulationState);
+}
+
+export function selectEffectiveSubscriptionState(
+  actualState: BillingSubscriptionState,
+  simulationState: BillingSimulationState,
+): BillingSubscriptionState {
+  if (actualState.tier !== "free") return actualState;
+  if (!simulationState.active || !simulationState.override) return actualState;
+  return {
+    tier: simulationState.override.tier,
+    subscription: null,
+    billingMode: "simulation",
+    simulation: {
+      tier: simulationState.override.tier,
+      periodStart: simulationState.override.periodStart,
+      periodEnd: simulationState.override.periodEnd,
+    },
+  };
 }
 
 async function resolveActualCurrentSubscriptionState(
@@ -1397,15 +1442,7 @@ function selectBestSubscriptionState(
 async function getBillingSimulationState(
   ctx: GenericQueryCtx<DataModel> | BillingActionCtx,
   userId: string,
-): Promise<{
-  available: boolean;
-  active: boolean;
-  override: {
-    tier: "plus" | "pro";
-    periodStart: number;
-    periodEnd: number;
-  } | null;
-}> {
+): Promise<BillingSimulationState> {
   return await ctx.runQuery(
     internal.functions.billingSimulation.internal_getBillingSimulation,
     { userId },
@@ -1415,17 +1452,35 @@ async function getBillingSimulationState(
 async function hasActiveBillingSimulation(
   ctx: BillingActionCtx,
 ): Promise<boolean> {
-  return (await getBillingSimulationState(ctx, ctx.userId)).active;
+  const state = await resolveCurrentSubscriptionState(ctx, ctx.userId);
+  return state.billingMode === "simulation";
 }
 
 async function assertNoActiveBillingSimulation(
   ctx: BillingActionCtx,
 ): Promise<void> {
-  if (await hasActiveBillingSimulation(ctx)) {
-    throw new ConvexError(
-      "Reset preview billing simulation before using Stripe billing controls.",
+  const simulationState = await getBillingSimulationState(ctx, ctx.userId);
+  if (!simulationState.active || !simulationState.override) return;
+
+  const actualState = await resolveActualCurrentSubscriptionState(
+    ctx,
+    ctx.userId,
+  );
+  if (actualState.tier !== "free") {
+    await ctx.runMutation(
+      internal.functions.billingSimulation.internal_clearBillingSimulation,
+      {
+        userId: ctx.userId,
+        restoreFreeGrant: false,
+        reason: "real_subscription_activated",
+      },
     );
+    return;
   }
+
+  throw new ConvexError(
+    "Reset preview billing simulation before using Stripe billing controls.",
+  );
 }
 
 export async function ensureStripeCustomerForCurrentUser(

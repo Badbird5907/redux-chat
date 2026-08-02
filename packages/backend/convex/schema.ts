@@ -531,7 +531,7 @@ export default defineSchema({
     amount: v.number(),
     remaining: v.number(),
     status: creditGrantStatus,
-    source: v.string(), // "stripe_subscription_renewal", "billing_simulation", "stripe_one_time_purchase", "free_monthly_reset", "admin_grant", "migration_backfill"
+    source: v.string(), // "stripe_subscription_renewal", "billing_simulation", "stripe_one_time_purchase", "free_monthly_reset", "admin_grant", "promotion", "migration_backfill"
     sourceId: v.string(), // id key for idempotency (e.g. Stripe payment intent id, subscription period id, "userId:YYYY-MM")
     periodKey: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
