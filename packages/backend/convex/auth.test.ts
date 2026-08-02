@@ -18,7 +18,7 @@ const REQUIRED_ENV = {
   SILO_CDN: "https://cdn.example.test",
   SILO_TOKEN: "silo-token",
   SILO_URL: "https://silo.example.test",
-  SITE_URL: `http://${"localhost"}:3712`,
+  SITE_URL: "http://localhost:3712",
 } as const;
 
 function withRequiredEnv<T>(callback: () => T) {
