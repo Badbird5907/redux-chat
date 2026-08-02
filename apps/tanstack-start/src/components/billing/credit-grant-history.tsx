@@ -64,6 +64,8 @@ function formatSource(source: string): string {
   switch (source) {
     case "stripe_subscription_renewal":
       return "Subscription renewal";
+    case "billing_simulation":
+      return "Preview plan simulation";
     case "stripe_one_time_purchase":
       return "One-time purchase";
     case "free_monthly_reset":

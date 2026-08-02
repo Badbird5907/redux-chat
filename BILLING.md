@@ -12,7 +12,8 @@ and webhooks. Credit balances are authoritative in Convex.
    This action resolves the current Stripe subscription, idempotently grants
    free monthly credits when needed, reads the Convex credit ledger, and fetches
    live Stripe schedule details such as cancel-at-period-end and pending price
-   changes.
+   changes. When preview billing simulation is active it uses the simulated tier
+   and does not fetch Stripe customer, schedule, or payment-method state.
 4. If `spendableCredits <= 0` and overage is disabled, chat returns `402` with
    `{ error: "out_of_credits" }`.
 5. On generation finish, `api.functions.billing.recordUsageEvent` debits the
@@ -31,11 +32,52 @@ Credits are stored in Convex buckets:
 | Bucket    | Source                                        | Expiration     |
 | --------- | --------------------------------------------- | -------------- |
 | `monthly` | Free monthly resets and subscription renewals | Period end     |
+| `monthly` | Preview/local billing simulation              | Period end     |
 | `paid`    | One-time Stripe purchases                     | Long-lived     |
 | `gifted`  | Admin or promotional grants                   | Grant-specific |
 
 Allocation consumes lower-priority buckets first so expiring or promotional
 credits are spent before purchased credits.
+
+## Checkout and Portal Reconciliation
+
+Stripe webhooks remain the production source of truth, but Settings also has an
+idempotent repair path so ephemeral previews do not need their own webhook
+destination:
+
+- Subscription Checkout returns to
+  `/settings?checkout=success&session_id={CHECKOUT_SESSION_ID}`.
+- The callback validates the completed subscription Checkout Session, its user
+  metadata, Stripe customer, configured price, and active/trialing subscription
+  before synchronizing Convex state and monthly credits.
+- The customer portal returns to `/settings?billingPortal=return`, which lists
+  the current customer's subscriptions and selects the highest configured active
+  tier, using the newest subscription to break ties.
+- Reloads and retries are safe. Checkout Session, subscription, invoice, and
+  credit writes are idempotent.
+
+Credit top-up and promotional Checkout callbacks are not reconciled by the
+Settings subscription callback.
+
+## Preview Billing Simulator
+
+Set `BILLING_SIMULATION_ENABLED=true` on the Convex deployment to expose the
+simulator. The backend still rejects it unless `SITE_URL` is either an HTTP
+localhost origin (`localhost`, `127.0.0.1`, or `::1`) or an HTTPS
+`*.vercel.app` origin. Custom domains, including production, remain ineligible
+even if the flag is set accidentally.
+
+An authenticated user can simulate Plus or Pro for only their own account. The
+override and its distinct `billing_simulation` monthly credit grant expire at
+the end of the current UTC month. A real active/trialing Stripe subscription
+blocks activation. While simulation is active, Stripe billing controls and
+Stripe-backed promotions are unavailable until the user resets simulation;
+ordinary app-credit promotions continue to work.
+
+Configure `BILLING_SIMULATION_ENABLED=true` in Vercel's Preview environment.
+The deploy script copies the value to the branch's Convex preview and removes a
+stale preview value when the flag is disabled. It never enables simulation on a
+production deployment.
 
 ## Promotions
 
@@ -84,15 +126,18 @@ STRIPE_WEBHOOK_SECRET=
 STRIPE_PLUS_PRICE_ID=
 STRIPE_PRO_PRICE_ID=
 STRIPE_CREDIT_TOP_UP_PRODUCT_ID=
+BILLING_SIMULATION_ENABLED=false
 ```
 
 ## Key Files
 
-| File                                           | Responsibility                         |
-| ---------------------------------------------- | -------------------------------------- |
-| `packages/backend/convex/functions/billing.ts` | Billing actions and queries            |
-| `packages/backend/convex/stripe.ts`            | Stripe clients and price helpers       |
-| `packages/backend/convex/billing.ts`           | Subscription normalization helpers     |
-| `packages/backend/convex/credits.ts`           | Credit ledger allocation and balance   |
-| `packages/backend/convex/http.ts`              | Stripe webhook handling                |
-| `packages/shared/src/billing.ts`               | Plan and usage charge configuration    |
+| File                                                | Responsibility                         |
+| --------------------------------------------------- | -------------------------------------- |
+| `packages/backend/convex/functions/billing.ts`      | Billing actions and queries            |
+| `packages/backend/convex/stripe.ts`                 | Stripe clients and price helpers       |
+| `packages/backend/convex/billing.ts`                | Subscription normalization helpers     |
+| `packages/backend/convex/billingSimulation.ts`      | Preview/local simulation security gate |
+| `packages/backend/convex/credits.ts`                | Credit ledger allocation and balance   |
+| `packages/backend/convex/http.ts`                   | Stripe webhook handling                |
+| `packages/backend/convex/stripeSubscriptionSync.ts` | Shared subscription synchronization    |
+| `packages/shared/src/billing.ts`                    | Plan and usage charge configuration    |

@@ -21,6 +21,14 @@ const optionalAuthSecretSchema = z.preprocess(
   authSecretSchema.optional(),
 );
 
+const optionalBooleanStringSchema = z.preprocess(
+  emptyToUndefined,
+  z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+);
+
 export function backendEnv() {
   // Skip validation if environment variables aren't available
   // This happens during Convex deployment/analysis
@@ -45,6 +53,7 @@ export function backendEnv() {
       STRIPE_PLUS_PRICE_ID: z.string().min(1).optional(),
       STRIPE_PRO_PRICE_ID: z.string().min(1).optional(),
       STRIPE_CREDIT_TOP_UP_PRODUCT_ID: z.string().min(1).optional(),
+      BILLING_SIMULATION_ENABLED: optionalBooleanStringSchema,
       SILO_CDN: z.string().min(1),
       SILO_TOKEN: z.string().min(1),
       SILO_URL: z.string().min(1),
@@ -72,6 +81,7 @@ export function backendEnv() {
       STRIPE_PRO_PRICE_ID: process.env.STRIPE_PRO_PRICE_ID,
       STRIPE_CREDIT_TOP_UP_PRODUCT_ID:
         process.env.STRIPE_CREDIT_TOP_UP_PRODUCT_ID,
+      BILLING_SIMULATION_ENABLED: process.env.BILLING_SIMULATION_ENABLED,
       SILO_CDN: process.env.SILO_CDN ?? process.env.VITE_SILO_CDN,
       SILO_TOKEN: process.env.SILO_TOKEN,
       SILO_URL: process.env.SILO_URL,

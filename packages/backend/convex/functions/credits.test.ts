@@ -7,11 +7,13 @@ import {
   getCreditBalanceForUser,
   grantCreditsTx,
   paginateSortedCreditGrantHistory,
+  revokeBillingSimulationMonthlyCreditsTx,
   revokeCreditGrantForUserTx,
   revokeFreeMonthlyCreditsTx,
   revokeSubscriptionMonthlyCreditsTx,
   sortCreditGrantHistory,
   sweepExpiredGrantsTx,
+  upsertBillingSimulationMonthlyCreditsTx,
   upsertSubscriptionMonthlyCreditsTx,
 } from "../credits";
 import schema from "../schema";
@@ -135,6 +137,84 @@ describe("credit ledger helpers", () => {
     );
     expect(balance.bucketBalances.monthly).toBe(3_250_000);
     expect(balance.spendableCredits).toBe(3_250_000);
+  });
+
+  it("adjusts a simulated plan allowance without restoring consumed credits", async () => {
+    const t = convexTest(schema, modules);
+    const sourceId = `billing-simulation:${USER_ID}:2023-11`;
+
+    await t.run(async (ctx) => {
+      await upsertBillingSimulationMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 1_000_000,
+        sourceId,
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+        metadata: { tier: "plus", simulated: true },
+      });
+      await debitCreditsTx(ctx, {
+        userId: USER_ID,
+        requestKey: "msg-uses-simulated-plus",
+        amount: 250_000,
+        overageAllowed: false,
+      });
+    });
+
+    const adjusted = await t.run(async (ctx) =>
+      upsertBillingSimulationMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 3_500_000,
+        sourceId,
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+        metadata: { tier: "pro", simulated: true },
+      }),
+    );
+
+    expect(adjusted).toMatchObject({
+      created: false,
+      adjusted: true,
+      previousAmount: 1_000_000,
+      previousRemaining: 750_000,
+    });
+    const balance = await t.run(async (ctx) =>
+      getCreditBalanceForUser(ctx, USER_ID),
+    );
+    expect(balance.bucketBalances.monthly).toBe(3_250_000);
+  });
+
+  it("revokes only billing simulation grants", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await upsertBillingSimulationMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 1_000_000,
+        sourceId: `billing-simulation:${USER_ID}:2023-11`,
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+      });
+      await upsertSubscriptionMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        amount: 3_500_000,
+        sourceId: "sub-real:1700000000000",
+        periodKey: "2023-11",
+        expiresAt: NOW + 86_400_000,
+        metadata: { subscriptionId: "sub-real", tier: "pro" },
+      });
+    });
+
+    const result = await t.run(async (ctx) =>
+      revokeBillingSimulationMonthlyCreditsTx(ctx, {
+        userId: USER_ID,
+        reason: "billing_simulation_cleared",
+      }),
+    );
+    expect(result.revoked).toBe(1);
+
+    const balance = await t.run(async (ctx) =>
+      getCreditBalanceForUser(ctx, USER_ID),
+    );
+    expect(balance.bucketBalances.monthly).toBe(3_500_000);
   });
 
   it("debits allocate gifted → monthly → paid", async () => {

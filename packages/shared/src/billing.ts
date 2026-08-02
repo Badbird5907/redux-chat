@@ -46,6 +46,7 @@ export type CreditBucket = keyof typeof CREDIT_BUCKETS;
 export type CreditGrantSource =
   | "stripe_subscription_renewal"
   | "stripe_one_time_purchase"
+  | "billing_simulation"
   | "free_monthly_reset"
   | "admin_grant"
   | "promotion"
