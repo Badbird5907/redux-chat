@@ -41,6 +41,10 @@ export const Route = createFileRoute("/_app/share/$shareId")({
         {
           title: name ? `${name} | Redux Chat` : "Shared Chat | Redux Chat",
         },
+        {
+          name: "robots",
+          content: "noindex, nofollow",
+        },
       ],
     };
   },
