@@ -1,11 +1,12 @@
 "use client";
 
-import type { ChangeEvent } from "react";
-import { useEffect, useId, useMemo, useState } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "convex/react";
 import {
+  AlertCircle,
   Bot,
   ChevronRight,
   Download,
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 
 import type { SkillFileSummary, SkillSummary } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
+import { SKILL_LIMITS } from "@redux/types";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import { Card, CardContent } from "@redux/ui/components/card";
@@ -93,6 +95,35 @@ interface TreeNode {
   file?: SkillFileRecord;
 }
 
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Keep typing forgiving: spaces and punctuation become the hyphens the server expects. */
+function normalizeSlugInput(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+}
+
+/** Mirror the server's slug rules so the form can fail before the round trip. */
+function normalizeSlugForSave(value: string) {
+  return normalizeSlugInput(value.trim())
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+/, "")
+    .slice(0, SKILL_LIMITS.maxSlugLength)
+    .replace(/-+$/, "");
+}
+
+function describedBy(...ids: (string | false | undefined)[]) {
+  return ids.filter(Boolean).join(" ") || undefined;
+}
+
+function FieldError({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <p id={id} className="text-destructive flex items-start gap-1.5 text-xs">
+      <AlertCircle aria-hidden className="mt-px size-3.5 shrink-0" />
+      {children}
+    </p>
+  );
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -145,17 +176,23 @@ function FileTree({
   onSelect: (file: SkillFileRecord) => void;
 }) {
   return (
-    <ul className="space-y-0.5">
+    <ul className="space-y-px">
       {nodes.map((node) =>
         node.children.length > 0 ? (
           <li key={node.path}>
             <details open className="group">
-              <summary className="hover:bg-muted flex cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1.5 text-sm">
-                <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
-                <Folder className="text-muted-foreground size-4" />
+              <summary className="hover:bg-muted focus-visible:ring-ring/50 flex cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1.5 text-sm focus-visible:ring-[3px] focus-visible:outline-none">
+                <ChevronRight
+                  aria-hidden
+                  className="size-3.5 shrink-0 transition-transform group-open:rotate-90"
+                />
+                <Folder
+                  aria-hidden
+                  className="text-muted-foreground size-4 shrink-0"
+                />
                 <span className="truncate">{node.name}</span>
               </summary>
-              <div className="ml-3 border-l pl-2">
+              <div className="border-border/60 ml-3.5 border-l pl-2">
                 <FileTree
                   nodes={node.children}
                   selectedPath={selectedPath}
@@ -168,9 +205,12 @@ function FileTree({
           <li key={node.path}>
             <button
               type="button"
+              title={node.path}
+              aria-current={selectedPath === node.path ? "true" : undefined}
               className={cn(
-                "hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
-                selectedPath === node.path && "bg-muted font-medium",
+                "hover:bg-muted focus-visible:ring-ring/50 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm focus-visible:ring-[3px] focus-visible:outline-none",
+                selectedPath === node.path &&
+                  "bg-muted text-foreground font-medium",
               )}
               onClick={() => {
                 const file = node.file;
@@ -178,9 +218,15 @@ function FileTree({
               }}
             >
               {node.file.isText ? (
-                <FileCode2 className="text-muted-foreground size-4 shrink-0" />
+                <FileCode2
+                  aria-hidden
+                  className="text-muted-foreground size-4 shrink-0"
+                />
               ) : (
-                <File className="text-muted-foreground size-4 shrink-0" />
+                <File
+                  aria-hidden
+                  className="text-muted-foreground size-4 shrink-0"
+                />
               )}
               <span className="truncate">{node.name}</span>
             </button>
@@ -224,17 +270,22 @@ function SkillFilePreview({ file }: { file: SkillFileRecord }) {
   const isMarkdown = file.path.toLowerCase().endsWith(".md");
   const isImage = file.mimeType.startsWith("image/");
   const isPdf = file.mimeType === "application/pdf";
+  const isReadableMarkdown = isMarkdown && file.isText && text !== undefined;
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{file.path}</div>
-          <div className="text-muted-foreground text-xs">
-            {file.mimeType} · {formatBytes(file.size)}
-            {file.lfsPointer ? " · Git LFS pointer" : ""}
-          </div>
+  /** Toolbar stays outside the scroll area so the path and actions never scroll away. */
+  const toolbar = (extra?: ReactNode) => (
+    <div className="bg-card/40 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium" title={file.path}>
+          {file.path}
         </div>
+        <div className="text-muted-foreground truncate text-xs tabular-nums">
+          {file.mimeType} · {formatBytes(file.size)}
+          {file.lfsPointer ? " · Git LFS pointer" : ""}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {extra}
         <Button
           variant="outline"
           size="sm"
@@ -245,52 +296,68 @@ function SkillFilePreview({ file }: { file: SkillFileRecord }) {
             />
           }
         >
-          <Download className="size-4" />
+          <Download aria-hidden className="size-4" />
           Download
         </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto rounded-lg border p-4">
-        {loading ? (
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Loader2 className="size-4 animate-spin" /> Loading file…
-          </div>
-        ) : file.isText && text !== undefined ? (
-          isMarkdown ? (
-            <Tabs defaultValue="preview">
-              <TabsList className="w-fit">
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-                <TabsTrigger value="raw">Raw</TabsTrigger>
-              </TabsList>
-              <TabsContent value="preview" className="pt-3">
-                <MarkdownRenderer content={text} mode="static" />
-              </TabsContent>
-              <TabsContent value="raw" className="pt-3">
-                <ShikiCodeBlock code={text} info="markdown" />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <ShikiCodeBlock code={text} info={languageForPath(file.path)} />
-          )
-        ) : isImage ? (
-          <img
-            src={url}
-            alt={file.path}
-            className="mx-auto max-h-[60vh] max-w-full rounded-md object-contain"
-          />
-        ) : isPdf ? (
-          <iframe
-            src={url}
-            title={file.path}
-            sandbox=""
-            className="h-[60vh] w-full rounded-md"
-          />
-        ) : (
-          <div className="text-muted-foreground flex h-40 flex-col items-center justify-center gap-3 text-center text-sm">
-            <File className="size-8" />
-            Preview is not available for this file type.
-          </div>
+    </div>
+  );
+
+  const body = loading ? (
+    <div className="text-muted-foreground flex items-center gap-2">
+      <Loader2 aria-hidden className="size-4 animate-spin" /> Loading file…
+    </div>
+  ) : file.isText && text !== undefined ? (
+    <ShikiCodeBlock code={text} info={languageForPath(file.path)} />
+  ) : isImage ? (
+    <img
+      src={url}
+      alt={file.path}
+      className="mx-auto max-w-full rounded-md object-contain outline outline-black/10 dark:outline-white/10"
+    />
+  ) : isPdf ? (
+    <iframe src={url} title={file.path} sandbox="" className="h-full w-full" />
+  ) : (
+    <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 py-10 text-center">
+      <File aria-hidden className="size-8" />
+      Preview is not available for this file type. Download it to open it
+      locally.
+    </div>
+  );
+
+  if (isReadableMarkdown) {
+    return (
+      <Tabs
+        defaultValue="preview"
+        className="flex min-h-0 flex-1 flex-col gap-0"
+      >
+        {toolbar(
+          <TabsList className="w-fit">
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+            <TabsTrigger value="raw">Raw</TabsTrigger>
+          </TabsList>,
         )}
-      </div>
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          <TabsContent value="preview">
+            {/* Cap the measure: SKILL.md is long-form prose. */}
+            <MarkdownRenderer
+              content={text}
+              mode="static"
+              className="max-w-[72ch]"
+            />
+          </TabsContent>
+          <TabsContent value="raw">
+            <ShikiCodeBlock code={text} info="markdown" />
+          </TabsContent>
+        </div>
+      </Tabs>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {toolbar()}
+      <div className="min-h-0 flex-1 overflow-auto p-4">{body}</div>
     </div>
   );
 }
@@ -304,6 +371,7 @@ function SkillViewerDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const searchId = useId();
   const files = useQuery(
     api.functions.skills.listFiles,
     skill ? { skillId: skill.skillId } : "skip",
@@ -326,29 +394,65 @@ function SkillViewerDialog({
     filteredFiles.find((file) => file.path === "SKILL.md") ??
     filteredFiles[0];
 
+  const trimmedFileSearch = fileSearch.trim();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(88vh,850px)] max-w-[min(96vw,1100px)] grid-rows-[auto_minmax(0,1fr)]">
-        <DialogHeader>
-          <DialogTitle>{skill?.name ?? "Skill files"}</DialogTitle>
-          <DialogDescription>
-            Browse the complete read-only package for this skill.
+      <DialogContent className="flex h-[min(88vh,52rem)] max-w-[min(72rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="gap-1 border-b py-4 pr-14 pl-5">
+          <DialogTitle className="truncate">
+            {skill?.name ?? "Skill files"}
+          </DialogTitle>
+          <DialogDescription className="tabular-nums">
+            {skill
+              ? `Read-only package · ${skill.fileCount} file${skill.fileCount === 1 ? "" : "s"} · ${formatBytes(skill.totalBytes)}`
+              : "Browse the complete read-only package for this skill."}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid min-h-0 gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
-          <div className="flex min-h-0 flex-col gap-3 rounded-lg border p-3">
+
+        <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[17rem_minmax(0,1fr)] md:grid-rows-1">
+          <div className="flex max-h-56 min-h-0 flex-col gap-2 border-b p-3 md:max-h-none md:border-r md:border-b-0">
+            <Label htmlFor={searchId} className="sr-only">
+              Search files
+            </Label>
             <div className="relative">
-              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+              <Search
+                aria-hidden
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+              />
               <Input
+                id={searchId}
+                type="search"
                 value={fileSearch}
                 onChange={(event) => setFileSearch(event.target.value)}
-                className="pl-8"
+                className="pl-8 [&::-webkit-search-cancel-button]:appearance-none"
                 placeholder="Search files"
               />
             </div>
-            <div className="min-h-32 flex-1 overflow-auto">
+            <div className="min-h-0 flex-1 overflow-auto">
               {files === undefined ? (
-                <Loader2 className="text-muted-foreground size-4 animate-spin" />
+                <div className="flex flex-col gap-1.5 p-1">
+                  {Array.from({ length: 6 }, (_, index) => (
+                    <Skeleton key={index} className="h-6 w-full" />
+                  ))}
+                </div>
+              ) : filteredFiles.length === 0 ? (
+                <div className="text-muted-foreground flex flex-col items-start gap-2 px-2 py-1.5 text-sm">
+                  <p className="text-pretty">
+                    {trimmedFileSearch
+                      ? `No files match “${trimmedFileSearch}”`
+                      : "This skill has no files."}
+                  </p>
+                  {trimmedFileSearch ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFileSearch("")}
+                    >
+                      Clear search
+                    </Button>
+                  ) : null}
+                </div>
               ) : (
                 <FileTree
                   nodes={buildTree(filteredFiles)}
@@ -364,8 +468,10 @@ function SkillViewerDialog({
               file={visibleSelectedFile}
             />
           ) : (
-            <div className="text-muted-foreground flex items-center justify-center rounded-lg border text-sm">
-              Select a file to preview it.
+            <div className="text-muted-foreground flex min-h-0 items-center justify-center p-6 text-center">
+              {files === undefined
+                ? "Loading files…"
+                : "Select a file to preview it."}
             </div>
           )}
         </div>
@@ -534,22 +640,69 @@ function EditSkillDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const updateMetadata = useMutation(api.functions.skills.updateMetadata);
+  const id = useId();
+  const nameId = `${id}-name`;
+  const nameErrorId = `${id}-name-error`;
+  const descriptionId = `${id}-description`;
+  const descriptionHintId = `${id}-description-hint`;
+  const descriptionErrorId = `${id}-description-error`;
+  const slugId = `${id}-slug`;
+  const slugHintId = `${id}-slug-hint`;
+  const slugErrorId = `${id}-slug-error`;
+
   const [name, setName] = useState(skill?.name ?? "");
   const [description, setDescription] = useState(skill?.description ?? "");
   const [slug, setSlug] = useState(skill?.slug ?? "");
+  const [errors, setErrors] = useState<{
+    name?: string;
+    description?: string;
+    slug?: string;
+  }>({});
   const [saving, setSaving] = useState(false);
 
-  const save = async () => {
-    if (!skill) return;
+  const nameRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const slugRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!skill || saving) return;
+
+    const nextSlug = normalizeSlugForSave(slug);
+    const nextErrors: typeof errors = {};
+    if (!name.trim()) nextErrors.name = "Enter a name for this skill.";
+    if (!description.trim()) {
+      nextErrors.description = "Describe when a model should use this skill.";
+    }
+    if (!nextSlug) {
+      nextErrors.slug = "Enter a slash command.";
+    } else if (!SLUG_PATTERN.test(nextSlug)) {
+      nextErrors.slug = "Use lowercase letters, numbers, and single hyphens.";
+    }
+
+    setErrors(nextErrors);
+    if (nextErrors.name) return nameRef.current?.focus();
+    if (nextErrors.description) return descriptionRef.current?.focus();
+    if (nextErrors.slug) return slugRef.current?.focus();
+
     setSaving(true);
     try {
-      await updateMetadata({ skillId: skill.skillId, name, description, slug });
+      await updateMetadata({
+        skillId: skill.skillId,
+        name: name.trim(),
+        description: description.trim(),
+        slug: nextSlug,
+      });
       toast.success("Skill metadata updated");
       onOpenChange(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update skill",
-      );
+      const message =
+        error instanceof Error ? error.message : "Failed to update skill";
+      toast.error(message);
+      if (/slash command/i.test(message)) {
+        setErrors({ slug: "That slash command is already in use." });
+        slugRef.current?.focus();
+      }
     } finally {
       setSaving(false);
     }
@@ -557,54 +710,133 @@ function EditSkillDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-[min(34rem,calc(100%-2rem))]">
         <DialogHeader>
           <DialogTitle>Edit skill metadata</DialogTitle>
           <DialogDescription>File contents remain read-only.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="skill-name">Name</Label>
-            <Input
-              id="skill-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="skill-description">Description</Label>
-            <Textarea
-              id="skill-description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={4}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="skill-slug">Slash command</Label>
-            <div className="flex items-center gap-1">
-              <span className="text-muted-foreground">/</span>
+        <form noValidate onSubmit={(event) => void handleSubmit(event)}>
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <Label htmlFor={nameId}>Name</Label>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {name.length}/{SKILL_LIMITS.maxNameLength}
+                </span>
+              </div>
               <Input
-                id="skill-slug"
-                value={slug}
-                onChange={(event) => setSlug(event.target.value)}
+                id={nameId}
+                ref={nameRef}
+                value={name}
+                maxLength={SKILL_LIMITS.maxNameLength}
+                aria-invalid={errors.name ? true : undefined}
+                aria-describedby={describedBy(errors.name && nameErrorId)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setErrors((current) => ({ ...current, name: undefined }));
+                }}
               />
+              {errors.name ? (
+                <FieldError id={nameErrorId}>{errors.name}</FieldError>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <Label htmlFor={descriptionId}>Description</Label>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {description.length}/{SKILL_LIMITS.maxDescriptionLength}
+                </span>
+              </div>
+              <Textarea
+                id={descriptionId}
+                ref={descriptionRef}
+                value={description}
+                rows={5}
+                maxLength={SKILL_LIMITS.maxDescriptionLength}
+                className="max-h-64 resize-y"
+                aria-invalid={errors.description ? true : undefined}
+                aria-describedby={describedBy(
+                  descriptionHintId,
+                  errors.description && descriptionErrorId,
+                )}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  setErrors((current) => ({
+                    ...current,
+                    description: undefined,
+                  }));
+                }}
+              />
+              <p
+                id={descriptionHintId}
+                className="text-muted-foreground text-xs text-pretty"
+              >
+                Models read this to decide when to load the skill, so name the
+                task it handles.
+              </p>
+              {errors.description ? (
+                <FieldError id={descriptionErrorId}>
+                  {errors.description}
+                </FieldError>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={slugId}>Slash command</Label>
+              <div className="relative">
+                <span
+                  aria-hidden
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 font-mono"
+                >
+                  /
+                </span>
+                <Input
+                  id={slugId}
+                  ref={slugRef}
+                  value={slug}
+                  maxLength={SKILL_LIMITS.maxSlugLength}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="pl-6 font-mono"
+                  aria-invalid={errors.slug ? true : undefined}
+                  aria-describedby={describedBy(
+                    slugHintId,
+                    errors.slug && slugErrorId,
+                  )}
+                  onChange={(event) => {
+                    setSlug(normalizeSlugInput(event.target.value));
+                    setErrors((current) => ({ ...current, slug: undefined }));
+                  }}
+                />
+              </div>
+              <p id={slugHintId} className="text-muted-foreground text-xs">
+                Lowercase letters, numbers, and single hyphens.
+              </p>
+              {errors.slug ? (
+                <FieldError id={slugErrorId}>{errors.slug}</FieldError>
+              ) : null}
             </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            disabled={
-              saving || !name.trim() || !description.trim() || !slug.trim()
-            }
-            onClick={() => void save()}
-          >
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-        </DialogFooter>
+
+          <DialogFooter className="mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+              ) : null}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

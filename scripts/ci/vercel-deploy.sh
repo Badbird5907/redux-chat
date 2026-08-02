@@ -10,16 +10,45 @@ pushd ./packages/backend
 # as VITE_CONVEX_URL; derive the matching .site URL for Better Auth from it.
 # Without this, preview frontends talk to the production Convex backend, which
 # disables the Better Auth oAuthProxy and breaks OAuth (state_mismatch).
-convex_deploy_args=()
+run_convex_deploy() {
+  pnpm run convex deploy "$@" \
+    --cmd-url-env-var-name VITE_CONVEX_URL \
+    --cmd 'VITE_CONVEX_SITE_URL="${VITE_CONVEX_URL%.cloud}.site" pnpm run build:app'
+}
+
 if [[ "${VERCEL_ENV:-}" == "preview" ]]; then
-  # Preview data is disposable. Recreate the branch deployment so breaking
-  # schema changes do not require migrations for stale PR test data.
-  convex_deploy_args+=(--preview-create "$VERCEL_GIT_COMMIT_REF")
+  # Preserve branch-preview data across normal commits. If persisted data is
+  # incompatible with a deliberately breaking schema change, retry once with a
+  # fresh deployment. Do not erase data for build, network, or other failures.
+  deploy_log="$(mktemp)"
+  trap 'rm -f "$deploy_log"' EXIT
+
+  set +e
+  run_convex_deploy \
+    --preview-name "$VERCEL_GIT_COMMIT_REF" 2>&1 | tee "$deploy_log"
+  deploy_pipeline_status=("${PIPESTATUS[@]}")
+  set -e
+  deploy_status=${deploy_pipeline_status[0]}
+  tee_status=${deploy_pipeline_status[1]}
+
+  if ((tee_status != 0)); then
+    exit "$tee_status"
+  fi
+
+  if ((deploy_status != 0)); then
+    if grep -Fq "Schema validation failed" "$deploy_log"; then
+      echo "Convex preview data does not match the new schema; recreating the preview deployment."
+      run_convex_deploy --preview-create "$VERCEL_GIT_COMMIT_REF"
+    else
+      exit "$deploy_status"
+    fi
+  fi
+
+  rm -f "$deploy_log"
+  trap - EXIT
+else
+  run_convex_deploy
 fi
-pnpm run convex deploy \
-  "${convex_deploy_args[@]}" \
-  --cmd-url-env-var-name VITE_CONVEX_URL \
-  --cmd 'VITE_CONVEX_SITE_URL="${VITE_CONVEX_URL%.cloud}.site" pnpm run build:app'
 if [[ "${VERCEL_ENV:-}" == "production" ]]; then
   SITE_URL="redux.chat"
 else
