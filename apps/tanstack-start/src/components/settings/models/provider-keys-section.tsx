@@ -46,17 +46,18 @@ export function ProviderKeysSection({
     event.preventDefault();
     if (!entitled) return;
     const draft = drafts[provider];
-    if (!draft?.apiKey.trim()) return;
+    const apiKey = draft?.apiKey.trim();
+    const accountId = draft?.accountId.trim();
+    if (!apiKey) return;
+    if (PROVIDERS[provider].accountId && !accountId) return;
     setSavingProvider(provider);
     try {
       const response = await fetch(`/api/byok/credentials/${provider}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiKey: draft.apiKey,
-          ...(PROVIDERS[provider].accountId
-            ? { accountId: draft.accountId }
-            : {}),
+          apiKey,
+          ...(PROVIDERS[provider].accountId ? { accountId } : {}),
         }),
       });
       if (!response.ok) throw new Error("Could not save provider credentials.");

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_MODEL_ROUTING_CONFIG,
+  generationRequiresPlatformCredits,
   providerPriorityForPreset,
   resolveEffectiveModelRoute,
   sanitizeModelRoutingConfig,
@@ -90,5 +91,73 @@ describe("model routing", () => {
     });
 
     expect(sanitized.overrides).toEqual([]);
+  });
+});
+
+describe("generationRequiresPlatformCredits", () => {
+  it("does not require credits for a user-funded model without paid tools", () => {
+    expect(
+      generationRequiresPlatformCredits({
+        mainFundingSource: "user",
+        canInvokeTools: true,
+        searchEnabled: false,
+        analysisWorkspaceEnabled: false,
+        imageToolFundingSource: "user",
+      }),
+    ).toBe(false);
+  });
+
+  it("requires credits for a platform-funded main model", () => {
+    expect(
+      generationRequiresPlatformCredits({
+        mainFundingSource: "platform",
+        canInvokeTools: true,
+        searchEnabled: false,
+        analysisWorkspaceEnabled: false,
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    {
+      label: "search",
+      searchEnabled: true,
+      analysisWorkspaceEnabled: false,
+      imageToolFundingSource: undefined,
+    },
+    {
+      label: "analysis workspace",
+      searchEnabled: false,
+      analysisWorkspaceEnabled: true,
+      imageToolFundingSource: undefined,
+    },
+    {
+      label: "platform-funded image generation",
+      searchEnabled: false,
+      analysisWorkspaceEnabled: false,
+      imageToolFundingSource: "platform" as const,
+    },
+  ])("requires credits for $label", (toolState) => {
+    expect(
+      generationRequiresPlatformCredits({
+        mainFundingSource: "user",
+        canInvokeTools: true,
+        searchEnabled: toolState.searchEnabled,
+        analysisWorkspaceEnabled: toolState.analysisWorkspaceEnabled,
+        imageToolFundingSource: toolState.imageToolFundingSource,
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores tool flags when the main model cannot invoke tools", () => {
+    expect(
+      generationRequiresPlatformCredits({
+        mainFundingSource: "user",
+        canInvokeTools: false,
+        searchEnabled: true,
+        analysisWorkspaceEnabled: true,
+        imageToolFundingSource: "platform",
+      }),
+    ).toBe(false);
   });
 });

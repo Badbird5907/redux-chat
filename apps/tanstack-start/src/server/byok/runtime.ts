@@ -11,6 +11,7 @@ import { decryptProviderCredential } from "./crypto";
 
 export interface ByokRuntimeContext {
   credentials: Map<ByokProviderId, ProviderCredentialPayload>;
+  configuredProviders: ReadonlySet<ByokProviderId>;
   routing: UserModelRoutingConfig;
 }
 
@@ -24,6 +25,9 @@ export async function loadByokRuntimeContext(
   const bundle = await fetchAuthQuery(
     api.functions.byok.internal_getEncryptedBundle,
     { secret: env.INTERNAL_CONVEX_SECRET, userId },
+  );
+  const configuredProviders = new Set(
+    bundle.credentials.map((credential) => credential.provider),
   );
   const credentials = new Map<ByokProviderId, ProviderCredentialPayload>();
   for (const encrypted of bundle.credentials) {
@@ -44,5 +48,5 @@ export async function loadByokRuntimeContext(
       });
     }
   }
-  return { credentials, routing: bundle.routing };
+  return { credentials, configuredProviders, routing: bundle.routing };
 }

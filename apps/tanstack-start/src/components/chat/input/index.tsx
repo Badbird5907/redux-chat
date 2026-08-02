@@ -11,13 +11,15 @@ import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
-import type { ThinkingLevel } from "@redux/shared/models";
+import type { ByokProviderId, ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   classifyChatAttachment,
   DEFAULT_IMAGE_GENERATION_MODEL_ID,
+  generationRequiresPlatformCredits,
   getChatModelConfig,
   getImageGenerationToolModels,
+  resolveEffectiveModelRoute,
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "@redux/shared/models";
@@ -118,6 +120,16 @@ export function ChatInput({
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
+  const byokSummary = useQuery(api.functions.byok.getSettingsSummary, {});
+  const configuredProviders = useMemo(
+    () =>
+      new Set<ByokProviderId>(
+        (byokSummary?.credentials ?? []).map(
+          (credential) => credential.provider,
+        ),
+      ),
+    [byokSummary?.credentials],
+  );
   const isPaidPlan = billingState?.entitlements.creditTopUps === true;
   const attachmentLimits =
     billingState?.entitlements.featureLevel === "free"
@@ -348,6 +360,45 @@ export function ChatInput({
       : undefined) ?? defaultInstruction;
   const currentModelConfig = getChatModelConfig(selectedModel);
   const currentModelRoute = resolveModelRoute(selectedModel);
+  const byokEnabled = billingState?.entitlements.byok === true;
+  const effectiveMainRoute = useMemo(
+    () =>
+      resolveEffectiveModelRoute({
+        modelId: selectedModel,
+        config: byokSummary?.routing,
+        availableProviders: configuredProviders,
+        byokEnabled,
+      }),
+    [byokEnabled, byokSummary?.routing, configuredProviders, selectedModel],
+  );
+  const effectiveImageToolRoute = useMemo(
+    () =>
+      isImageGenerationEnabled
+        ? resolveEffectiveModelRoute({
+            modelId: selectedImageGenerationModelId,
+            config: byokSummary?.routing,
+            availableProviders: configuredProviders,
+            byokEnabled,
+          })
+        : undefined,
+    [
+      byokEnabled,
+      byokSummary?.routing,
+      configuredProviders,
+      isImageGenerationEnabled,
+      selectedImageGenerationModelId,
+    ],
+  );
+  const requiresPlatformCredits = generationRequiresPlatformCredits({
+    mainFundingSource: effectiveMainRoute?.fundingSource,
+    canInvokeTools: currentModelConfig
+      ? !currentModelConfig.supports.imageOutput
+      : false,
+    searchEnabled: isSearchEnabled,
+    analysisWorkspaceEnabled: isAnalysisWorkspaceEnabled,
+    imageToolFundingSource: effectiveImageToolRoute?.fundingSource,
+  });
+  const isCreditBlocked = isOutOfCredits && requiresPlatformCredits;
   const availableThinkingLevels = currentModelConfig?.thinkingLevels ?? [];
   const effectiveThinkingLevel: ThinkingLevel =
     settings.thinkingLevel &&
@@ -633,7 +684,7 @@ export function ChatInput({
         return false;
       }
 
-      if (isOutOfCredits) {
+      if (isCreditBlocked) {
         toast.error("You are out of credits.");
         return false;
       }
@@ -722,7 +773,7 @@ export function ChatInput({
       settingsReady,
       status,
       threadId,
-      isOutOfCredits,
+      isCreditBlocked,
       posthog,
     ],
   );
@@ -881,7 +932,7 @@ export function ChatInput({
       return;
     }
 
-    if (isOutOfCredits) {
+    if (isCreditBlocked) {
       toast.error("You are out of credits.");
       return;
     }
@@ -998,7 +1049,7 @@ export function ChatInput({
     status,
     submitNewUserPayload,
     threadId,
-    isOutOfCredits,
+    isCreditBlocked,
   ]);
 
   const handleKeyDown = useCallback(
@@ -1101,7 +1152,7 @@ export function ChatInput({
               onSaveEdit={handleSaveQueuedEdit}
             />
           ) : null}
-          {isOutOfCredits ? (
+          {isCreditBlocked ? (
             <div
               className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
               role="alert"
@@ -1217,7 +1268,7 @@ export function ChatInput({
                 isSubmitting,
                 hasUploadingFiles,
                 draftReady,
-                isOutOfCredits,
+                isOutOfCredits: isCreditBlocked,
               }}
               imageGenerationModels={imageGenerationModels}
               selectedImageGenerationModelId={selectedImageGenerationModelId}

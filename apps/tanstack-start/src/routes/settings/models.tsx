@@ -23,15 +23,19 @@ import { useQuery } from "@/lib/hooks/convex";
 
 const reconcileByokSettings = createServerFn({ method: "POST" }).handler(
   async () => {
-    const { userId } = await fetchAuthQuery(
-      api.functions.user.getCurrentUserId,
-      {},
-    );
-    if (!userId) return;
-    await fetchAuthMutation(api.functions.byok.internal_reconcileUser, {
-      secret: env.INTERNAL_CONVEX_SECRET,
-      userId,
-    });
+    try {
+      const { userId } = await fetchAuthQuery(
+        api.functions.user.getCurrentUserId,
+        {},
+      );
+      if (!userId) return;
+      await fetchAuthMutation(api.functions.byok.internal_reconcileUser, {
+        secret: env.INTERNAL_CONVEX_SECRET,
+        userId,
+      });
+    } catch (error) {
+      console.error("BYOK settings reconciliation failed", error);
+    }
   },
 );
 
