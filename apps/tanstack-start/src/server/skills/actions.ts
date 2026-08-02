@@ -55,7 +55,7 @@ export const importMarkdownSkill = createServerFn({ method: "POST" })
       entrypointText: normalized.content,
       metadataWasInferred: normalized.metadataWasInferred,
       enabled: true,
-      allowAutoLoad: false,
+      allowAutoLoad: true,
       source: {
         sourceType: "upload",
         originalFileName: data.fileName,
@@ -75,7 +75,7 @@ export const importGitHubSkill = createServerFn({ method: "POST" })
       entrypointText: resolved.entrypointText,
       metadataWasInferred: resolved.metadataWasInferred,
       enabled: true,
-      allowAutoLoad: false,
+      allowAutoLoad: true,
       source: resolved.source,
       files: resolved.files,
     });
