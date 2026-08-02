@@ -436,6 +436,7 @@ export const redeemPromotion = action({
           promotionConfig,
         );
       }
+      await assertStripePromotionAllowed(ctx);
       if (promotionConfig.kind === "stripe_invoice_credit") {
         return await applyInvoiceCreditPromotion(
           ctx,
@@ -476,6 +477,7 @@ export const previewSubscriptionPromotionUpgrade = action({
     targetTier: paidPlanTierValidator,
   },
   handler: async (ctx, args): Promise<PromotionSubscriptionUpgradePreview> => {
+    await assertStripePromotionAllowed(ctx);
     const redeemability = await ctx.runQuery(
       api.functions.promotions.getPromotionByCode,
       { code: args.code },
@@ -573,6 +575,18 @@ export const previewSubscriptionPromotionUpgrade = action({
     }
   },
 });
+
+async function assertStripePromotionAllowed(
+  ctx: PromotionActionCtx,
+): Promise<void> {
+  const billingState: { billingMode?: "actual" | "simulation" } =
+    await ctx.runQuery(api.functions.billing.getCurrentBillingState, {});
+  if (billingState.billingMode === "simulation") {
+    throw new ConvexError(
+      "Reset preview billing simulation before using Stripe-backed promotions.",
+    );
+  }
+}
 
 async function applyAppCreditsPromotion(
   ctx: PromotionActionCtx,

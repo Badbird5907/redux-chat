@@ -32,7 +32,16 @@ case "$SITE_URL" in
   http://* | https://*) ;;
   *) SITE_URL="https://$SITE_URL" ;;
 esac
-pnpm run convex env set --preview-name "$VERCEL_GIT_COMMIT_REF" SITE_URL "$SITE_URL"
+if [[ "${VERCEL_ENV:-}" == "production" ]]; then
+  pnpm run convex env set SITE_URL "$SITE_URL"
+else
+  pnpm run convex env set --preview-name "$VERCEL_GIT_COMMIT_REF" SITE_URL "$SITE_URL"
+  if [[ "${BILLING_SIMULATION_ENABLED:-false}" == "true" ]]; then
+    pnpm run convex env set --preview-name "$VERCEL_GIT_COMMIT_REF" BILLING_SIMULATION_ENABLED true
+  else
+    pnpm run convex env remove --preview-name "$VERCEL_GIT_COMMIT_REF" BILLING_SIMULATION_ENABLED
+  fi
+fi
 popd
 
 if [[ -d apps/tanstack-start/.vercel/output ]]; then

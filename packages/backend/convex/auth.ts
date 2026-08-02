@@ -30,6 +30,10 @@ export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 const ANALYSIS_ORIGIN_FALLBACK = "http://localhost:3712";
 
+const DAYS_TO_SECONDS = 60 * 60 * 24;
+const SESSION_MAX_AGE_SECONDS = DAYS_TO_SECONDS * 400;
+const SESSION_REFRESH_INTERVAL_SECONDS = DAYS_TO_SECONDS;
+
 function normalizeOrigin(url: string | undefined) {
   if (!url) {
     return ANALYSIS_ORIGIN_FALLBACK;
@@ -87,6 +91,12 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     baseURL: siteUrl,
     secret: env.AUTH_SECRET,
     trustedOrigins,
+    session: {
+      // Browsers cap persistent cookie lifetimes, so 400 days is the longest
+      // useful rolling session duration for normal web sessions.
+      expiresIn: SESSION_MAX_AGE_SECONDS,
+      updateAge: SESSION_REFRESH_INTERVAL_SECONDS,
+    },
 
     plugins: [
       oAuthProxy({

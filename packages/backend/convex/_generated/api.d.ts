@@ -16,12 +16,14 @@ import type {
 
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
+import type * as billingSimulation from "../billingSimulation.js";
 import type * as credits from "../credits.js";
 import type * as env from "../env.js";
 import type * as functions_adminUserDetail from "../functions/adminUserDetail.js";
 import type * as functions_attachments from "../functions/attachments.js";
 import type * as functions_auditLog from "../functions/auditLog.js";
 import type * as functions_billing from "../functions/billing.js";
+import type * as functions_billingSimulation from "../functions/billingSimulation.js";
 import type * as functions_byok from "../functions/byok.js";
 import type * as functions_chatScrollPreferences from "../functions/chatScrollPreferences.js";
 import type * as functions_credits from "../functions/credits.js";
@@ -45,18 +47,23 @@ import type * as http from "../http.js";
 import type * as init from "../init.js";
 import type * as promotions from "../promotions.js";
 import type * as stripe from "../stripe.js";
+import type * as stripeAudit from "../stripeAudit.js";
+import type * as stripeSubscriptionReconciliation from "../stripeSubscriptionReconciliation.js";
+import type * as stripeSubscriptionSync from "../stripeSubscriptionSync.js";
 import type * as usageStats from "../usageStats.js";
 import type * as zod from "../zod.js";
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   billing: typeof billing;
+  billingSimulation: typeof billingSimulation;
   credits: typeof credits;
   env: typeof env;
   "functions/adminUserDetail": typeof functions_adminUserDetail;
   "functions/attachments": typeof functions_attachments;
   "functions/auditLog": typeof functions_auditLog;
   "functions/billing": typeof functions_billing;
+  "functions/billingSimulation": typeof functions_billingSimulation;
   "functions/byok": typeof functions_byok;
   "functions/chatScrollPreferences": typeof functions_chatScrollPreferences;
   "functions/credits": typeof functions_credits;
@@ -80,6 +87,9 @@ declare const fullApi: ApiFromModules<{
   init: typeof init;
   promotions: typeof promotions;
   stripe: typeof stripe;
+  stripeAudit: typeof stripeAudit;
+  stripeSubscriptionReconciliation: typeof stripeSubscriptionReconciliation;
+  stripeSubscriptionSync: typeof stripeSubscriptionSync;
   usageStats: typeof usageStats;
   zod: typeof zod;
 }>;

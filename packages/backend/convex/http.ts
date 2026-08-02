@@ -2,12 +2,14 @@ import type Stripe from "stripe";
 import { registerRoutes } from "@convex-dev/stripe";
 import { httpRouter } from "convex/server";
 
-import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
-
 import { components, internal } from "./_generated/api";
 import { authComponent, initAuth } from "./auth";
-import { resolveTierFromSubscription, toSubscriptionSnapshot } from "./billing";
 import { backendEnv } from "./env";
+import { recordStripeAuditEvent } from "./stripeAudit";
+import {
+  revokeStripeSubscriptionAllowance,
+  syncStripeSubscriptionAllowance,
+} from "./stripeSubscriptionSync";
 
 const http = httpRouter();
 
@@ -22,21 +24,6 @@ function pickInteger(value: unknown): number | undefined {
   if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value);
     return Number.isInteger(parsed) ? parsed : undefined;
-  }
-  return undefined;
-}
-
-function toMs(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value < 10_000_000_000 ? value * 1000 : value;
-  }
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed < 10_000_000_000 ? parsed * 1000 : parsed;
-    }
-    const dateMs = Date.parse(value);
-    return Number.isNaN(dateMs) ? undefined : dateMs;
   }
   return undefined;
 }
@@ -106,23 +93,12 @@ async function handleSubscriptionCancellationRevoke(
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const revokeResult = (await ctx.runMutation(
-      internal.functions.credits.internal_revokeSubscriptionMonthlyCredits,
-      {
-        userId,
-        subscriptionId,
-        reason,
-      },
-    )) as { revoked?: number } | null | undefined;
-    const ensureFreeGrant =
-      internal.functions.credits
-        .internal_ensureFreeMonthlyCreditsAfterPaidCancellation;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const freeGrantResult = (await ctx.runMutation(ensureFreeGrant, {
-      userId,
+    const revokeResult = await revokeStripeSubscriptionAllowance(
+      ctx,
+      subscription,
       reason,
-    })) as { grantId?: string; created?: boolean; reactivated?: boolean };
+      true,
+    );
 
     await recordStripeAuditEvent(ctx, {
       userId,
@@ -131,8 +107,7 @@ async function handleSubscriptionCancellationRevoke(
       severity: "high",
       metadata: {
         subscriptionId,
-        revoked: revokeResult?.revoked,
-        freeGrant: freeGrantResult,
+        revoked: revokeResult.revoked,
       },
     });
   } catch (error) {
@@ -157,63 +132,19 @@ async function handleSubscriptionPeriodGrant(
     | Stripe.CustomerSubscriptionUpdatedEvent,
 ): Promise<void> {
   const subscription = event.data.object;
-  const item = subscription.items.data[0];
-  const priceId = item?.price.id;
   const userId = pickString(subscription.metadata.userId);
   const action = `stripe:${event.type}`;
 
   try {
-    if (!subscription.id || !priceId || !userId) {
+    if (!subscription.id || !userId) {
       console.warn("subscription_event_missing_required_fields", {
         subscriptionId: subscription.id,
-        priceId,
         userId,
       });
       return;
     }
-
-    const snapshot = toSubscriptionSnapshot(subscription);
-    const tier = resolveTierFromSubscription(snapshot);
-    if (tier === "free") return;
-    if (!["active", "trialing"].includes(subscription.status)) return;
-
-    const periodStart = toMs(item.current_period_start);
-    const periodEnd = toMs(item.current_period_end);
-    if (periodStart === undefined || periodEnd === undefined) {
-      console.warn("subscription_event_missing_period", {
-        subscriptionId: subscription.id,
-      });
-      return;
-    }
-
-    const plan = getPlanConfig(tier, DEFAULT_BILLING_CONFIG);
-    const sourceId = `${subscription.id}:${periodStart}`;
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    await ctx.runMutation(
-      internal.functions.credits.internal_revokeFreeMonthlyCredits,
-      {
-        userId,
-        reason: "upgraded_to_paid",
-      },
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    await ctx.runMutation(
-      internal.functions.credits.internal_upsertSubscriptionMonthlyCredits,
-      {
-        userId,
-        amount: plan.includedMonthlyCredits,
-        sourceId,
-        periodKey: new Date(periodStart).toISOString().slice(0, 7),
-        expiresAt: periodEnd,
-        metadata: {
-          subscriptionId: subscription.id,
-          tier,
-          priceId,
-        },
-      },
-    );
+    const synced = await syncStripeSubscriptionAllowance(ctx, subscription);
+    if (!synced) return;
 
     await recordStripeAuditEvent(ctx, {
       userId,
@@ -222,10 +153,10 @@ async function handleSubscriptionPeriodGrant(
       severity: "medium",
       metadata: {
         subscriptionId: subscription.id,
-        tier,
-        amount: plan.includedMonthlyCredits,
-        periodStart,
-        periodEnd,
+        tier: synced.tier,
+        amount: synced.amount,
+        periodStart: synced.periodStart,
+        periodEnd: synced.periodEnd,
       },
     });
   } catch (error) {
@@ -536,27 +467,6 @@ async function handlePromotionSubscriptionCheckoutExpired(
         error: error instanceof Error ? error.message : String(error),
       },
     });
-  }
-}
-
-async function recordStripeAuditEvent(
-  ctx: { runMutation: typeof internal extends never ? never : any }, // eslint-disable-line @typescript-eslint/no-explicit-any
-  args: {
-    userId: string | null;
-    action: string;
-    status: "success" | "failed";
-    severity: "low" | "medium" | "high" | "critical";
-    metadata?: unknown;
-  },
-): Promise<void> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    await ctx.runMutation(
-      internal.functions.auditLog.internal_recordEvent,
-      args,
-    );
-  } catch (error) {
-    console.error("audit_log_record_failed", { action: args.action, error });
   }
 }
 

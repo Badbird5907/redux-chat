@@ -179,6 +179,9 @@ export interface UpsertSubscriptionMonthlyCreditsArgs {
   metadata?: unknown;
 }
 
+export type UpsertBillingSimulationMonthlyCreditsArgs =
+  UpsertSubscriptionMonthlyCreditsArgs;
+
 export type UpsertSubscriptionMonthlyCreditsResult = GrantCreditsResult & {
   adjusted: boolean;
   previousAmount?: number;
@@ -245,6 +248,28 @@ export async function upsertSubscriptionMonthlyCreditsTx(
   ctx: LedgerMutationCtx,
   args: UpsertSubscriptionMonthlyCreditsArgs,
 ): Promise<UpsertSubscriptionMonthlyCreditsResult> {
+  return await upsertMonthlyCreditsTx(ctx, {
+    ...args,
+    source: "stripe_subscription_renewal",
+  });
+}
+
+export async function upsertBillingSimulationMonthlyCreditsTx(
+  ctx: LedgerMutationCtx,
+  args: UpsertBillingSimulationMonthlyCreditsArgs,
+): Promise<UpsertSubscriptionMonthlyCreditsResult> {
+  return await upsertMonthlyCreditsTx(ctx, {
+    ...args,
+    source: "billing_simulation",
+  });
+}
+
+async function upsertMonthlyCreditsTx(
+  ctx: LedgerMutationCtx,
+  args: UpsertSubscriptionMonthlyCreditsArgs & {
+    source: "stripe_subscription_renewal" | "billing_simulation";
+  },
+): Promise<UpsertSubscriptionMonthlyCreditsResult> {
   if (args.amount <= 0) {
     throw new Error("Grant amount must be positive");
   }
@@ -252,9 +277,7 @@ export async function upsertSubscriptionMonthlyCreditsTx(
   const existing = await ctx.db
     .query("creditGrants")
     .withIndex("by_source_sourceId", (q) =>
-      q
-        .eq("source", "stripe_subscription_renewal")
-        .eq("sourceId", args.sourceId),
+      q.eq("source", args.source).eq("sourceId", args.sourceId),
     )
     .first();
 
@@ -263,7 +286,7 @@ export async function upsertSubscriptionMonthlyCreditsTx(
       userId: args.userId,
       bucket: "monthly",
       amount: args.amount,
-      source: "stripe_subscription_renewal",
+      source: args.source,
       sourceId: args.sourceId,
       periodKey: args.periodKey,
       expiresAt: args.expiresAt,
@@ -283,7 +306,16 @@ export async function upsertSubscriptionMonthlyCreditsTx(
     };
   }
 
-  const consumed = Math.max(0, existing.amount - existing.remaining);
+  const existingMetadata =
+    existing.metadata && typeof existing.metadata === "object"
+      ? (existing.metadata as Record<string, unknown>)
+      : {};
+  const remainingBeforeRevocation =
+    existing.status === "revoked" &&
+    typeof existingMetadata.remainingAtRevocation === "number"
+      ? existingMetadata.remainingAtRevocation
+      : existing.remaining;
+  const consumed = Math.max(0, existing.amount - remainingBeforeRevocation);
   const nextRemaining = Math.max(0, args.amount - consumed);
   const shouldAdjust =
     existing.amount !== args.amount ||
@@ -303,11 +335,6 @@ export async function upsertSubscriptionMonthlyCreditsTx(
     };
   }
 
-  const metadata =
-    existing.metadata && typeof existing.metadata === "object"
-      ? (existing.metadata as Record<string, unknown>)
-      : {};
-
   await ctx.db.patch(existing._id, {
     amount: args.amount,
     remaining: nextRemaining,
@@ -317,7 +344,7 @@ export async function upsertSubscriptionMonthlyCreditsTx(
     expiresAt: args.expiresAt,
     updatedAt: Date.now(),
     metadata: {
-      ...metadata,
+      ...existingMetadata,
       ...(args.metadata && typeof args.metadata === "object"
         ? (args.metadata as Record<string, unknown>)
         : {}),
@@ -634,6 +661,49 @@ export async function revokeSubscriptionMonthlyCreditsTx(
       remaining: 0,
       updatedAt: nowMs,
       metadata: nextMetadata,
+    });
+    revoked += 1;
+  }
+
+  return { revoked };
+}
+
+export async function revokeBillingSimulationMonthlyCreditsTx(
+  ctx: LedgerMutationCtx,
+  args: { userId: string; reason?: string },
+): Promise<{ revoked: number }> {
+  const nowMs = Date.now();
+  const rows = await ctx.db
+    .query("creditGrants")
+    .withIndex("by_user_status_expires", (q) =>
+      q.eq("userId", args.userId).eq("status", "active"),
+    )
+    .collect();
+
+  let revoked = 0;
+  for (const row of rows) {
+    if (
+      row.source !== "billing_simulation" ||
+      (row.bucket !== "monthly" && row.bucket !== "free") ||
+      row.remaining <= 0
+    ) {
+      continue;
+    }
+
+    const metadata =
+      row.metadata && typeof row.metadata === "object"
+        ? (row.metadata as Record<string, unknown>)
+        : {};
+    await ctx.db.patch(row._id, {
+      status: "revoked",
+      remaining: 0,
+      updatedAt: nowMs,
+      metadata: {
+        ...metadata,
+        remainingAtRevocation: row.remaining,
+        revokedReason: args.reason ?? "billing_simulation_cleared",
+        revokedAt: nowMs,
+      },
     });
     revoked += 1;
   }
