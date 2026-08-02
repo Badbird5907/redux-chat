@@ -10,7 +10,14 @@ pushd ./packages/backend
 # as VITE_CONVEX_URL; derive the matching .site URL for Better Auth from it.
 # Without this, preview frontends talk to the production Convex backend, which
 # disables the Better Auth oAuthProxy and breaks OAuth (state_mismatch).
+convex_deploy_args=()
+if [[ "${VERCEL_ENV:-}" == "preview" ]]; then
+  # Preview data is disposable. Recreate the branch deployment so breaking
+  # schema changes do not require migrations for stale PR test data.
+  convex_deploy_args+=(--preview-create "$VERCEL_GIT_COMMIT_REF")
+fi
 pnpm run convex deploy \
+  "${convex_deploy_args[@]}" \
   --cmd-url-env-var-name VITE_CONVEX_URL \
   --cmd 'VITE_CONVEX_SITE_URL="${VITE_CONVEX_URL%.cloud}.site" pnpm run build:app'
 if [[ "${VERCEL_ENV:-}" == "production" ]]; then
