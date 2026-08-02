@@ -186,24 +186,31 @@ export const approveSkillProposal = createServerFn({ method: "POST" })
       return { skillId: finalized.skillId };
     } catch (error) {
       if (storedSkillId) {
-        const currentProposal = await fetchAuthQuery(
-          api.functions.skills.getProposal,
-          { proposalId: proposal.proposalId },
-        ).catch(() => null);
-        if (
-          currentProposal?.status === "approved" &&
-          currentProposal.approvedSkillId === storedSkillId
-        ) {
-          return { skillId: storedSkillId };
-        }
-        await fetchAuthMutation(api.functions.skills.deleteSkill, {
-          skillId: storedSkillId,
-        }).catch((cleanupError) => {
+        // Roll back atomically so the skill is only deleted when this claim
+        // still exclusively owns the approval. If a newer claim reclaimed the
+        // proposal after our claim timed out, it may have adopted this same
+        // package, so the backend refuses to delete it and reports the
+        // finalized skill instead.
+        const rollback = await fetchAuthMutation(
+          api.functions.skills.backend_rollbackProposalApproval,
+          {
+            secret: env.INTERNAL_CONVEX_SECRET,
+            userId,
+            proposalId: proposal.proposalId,
+            claimId,
+            skillId: storedSkillId,
+          },
+        ).catch((rollbackError) => {
           console.error(
-            "Failed to roll back approved skill package",
-            cleanupError,
+            "Failed to roll back skill proposal approval",
+            rollbackError,
           );
+          return null;
         });
+        if (rollback && !rollback.rolledBack && rollback.skillId) {
+          return { skillId: rollback.skillId };
+        }
+        throw error;
       }
       await fetchAuthMutation(
         api.functions.skills.backend_releaseProposalApproval,

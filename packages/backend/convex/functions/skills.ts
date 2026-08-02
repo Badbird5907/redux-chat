@@ -649,76 +649,84 @@ export async function copyUserMessageSkillUsages(
   }
 }
 
+async function deleteSkillForUser(
+  ctx: GenericMutationCtx<DataModel>,
+  userId: string,
+  skillId: string,
+) {
+  const skill = await requireSkill(ctx as SkillCtx, userId, skillId);
+  const files = await ctx.db
+    .query("skillFiles")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .collect();
+  const chunks = await ctx.db
+    .query("skillFileChunks")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .collect();
+  const chunkManifests = await ctx.db
+    .query("skillFileChunkManifests")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .collect();
+  for (const file of files) {
+    if (file.userId !== userId) continue;
+    await ctx.scheduler.runAfter(
+      0,
+      internal.functions.attachments.internal_deleteFileFromSilo,
+      {
+        projectId: file.projectId,
+        environmentId: file.environmentId,
+        fileKeyId: file.fileKeyId,
+        accessKey: file.accessKey,
+      },
+    );
+    await ctx.db.delete(file._id);
+  }
+  for (const chunk of chunks) {
+    if (chunk.userId !== userId) continue;
+    await ctx.scheduler.runAfter(
+      0,
+      internal.functions.attachments.internal_deleteFileFromSilo,
+      {
+        projectId: chunk.projectId,
+        environmentId: chunk.environmentId,
+        fileKeyId: chunk.fileKeyId,
+        accessKey: chunk.accessKey,
+      },
+    );
+    await ctx.db.delete(chunk._id);
+  }
+  for (const manifest of chunkManifests) await ctx.db.delete(manifest._id);
+  const entrypoint = await ctx.db
+    .query("skillEntrypoints")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .first();
+  if (entrypoint) await ctx.db.delete(entrypoint._id);
+  const manifest = await ctx.db
+    .query("skillManifests")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .first();
+  if (manifest) await ctx.db.delete(manifest._id);
+  const activeRows = await ctx.db
+    .query("threadSkills")
+    .withIndex("by_skillId", (q) => q.eq("skillId", skillId))
+    .collect();
+  for (const active of activeRows) {
+    if (active.userId === userId) await ctx.db.delete(active._id);
+  }
+  await ctx.db.delete(skill._id);
+  await updateUserUsageStats(ctx, userId, {
+    skillsDelta: -1,
+    skillFilesDelta: -files.length,
+    skillStorageBytesDelta: -skill.storageBytes,
+    lastActiveAt: Date.now(),
+  });
+  return { success: true as const };
+}
+
 export const deleteSkill = mutation({
   args: { skillId: v.string() },
   handler: async (ctx, args) => {
-    const skill = await requireSkill(ctx, ctx.userId, args.skillId);
-    const files = await ctx.db
-      .query("skillFiles")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .collect();
-    const chunks = await ctx.db
-      .query("skillFileChunks")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .collect();
-    const chunkManifests = await ctx.db
-      .query("skillFileChunkManifests")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .collect();
-    for (const file of files) {
-      if (file.userId !== ctx.userId) continue;
-      await ctx.scheduler.runAfter(
-        0,
-        internal.functions.attachments.internal_deleteFileFromSilo,
-        {
-          projectId: file.projectId,
-          environmentId: file.environmentId,
-          fileKeyId: file.fileKeyId,
-          accessKey: file.accessKey,
-        },
-      );
-      await ctx.db.delete(file._id);
-    }
-    for (const chunk of chunks) {
-      if (chunk.userId !== ctx.userId) continue;
-      await ctx.scheduler.runAfter(
-        0,
-        internal.functions.attachments.internal_deleteFileFromSilo,
-        {
-          projectId: chunk.projectId,
-          environmentId: chunk.environmentId,
-          fileKeyId: chunk.fileKeyId,
-          accessKey: chunk.accessKey,
-        },
-      );
-      await ctx.db.delete(chunk._id);
-    }
-    for (const manifest of chunkManifests) await ctx.db.delete(manifest._id);
-    const entrypoint = await ctx.db
-      .query("skillEntrypoints")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .first();
-    if (entrypoint) await ctx.db.delete(entrypoint._id);
-    const manifest = await ctx.db
-      .query("skillManifests")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .first();
-    if (manifest) await ctx.db.delete(manifest._id);
-    const activeRows = await ctx.db
-      .query("threadSkills")
-      .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId))
-      .collect();
-    for (const active of activeRows) {
-      if (active.userId === ctx.userId) await ctx.db.delete(active._id);
-    }
-    await ctx.db.delete(skill._id);
-    await updateUserUsageStats(ctx, ctx.userId, {
-      skillsDelta: -1,
-      skillFilesDelta: -files.length,
-      skillStorageBytesDelta: -skill.storageBytes,
-      lastActiveAt: Date.now(),
-    });
-    return { success: true as const };
+    return await deleteSkillForUser(ctx, ctx.userId, args.skillId);
   },
 });
 
@@ -1606,5 +1614,66 @@ export const backend_releaseProposalApproval = backendMutation({
       updatedAt: Date.now(),
     });
     return { released: true as const };
+  },
+});
+
+// Atomically undo a failed approval attempt that already created a skill
+// package. Deleting the package outside of this transaction is unsafe: if this
+// claim's timeout elapsed and a newer claim reclaimed the proposal, that claim
+// can adopt this same skill via the idempotent import in
+// `backend_commitSkillImport`, and a blind rollback would delete a package the
+// newer claim depends on. Because a claim is always acquired before its import
+// runs, holding the claim here proves no other flow has imported against this
+// skill yet, so deleting it and resetting the proposal is safe.
+export const backend_rollbackProposalApproval = backendMutation({
+  args: {
+    userId: v.string(),
+    proposalId: v.string(),
+    claimId: v.string(),
+    skillId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const proposal = await ctx.db
+      .query("skillProposals")
+      .withIndex("by_proposalId", (q) => q.eq("proposalId", args.proposalId))
+      .first();
+    if (proposal?.userId !== args.userId) {
+      return { rolledBack: false as const, skillId: undefined };
+    }
+    // Another claim finalized the approval; the skill is now the canonical
+    // package for this proposal and must not be deleted.
+    if (proposal.status === "approved") {
+      return {
+        rolledBack: false as const,
+        skillId: proposal.approvedSkillId,
+      };
+    }
+    // A newer claim superseded this one, so it may have adopted this skill
+    // package. Leave both the skill and the newer claim untouched.
+    if (
+      proposal.status !== "approving" ||
+      proposal.approvalClaimId !== args.claimId
+    ) {
+      return { rolledBack: false as const, skillId: undefined };
+    }
+    if (args.skillId) {
+      const skill = await ctx.db
+        .query("skills")
+        .withIndex("by_skillId", (q) => q.eq("skillId", args.skillId ?? ""))
+        .first();
+      if (
+        skill?.userId === args.userId &&
+        skill.proposalId === args.proposalId
+      ) {
+        await deleteSkillForUser(ctx, args.userId, args.skillId);
+      }
+    }
+    await ctx.db.patch(proposal._id, {
+      status: "pending",
+      approvalClaimId: undefined,
+      approvalClaimedAt: undefined,
+      updatedAt: Date.now(),
+    });
+    return { rolledBack: true as const, skillId: undefined };
   },
 });
