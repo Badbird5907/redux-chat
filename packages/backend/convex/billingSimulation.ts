@@ -63,6 +63,16 @@ export function hasActiveRealStripeSubscription(
   });
 }
 
+export async function hasActiveRealStripeSubscriptionForCustomer(
+  client: { listSubscriptions: (customerId: string) => Promise<unknown[]> },
+  customerId: string | undefined,
+): Promise<boolean> {
+  if (!customerId) return false;
+  return hasActiveRealStripeSubscription(
+    await client.listSubscriptions(customerId),
+  );
+}
+
 export function assertBillingSimulationAvailable(): void {
   if (!isBillingSimulationAvailable()) {
     throw new ConvexError(

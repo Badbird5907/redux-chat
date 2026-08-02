@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   hasActiveRealStripeSubscription,
+  hasActiveRealStripeSubscriptionForCustomer,
   isBillingSimulationAvailableFor,
 } from "./billingSimulation";
 
@@ -85,5 +86,34 @@ describe("real subscription detection for simulation", () => {
         { status: "active", priceId: "price_unknown" },
       ]),
     ).toBe(false);
+  });
+
+  it("checks live customer subscriptions when the component mirror is stale", async () => {
+    const listSubscriptions = vi.fn(() =>
+      Promise.resolve([
+        {
+          status: "active",
+          items: { data: [{ price: { id: "price_plus" } }] },
+        },
+      ]),
+    );
+    await expect(
+      hasActiveRealStripeSubscriptionForCustomer(
+        { listSubscriptions },
+        "cus_live",
+      ),
+    ).resolves.toBe(true);
+    expect(listSubscriptions).toHaveBeenCalledWith("cus_live");
+  });
+
+  it("skips the live subscription lookup when no Stripe customer exists", async () => {
+    const listSubscriptions = vi.fn(() => Promise.resolve([]));
+    await expect(
+      hasActiveRealStripeSubscriptionForCustomer(
+        { listSubscriptions },
+        undefined,
+      ),
+    ).resolves.toBe(false);
+    expect(listSubscriptions).not.toHaveBeenCalled();
   });
 });
