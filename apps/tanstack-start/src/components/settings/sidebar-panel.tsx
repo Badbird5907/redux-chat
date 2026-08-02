@@ -43,16 +43,6 @@ export function SettingsSidebarPanel() {
         <SidebarMenu className="mt-3 px-2">
           <SidebarMenuItem>
             <SidebarMenuButton
-              isActive={isModelsActive}
-              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
-              render={<Link to="/settings/models" />}
-            >
-              <Cpu />
-              <span>Models</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
               className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
               render={<Link to="/" />}
             >
@@ -68,6 +58,16 @@ export function SettingsSidebarPanel() {
             >
               <SlidersHorizontal />
               <span>General</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isModelsActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/models" />}
+            >
+              <Cpu />
+              <span>Models</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
