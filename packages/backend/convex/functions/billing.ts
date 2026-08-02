@@ -160,6 +160,7 @@ const toolCallValidator = v.object({
 });
 
 const STRIPE_NETWORK_TIMEOUT_MS = 10_000;
+const LEGACY_CHECKOUT_SESSION_ID = "";
 
 export const getConfiguredStripePrices = query({
   args: {},
@@ -311,6 +312,7 @@ export const getCurrentBillingState = query({
       ctx,
       ctx.userId,
     );
+    const simulationState = await getBillingSimulationState(ctx, ctx.userId);
     const plan = getPlanConfig(subscriptionState.tier, getBillingConfig());
     const freePeriodBounds =
       subscriptionState.tier === "free" ? getUtcMonthBounds() : undefined;
@@ -326,6 +328,10 @@ export const getCurrentBillingState = query({
       billingSimulation: {
         available: isBillingSimulationAvailable(),
         active: subscriptionState.billingMode === "simulation",
+        cleanupRequired: billingSimulationNeedsCleanup(
+          subscriptionState,
+          simulationState,
+        ),
         tier: subscriptionState.simulation?.tier,
         periodStart: subscriptionState.simulation?.periodStart,
         periodEnd: subscriptionState.simulation?.periodEnd,
@@ -427,6 +433,8 @@ export const reconcileCurrentUserStripeSubscriptions = action({
     selectedSubscriptionId?: string;
     tier: PlanTier;
   }> => {
+    const isLegacyCheckoutCallback =
+      args.checkoutSessionId === LEGACY_CHECKOUT_SESSION_ID;
     if (!args.checkoutSessionId) {
       await assertNoActiveBillingSimulation(ctx);
     }
@@ -477,7 +485,10 @@ export const reconcileCurrentUserStripeSubscriptions = action({
         {
           userId: ctx.userId,
           customerId,
-          checkoutSessionId: args.checkoutSessionId,
+          checkoutSessionId:
+            args.checkoutSessionId === LEGACY_CHECKOUT_SESSION_ID
+              ? undefined
+              : args.checkoutSessionId,
         },
       );
       checkoutSession = loaded.checkoutSession;
@@ -509,6 +520,7 @@ export const reconcileCurrentUserStripeSubscriptions = action({
           "syncStripeLatestInvoice",
         );
       } else {
+        assertCanRestoreFreeAfterStripeReconciliation(isLegacyCheckoutCallback);
         await ctx.runMutation(
           internal.functions.credits
             .internal_ensureFreeMonthlyCreditsAfterPaidCancellation,
@@ -1358,6 +1370,26 @@ export function selectEffectiveSubscriptionState(
       periodEnd: simulationState.override.periodEnd,
     },
   };
+}
+
+export function billingSimulationNeedsCleanup(
+  subscriptionState: BillingSubscriptionState,
+  simulationState: BillingSimulationState,
+): boolean {
+  return (
+    simulationState.override !== null &&
+    subscriptionState.billingMode === "actual"
+  );
+}
+
+export function assertCanRestoreFreeAfterStripeReconciliation(
+  isLegacyCheckoutCallback: boolean,
+): void {
+  if (isLegacyCheckoutCallback) {
+    throw new Error(
+      "Stripe has not returned the completed subscription yet. Retry Stripe sync in a moment.",
+    );
+  }
 }
 
 async function resolveActualCurrentSubscriptionState(

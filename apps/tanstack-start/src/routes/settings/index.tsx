@@ -41,6 +41,7 @@ type PendingStripeBillingCallback =
 
 const PENDING_STRIPE_BILLING_CALLBACK_KEY =
   "redux-chat:pending-stripe-billing-callback";
+const LEGACY_CHECKOUT_SESSION_ID = "";
 
 function isPendingStripeBillingCallback(
   value: unknown,
@@ -367,10 +368,13 @@ function RouteComponent() {
   }>({ status: "idle" });
 
   const hydratedScheduleForSubIdRef = useRef<string | null>(null);
+  const cleanupRefreshStartedRef = useRef(false);
   const callbackProcessedRef = useRef(false);
   const billingQuerySettled = baseBillingState !== undefined;
   const subscriptionIdForHydration =
     baseBillingState?.subscription?.subscriptionId;
+  const billingSimulationCleanupRequired =
+    baseBillingState?.billingSimulation.cleanupRequired === true;
 
   const clearBillingCallbackSearch = useCallback(async () => {
     await navigate({
@@ -390,7 +394,9 @@ function RouteComponent() {
       try {
         await reconcileStripeSubscriptions({
           checkoutSessionId:
-            callback.kind === "checkout" ? callback.sessionId : undefined,
+            callback.kind === "checkout"
+              ? (callback.sessionId ?? LEGACY_CHECKOUT_SESSION_ID)
+              : undefined,
         });
       } catch (error) {
         setStripeSyncState({
@@ -481,6 +487,34 @@ function RouteComponent() {
     subscriptionIdForHydration,
     refreshBillingStatus,
     setLiveSubscriptionSchedule,
+  ]);
+
+  useEffect(() => {
+    if (!billingSimulationCleanupRequired) {
+      cleanupRefreshStartedRef.current = false;
+      return;
+    }
+    if (
+      !billingQuerySettled ||
+      subscriptionIdForHydration ||
+      cleanupRefreshStartedRef.current
+    ) {
+      return;
+    }
+    cleanupRefreshStartedRef.current = true;
+    void refreshBillingStatus({}).catch((error: unknown) => {
+      setBillingError(
+        error instanceof Error
+          ? error.message
+          : "Could not refresh preview billing state.",
+      );
+    });
+  }, [
+    billingQuerySettled,
+    billingSimulationCleanupRequired,
+    refreshBillingStatus,
+    setBillingError,
+    subscriptionIdForHydration,
   ]);
 
   const billingState = baseBillingState;

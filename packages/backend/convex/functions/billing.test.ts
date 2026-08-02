@@ -4,7 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
-import { selectEffectiveSubscriptionState } from "./billing";
+import {
+  assertCanRestoreFreeAfterStripeReconciliation,
+  billingSimulationNeedsCleanup,
+  selectEffectiveSubscriptionState,
+} from "./billing";
 
 const USER_ID = "user-1";
 const NOW = 1_700_000_000_000;
@@ -48,6 +52,39 @@ describe("billing subscription precedence", () => {
       billingMode: "simulation",
       simulation: simulationState.override,
     });
+  });
+
+  it("requests cleanup when an override exists but actual billing is effective", () => {
+    expect(
+      billingSimulationNeedsCleanup(
+        { tier: "free", subscription: null, billingMode: "actual" },
+        {
+          available: true,
+          active: false,
+          override: simulationState.override,
+        },
+      ),
+    ).toBe(true);
+    expect(
+      billingSimulationNeedsCleanup(
+        {
+          tier: "plus",
+          subscription: null,
+          billingMode: "simulation",
+          simulation: simulationState.override,
+        },
+        simulationState,
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps a legacy Checkout callback retryable when no subscription is found", () => {
+    expect(() => assertCanRestoreFreeAfterStripeReconciliation(true)).toThrow(
+      "Retry Stripe sync",
+    );
+    expect(() =>
+      assertCanRestoreFreeAfterStripeReconciliation(false),
+    ).not.toThrow();
   });
 });
 
