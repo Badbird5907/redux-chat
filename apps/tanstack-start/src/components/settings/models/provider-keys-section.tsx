@@ -1,11 +1,4 @@
-import {
-  Check,
-  ExternalLink,
-  Link2,
-  RefreshCw,
-  ShieldCheck,
-  Trash2,
-} from "lucide-react";
+import { Check, Link2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 
 import { BYOK_PROVIDER_IDS } from "@redux/shared/models";
 import { Badge } from "@redux/ui/components/badge";
@@ -92,6 +85,27 @@ export function ProviderKeysSection({
             !interactionLocked &&
             draft.apiKey.trim().length > 0 &&
             (metadata.accountId !== true || draft.accountId.trim().length > 0);
+          const oauth = !entitled
+            ? null
+            : provider === "openai"
+              ? {
+                  label:
+                    credential?.connectionType === "chatgpt_oauth"
+                      ? "Reconnect ChatGPT"
+                      : "Connect ChatGPT",
+                  onClick: () => setChatGptConsentOpen(true),
+                }
+              : provider === "openrouter"
+                ? {
+                    label:
+                      connectingConnector === "openrouter"
+                        ? "Connecting…"
+                        : credential?.connectionType === "openrouter_oauth"
+                          ? "Reconnect OpenRouter"
+                          : "Connect OpenRouter",
+                    onClick: () => void startOpenRouter(),
+                  }
+                : null;
 
           return (
             <div
@@ -116,15 +130,6 @@ export function ProviderKeysSection({
                   <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
                     {metadata.description}
                   </p>
-                  <a
-                    href={metadata.keyUrl}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
-                  >
-                    Get an API key
-                    <ExternalLink className="size-3" aria-hidden />
-                  </a>
                   {credential ? (
                     <div className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
                       {credential.displayLabel ? (
@@ -144,34 +149,34 @@ export function ProviderKeysSection({
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col gap-3">
-                {entitled && provider === "openai" ? (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2">
+                {oauth ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         type="button"
-                        size="sm"
                         variant="outline"
+                        className="min-w-48 justify-center"
                         disabled={interactionLocked}
-                        onClick={() => setChatGptConsentOpen(true)}
+                        onClick={oauth.onClick}
                       >
                         <Link2 />
-                        {credential?.connectionType === "chatgpt_oauth"
-                          ? "Reconnect ChatGPT"
-                          : "Connect ChatGPT"}
+                        {oauth.label}
                       </Button>
                       {credential?.connectionType === "chatgpt_oauth" ? (
                         <Button
                           type="button"
-                          size="sm"
                           variant="ghost"
+                          size="icon"
+                          aria-label="Refresh ChatGPT models"
+                          tooltip="Refresh models"
                           disabled={interactionLocked}
                           onClick={() => void refreshChatGpt()}
                         >
-                          <RefreshCw /> Refresh models
+                          <RefreshCw />
                         </Button>
                       ) : null}
                     </div>
-                    {deviceFlow ? (
+                    {provider === "openai" && deviceFlow ? (
                       <ChatGptDevicePanel
                         error={deviceError}
                         flow={deviceFlow}
@@ -188,39 +193,14 @@ export function ProviderKeysSection({
                         }}
                       />
                     ) : null}
-                  </div>
-                ) : null}
-
-                {entitled && provider === "openrouter" ? (
-                  <div className="space-y-1.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={interactionLocked}
-                      onClick={() => void startOpenRouter()}
-                    >
-                      <Link2 />
-                      {connectingConnector === "openrouter"
-                        ? "Connecting…"
-                        : credential?.connectionType === "openrouter_oauth"
-                          ? "Reconnect OpenRouter"
-                          : "Connect OpenRouter"}
-                    </Button>
-                    <p className="text-muted-foreground text-xs">
-                      OAuth creates a dedicated API key. Removing it here does
-                      not revoke it in OpenRouter. Manage generated keys in{" "}
-                      <a
-                        className="underline underline-offset-2"
-                        href="https://openrouter.ai/settings/keys"
-                        target="_blank"
-                        rel="noreferrer noopener"
-                      >
-                        OpenRouter key settings
-                      </a>
-                      .
-                    </p>
-                  </div>
+                    <div className="flex items-center gap-3">
+                      <span className="bg-border h-px flex-1" aria-hidden />
+                      <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                        or use an API key
+                      </span>
+                      <span className="bg-border h-px flex-1" aria-hidden />
+                    </div>
+                  </>
                 ) : null}
 
                 <form
