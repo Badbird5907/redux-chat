@@ -39,6 +39,7 @@ export function ProviderKeysSection({
     deviceError,
     deviceFlow,
     drafts,
+    openRouterConnecting,
     refreshChatGpt,
     saveCredential,
     savingProvider,
@@ -79,7 +80,10 @@ export function ProviderKeysSection({
           const credential = credentialByProvider.get(provider);
           const draft = drafts[provider] ?? { apiKey: "", accountId: "" };
           const busy = savingProvider === provider;
-          const interactionLocked = busy || connectingConnector !== null;
+          const interactionLocked =
+            busy ||
+            connectingConnector !== null ||
+            (provider === "openrouter" && openRouterConnecting);
           const canSubmit =
             entitled &&
             !interactionLocked &&
@@ -98,7 +102,7 @@ export function ProviderKeysSection({
               : provider === "openrouter"
                 ? {
                     label:
-                      connectingConnector === "openrouter"
+                      openRouterConnecting
                         ? "Connecting…"
                         : credential?.connectionType === "openrouter_oauth"
                           ? "Reconnect OpenRouter"

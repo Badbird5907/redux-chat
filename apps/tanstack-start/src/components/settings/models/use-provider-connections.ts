@@ -423,6 +423,18 @@ export function useProviderConnections(
   };
 
   const startOpenRouter = async () => {
+    const pendingFlow =
+      activeOpenRouterFlow.current ?? readPendingOpenRouterFlow();
+    if (pendingFlow) {
+      if (pendingFlow.expiresAt > Date.now()) {
+        activeOpenRouterFlow.current = pendingFlow;
+        setOpenRouterFlow(pendingFlow);
+        toast.info("OpenRouter authorization is already in progress.");
+        return;
+      }
+      clearStoredOpenRouterResult(pendingFlow.flowId);
+      updateOpenRouterFlow(null);
+    }
     const existing = credentialByProvider.get("openrouter");
     if (
       existing &&
@@ -551,6 +563,8 @@ export function useProviderConnections(
     deviceError,
     deviceFlow,
     drafts,
+    openRouterConnecting:
+      connectingConnector === "openrouter" || openRouterFlow !== null,
     refreshChatGpt,
     saveCredential,
     savingProvider,
