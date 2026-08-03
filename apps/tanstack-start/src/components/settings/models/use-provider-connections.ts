@@ -4,11 +4,13 @@ import { toast } from "sonner";
 
 import type { ByokProviderId } from "@redux/shared/models";
 
+import type { PendingOpenRouterFlow } from "./openrouter-pending-flow";
 import {
   getByokOAuthChannelName,
   getByokOAuthPendingStorageKey,
   getByokOAuthResultStorageKey,
 } from "@/lib/byok-oauth-channel";
+import { isPendingOpenRouterFlowSuperseded } from "./openrouter-pending-flow";
 import { PROVIDERS } from "./provider-config";
 
 export type ConnectionType = "api_key" | "chatgpt_oauth" | "openrouter_oauth";
@@ -32,7 +34,6 @@ export interface DeviceFlow {
 }
 
 type ProviderDraft = { apiKey: string; accountId: string };
-type PendingOpenRouterFlow = { flowId: string; expiresAt: number };
 type OAuthCompletionMessage = {
   type?: string;
   connector?: string;
@@ -230,6 +231,27 @@ export function useProviderConnections(
     }, 0);
     return () => window.clearTimeout(restoreTimer);
   }, []);
+
+  useEffect(() => {
+    if (!openRouterFlow) return;
+    const credential = credentialByProvider.get("openrouter");
+    if (!isPendingOpenRouterFlowSuperseded(openRouterFlow, credential)) return;
+
+    const { flowId } = openRouterFlow;
+    const reconcileTimer = window.setTimeout(() => {
+      if (activeOpenRouterFlow.current?.flowId !== flowId) return;
+      clearStoredOpenRouterResult(flowId);
+      clearOpenRouterTracking();
+      updateOpenRouterFlow(null);
+      setConnectingConnector(null);
+    }, 0);
+    return () => window.clearTimeout(reconcileTimer);
+  }, [
+    clearOpenRouterTracking,
+    credentialByProvider,
+    openRouterFlow,
+    updateOpenRouterFlow,
+  ]);
 
   useEffect(() => {
     if (!openRouterFlow) return;
@@ -490,6 +512,7 @@ export function useProviderConnections(
       const flow: PendingOpenRouterFlow = {
         flowId: result.flowId,
         expiresAt: result.expiresAt,
+        previousCredentialUpdatedAt: existing?.updatedAt ?? null,
       };
       updateOpenRouterFlow(flow);
       popup.location.href = result.authorizationUrl;
@@ -612,9 +635,21 @@ function readPendingOpenRouterFlow(): PendingOpenRouterFlow | undefined {
     if (
       typeof value?.flowId === "string" &&
       typeof value.expiresAt === "number" &&
-      Number.isFinite(value.expiresAt)
+      Number.isFinite(value.expiresAt) &&
+      (value.previousCredentialUpdatedAt === undefined ||
+        value.previousCredentialUpdatedAt === null ||
+        (typeof value.previousCredentialUpdatedAt === "number" &&
+          Number.isFinite(value.previousCredentialUpdatedAt)))
     ) {
-      return { flowId: value.flowId, expiresAt: value.expiresAt };
+      return {
+        flowId: value.flowId,
+        expiresAt: value.expiresAt,
+        ...(value.previousCredentialUpdatedAt !== undefined
+          ? {
+              previousCredentialUpdatedAt: value.previousCredentialUpdatedAt,
+            }
+          : {}),
+      };
     }
   } catch {
     // Storage may be disabled or contain an invalid value.
