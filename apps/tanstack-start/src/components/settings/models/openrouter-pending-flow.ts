@@ -1,5 +1,6 @@
 export interface PendingOpenRouterFlow {
   flowId: string;
+  authorizationUrl: string;
   expiresAt: number;
   previousCredentialUpdatedAt?: number | null;
 }

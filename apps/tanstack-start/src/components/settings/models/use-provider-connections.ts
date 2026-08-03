@@ -74,7 +74,7 @@ export function useProviderConnections(
     [credentials],
   );
 
-  const clearOpenRouterTracking = useCallback(() => {
+  const clearOpenRouterPopupTracking = useCallback(() => {
     if (openRouterPopupWatcher.current !== null) {
       window.clearInterval(openRouterPopupWatcher.current);
       openRouterPopupWatcher.current = null;
@@ -83,9 +83,13 @@ export function useProviderConnections(
       window.clearTimeout(openRouterCloseGrace.current);
       openRouterCloseGrace.current = null;
     }
+  }, []);
+
+  const clearOpenRouterTracking = useCallback(() => {
+    clearOpenRouterPopupTracking();
     openRouterChannel.current?.close();
     openRouterChannel.current = null;
-  }, []);
+  }, [clearOpenRouterPopupTracking]);
 
   const updateOpenRouterFlow = useCallback(
     (flow: PendingOpenRouterFlow | null) => {
@@ -119,6 +123,41 @@ export function useProviderConnections(
       else toast.error("OpenRouter connection failed");
     },
     [clearOpenRouterTracking, updateOpenRouterFlow],
+  );
+
+  const watchOpenRouterPopup = useCallback(
+    (popup: Window, flow: PendingOpenRouterFlow) => {
+      const interval = window.setInterval(() => {
+        if (!popup.closed) return;
+
+        window.clearInterval(interval);
+        if (openRouterPopupWatcher.current === interval) {
+          openRouterPopupWatcher.current = null;
+        }
+        const storedResult = readStoredOpenRouterResult(flow.flowId);
+        if (storedResult) {
+          handleOpenRouterCompletion(storedResult, flow.flowId);
+          return;
+        }
+        openRouterCloseGrace.current = window.setTimeout(() => {
+          if (activeOpenRouterFlow.current?.flowId !== flow.flowId) return;
+          const delayedResult = readStoredOpenRouterResult(flow.flowId);
+          if (delayedResult) {
+            handleOpenRouterCompletion(delayedResult, flow.flowId);
+            return;
+          }
+          clearOpenRouterTracking();
+          clearStoredOpenRouterResult(flow.flowId);
+          updateOpenRouterFlow(null);
+          setConnectingConnector(null);
+          toast.error(
+            "The OpenRouter authorization window closed before completion.",
+          );
+        }, OPENROUTER_POPUP_CLOSE_GRACE_MS);
+      }, 500);
+      openRouterPopupWatcher.current = interval;
+    },
+    [clearOpenRouterTracking, handleOpenRouterCompletion, updateOpenRouterFlow],
   );
 
   useEffect(() => {
@@ -453,9 +492,27 @@ export function useProviderConnections(
         pendingFlow.expiresAt > Date.now() &&
         !isPendingOpenRouterFlowSuperseded(pendingFlow, existing)
       ) {
-        activeOpenRouterFlow.current = pendingFlow;
-        setOpenRouterFlow(pendingFlow);
-        toast.info("OpenRouter authorization is already in progress.");
+        if (connectingConnector === "openrouter") {
+          toast.info("OpenRouter authorization is already open.");
+          return;
+        }
+        const popup = window.open(
+          "about:blank",
+          "byok-openrouter-oauth",
+          "width=600,height=720,popup=yes",
+        );
+        if (!popup) {
+          toast.error(
+            "Please allow popups to resume OpenRouter authorization.",
+          );
+          return;
+        }
+        popup.opener = null;
+        clearOpenRouterPopupTracking();
+        updateOpenRouterFlow(pendingFlow);
+        setConnectingConnector("openrouter");
+        popup.location.href = pendingFlow.authorizationUrl;
+        watchOpenRouterPopup(popup, pendingFlow);
         return;
       }
       clearStoredOpenRouterResult(pendingFlow.flowId);
@@ -515,40 +572,13 @@ export function useProviderConnections(
       }
       const flow: PendingOpenRouterFlow = {
         flowId: result.flowId,
+        authorizationUrl: result.authorizationUrl,
         expiresAt: result.expiresAt,
         previousCredentialUpdatedAt: existing?.updatedAt ?? null,
       };
       updateOpenRouterFlow(flow);
       popup.location.href = result.authorizationUrl;
-      const interval = window.setInterval(() => {
-        if (popup.closed) {
-          window.clearInterval(interval);
-          if (openRouterPopupWatcher.current === interval) {
-            openRouterPopupWatcher.current = null;
-          }
-          const storedResult = readStoredOpenRouterResult(flow.flowId);
-          if (storedResult) {
-            handleOpenRouterCompletion(storedResult, flow.flowId);
-            return;
-          }
-          openRouterCloseGrace.current = window.setTimeout(() => {
-            if (activeOpenRouterFlow.current?.flowId !== flow.flowId) return;
-            const delayedResult = readStoredOpenRouterResult(flow.flowId);
-            if (delayedResult) {
-              handleOpenRouterCompletion(delayedResult, flow.flowId);
-              return;
-            }
-            clearOpenRouterTracking();
-            clearStoredOpenRouterResult(flow.flowId);
-            updateOpenRouterFlow(null);
-            setConnectingConnector(null);
-            toast.error(
-              "The OpenRouter authorization window closed before completion.",
-            );
-          }, OPENROUTER_POPUP_CLOSE_GRACE_MS);
-        }
-      }, 500);
-      openRouterPopupWatcher.current = interval;
+      watchOpenRouterPopup(popup, flow);
     } catch (error) {
       clearOpenRouterTracking();
       updateOpenRouterFlow(null);
@@ -638,6 +668,8 @@ function readPendingOpenRouterFlow(): PendingOpenRouterFlow | undefined {
     ) as Partial<PendingOpenRouterFlow> | undefined;
     if (
       typeof value?.flowId === "string" &&
+      typeof value.authorizationUrl === "string" &&
+      value.authorizationUrl.length > 0 &&
       typeof value.expiresAt === "number" &&
       Number.isFinite(value.expiresAt) &&
       (value.previousCredentialUpdatedAt === undefined ||
@@ -647,6 +679,7 @@ function readPendingOpenRouterFlow(): PendingOpenRouterFlow | undefined {
     ) {
       return {
         flowId: value.flowId,
+        authorizationUrl: value.authorizationUrl,
         expiresAt: value.expiresAt,
         ...(value.previousCredentialUpdatedAt !== undefined
           ? {

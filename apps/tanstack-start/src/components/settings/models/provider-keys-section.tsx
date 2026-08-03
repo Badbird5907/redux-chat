@@ -84,6 +84,11 @@ export function ProviderKeysSection({
             busy ||
             connectingConnector !== null ||
             (provider === "openrouter" && openRouterConnecting);
+          const canResumeOpenRouter =
+            !busy &&
+            provider === "openrouter" &&
+            openRouterConnecting &&
+            connectingConnector === null;
           const canSubmit =
             entitled &&
             !interactionLocked &&
@@ -101,8 +106,9 @@ export function ProviderKeysSection({
                 }
               : provider === "openrouter"
                 ? {
-                    label:
-                      openRouterConnecting
+                    label: canResumeOpenRouter
+                      ? "Resume OpenRouter"
+                      : openRouterConnecting
                         ? "Connecting…"
                         : credential?.connectionType === "openrouter_oauth"
                           ? "Reconnect OpenRouter"
@@ -160,7 +166,7 @@ export function ProviderKeysSection({
                         type="button"
                         variant="outline"
                         className="min-w-48 justify-center"
-                        disabled={interactionLocked}
+                        disabled={interactionLocked && !canResumeOpenRouter}
                         onClick={oauth.onClick}
                       >
                         <Link2 />
