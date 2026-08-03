@@ -49,21 +49,19 @@ export async function loadByokRuntimeContext(
         return undefined;
       }
 
-      if (
-        encrypted.provider === "openai" &&
-        payload.kind === "chatgpt_oauth"
-      ) {
+      let supportsImageGeneration = encrypted.supportsImageGeneration === true;
+      if (encrypted.provider === "openai" && payload.kind === "chatgpt_oauth") {
         const fresh = await loadFreshChatGptCredential({ userId });
         if (!fresh) return undefined;
         payload = fresh.payload;
+        supportsImageGeneration = fresh.supportsImageGeneration;
       }
       const providerAvailability: ByokProviderAvailability =
         payload.kind === "chatgpt_oauth"
           ? {
               kind: "models",
               modelIds: new Set(payload.modelIds),
-              supportsImageGeneration:
-                encrypted.supportsImageGeneration === true,
+              supportsImageGeneration,
             }
           : { kind: "all" };
       return {

@@ -24,6 +24,7 @@ const REFRESH_LEASE_MS = 30_000;
 export interface LoadedChatGptCredential {
   payload: ChatGptProviderCredentialPayload;
   revision: number;
+  supportsImageGeneration: boolean;
 }
 
 export async function loadFreshChatGptCredential(args: {
@@ -118,7 +119,11 @@ export async function loadFreshChatGptCredential(args: {
     if (!result.updated) {
       return await loadCredential(args.userId);
     }
-    return { payload, revision: result.revision };
+    return {
+      payload,
+      revision: result.revision,
+      supportsImageGeneration: true,
+    };
   } finally {
     await releaseRedisLease(leaseKey, leaseToken);
   }
@@ -149,7 +154,11 @@ async function loadCredential(
     encrypted,
   });
   return payload.kind === "chatgpt_oauth"
-    ? { payload, revision: encrypted.revision }
+    ? {
+        payload,
+        revision: encrypted.revision,
+        supportsImageGeneration: encrypted.supportsImageGeneration === true,
+      }
     : undefined;
 }
 

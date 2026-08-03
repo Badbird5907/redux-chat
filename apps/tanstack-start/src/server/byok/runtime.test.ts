@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_MODEL_ROUTING_CONFIG } from "@redux/shared/models";
 
+import { loadByokRuntimeContext } from "./runtime";
+
 const mocks = vi.hoisted(() => ({
   decryptProviderCredential: vi.fn(),
   fetchAuthMutation: vi.fn(),
@@ -32,8 +34,6 @@ vi.mock("./chatgpt-refresh", () => ({
 vi.mock("./crypto", () => ({
   decryptProviderCredential: mocks.decryptProviderCredential,
 }));
-
-import { loadByokRuntimeContext } from "./runtime";
 
 const chatGptCredential = {
   version: 2 as const,
@@ -72,6 +72,33 @@ describe("BYOK runtime credential preparation", () => {
     mocks.loadFreshChatGptCredential.mockResolvedValue({
       payload: chatGptCredential,
       revision: 2,
+      supportsImageGeneration: true,
+    });
+  });
+
+  it("uses refreshed ChatGPT image capability with refreshed model availability", async () => {
+    mocks.fetchAuthQuery.mockResolvedValue({
+      credentials: [
+        {
+          provider: "openai",
+          ciphertext: "ciphertext",
+          iv: "iv",
+          authTag: "auth-tag",
+          keyVersion: 1,
+          displaySuffix: "ount",
+          connectionType: "chatgpt_oauth",
+          supportsImageGeneration: false,
+          revision: 1,
+        },
+      ],
+      routing: DEFAULT_MODEL_ROUTING_CONFIG,
+    });
+
+    const result = await loadByokRuntimeContext("user-a");
+
+    expect(result.availability.get("openai")).toMatchObject({
+      kind: "models",
+      supportsImageGeneration: true,
     });
   });
 

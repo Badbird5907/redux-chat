@@ -69,6 +69,7 @@ describe("ChatGPT credential refresh", () => {
         authTag: "tag",
         keyVersion: 1,
         revision: stored.revision,
+        supportsImageGeneration: true,
       }),
     );
     mocks.decryptProviderCredential.mockImplementation(() => stored.payload);
@@ -185,7 +186,11 @@ describe("ChatGPT credential refresh", () => {
 
     await expect(
       loadFreshChatGptCredential({ userId: "user-a" }),
-    ).resolves.toEqual({ payload: newerPayload, revision: 2 });
+    ).resolves.toEqual({
+      payload: newerPayload,
+      revision: 2,
+      supportsImageGeneration: true,
+    });
   });
 
   it("preserves the stored connection on a transient refresh failure", async () => {
