@@ -146,6 +146,40 @@ describe("functions/byok", () => {
     expect(stored).toMatchObject({ ciphertext: "replacement", revision: 2 });
   });
 
+  it("removes OAuth-only metadata when replacing a connection with an API key", async () => {
+    const t = byokTest();
+    await t.mutation(
+      api.functions.byok.internal_upsertCredential,
+      credentialArgs({
+        connectionType: "chatgpt_oauth",
+        displayLabel: "person@example.com",
+        availableModelIds: ["gpt-5.5"],
+        supportsImageGeneration: true,
+      }),
+    );
+    await t.mutation(
+      api.functions.byok.internal_upsertCredential,
+      credentialArgs({ ciphertext: "manual-key" }),
+    );
+
+    const row = await t.run((ctx) =>
+      ctx.db
+        .query("providerCredentials")
+        .withIndex("by_userId_provider", (q) =>
+          q.eq("userId", USER_ID).eq("provider", "openai"),
+        )
+        .unique(),
+    );
+    expect(row).toMatchObject({
+      ciphertext: "manual-key",
+      connectionType: "api_key",
+      revision: 2,
+    });
+    expect(row).not.toHaveProperty("displayLabel");
+    expect(row).not.toHaveProperty("availableModelIds");
+    expect(row).not.toHaveProperty("supportsImageGeneration");
+  });
+
   it("prevents stale refresh writes and invalid-token deletes", async () => {
     const t = byokTest();
     await t.mutation(

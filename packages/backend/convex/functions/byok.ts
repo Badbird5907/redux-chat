@@ -149,6 +149,34 @@ const credentialWriteArgs = {
   supportsImageGeneration: v.optional(v.boolean()),
 };
 
+function normalizedCredentialMetadata(args: {
+  connectionType: "api_key" | "chatgpt_oauth" | "openrouter_oauth";
+  displayLabel?: string;
+  availableModelIds?: string[];
+  supportsImageGeneration?: boolean;
+}) {
+  switch (args.connectionType) {
+    case "chatgpt_oauth":
+      return {
+        displayLabel: args.displayLabel,
+        availableModelIds: args.availableModelIds,
+        supportsImageGeneration: args.supportsImageGeneration,
+      };
+    case "openrouter_oauth":
+      return {
+        displayLabel: args.displayLabel,
+        availableModelIds: undefined,
+        supportsImageGeneration: undefined,
+      };
+    default:
+      return {
+        displayLabel: undefined,
+        availableModelIds: undefined,
+        supportsImageGeneration: undefined,
+      };
+  }
+}
+
 export const internal_upsertCredential = backendMutation({
   args: credentialWriteArgs,
   handler: async (ctx, args) => {
@@ -166,9 +194,7 @@ export const internal_upsertCredential = backendMutation({
       keyVersion: args.keyVersion,
       displaySuffix: args.displaySuffix,
       connectionType: args.connectionType,
-      displayLabel: args.displayLabel,
-      availableModelIds: args.availableModelIds,
-      supportsImageGeneration: args.supportsImageGeneration,
+      ...normalizedCredentialMetadata(args),
       revision: existing ? (existing.revision ?? 1) + 1 : 1,
       updatedAt: now,
     };
@@ -210,9 +236,7 @@ export const internal_replaceCredentialIfRevision = backendMutation({
       keyVersion: args.keyVersion,
       displaySuffix: args.displaySuffix,
       connectionType: args.connectionType,
-      displayLabel: args.displayLabel,
-      availableModelIds: args.availableModelIds,
-      supportsImageGeneration: args.supportsImageGeneration,
+      ...normalizedCredentialMetadata(args),
       revision,
       updatedAt: Date.now(),
     });

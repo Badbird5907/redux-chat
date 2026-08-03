@@ -155,18 +155,14 @@ export async function pollChatGptOAuth(args: {
           supportsImageGeneration: true,
         },
       });
-    } catch {
+    } catch (error) {
       logOAuthEvent({
         connector: "chatgpt",
         connectorVersion: "0.2.0",
         stage: "model_discovery",
         status: "failure",
       });
-      return {
-        status: "pending",
-        retryAfterMs,
-        expiresAt: authorizedFlow.expiresAt,
-      };
+      throw error;
     }
     await deleteOAuthFlowIfOwned({ ...args, connector: "chatgpt" });
     logOAuthEvent({

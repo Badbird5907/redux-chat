@@ -209,10 +209,9 @@ describe("ChatGPT device OAuth", () => {
     });
     mocks.listModels.mockRejectedValue(new Error("models unavailable"));
 
-    const result = await pollChatGptOAuth({
-      userId: "user-a",
-      flowId: "flow-1",
-    });
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).rejects.toThrow("models unavailable");
     const persistedFlow = mocks.saveOAuthFlow.mock.calls[0]?.[0] as
       | {
           flow: { stage: string; tokens: typeof tokens; expiresAt: number };
@@ -220,11 +219,6 @@ describe("ChatGPT device OAuth", () => {
       | undefined;
     expect(persistedFlow).toMatchObject({
       flow: { stage: "authorized", tokens },
-    });
-    expect(result).toEqual({
-      status: "pending",
-      retryAfterMs: 5000,
-      expiresAt: persistedFlow?.flow.expiresAt,
     });
     expect(mocks.deleteOAuthFlowIfOwned).not.toHaveBeenCalled();
     expect(mocks.upsertProviderCredential).not.toHaveBeenCalled();
@@ -252,11 +246,7 @@ describe("ChatGPT device OAuth", () => {
 
     await expect(
       pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
-    ).resolves.toEqual({
-      status: "pending",
-      retryAfterMs: 5000,
-      expiresAt: device.expiresAt,
-    });
+    ).rejects.toThrow("credential store unavailable");
 
     expect(mocks.pollDeviceCode).not.toHaveBeenCalled();
     expect(mocks.exchangeDeviceAuthorization).not.toHaveBeenCalled();
