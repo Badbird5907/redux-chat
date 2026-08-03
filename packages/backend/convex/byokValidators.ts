@@ -6,6 +6,12 @@ export const byokProviderValidator = v.union(
   ...BYOK_PROVIDER_IDS.map((provider) => v.literal(provider)),
 );
 
+export const providerConnectionTypeValidator = v.union(
+  v.literal("api_key"),
+  v.literal("chatgpt_oauth"),
+  v.literal("openrouter_oauth"),
+);
+
 export const modelRoutingOverrideValidator = v.union(
   v.object({
     modelId: v.string(),

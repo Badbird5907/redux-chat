@@ -8,15 +8,10 @@
  * @module
  */
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
-
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
 import type * as billingSimulation from "../billingSimulation.js";
+import type * as byokValidators from "../byokValidators.js";
 import type * as credits from "../credits.js";
 import type * as env from "../env.js";
 import type * as functions_adminUserDetail from "../functions/adminUserDetail.js";
@@ -40,8 +35,8 @@ import type * as functions_modelFavorites from "../functions/modelFavorites.js";
 import type * as functions_modelGeneratedFiles from "../functions/modelGeneratedFiles.js";
 import type * as functions_projects from "../functions/projects.js";
 import type * as functions_promotions from "../functions/promotions.js";
-import type * as functions_threads from "../functions/threads.js";
 import type * as functions_threadShares from "../functions/threadShares.js";
+import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
 import type * as init from "../init.js";
@@ -53,10 +48,17 @@ import type * as stripeSubscriptionSync from "../stripeSubscriptionSync.js";
 import type * as usageStats from "../usageStats.js";
 import type * as zod from "../zod.js";
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   billing: typeof billing;
   billingSimulation: typeof billingSimulation;
+  byokValidators: typeof byokValidators;
   credits: typeof credits;
   env: typeof env;
   "functions/adminUserDetail": typeof functions_adminUserDetail;

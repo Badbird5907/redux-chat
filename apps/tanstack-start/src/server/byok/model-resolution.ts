@@ -57,7 +57,7 @@ function resolveSelection(args: {
   const selection = resolveEffectiveModelRoute({
     modelId: modelConfig.id,
     config: args.context.routing,
-    availableProviders: new Set(args.context.credentials.keys()),
+    availability: args.context.availability,
     byokEnabled: args.byokEnabled,
   });
   if (!selection) {

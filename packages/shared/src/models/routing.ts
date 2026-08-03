@@ -18,6 +18,19 @@ export type ByokProviderId = (typeof BYOK_PROVIDER_IDS)[number];
 export type RoutingPreset = "native_first" | "openrouter_first" | "custom";
 export type RouteFundingSource = "user" | "platform";
 
+export type ByokProviderAvailability =
+  | { kind: "all" }
+  | {
+      kind: "models";
+      modelIds: ReadonlySet<string>;
+      supportsImageGeneration: boolean;
+    };
+
+export type ByokRouteAvailability = ReadonlyMap<
+  ByokProviderId,
+  ByokProviderAvailability
+>;
+
 export type ModelRoutingOverride =
   | {
       modelId: string;
@@ -143,7 +156,7 @@ export function sanitizeModelRoutingConfig(
 export function resolveEffectiveModelRoute(args: {
   modelId: string;
   config?: Partial<UserModelRoutingConfig> | null;
-  availableProviders: ReadonlySet<ByokProviderId>;
+  availability: ByokRouteAvailability;
   byokEnabled: boolean;
 }): EffectiveModelRoute | undefined {
   const model = getChatModelConfig(args.modelId);
@@ -165,7 +178,7 @@ export function resolveEffectiveModelRoute(args: {
     if (
       route &&
       isByokProviderId(route.provider) &&
-      args.availableProviders.has(route.provider)
+      isByokRouteAvailable(route, args.availability)
     ) {
       return { route, fundingSource: "user", reason: "override" };
     }
@@ -179,7 +192,7 @@ export function resolveEffectiveModelRoute(args: {
       .filter(
         (route) =>
           isByokProviderId(route.provider) &&
-          args.availableProviders.has(route.provider),
+          isByokRouteAvailable(route, args.availability),
       )
       .sort(
         (a, b) =>
@@ -204,6 +217,26 @@ export function resolveEffectiveModelRoute(args: {
   return fallback
     ? { route: fallback, fundingSource: "platform", reason: "fallback" }
     : undefined;
+}
+
+export function isByokRouteAvailable(
+  route: ModelRouteInfo,
+  availability: ByokRouteAvailability,
+): boolean {
+  if (!isByokProviderId(route.provider)) {
+    return false;
+  }
+  const providerAvailability = availability.get(route.provider);
+  if (!providerAvailability) {
+    return false;
+  }
+  if (providerAvailability.kind === "all") {
+    return true;
+  }
+  if (route.supports.imageOutput) {
+    return providerAvailability.supportsImageGeneration;
+  }
+  return providerAvailability.modelIds.has(route.vendorId);
 }
 
 function uniqueProviders(values: readonly string[]): ByokProviderId[] {

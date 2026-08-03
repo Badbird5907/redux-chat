@@ -3,6 +3,7 @@ import { Info } from "lucide-react";
 import type { PlanTier } from "@redux/shared";
 import type {
   ByokProviderId,
+  ByokRouteAvailability,
   ChatModelConfig,
   UserModelRoutingConfig,
 } from "@redux/shared/models";
@@ -12,6 +13,7 @@ import {
 } from "@redux/shared";
 import {
   getModelDisplayName,
+  isByokProviderId,
   resolveEffectiveModelRoute,
 } from "@redux/shared/models";
 import { Badge } from "@redux/ui/components/badge";
@@ -27,6 +29,7 @@ import {
   getSharedProviderLogo,
   LOGO_REGISTRY,
 } from "@/components/logos/registry";
+import { connectionFundingLabel } from "@/components/settings/models/byok-availability";
 
 function displayMultiplierBadgeClassName(band: number) {
   switch (band) {
@@ -56,13 +59,18 @@ export function ModelRowSubtitle({
   model,
   tier,
   routing,
-  configuredProviders,
+  availability,
+  connectionTypes,
   byokEnabled,
 }: {
   model: ChatModelConfig;
   tier: PlanTier;
   routing?: UserModelRoutingConfig;
-  configuredProviders: ReadonlySet<ByokProviderId>;
+  availability: ByokRouteAvailability;
+  connectionTypes: ReadonlyMap<
+    ByokProviderId,
+    "api_key" | "chatgpt_oauth" | "openrouter_oauth"
+  >;
   byokEnabled: boolean;
 }) {
   const { resolvedTheme } = useTheme();
@@ -76,10 +84,14 @@ export function ModelRowSubtitle({
   const effectiveRoute = resolveEffectiveModelRoute({
     modelId: model.id,
     config: routing,
-    availableProviders: configuredProviders,
+    availability,
     byokEnabled,
   });
   const isByok = effectiveRoute?.fundingSource === "user";
+  const connectionType =
+    effectiveRoute && isByok && isByokProviderId(effectiveRoute.route.provider)
+      ? connectionTypes.get(effectiveRoute.route.provider)
+      : undefined;
   return (
     <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px] leading-none">
       {Cmp ? <Cmp className="size-3 shrink-0 opacity-90" aria-hidden /> : null}
@@ -117,7 +129,9 @@ export function ModelRowSubtitle({
           <TooltipContent className="space-y-1.5 py-2" side="top">
             <p className="font-semibold">{effectiveRoute.route.providerName}</p>
             <p>
-              {isByok ? "Your API key (BYOK)" : "Redux Chat hosted (credits)"}
+              {isByok
+                ? `${connectionFundingLabel(connectionType)} (BYOK)`
+                : "Redux Chat hosted (credits)"}
             </p>
             <p className="text-muted-foreground capitalize">
               {effectiveRoute.reason === "priority"

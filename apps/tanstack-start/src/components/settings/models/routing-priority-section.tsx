@@ -88,7 +88,9 @@ export function RoutingPrioritySection({
                 {PROVIDERS[provider].label}
               </span>
               <Badge variant="outline">
-                {configuredProviders.has(provider) ? "Configured" : "No key"}
+                {configuredProviders.has(provider)
+                  ? "Configured"
+                  : "No connection"}
               </Badge>
               <Button
                 size="icon-sm"

@@ -43,6 +43,10 @@ export const env = createEnv({
     ),
     ANTHROPIC_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
+    CHATGPT_CLIENT_VERSION: z.preprocess(
+      emptyToUndefined,
+      z.string().min(1).optional(),
+    ),
     OPENROUTER_API_KEY: z.string().min(1),
     GOOGLE_VERTEX_API_KEY: z.string().min(1),
     CLOUDFLARE_ACCOUNT_ID: z.string().min(1),

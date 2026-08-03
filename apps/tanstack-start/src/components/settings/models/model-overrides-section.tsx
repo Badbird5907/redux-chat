@@ -1,13 +1,14 @@
 import { useState } from "react";
 
 import type {
-  ByokProviderId,
+  ByokRouteAvailability,
   UserModelRoutingConfig,
 } from "@redux/shared/models";
 import {
   CHAT_MODELS,
   getModelRoutes,
   isByokProviderId,
+  isByokRouteAvailable,
   resolveEffectiveModelRoute,
 } from "@redux/shared/models";
 import { Input } from "@redux/ui/components/input";
@@ -21,12 +22,12 @@ import {
 
 export function ModelOverridesSection({
   routing,
-  configuredProviders,
+  availability,
   routingSaving,
   onSaveRouting,
 }: {
   routing: UserModelRoutingConfig;
-  configuredProviders: ReadonlySet<ByokProviderId>;
+  availability: ByokRouteAvailability;
   routingSaving: boolean;
   onSaveRouting: (next: UserModelRoutingConfig) => Promise<void>;
 }) {
@@ -79,7 +80,7 @@ export function ModelOverridesSection({
           const effective = resolveEffectiveModelRoute({
             modelId: model.id,
             config: routing,
-            availableProviders: configuredProviders,
+            availability,
             byokEnabled: true,
           });
           const value =
@@ -91,7 +92,7 @@ export function ModelOverridesSection({
           const routes = getModelRoutes(model.id).filter(
             (route) =>
               isByokProviderId(route.provider) &&
-              configuredProviders.has(route.provider),
+              isByokRouteAvailable(route, availability),
           );
           return (
             <div

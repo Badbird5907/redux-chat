@@ -254,6 +254,17 @@ export default defineSchema({
     authTag: v.string(),
     keyVersion: v.number(),
     displaySuffix: v.string(),
+    connectionType: v.optional(
+      v.union(
+        v.literal("api_key"),
+        v.literal("chatgpt_oauth"),
+        v.literal("openrouter_oauth"),
+      ),
+    ),
+    displayLabel: v.optional(v.string()),
+    availableModelIds: v.optional(v.array(v.string())),
+    supportsImageGeneration: v.optional(v.boolean()),
+    revision: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
