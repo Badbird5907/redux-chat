@@ -6,11 +6,9 @@ export interface PendingOpenRouterFlow {
 
 export function isPendingOpenRouterFlowSuperseded(
   flow: PendingOpenRouterFlow,
-  credential: { connectionType: string; updatedAt: number } | null | undefined,
+  credential: { updatedAt: number } | null | undefined,
 ): boolean {
-  if (credential?.connectionType !== "openrouter_oauth") {
-    return false;
-  }
+  if (!credential) return false;
 
   const previousUpdatedAt = flow.previousCredentialUpdatedAt;
   return (

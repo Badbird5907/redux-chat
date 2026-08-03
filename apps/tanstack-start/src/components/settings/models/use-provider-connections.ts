@@ -445,19 +445,23 @@ export function useProviderConnections(
   };
 
   const startOpenRouter = async () => {
+    const existing = credentialByProvider.get("openrouter");
     const pendingFlow =
       activeOpenRouterFlow.current ?? readPendingOpenRouterFlow();
     if (pendingFlow) {
-      if (pendingFlow.expiresAt > Date.now()) {
+      if (
+        pendingFlow.expiresAt > Date.now() &&
+        !isPendingOpenRouterFlowSuperseded(pendingFlow, existing)
+      ) {
         activeOpenRouterFlow.current = pendingFlow;
         setOpenRouterFlow(pendingFlow);
         toast.info("OpenRouter authorization is already in progress.");
         return;
       }
       clearStoredOpenRouterResult(pendingFlow.flowId);
+      clearOpenRouterTracking();
       updateOpenRouterFlow(null);
     }
-    const existing = credentialByProvider.get("openrouter");
     if (
       existing &&
       !window.confirm(
