@@ -15,7 +15,6 @@ import {
 
 import { ProjectDescription } from "@/components/projects/project-description";
 import { ProjectFiles } from "@/components/projects/project-files";
-import { ProjectInstructions } from "@/components/projects/project-instructions";
 
 const ProjectChatInputClient = lazy(
   () => import("@/components/chat/project-input-client"),
@@ -60,7 +59,6 @@ function ProjectDetailPage() {
         projectId={projectId}
         name={project.name}
         description={project.description}
-        instructions={project.instructions}
         threads={projectThreads.results}
         threadsStatus={projectThreads.status}
       />
@@ -81,7 +79,6 @@ interface ProjectSurfaceProps {
   projectId: string;
   name: string;
   description: string | undefined;
-  instructions: string | undefined;
   threads: {
     threadId: string;
     name: string;
@@ -95,7 +92,6 @@ function ProjectSurface({
   projectId,
   name,
   description,
-  instructions,
   threads,
   threadsStatus,
 }: ProjectSurfaceProps) {
@@ -180,10 +176,6 @@ function ProjectSurface({
             <ProjectDescription
               projectId={projectId}
               description={description}
-            />
-            <ProjectInstructions
-              projectId={projectId}
-              instructions={instructions}
             />
           </TabsContent>
         </Tabs>

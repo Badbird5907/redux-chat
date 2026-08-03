@@ -54,6 +54,7 @@ export interface ChatInputProps {
       url?: string;
     }[];
     text: string;
+    selectedSkillIds?: string[];
   }) => Promise<void>;
   /**
    * Floating content rendered just above the composer card (e.g. a

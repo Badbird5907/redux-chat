@@ -64,6 +64,10 @@ export const env = createEnv({
       emptyToUndefined,
       z.string().min(1).optional(),
     ),
+    GITHUB_IMPORT_TOKEN: z.preprocess(
+      emptyToUndefined,
+      z.string().min(1).optional(),
+    ),
   },
   client: {
     VITE_CONVEX_URL: z.string().min(1),

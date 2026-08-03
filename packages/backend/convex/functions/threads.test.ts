@@ -12,7 +12,7 @@ function authedTest(userId = USER_ID) {
 }
 
 describe("threads", () => {
-  it("deletes generated image records with the thread", async () => {
+  it("deletes generated and skill records with the thread", async () => {
     const t = authedTest();
 
     await t.run(async (ctx) => {
@@ -53,15 +53,66 @@ describe("threads", () => {
         fileName: "generated.png",
         createdAt: Date.now(),
       });
+      await ctx.db.insert("threadSkills", {
+        userId: USER_ID,
+        threadId: "thread-1",
+        skillId: "skill-1",
+        activatedAt: Date.now(),
+      });
+      await ctx.db.insert("skillUsages", {
+        userId: USER_ID,
+        threadId: "thread-1",
+        userMessageId: "user-1",
+        assistantMessageId: "assistant-1",
+        skillId: "skill-1",
+        skillName: "Skill",
+        skillSlug: "skill",
+        trigger: "slash-thread",
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert("skillProposals", {
+        proposalId: "proposal-1",
+        userId: USER_ID,
+        threadId: "thread-1",
+        messageId: "assistant-1",
+        toolCallId: "tool-1",
+        name: "Proposed skill",
+        description: "Temporary",
+        files: [],
+        status: "pending",
+        expiresAt: Date.now() + 60_000,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await ctx.db.insert("skillProposalPayloads", {
+        proposalId: "proposal-1",
+        userId: USER_ID,
+        threadId: "thread-1",
+        files: [],
+        expiresAt: Date.now() + 60_000,
+        createdAt: Date.now(),
+      });
     });
 
     await t.mutation(api.functions.threads.deleteThread, {
       threadId: "thread-1",
     });
 
-    const remaining = await t.run(async (ctx) =>
-      ctx.db.query("generatedImages").collect(),
-    );
-    expect(remaining).toEqual([]);
+    const remaining = await t.run(async (ctx) => ({
+      generatedImages: await ctx.db.query("generatedImages").collect(),
+      threadSkills: await ctx.db.query("threadSkills").collect(),
+      skillUsages: await ctx.db.query("skillUsages").collect(),
+      skillProposals: await ctx.db.query("skillProposals").collect(),
+      skillProposalPayloads: await ctx.db
+        .query("skillProposalPayloads")
+        .collect(),
+    }));
+    expect(remaining).toEqual({
+      generatedImages: [],
+      threadSkills: [],
+      skillUsages: [],
+      skillProposals: [],
+      skillProposalPayloads: [],
+    });
   });
 });

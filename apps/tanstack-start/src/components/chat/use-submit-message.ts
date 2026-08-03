@@ -11,6 +11,7 @@ interface SubmitMessageParams {
   settings: MessageSettings;
   clientId: string;
   attachmentIds?: string[];
+  selectedSkillIds?: string[];
   attachmentMetadata?: {
     attachmentId: string;
     convertingToPdf?: boolean;
@@ -32,6 +33,7 @@ interface SubmitMessageParams {
     parentMessageId?: string;
     attachmentIds?: string[];
     chatProjectId?: string;
+    selectedSkillIds?: string[];
   }) => Promise<{
     threadId: string;
     userMessageId: string;
@@ -58,6 +60,7 @@ export async function submitMessage({
   settings,
   clientId,
   attachmentIds = [],
+  selectedSkillIds = [],
   attachmentMetadata = [],
   allocateSignedIds,
   createMessage,
@@ -98,6 +101,7 @@ export async function submitMessage({
       parentMessageId,
       attachmentIds,
       chatProjectId,
+      selectedSkillIds,
     });
   } else {
     // New thread: get 3 signed IDs (user message, assistant message, thread id)
@@ -134,6 +138,7 @@ export async function submitMessage({
       settings,
       attachmentIds,
       chatProjectId,
+      selectedSkillIds,
     });
   }
 

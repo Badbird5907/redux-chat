@@ -8,6 +8,12 @@
  * @module
  */
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
 import type * as billingSimulation from "../billingSimulation.js";
@@ -27,7 +33,6 @@ import type * as functions_devAuth from "../functions/devAuth.js";
 import type * as functions_embeddings from "../functions/embeddings.js";
 import type * as functions_generatedImages from "../functions/generatedImages.js";
 import type * as functions_index from "../functions/index.js";
-import type * as functions_instructions from "../functions/instructions.js";
 import type * as functions_internal from "../functions/internal.js";
 import type * as functions_mcpServers from "../functions/mcpServers.js";
 import type * as functions_migrations from "../functions/migrations.js";
@@ -35,6 +40,7 @@ import type * as functions_modelFavorites from "../functions/modelFavorites.js";
 import type * as functions_modelGeneratedFiles from "../functions/modelGeneratedFiles.js";
 import type * as functions_projects from "../functions/projects.js";
 import type * as functions_promotions from "../functions/promotions.js";
+import type * as functions_skills from "../functions/skills.js";
 import type * as functions_threadShares from "../functions/threadShares.js";
 import type * as functions_threads from "../functions/threads.js";
 import type * as functions_user from "../functions/user.js";
@@ -47,12 +53,6 @@ import type * as stripeSubscriptionReconciliation from "../stripeSubscriptionRec
 import type * as stripeSubscriptionSync from "../stripeSubscriptionSync.js";
 import type * as usageStats from "../usageStats.js";
 import type * as zod from "../zod.js";
-
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
@@ -74,7 +74,6 @@ declare const fullApi: ApiFromModules<{
   "functions/embeddings": typeof functions_embeddings;
   "functions/generatedImages": typeof functions_generatedImages;
   "functions/index": typeof functions_index;
-  "functions/instructions": typeof functions_instructions;
   "functions/internal": typeof functions_internal;
   "functions/mcpServers": typeof functions_mcpServers;
   "functions/migrations": typeof functions_migrations;
@@ -82,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   "functions/modelGeneratedFiles": typeof functions_modelGeneratedFiles;
   "functions/projects": typeof functions_projects;
   "functions/promotions": typeof functions_promotions;
+  "functions/skills": typeof functions_skills;
   "functions/threadShares": typeof functions_threadShares;
   "functions/threads": typeof functions_threads;
   "functions/user": typeof functions_user;

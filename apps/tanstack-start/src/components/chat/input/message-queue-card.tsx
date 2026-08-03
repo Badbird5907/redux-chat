@@ -190,7 +190,7 @@ export function MessageQueueCard({
           }
         }}
       >
-        <DialogContent className="max-w-lg gap-4">
+        <DialogContent className="max-w-[min(32rem,calc(100%-2rem))] gap-4">
           <DialogHeader>
             <DialogTitle>Edit queued message</DialogTitle>
           </DialogHeader>
@@ -266,7 +266,7 @@ export function MessageQueueCard({
           if (!open) discardTargetRef.current = null;
         }}
       >
-        <DialogContent className="max-w-md gap-4">
+        <DialogContent className="max-w-[min(28rem,calc(100%-2rem))] gap-4">
           <DialogHeader>
             <DialogTitle>Discard this queued message?</DialogTitle>
           </DialogHeader>

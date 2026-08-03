@@ -21,8 +21,12 @@ import {
 } from "../usageStats";
 import { attachDraftAttachmentsToMessage } from "./attachments";
 import { backendMutation, backendQuery, mutation, query } from "./index";
-import { normalizeInstructionIdForUser } from "./instructions";
 import { internalAction, internalMutation } from "./internal";
+import {
+  applySelectedSkillsToMessage,
+  copyMessageSkillUsages,
+  copyUserMessageSkillUsages,
+} from "./skills";
 
 const THREAD_TITLE_GENERATION_COOLDOWN_MS = 60_000;
 const THREAD_TITLE_PROMPT_MAX_LENGTH = 2_000;
@@ -67,7 +71,6 @@ const emptyToolPatchValidator = v.union(
 const messageSettingsValidator = v.object({
   model: v.string(),
   thinkingLevel: v.optional(thinkingLevelValidator),
-  instructionId: v.optional(v.string()),
   userMessagePreviewMaxLines: v.optional(v.number()),
   tools: v.object({
     search: v.optional(emptyStoredToolValidator),
@@ -800,6 +803,7 @@ export const sendMessage = mutation({
     parentMessageId: v.optional(v.string()),
     attachmentIds: v.optional(v.array(v.string())),
     chatProjectId: v.optional(v.string()),
+    selectedSkillIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     // 1. Decode & verify userMessageId
@@ -818,11 +822,6 @@ export const sendMessage = mutation({
     let depth = 0;
     let siblingIndex = 0;
     const normalizedSettings = normalizeMessageSettings(args.settings);
-    normalizedSettings.instructionId = await normalizeInstructionIdForUser(
-      ctx,
-      ctx.userId,
-      normalizedSettings.instructionId,
-    );
 
     // 3. Insert thread if needed
     if (threadId.includes(":")) {
@@ -938,6 +937,13 @@ export const sendMessage = mutation({
       thinkingLevel: normalizedSettings.thinkingLevel,
     });
 
+    await applySelectedSkillsToMessage(ctx, {
+      threadId,
+      userMessageId: userMsgId,
+      assistantMessageId: assistantMsgId,
+      selectedSkillIds: args.selectedSkillIds,
+    });
+
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
       10 * 60 * 1000,
       internal.functions.threads.internal_checkMessageDead,
@@ -986,6 +992,7 @@ export const editUserMessageBranch = mutation({
     settings: messageSettingsValidator,
     retainedAttachmentIds: v.optional(v.array(v.string())),
     draftAttachmentIds: v.optional(v.array(v.string())),
+    selectedSkillIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const thread = await getThreadForUser(ctx, args.threadId);
@@ -1059,6 +1066,22 @@ export const editUserMessageBranch = mutation({
       model: args.model,
       thinkingLevel: normalizedSettings.thinkingLevel,
     });
+
+    if (args.selectedSkillIds !== undefined) {
+      await applySelectedSkillsToMessage(ctx, {
+        threadId: args.threadId,
+        userMessageId: userMsgId,
+        assistantMessageId: assistantMsgId,
+        selectedSkillIds: args.selectedSkillIds,
+      });
+    } else {
+      await copyUserMessageSkillUsages(ctx, {
+        sourceUserMessageId: sourceMessage.messageId,
+        targetUserMessageId: userMsgId,
+        targetAssistantMessageId: assistantMsgId,
+        threadId: args.threadId,
+      });
+    }
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
       10 * 60 * 1000,
@@ -1142,6 +1165,15 @@ export const regenerateAssistantMessageBranch = mutation({
       model: args.model,
       thinkingLevel: normalizedSettings.thinkingLevel,
     });
+
+    if (sourceMessage.parentId) {
+      await copyMessageSkillUsages(ctx, {
+        sourceAssistantMessageId: sourceMessage.messageId,
+        targetAssistantMessageId: assistantMsgId,
+        userMessageId: sourceMessage.parentId,
+        threadId: args.threadId,
+      });
+    }
 
     const deadMessageCheckSchedulerId = await ctx.scheduler.runAfter(
       10 * 60 * 1000,
@@ -1344,8 +1376,6 @@ export const updateThreadSettings = mutation({
   args: {
     threadId: v.string(),
     patch: v.object({
-      instructionId: v.optional(v.string()),
-      clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
       thinkingLevel: v.optional(thinkingLevelValidator),
       tools: v.optional(v.union(messageSettingsToolPatchValidator, v.null())),
@@ -1361,15 +1391,9 @@ export const updateThreadSettings = mutation({
       throw new ConvexError("Thread not found");
     }
 
-    const { clearInstructionId, ...settingsPatch } = args.patch;
     const mergedSettings = mergePersistedMessageSettings(
       thread.settings,
-      settingsPatch,
-    );
-    mergedSettings.instructionId = await normalizeInstructionIdForUser(
-      ctx,
-      ctx.userId,
-      clearInstructionId ? undefined : mergedSettings.instructionId,
+      args.patch,
     );
 
     await ctx.db.patch(thread._id, {
@@ -1515,6 +1539,30 @@ export const deleteThread = mutation({
       .query("modelGeneratedFiles")
       .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
       .collect();
+    const threadSkills = await ctx.db
+      .query("threadSkills")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
+    const skillUsages = await ctx.db
+      .query("skillUsages")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
+    const skillProposals = await ctx.db
+      .query("skillProposals")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
+    const skillProposalPayloads = await ctx.db
+      .query("skillProposalPayloads")
+      .withIndex("by_userId_threadId", (q) =>
+        q.eq("userId", ctx.userId).eq("threadId", args.threadId),
+      )
+      .collect();
     const uniqueFiles = new Map<
       string,
       {
@@ -1601,7 +1649,13 @@ export const deleteThread = mutation({
       );
     }
 
-    await Promise.all(messages.map((message) => ctx.db.delete(message._id)));
+    await Promise.all([
+      ...messages.map((message) => ctx.db.delete(message._id)),
+      ...threadSkills.map((entry) => ctx.db.delete(entry._id)),
+      ...skillUsages.map((usage) => ctx.db.delete(usage._id)),
+      ...skillProposals.map((proposal) => ctx.db.delete(proposal._id)),
+      ...skillProposalPayloads.map((payload) => ctx.db.delete(payload._id)),
+    ]);
     await ctx.db.delete(thread._id);
     await updateUserUsageStats(ctx, ctx.userId, {
       threadsDelta: -1,

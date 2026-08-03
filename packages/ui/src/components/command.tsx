@@ -52,7 +52,7 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn(
-          "border-border/60 top-[12vh] max-h-[76vh] w-[min(92vw,56rem)] max-w-[min(92vw,56rem)] translate-y-0 overflow-hidden rounded-[24px]! border p-0 sm:max-w-[min(92vw,56rem)]",
+          "border-border/60 top-[12vh] max-h-[76vh] w-[min(92vw,56rem)] max-w-[min(92vw,56rem)] translate-y-0 overflow-hidden rounded-[24px]! border p-0",
           className,
         )}
         showCloseButton={showCloseButton}
