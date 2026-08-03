@@ -53,6 +53,7 @@ export const Route = createFileRoute("/api/byok/oauth/$connector/callback")({
             oauthResultHtml({
               request,
               connector: params.connector,
+              flowId: flowId ?? undefined,
               success: false,
               message: upstreamError ?? "Missing authorization response.",
             }),
@@ -75,6 +76,7 @@ export const Route = createFileRoute("/api/byok/oauth/$connector/callback")({
             oauthResultHtml({
               request,
               connector: params.connector,
+              flowId,
               success: true,
               message: "OpenRouter connected successfully.",
             }),
@@ -91,6 +93,7 @@ export const Route = createFileRoute("/api/byok/oauth/$connector/callback")({
             oauthResultHtml({
               request,
               connector: params.connector,
+              flowId,
               success: false,
               message:
                 error instanceof Error ? error.message : "Connection failed.",

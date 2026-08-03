@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import type { ChatGPTTokens } from "@opencoredev/loginwithchatgpt-core";
 import { createChatGPT } from "@opencoredev/loginwithchatgpt-ai";
 import {
   exchangeDeviceAuthorization,
@@ -12,7 +11,11 @@ import {
 import { MODEL_ROUTES } from "@redux/shared/models";
 
 import type { ChatGptProviderCredentialPayload } from "../crypto";
-import type { OAuthPollResponse, OAuthStartResponse } from "./types";
+import type {
+  OAuthPollResponse,
+  OAuthStartResponse,
+  StoredOAuthFlow,
+} from "./types";
 import { env } from "@/env";
 import { upsertProviderCredential } from "../credential-store";
 import {
@@ -25,6 +28,10 @@ import { acquireRedisLease, releaseRedisLease } from "./redis-coordination";
 
 const POLL_LEASE_PREFIX = "redux-chat:byok:chatgpt-poll:";
 const AUTHORIZED_FLOW_TTL_MS = 5 * 60 * 1000;
+type AuthorizedChatGptFlow = Extract<
+  StoredOAuthFlow,
+  { connector: "chatgpt"; stage: "authorized" }
+>;
 
 export async function startChatGptOAuth(
   userId: string,
@@ -74,7 +81,7 @@ export async function pollChatGptOAuth(args: {
   const leaseKey = `${POLL_LEASE_PREFIX}${args.flowId}`;
   const leaseToken = await acquireRedisLease(leaseKey, retryAfterMs);
   if (!leaseToken) {
-    return { status: "pending", retryAfterMs };
+    return { status: "pending", retryAfterMs, expiresAt: flow.expiresAt };
   }
 
   let keepLeaseUntilExpiry = false;
@@ -84,64 +91,83 @@ export async function pollChatGptOAuth(args: {
     // failed attempts. Leaving the lease in Redis enforces that cadence across
     // concurrent server instances.
     keepLeaseUntilExpiry = true;
-    let tokens: ChatGPTTokens;
+    let authorizedFlow: AuthorizedChatGptFlow;
     if (flow.stage === "device") {
       const poll = await pollDeviceCode(config, flow.device);
       if (poll.status === "pending") {
-        return { status: "pending", retryAfterMs };
+        return { status: "pending", retryAfterMs, expiresAt: flow.expiresAt };
       }
-      tokens = await exchangeDeviceAuthorization(config, poll);
+      const tokens = await exchangeDeviceAuthorization(config, poll);
       if (!tokens.accountId) {
         throw new Error("ChatGPT authorization did not include an account id.");
       }
+      authorizedFlow = {
+        connector: "chatgpt",
+        provider: "openai",
+        stage: "authorized",
+        tokens,
+        interval,
+        expiresAt: Date.now() + AUTHORIZED_FLOW_TTL_MS,
+      };
       await saveOAuthFlow({
         ...args,
         connector: "chatgpt",
-        flow: {
-          connector: "chatgpt",
-          provider: "openai",
-          stage: "authorized",
-          tokens,
-          interval,
-          expiresAt: Date.now() + AUTHORIZED_FLOW_TTL_MS,
-        },
+        flow: authorizedFlow,
       });
     } else {
-      tokens = flow.tokens;
+      authorizedFlow = flow;
     }
-    const accountId = tokens.accountId;
-    if (!accountId) {
-      throw new Error("ChatGPT authorization did not include an account id.");
+    const { tokens } = authorizedFlow;
+    let modelIds: string[];
+    try {
+      const accountId = tokens.accountId;
+      if (!accountId) {
+        throw new Error("ChatGPT authorization did not include an account id.");
+      }
+      const chatgpt = createChatGPT({ credentials: tokens });
+      modelIds = Array.from(
+        new Set(
+          (await chatgpt.listModels()).filter((model) => model.length > 0),
+        ),
+      );
+      if (modelIds.length === 0) {
+        throw new Error("No ChatGPT models are available for this account.");
+      }
+      const profile = parseUser(tokens.idToken) ?? {
+        accountId,
+      };
+      const payload: ChatGptProviderCredentialPayload = {
+        version: 2,
+        kind: "chatgpt_oauth",
+        tokens,
+        profile,
+        modelIds,
+        defaultModel: selectDefaultChatGptModel(modelIds),
+      };
+      await upsertProviderCredential({
+        userId: args.userId,
+        provider: "openai",
+        payload,
+        metadata: {
+          displaySuffix: profile.accountId.slice(-4),
+          displayLabel: profile.email ?? profile.name ?? profile.plan,
+          availableModelIds: modelIds,
+          supportsImageGeneration: true,
+        },
+      });
+    } catch {
+      logOAuthEvent({
+        connector: "chatgpt",
+        connectorVersion: "0.2.0",
+        stage: "model_discovery",
+        status: "failure",
+      });
+      return {
+        status: "pending",
+        retryAfterMs,
+        expiresAt: authorizedFlow.expiresAt,
+      };
     }
-    const chatgpt = createChatGPT({ credentials: tokens });
-    const modelIds = Array.from(
-      new Set((await chatgpt.listModels()).filter((model) => model.length > 0)),
-    );
-    if (modelIds.length === 0) {
-      throw new Error("No ChatGPT models are available for this account.");
-    }
-    const profile = parseUser(tokens.idToken) ?? {
-      accountId,
-    };
-    const payload: ChatGptProviderCredentialPayload = {
-      version: 2,
-      kind: "chatgpt_oauth",
-      tokens,
-      profile,
-      modelIds,
-      defaultModel: selectDefaultChatGptModel(modelIds),
-    };
-    await upsertProviderCredential({
-      userId: args.userId,
-      provider: "openai",
-      payload,
-      metadata: {
-        displaySuffix: profile.accountId.slice(-4),
-        displayLabel: profile.email ?? profile.name ?? profile.plan,
-        availableModelIds: modelIds,
-        supportsImageGeneration: true,
-      },
-    });
     await deleteOAuthFlowIfOwned({ ...args, connector: "chatgpt" });
     logOAuthEvent({
       connector: "chatgpt",

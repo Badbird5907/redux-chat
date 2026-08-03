@@ -102,7 +102,7 @@ describe("OAuth HTTP guards", () => {
   it("notifies the exact-origin opener when callback authentication fails", async () => {
     const response = oauthAuthFailureResponse({
       request: new Request(
-        "https://redux.example/api/byok/oauth/openrouter/callback",
+        "https://redux.example/api/byok/oauth/openrouter/callback?flow=flow-123",
       ),
       connector: "openrouter",
       authResponse: new Response("Unauthorized", { status: 401 }),
@@ -114,6 +114,10 @@ describe("OAuth HTTP guards", () => {
     expect(html).toContain('"byok-oauth-complete"');
     expect(html).toContain('"openrouter"');
     expect(html).toContain('"https://redux.example"');
+    expect(html).toContain("redux-chat:byok-oauth:openrouter:flow-123");
+    expect(html).toContain("new BroadcastChannel(channelName)");
+    expect(html).toContain("window.opener.postMessage");
+    expect(html).toContain("setTimeout(() => window.close(), 1500)");
     expect(html).toContain("Sign in to Redux Chat");
   });
 });

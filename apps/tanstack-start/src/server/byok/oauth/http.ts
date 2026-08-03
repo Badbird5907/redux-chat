@@ -1,6 +1,7 @@
 import { api } from "@redux/backend/convex/_generated/api";
 
 import { fetchAuthQuery, getRequestUserIdFromHeaders } from "@/lib/auth/server";
+import { getByokOAuthChannelName } from "@/lib/byok-oauth-channel";
 
 export function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
@@ -44,16 +45,20 @@ export function logOAuthEvent(args: {
 export function oauthResultHtml(args: {
   request: Request;
   connector: string;
+  flowId?: string;
   success: boolean;
   message: string;
 }): string {
   const origin = new URL(args.request.url).origin;
   const color = args.success ? "#10b981" : "#ef4444";
-  const payload = JSON.stringify({
+  const payload = serializeInlineJson({
     type: "byok-oauth-complete",
     connector: args.connector,
     success: args.success,
   });
+  const channelName = args.flowId
+    ? serializeInlineJson(getByokOAuthChannelName(args.connector, args.flowId))
+    : "null";
   return `<!DOCTYPE html>
 <html><head><title>Provider connection</title></head>
 <body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0a0a0a;color:#fafafa">
@@ -63,10 +68,18 @@ export function oauthResultHtml(args: {
 <p style="color:#888;font-size:0.875rem;margin-top:1rem">This window will close automatically.</p>
 </div>
 <script>
-  if (window.opener) {
-    window.opener.postMessage(${payload}, ${JSON.stringify(origin)});
-    setTimeout(() => window.close(), 1500);
+  const channelName = ${channelName};
+  if (channelName && typeof BroadcastChannel === "function") {
+    try {
+      const channel = new BroadcastChannel(channelName);
+      channel.postMessage(${payload});
+      channel.close();
+    } catch {}
   }
+  if (window.opener) {
+    window.opener.postMessage(${payload}, ${serializeInlineJson(origin)});
+  }
+  setTimeout(() => window.close(), 1500);
 </script>
 </body></html>`;
 }
@@ -86,6 +99,7 @@ export function oauthAuthFailureResponse(args: {
     oauthResultHtml({
       request: args.request,
       connector: args.connector,
+      flowId: new URL(args.request.url).searchParams.get("flow") ?? undefined,
       success: false,
       message,
     }),
@@ -102,4 +116,11 @@ function escapeHtml(text: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function serializeInlineJson(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }

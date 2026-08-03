@@ -1,9 +1,10 @@
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { ByokProviderId } from "@redux/shared/models";
 
+import { getByokOAuthChannelName } from "@/lib/byok-oauth-channel";
 import { PROVIDERS } from "./provider-config";
 
 export type ConnectionType = "api_key" | "chatgpt_oauth" | "openrouter_oauth";
@@ -45,13 +46,44 @@ export function useProviderConnections(
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [pollRetry, setPollRetry] = useState(0);
   const [now, setNow] = useState(0);
+  const [openRouterFlowId, setOpenRouterFlowId] = useState<string | null>(null);
   const openRouterPopupWatcher = useRef<number | null>(null);
+  const openRouterChannel = useRef<BroadcastChannel | null>(null);
   const credentialByProvider = useMemo(
     () =>
       new Map(
         credentials.map((credential) => [credential.provider, credential]),
       ),
     [credentials],
+  );
+
+  const clearOpenRouterTracking = useCallback(() => {
+    if (openRouterPopupWatcher.current !== null) {
+      window.clearInterval(openRouterPopupWatcher.current);
+      openRouterPopupWatcher.current = null;
+    }
+    openRouterChannel.current?.close();
+    openRouterChannel.current = null;
+  }, []);
+
+  const handleOpenRouterCompletion = useCallback(
+    (data: unknown) => {
+      const result = data as
+        | { type?: string; connector?: string; success?: boolean }
+        | undefined;
+      if (
+        result?.type !== "byok-oauth-complete" ||
+        result.connector !== "openrouter"
+      ) {
+        return;
+      }
+      clearOpenRouterTracking();
+      setOpenRouterFlowId(null);
+      setConnectingConnector(null);
+      if (result.success) toast.success("OpenRouter connected");
+      else toast.error("OpenRouter connection failed");
+    },
+    [clearOpenRouterTracking],
   );
 
   useEffect(() => {
@@ -88,6 +120,7 @@ export function useProviderConnections(
           | {
               status?: "pending" | "connected" | "expired";
               retryAfterMs?: number;
+              expiresAt?: number;
             }
           | undefined;
         if (!result?.status) {
@@ -107,11 +140,29 @@ export function useProviderConnections(
           toast.error("The ChatGPT authorization code expired.");
           return;
         }
+        if (
+          typeof result.retryAfterMs !== "number" ||
+          typeof result.expiresAt !== "number"
+        ) {
+          throw new Error("ChatGPT returned an invalid authorization status.");
+        }
+        const { expiresAt, retryAfterMs } = result;
+        setDeviceFlow((current) => {
+          if (
+            current?.flowId !== deviceFlow.flowId ||
+            (current.intervalMs === retryAfterMs &&
+              current.expiresAt === expiresAt)
+          ) {
+            return current;
+          }
+          return {
+            ...current,
+            intervalMs: retryAfterMs,
+            expiresAt,
+          };
+        });
         setDeviceError(null);
-        timer = window.setTimeout(
-          () => void poll(),
-          result.retryAfterMs ?? deviceFlow.intervalMs,
-        );
+        timer = window.setTimeout(() => void poll(), retryAfterMs);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "ChatGPT connection failed";
@@ -127,34 +178,33 @@ export function useProviderConnections(
   }, [deviceFlow, pollRetry]);
 
   useEffect(() => {
+    if (!openRouterFlowId) return;
+    const channel = new BroadcastChannel(
+      getByokOAuthChannelName("openrouter", openRouterFlowId),
+    );
+    channel.onmessage = (event: MessageEvent<unknown>) => {
+      handleOpenRouterCompletion(event.data);
+    };
+    openRouterChannel.current = channel;
+    return () => {
+      if (openRouterChannel.current === channel) {
+        openRouterChannel.current = null;
+      }
+      channel.close();
+    };
+  }, [handleOpenRouterCompletion, openRouterFlowId]);
+
+  useEffect(() => {
     const handler = (event: MessageEvent<unknown>) => {
       if (event.origin !== window.location.origin) return;
-      const data = event.data as
-        | { type?: string; connector?: string; success?: boolean }
-        | undefined;
-      if (
-        data?.type !== "byok-oauth-complete" ||
-        data.connector !== "openrouter"
-      ) {
-        return;
-      }
-      if (openRouterPopupWatcher.current !== null) {
-        window.clearInterval(openRouterPopupWatcher.current);
-        openRouterPopupWatcher.current = null;
-      }
-      setConnectingConnector(null);
-      if (data.success) toast.success("OpenRouter connected");
-      else toast.error("OpenRouter connection failed");
+      handleOpenRouterCompletion(event.data);
     };
     window.addEventListener("message", handler);
     return () => {
       window.removeEventListener("message", handler);
-      if (openRouterPopupWatcher.current !== null) {
-        window.clearInterval(openRouterPopupWatcher.current);
-        openRouterPopupWatcher.current = null;
-      }
+      clearOpenRouterTracking();
     };
-  }, []);
+  }, [clearOpenRouterTracking, handleOpenRouterCompletion]);
 
   const saveCredential = async (provider: ByokProviderId, event: FormEvent) => {
     event.preventDefault();
@@ -305,6 +355,9 @@ export function useProviderConnections(
       toast.error("Please allow popups to connect OpenRouter.");
       return;
     }
+    popup.opener = null;
+    clearOpenRouterTracking();
+    setOpenRouterFlowId(null);
     setConnectingConnector("openrouter");
     try {
       const response = await fetch("/api/byok/oauth/openrouter/start", {
@@ -319,28 +372,30 @@ export function useProviderConnections(
         );
       }
       const result = (await response.json().catch(() => undefined)) as
-        | { mode?: "redirect"; authorizationUrl?: string }
+        | { mode?: "redirect"; flowId?: string; authorizationUrl?: string }
         | undefined;
-      if (result?.mode !== "redirect" || !result.authorizationUrl) {
+      if (
+        result?.mode !== "redirect" ||
+        !result.flowId ||
+        !result.authorizationUrl
+      ) {
         throw new Error(
           "OpenRouter returned an invalid authorization response.",
         );
       }
+      setOpenRouterFlowId(result.flowId);
       popup.location.href = result.authorizationUrl;
-      if (openRouterPopupWatcher.current !== null) {
-        window.clearInterval(openRouterPopupWatcher.current);
-      }
       const interval = window.setInterval(() => {
         if (popup.closed) {
-          window.clearInterval(interval);
-          if (openRouterPopupWatcher.current === interval) {
-            openRouterPopupWatcher.current = null;
-          }
+          clearOpenRouterTracking();
+          setOpenRouterFlowId(null);
           setConnectingConnector(null);
         }
       }, 500);
       openRouterPopupWatcher.current = interval;
     } catch (error) {
+      clearOpenRouterTracking();
+      setOpenRouterFlowId(null);
       popup.close();
       setConnectingConnector(null);
       toast.error(error instanceof Error ? error.message : "Connection failed");

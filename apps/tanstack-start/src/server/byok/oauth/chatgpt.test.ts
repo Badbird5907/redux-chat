@@ -79,6 +79,7 @@ describe("ChatGPT device OAuth", () => {
       plan: "plus",
     });
     mocks.listModels.mockResolvedValue(["gpt-5.5", "gpt-5.5"]);
+    mocks.upsertProviderCredential.mockResolvedValue(undefined);
   });
 
   it("starts a 15-minute device flow without exposing device material beyond the code", async () => {
@@ -104,14 +105,22 @@ describe("ChatGPT device OAuth", () => {
   it("enforces one upstream poll per provider interval", async () => {
     await expect(
       pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
-    ).resolves.toEqual({ status: "pending", retryAfterMs: 5000 });
+    ).resolves.toEqual({
+      status: "pending",
+      retryAfterMs: 5000,
+      expiresAt: flow.expiresAt,
+    });
     expect(mocks.pollDeviceCode).toHaveBeenCalledTimes(1);
     expect(mocks.releaseRedisLease).not.toHaveBeenCalled();
 
     mocks.acquireRedisLease.mockResolvedValue(undefined);
     await expect(
       pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
-    ).resolves.toEqual({ status: "pending", retryAfterMs: 5000 });
+    ).resolves.toEqual({
+      status: "pending",
+      retryAfterMs: 5000,
+      expiresAt: flow.expiresAt,
+    });
     expect(mocks.pollDeviceCode).toHaveBeenCalledTimes(1);
   });
 
@@ -200,17 +209,58 @@ describe("ChatGPT device OAuth", () => {
     });
     mocks.listModels.mockRejectedValue(new Error("models unavailable"));
 
-    await expect(
-      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
-    ).rejects.toThrow("models unavailable");
+    const result = await pollChatGptOAuth({
+      userId: "user-a",
+      flowId: "flow-1",
+    });
     const persistedFlow = mocks.saveOAuthFlow.mock.calls[0]?.[0] as
-      | { flow: { stage: string; tokens: typeof tokens } }
+      | {
+          flow: { stage: string; tokens: typeof tokens; expiresAt: number };
+        }
       | undefined;
     expect(persistedFlow).toMatchObject({
       flow: { stage: "authorized", tokens },
     });
+    expect(result).toEqual({
+      status: "pending",
+      retryAfterMs: 5000,
+      expiresAt: persistedFlow?.flow.expiresAt,
+    });
     expect(mocks.deleteOAuthFlowIfOwned).not.toHaveBeenCalled();
     expect(mocks.upsertProviderCredential).not.toHaveBeenCalled();
+    expect(mocks.logOAuthEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connector: "chatgpt",
+        stage: "model_discovery",
+        status: "failure",
+      }),
+    );
+  });
+
+  it("keeps the authorized flow retryable when credential persistence fails", async () => {
+    mocks.loadOAuthFlow.mockResolvedValue({
+      connector: "chatgpt",
+      provider: "openai",
+      stage: "authorized",
+      tokens,
+      interval: 5,
+      expiresAt: device.expiresAt,
+    });
+    mocks.upsertProviderCredential.mockRejectedValue(
+      new Error("credential store unavailable"),
+    );
+
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).resolves.toEqual({
+      status: "pending",
+      retryAfterMs: 5000,
+      expiresAt: device.expiresAt,
+    });
+
+    expect(mocks.pollDeviceCode).not.toHaveBeenCalled();
+    expect(mocks.exchangeDeviceAuthorization).not.toHaveBeenCalled();
+    expect(mocks.deleteOAuthFlowIfOwned).not.toHaveBeenCalled();
   });
 
   it("retries discovery from encrypted exchanged tokens without redeeming the code again", async () => {

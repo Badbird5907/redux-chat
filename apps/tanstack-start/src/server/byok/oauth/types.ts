@@ -50,7 +50,7 @@ export type OAuthStartResponse =
     };
 
 export type OAuthPollResponse =
-  | { status: "pending"; retryAfterMs: number }
+  | { status: "pending"; retryAfterMs: number; expiresAt: number }
   | { status: "connected"; provider: ByokProviderId }
   | { status: "expired" };
 
