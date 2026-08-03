@@ -113,8 +113,11 @@ describe("OAuth HTTP guards", () => {
     const html = await response.text();
     expect(html).toContain('"byok-oauth-complete"');
     expect(html).toContain('"openrouter"');
+    expect(html).toContain('"flowId":"flow-123"');
     expect(html).toContain('"https://redux.example"');
     expect(html).toContain("redux-chat:byok-oauth:openrouter:flow-123");
+    expect(html).toContain("redux-chat:byok-oauth-result:openrouter:flow-123");
+    expect(html).toContain("localStorage.setItem");
     expect(html).toContain("new BroadcastChannel(channelName)");
     expect(html).toContain("window.opener.postMessage");
     expect(html).toContain("setTimeout(() => window.close(), 1500)");

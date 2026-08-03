@@ -4,7 +4,11 @@ import { toast } from "sonner";
 
 import type { ByokProviderId } from "@redux/shared/models";
 
-import { getByokOAuthChannelName } from "@/lib/byok-oauth-channel";
+import {
+  getByokOAuthChannelName,
+  getByokOAuthPendingStorageKey,
+  getByokOAuthResultStorageKey,
+} from "@/lib/byok-oauth-channel";
 import { PROVIDERS } from "./provider-config";
 
 export type ConnectionType = "api_key" | "chatgpt_oauth" | "openrouter_oauth";
@@ -28,6 +32,15 @@ export interface DeviceFlow {
 }
 
 type ProviderDraft = { apiKey: string; accountId: string };
+type PendingOpenRouterFlow = { flowId: string; expiresAt: number };
+type OAuthCompletionMessage = {
+  type?: string;
+  connector?: string;
+  flowId?: string;
+  success?: boolean;
+};
+
+const OPENROUTER_POPUP_CLOSE_GRACE_MS = 3000;
 
 export function useProviderConnections(
   credentials: readonly ProviderCredentialSummary[],
@@ -46,8 +59,11 @@ export function useProviderConnections(
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [pollRetry, setPollRetry] = useState(0);
   const [now, setNow] = useState(0);
-  const [openRouterFlowId, setOpenRouterFlowId] = useState<string | null>(null);
+  const [openRouterFlow, setOpenRouterFlow] =
+    useState<PendingOpenRouterFlow | null>(null);
+  const activeOpenRouterFlow = useRef<PendingOpenRouterFlow | null>(null);
   const openRouterPopupWatcher = useRef<number | null>(null);
+  const openRouterCloseGrace = useRef<number | null>(null);
   const openRouterChannel = useRef<BroadcastChannel | null>(null);
   const credentialByProvider = useMemo(
     () =>
@@ -62,28 +78,46 @@ export function useProviderConnections(
       window.clearInterval(openRouterPopupWatcher.current);
       openRouterPopupWatcher.current = null;
     }
+    if (openRouterCloseGrace.current !== null) {
+      window.clearTimeout(openRouterCloseGrace.current);
+      openRouterCloseGrace.current = null;
+    }
     openRouterChannel.current?.close();
     openRouterChannel.current = null;
   }, []);
 
+  const updateOpenRouterFlow = useCallback(
+    (flow: PendingOpenRouterFlow | null) => {
+      activeOpenRouterFlow.current = flow;
+      setOpenRouterFlow(flow);
+      persistPendingOpenRouterFlow(flow);
+    },
+    [],
+  );
+
   const handleOpenRouterCompletion = useCallback(
-    (data: unknown) => {
-      const result = data as
-        | { type?: string; connector?: string; success?: boolean }
-        | undefined;
+    (data: unknown, expectedFlowId?: string) => {
+      const result = data as OAuthCompletionMessage | undefined;
+      const flowId = result?.flowId ?? expectedFlowId;
       if (
         result?.type !== "byok-oauth-complete" ||
-        result.connector !== "openrouter"
+        result.connector !== "openrouter" ||
+        !flowId ||
+        (expectedFlowId !== undefined &&
+          result.flowId !== undefined &&
+          result.flowId !== expectedFlowId) ||
+        activeOpenRouterFlow.current?.flowId !== flowId
       ) {
         return;
       }
+      clearStoredOpenRouterResult(flowId);
       clearOpenRouterTracking();
-      setOpenRouterFlowId(null);
+      updateOpenRouterFlow(null);
       setConnectingConnector(null);
       if (result.success) toast.success("OpenRouter connected");
       else toast.error("OpenRouter connection failed");
     },
-    [clearOpenRouterTracking],
+    [clearOpenRouterTracking, updateOpenRouterFlow],
   );
 
   useEffect(() => {
@@ -94,10 +128,10 @@ export function useProviderConnections(
 
   useEffect(() => {
     if (!deviceFlow) return;
-    let cancelled = false;
     let timer: number | undefined;
+    const abortController = new AbortController();
     const poll = async () => {
-      if (cancelled) return;
+      if (abortController.signal.aborted) return;
       if (Date.now() >= deviceFlow.expiresAt) {
         setDeviceFlow(null);
         setDeviceError(null);
@@ -110,7 +144,9 @@ export function useProviderConnections(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ flowId: deviceFlow.flowId }),
+          signal: abortController.signal,
         });
+        abortController.signal.throwIfAborted();
         if (!response.ok) {
           throw new Error(
             await readErrorMessage(response, "ChatGPT connection failed."),
@@ -123,6 +159,7 @@ export function useProviderConnections(
               expiresAt?: number;
             }
           | undefined;
+        abortController.signal.throwIfAborted();
         if (!result?.status) {
           throw new Error("ChatGPT returned an invalid authorization status.");
         }
@@ -164,6 +201,8 @@ export function useProviderConnections(
         setDeviceError(null);
         timer = window.setTimeout(() => void poll(), retryAfterMs);
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
         const message =
           error instanceof Error ? error.message : "ChatGPT connection failed";
         setDeviceError(message);
@@ -172,27 +211,75 @@ export function useProviderConnections(
     };
     timer = window.setTimeout(() => void poll(), deviceFlow.intervalMs);
     return () => {
-      cancelled = true;
+      abortController.abort();
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [deviceFlow, pollRetry]);
 
   useEffect(() => {
-    if (!openRouterFlowId) return;
+    const restoreTimer = window.setTimeout(() => {
+      const pending = readPendingOpenRouterFlow();
+      if (!pending) return;
+      if (pending.expiresAt <= Date.now()) {
+        persistPendingOpenRouterFlow(null);
+        clearStoredOpenRouterResult(pending.flowId);
+        return;
+      }
+      activeOpenRouterFlow.current = pending;
+      setOpenRouterFlow(pending);
+      setConnectingConnector("openrouter");
+    }, 0);
+    return () => window.clearTimeout(restoreTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!openRouterFlow) return;
+    const { expiresAt, flowId } = openRouterFlow;
     const channel = new BroadcastChannel(
-      getByokOAuthChannelName("openrouter", openRouterFlowId),
+      getByokOAuthChannelName("openrouter", flowId),
     );
     channel.onmessage = (event: MessageEvent<unknown>) => {
-      handleOpenRouterCompletion(event.data);
+      handleOpenRouterCompletion(event.data, flowId);
     };
     openRouterChannel.current = channel;
+    const storageKey = getByokOAuthResultStorageKey("openrouter", flowId);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== storageKey || !event.newValue) return;
+      handleOpenRouterCompletion(parseStoredJson(event.newValue), flowId);
+    };
+    window.addEventListener("storage", handleStorage);
+    const reconcileTimer = window.setTimeout(() => {
+      const storedResult = readStoredOpenRouterResult(flowId);
+      if (storedResult) {
+        handleOpenRouterCompletion(storedResult, flowId);
+      }
+    }, 0);
+    const expiryTimer = window.setTimeout(
+      () => {
+        if (activeOpenRouterFlow.current?.flowId !== flowId) return;
+        clearStoredOpenRouterResult(flowId);
+        clearOpenRouterTracking();
+        updateOpenRouterFlow(null);
+        setConnectingConnector(null);
+        toast.error("The OpenRouter authorization expired.");
+      },
+      Math.max(0, expiresAt - Date.now()),
+    );
     return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.clearTimeout(reconcileTimer);
+      window.clearTimeout(expiryTimer);
       if (openRouterChannel.current === channel) {
         openRouterChannel.current = null;
       }
       channel.close();
     };
-  }, [handleOpenRouterCompletion, openRouterFlowId]);
+  }, [
+    clearOpenRouterTracking,
+    handleOpenRouterCompletion,
+    openRouterFlow,
+    updateOpenRouterFlow,
+  ]);
 
   useEffect(() => {
     const handler = (event: MessageEvent<unknown>) => {
@@ -357,7 +444,7 @@ export function useProviderConnections(
     }
     popup.opener = null;
     clearOpenRouterTracking();
-    setOpenRouterFlowId(null);
+    updateOpenRouterFlow(null);
     setConnectingConnector("openrouter");
     try {
       const response = await fetch("/api/byok/oauth/openrouter/start", {
@@ -372,30 +459,61 @@ export function useProviderConnections(
         );
       }
       const result = (await response.json().catch(() => undefined)) as
-        | { mode?: "redirect"; flowId?: string; authorizationUrl?: string }
+        | {
+            mode?: "redirect";
+            flowId?: string;
+            authorizationUrl?: string;
+            expiresAt?: number;
+          }
         | undefined;
       if (
         result?.mode !== "redirect" ||
         !result.flowId ||
-        !result.authorizationUrl
+        !result.authorizationUrl ||
+        typeof result.expiresAt !== "number"
       ) {
         throw new Error(
           "OpenRouter returned an invalid authorization response.",
         );
       }
-      setOpenRouterFlowId(result.flowId);
+      const flow: PendingOpenRouterFlow = {
+        flowId: result.flowId,
+        expiresAt: result.expiresAt,
+      };
+      updateOpenRouterFlow(flow);
       popup.location.href = result.authorizationUrl;
       const interval = window.setInterval(() => {
         if (popup.closed) {
-          clearOpenRouterTracking();
-          setOpenRouterFlowId(null);
-          setConnectingConnector(null);
+          window.clearInterval(interval);
+          if (openRouterPopupWatcher.current === interval) {
+            openRouterPopupWatcher.current = null;
+          }
+          const storedResult = readStoredOpenRouterResult(flow.flowId);
+          if (storedResult) {
+            handleOpenRouterCompletion(storedResult, flow.flowId);
+            return;
+          }
+          openRouterCloseGrace.current = window.setTimeout(() => {
+            if (activeOpenRouterFlow.current?.flowId !== flow.flowId) return;
+            const delayedResult = readStoredOpenRouterResult(flow.flowId);
+            if (delayedResult) {
+              handleOpenRouterCompletion(delayedResult, flow.flowId);
+              return;
+            }
+            clearOpenRouterTracking();
+            clearStoredOpenRouterResult(flow.flowId);
+            updateOpenRouterFlow(null);
+            setConnectingConnector(null);
+            toast.error(
+              "The OpenRouter authorization window closed before completion.",
+            );
+          }, OPENROUTER_POPUP_CLOSE_GRACE_MS);
         }
       }, 500);
       openRouterPopupWatcher.current = interval;
     } catch (error) {
       clearOpenRouterTracking();
-      setOpenRouterFlowId(null);
+      updateOpenRouterFlow(null);
       popup.close();
       setConnectingConnector(null);
       toast.error(error instanceof Error ? error.message : "Connection failed");
@@ -459,4 +577,61 @@ async function readErrorMessage(
     | { message?: unknown }
     | undefined;
   return typeof value?.message === "string" ? value.message : fallback;
+}
+
+function persistPendingOpenRouterFlow(
+  flow: PendingOpenRouterFlow | null,
+): void {
+  try {
+    const key = getByokOAuthPendingStorageKey("openrouter");
+    if (flow) sessionStorage.setItem(key, JSON.stringify(flow));
+    else sessionStorage.removeItem(key);
+  } catch {
+    // Storage may be disabled; the in-memory flow still handles this page.
+  }
+}
+
+function readPendingOpenRouterFlow(): PendingOpenRouterFlow | undefined {
+  try {
+    const value = parseStoredJson(
+      sessionStorage.getItem(getByokOAuthPendingStorageKey("openrouter")),
+    ) as Partial<PendingOpenRouterFlow> | undefined;
+    if (
+      typeof value?.flowId === "string" &&
+      typeof value.expiresAt === "number" &&
+      Number.isFinite(value.expiresAt)
+    ) {
+      return { flowId: value.flowId, expiresAt: value.expiresAt };
+    }
+  } catch {
+    // Storage may be disabled or contain an invalid value.
+  }
+  return undefined;
+}
+
+function readStoredOpenRouterResult(flowId: string): unknown {
+  try {
+    return parseStoredJson(
+      localStorage.getItem(getByokOAuthResultStorageKey("openrouter", flowId)),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+function clearStoredOpenRouterResult(flowId: string): void {
+  try {
+    localStorage.removeItem(getByokOAuthResultStorageKey("openrouter", flowId));
+  } catch {
+    // Storage may be disabled.
+  }
+}
+
+function parseStoredJson(value: string | null): unknown {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
 }

@@ -1,7 +1,10 @@
 import { api } from "@redux/backend/convex/_generated/api";
 
 import { fetchAuthQuery, getRequestUserIdFromHeaders } from "@/lib/auth/server";
-import { getByokOAuthChannelName } from "@/lib/byok-oauth-channel";
+import {
+  getByokOAuthChannelName,
+  getByokOAuthResultStorageKey,
+} from "@/lib/byok-oauth-channel";
 
 export function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
@@ -54,10 +57,16 @@ export function oauthResultHtml(args: {
   const payload = serializeInlineJson({
     type: "byok-oauth-complete",
     connector: args.connector,
+    flowId: args.flowId,
     success: args.success,
   });
   const channelName = args.flowId
     ? serializeInlineJson(getByokOAuthChannelName(args.connector, args.flowId))
+    : "null";
+  const resultStorageKey = args.flowId
+    ? serializeInlineJson(
+        getByokOAuthResultStorageKey(args.connector, args.flowId),
+      )
     : "null";
   return `<!DOCTYPE html>
 <html><head><title>Provider connection</title></head>
@@ -68,16 +77,23 @@ export function oauthResultHtml(args: {
 <p style="color:#888;font-size:0.875rem;margin-top:1rem">This window will close automatically.</p>
 </div>
 <script>
+  const payload = ${payload};
   const channelName = ${channelName};
+  const resultStorageKey = ${resultStorageKey};
+  if (resultStorageKey) {
+    try {
+      localStorage.setItem(resultStorageKey, JSON.stringify(payload));
+    } catch {}
+  }
   if (channelName && typeof BroadcastChannel === "function") {
     try {
       const channel = new BroadcastChannel(channelName);
-      channel.postMessage(${payload});
+      channel.postMessage(payload);
       channel.close();
     } catch {}
   }
   if (window.opener) {
-    window.opener.postMessage(${payload}, ${serializeInlineJson(origin)});
+    window.opener.postMessage(payload, ${serializeInlineJson(origin)});
   }
   setTimeout(() => window.close(), 1500);
 </script>
