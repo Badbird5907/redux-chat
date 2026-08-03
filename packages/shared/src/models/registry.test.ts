@@ -35,6 +35,23 @@ describe("chat model registry", () => {
       expect(model?.supports.reasoning).toBe(true);
     }
   });
+
+  it("includes Gemini 3.6 Flash through Google routes", () => {
+    const model = getChatModelConfig("google/gemini-3.6-flash");
+
+    expect(model).toBeDefined();
+    expect(model?.name).toBe("Gemini 3.6 Flash");
+    expect(model?.defaultProviderId).toBe("vertex:gemini-3.6-flash");
+    expect(model?.providerIds).toEqual([
+      "openrouter:google/gemini-3.6-flash",
+      "vertex:gemini-3.6-flash",
+    ]);
+    expect(model?.supports.attachments).toBe(true);
+    expect(model?.supports.reasoning).toBe(true);
+    expect(model?.supports.toolCalling).toBe(true);
+    expect(model?.context.combinedMax).toBe(1048576);
+    expect(model?.context.outputMax).toBe(65536);
+  });
 });
 
 describe("image model registry", () => {
