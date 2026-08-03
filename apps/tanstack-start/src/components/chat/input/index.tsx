@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
 import type { ThinkingLevel } from "@redux/shared/models";
+import type { SkillSummary } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   classifyChatAttachment,
@@ -38,7 +39,6 @@ import {
 } from "@/components/chat/use-message-queue";
 import { submitMessage } from "@/components/chat/use-submit-message";
 import { useQuery } from "@/lib/hooks/convex";
-import { useInstructions } from "@/lib/hooks/use-instructions";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { useAppHotkey } from "@/lib/hotkeys";
 import { deleteDraftAttachment } from "@/server/attachments";
@@ -51,6 +51,8 @@ import { ChatInputAttachmentsBar } from "./attachments-bar";
 import { ChatInputEditorSection } from "./editor-section";
 import { ChatInputToolbar } from "./input-toolbar";
 import { MessageQueueCard } from "./message-queue-card";
+import { parseLeadingSkillCommands } from "./skill-command-utils";
+import { SkillSelectionBar, useSkillSlashMenu } from "./skill-selection";
 import { useFileUpload } from "./use-file-upload";
 import { isAttachmentExpired } from "./utils";
 
@@ -78,6 +80,8 @@ export function ChatInput({
   const {
     text: input,
     setText: setInput,
+    selectedSkillIds,
+    setSelectedSkillIds,
     attachments,
     isReady: draftReady,
     appendAttachment,
@@ -109,15 +113,48 @@ export function ChatInput({
   const { allocate: allocateSignedIds } = useSignedCid();
   const { state: sidebarState, collapsible: sidebarCollapsible } = useSidebar();
   const isMobile = useIsMobile();
-  const {
-    instructions,
-    instructionsById,
-    defaultInstruction,
-    isReady: instructionsReady,
-  } = useInstructions();
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
+  const queriedSkills = useQuery(
+    api.functions.skills.list,
+    {},
+    {
+      default: [],
+    },
+  );
+  const skills = useMemo(
+    () => (queriedSkills ?? []) as SkillSummary[],
+    [queriedSkills],
+  );
+  const activeThreadSkills = (useQuery(
+    api.functions.skills.listThreadActive,
+    { threadId: threadId ?? "" },
+    { default: [], skip: !threadId },
+  ) ?? []) as SkillSummary[];
+  const skillActivationScope =
+    useQuery(
+      api.functions.skills.getActivationScope,
+      {},
+      { default: "thread" },
+    ) ?? "thread";
+  const skillSlashMenu = useSkillSlashMenu({
+    text: input,
+    setText: setInput,
+    skills,
+    selectedSkillIds,
+    setSelectedSkillIds,
+  });
+
+  useEffect(() => {
+    if (skills.length === 0 || selectedSkillIds.length === 0) return;
+    const enabledIds = new Set<string>();
+    for (const skill of skills) {
+      if (skill.enabled) enabledIds.add(skill.skillId);
+    }
+    const next = selectedSkillIds.filter((skillId) => enabledIds.has(skillId));
+    if (next.length !== selectedSkillIds.length) setSelectedSkillIds(next);
+  }, [selectedSkillIds, setSelectedSkillIds, skills]);
   const isPaidPlan =
     billingState?.tier === "plus" || billingState?.tier === "pro";
   const attachmentLimits =
@@ -129,6 +166,9 @@ export function ChatInput({
       : null;
 
   const createMessage = useMutation(api.functions.threads.sendMessage);
+  const deactivateThreadSkill = useMutation(
+    api.functions.skills.deactivateForThread,
+  );
   const deleteDraftAttachmentFn = useServerFn(deleteDraftAttachment);
   const {
     queue,
@@ -144,18 +184,25 @@ export function ChatInput({
   const flushInProgressRef = useRef(false);
   const submitInProgressRef = useRef(false);
   const submitNewUserPayloadRef = useRef<
-    (text: string, att: DraftAttachment[]) => Promise<boolean>
+    (
+      text: string,
+      att: DraftAttachment[],
+      skillIds: string[],
+    ) => Promise<boolean>
   >(() => Promise.resolve(false));
 
   const editingMessageIdRef = useRef<string | undefined>(undefined);
   const savedDraftRef = useRef<{
     text: string;
     attachments: DraftAttachment[];
+    selectedSkillIds: string[];
   } | null>(null);
   const inputValueRef = useRef(input);
   const attachmentsValueRef = useRef(attachments);
+  const selectedSkillIdsValueRef = useRef(selectedSkillIds);
   const setInputRef = useRef(setInput);
   const setAttachmentsRef = useRef(setAttachments);
+  const setSelectedSkillIdsRef = useRef(setSelectedSkillIds);
 
   useEffect(() => {
     inputValueRef.current = input;
@@ -166,9 +213,14 @@ export function ChatInput({
   }, [attachments]);
 
   useEffect(() => {
+    selectedSkillIdsValueRef.current = selectedSkillIds;
+  }, [selectedSkillIds]);
+
+  useEffect(() => {
     setInputRef.current = setInput;
     setAttachmentsRef.current = setAttachments;
-  }, [setInput, setAttachments]);
+    setSelectedSkillIdsRef.current = setSelectedSkillIds;
+  }, [setInput, setAttachments, setSelectedSkillIds]);
 
   useEffect(() => {
     if (!editMessage || editingMessageIdRef.current === editMessage.id) {
@@ -178,6 +230,7 @@ export function ChatInput({
     savedDraftRef.current ??= {
       text: inputValueRef.current,
       attachments: [...attachmentsValueRef.current],
+      selectedSkillIds: [...selectedSkillIdsValueRef.current],
     };
 
     editingMessageIdRef.current = editMessage.id;
@@ -198,15 +251,17 @@ export function ChatInput({
         url: attachment.url,
       })),
     );
+    setSelectedSkillIdsRef.current([]);
   }, [editMessage]);
 
   const restoreSavedDraft = useCallback(() => {
     if (savedDraftRef.current) {
       setInput(savedDraftRef.current.text);
       setAttachments(savedDraftRef.current.attachments);
+      setSelectedSkillIds(savedDraftRef.current.selectedSkillIds);
       savedDraftRef.current = null;
     }
-  }, [setInput, setAttachments]);
+  }, [setInput, setAttachments, setSelectedSkillIds]);
 
   useEffect(() => {
     if (editMessage) {
@@ -343,10 +398,6 @@ export function ChatInput({
     [settings.tools],
   );
   const showErrorBorder = status === "error";
-  const selectedInstruction =
-    (settings.instructionId
-      ? instructionsById.get(settings.instructionId)
-      : undefined) ?? defaultInstruction;
   const currentModelConfig = getChatModelConfig(selectedModel);
   const currentModelRoute = resolveModelRoute(selectedModel);
   const availableThinkingLevels = currentModelConfig?.thinkingLevels ?? [];
@@ -505,16 +556,6 @@ export function ChatInput({
     [onSettingsChange],
   );
 
-  const handleInstructionChange = useCallback(
-    (instructionId: string) => {
-      void onSettingsChange({
-        instructionId: instructionId === "" ? undefined : instructionId,
-      });
-      setDropdownOpen(false);
-    },
-    [onSettingsChange, setDropdownOpen],
-  );
-
   const handleThinkingLevelChange = useCallback(
     (thinkingLevel: ThinkingLevel) => {
       void onSettingsChange({ thinkingLevel });
@@ -605,8 +646,19 @@ export function ChatInput({
     async (
       messageContent: string,
       attachmentsList: DraftAttachment[],
+      selectedSkills: string[],
     ): Promise<boolean> => {
-      const trimmed = messageContent.trim();
+      const parsedSkills = parseLeadingSkillCommands(messageContent, skills);
+      if (parsedSkills.unknownCommand) {
+        toast.error(
+          `Unknown or disabled skill: /${parsedSkills.unknownCommand}`,
+        );
+        return false;
+      }
+      const resolvedSkillIds = [
+        ...new Set([...selectedSkills, ...parsedSkills.selectedSkillIds]),
+      ];
+      const trimmed = parsedSkills.cleanedText.trim();
       const expiredAttachments = attachmentsList.filter(
         (attachment) =>
           !attachment.uploading && isAttachmentExpired(attachment.expiresAt),
@@ -626,7 +678,11 @@ export function ChatInput({
         return false;
       }
 
-      if (!trimmed && currentAttachments.length === 0) {
+      if (
+        !trimmed &&
+        currentAttachments.length === 0 &&
+        resolvedSkillIds.length === 0
+      ) {
         return false;
       }
 
@@ -670,6 +726,7 @@ export function ChatInput({
           attachmentIds: currentAttachments.map(
             (attachment) => attachment.attachmentId,
           ),
+          selectedSkillIds: resolvedSkillIds,
           attachmentMetadata: currentAttachments.map((attachment) => ({
             attachmentId: attachment.attachmentId,
             generatingDerivative: attachmentsUsingDerivative.some(
@@ -694,7 +751,14 @@ export function ChatInput({
           is_new_thread: !threadId,
           has_attachments: currentAttachments.length > 0,
           attachment_count: currentAttachments.length,
+          skill_count: resolvedSkillIds.length,
         });
+        if (resolvedSkillIds.length > 0) {
+          posthog.capture("skill_slash_activated", {
+            scope: skillActivationScope,
+            skill_count: resolvedSkillIds.length,
+          });
+        }
 
         return true;
       } catch (error) {
@@ -721,10 +785,12 @@ export function ChatInput({
       setThreadId,
       settings,
       settingsReady,
+      skillActivationScope,
       status,
       threadId,
       isOutOfCredits,
       posthog,
+      skills,
     ],
   );
 
@@ -755,7 +821,7 @@ export function ChatInput({
 
     flushInProgressRef.current = true;
     void submitNewUserPayloadRef
-      .current(head.text, head.attachments)
+      .current(head.text, head.attachments, head.selectedSkillIds)
       .then((success) => {
         if (!success) {
           prependQueued(head);
@@ -788,9 +854,10 @@ export function ChatInput({
 
       setInput(taken.text);
       setAttachments(taken.attachments);
+      setSelectedSkillIds(taken.selectedSkillIds);
       queueMicrotask(() => textareaRef.current?.focus());
     },
-    [setAttachments, setInput, takeQueued],
+    [setAttachments, setInput, setSelectedSkillIds, takeQueued],
   );
 
   const handleSaveQueuedEdit = useCallback(
@@ -834,6 +901,7 @@ export function ChatInput({
         const success = await submitNewUserPayload(
           taken.text,
           taken.attachments,
+          taken.selectedSkillIds,
         );
 
         if (!success) {
@@ -856,6 +924,15 @@ export function ChatInput({
   );
 
   const handleSubmit = useCallback(async () => {
+    const parsedSkills = parseLeadingSkillCommands(input, skills);
+    if (parsedSkills.unknownCommand) {
+      toast.error(`Unknown or disabled skill: /${parsedSkills.unknownCommand}`);
+      return;
+    }
+    const resolvedSkillIds = [
+      ...new Set([...selectedSkillIds, ...parsedSkills.selectedSkillIds]),
+    ];
+    const cleanedInput = parsedSkills.cleanedText;
     const expiredAttachments = attachments.filter(
       (attachment) =>
         !attachment.uploading && isAttachmentExpired(attachment.expiresAt),
@@ -874,7 +951,11 @@ export function ChatInput({
       );
     }
 
-    if (!input.trim() && currentAttachments.length === 0) {
+    if (
+      !cleanedInput.trim() &&
+      currentAttachments.length === 0 &&
+      resolvedSkillIds.length === 0
+    ) {
       return;
     }
 
@@ -897,8 +978,9 @@ export function ChatInput({
 
     if (!editMessage && (status === "streaming" || status === "submitted")) {
       enqueue({
-        text: input.trim(),
+        text: cleanedInput.trim(),
         attachments: snapshotAttachmentsForQueue(currentAttachments),
+        selectedSkillIds: resolvedSkillIds,
       });
 
       toast.success("Message queued");
@@ -945,7 +1027,8 @@ export function ChatInput({
         await onSubmitEdit?.({
           retainedAttachmentIds,
           draftAttachmentIds,
-          text: input,
+          text: cleanedInput,
+          selectedSkillIds: resolvedSkillIds,
           attachmentMetadata: currentAttachments.map((attachment) => ({
             attachmentId: attachment.attachmentId,
             generatingDerivative: attachmentsUsingDerivative.some(
@@ -962,8 +1045,9 @@ export function ChatInput({
         onCancelEdit?.();
       } else {
         const success = await submitNewUserPayload(
-          input.trim(),
+          cleanedInput.trim(),
           currentAttachments,
+          resolvedSkillIds,
         );
 
         if (!success) {
@@ -989,6 +1073,8 @@ export function ChatInput({
     editMessage,
     enqueue,
     input,
+    selectedSkillIds,
+    skills,
     isExpanded,
     onCancelEdit,
     onSubmitEdit,
@@ -1004,12 +1090,29 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (skillSlashMenu.handleKeyDown(e)) {
+        return;
+      }
       if (e.key === "Enter" && !e.shiftKey && !isMobile) {
         e.preventDefault();
         void handleSubmit();
       }
     },
-    [handleSubmit, isMobile],
+    [handleSubmit, isMobile, skillSlashMenu],
+  );
+
+  const handleDeactivateThreadSkill = useCallback(
+    async (skillId: string) => {
+      if (!threadId) return;
+      try {
+        await deactivateThreadSkill({ threadId, skillId });
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to deactivate skill",
+        );
+      }
+    },
+    [deactivateThreadSkill, threadId],
   );
 
   const hasUploadingFiles = attachments.some(
@@ -1157,6 +1260,21 @@ export function ChatInput({
                 </button>
               </div>
             )}
+            <SkillSelectionBar
+              skills={skills}
+              selectedSkillIds={selectedSkillIds}
+              activeThreadSkills={activeThreadSkills}
+              activationScope={skillActivationScope}
+              menu={skillSlashMenu}
+              onRemoveSelected={(skillId) =>
+                setSelectedSkillIds(
+                  selectedSkillIds.filter((candidate) => candidate !== skillId),
+                )
+              }
+              onDeactivateThread={(skillId) =>
+                void handleDeactivateThreadSkill(skillId)
+              }
+            />
             <ChatInputAttachmentsBar
               attachments={attachments}
               onPreview={setPreviewFile}
@@ -1189,21 +1307,7 @@ export function ChatInput({
                 setDropdownOpen(false);
                 void navigate({ to: "/settings/mcp" });
               }}
-              instructions={instructions.map((instruction) => ({
-                instructionId: instruction.instructionId,
-                name: instruction.name,
-                isDefault: instruction.isDefault,
-                isBuiltin: instruction.isBuiltin,
-              }))}
-              selectedInstructionId={selectedInstruction?.instructionId}
-              selectedInstructionName={
-                selectedInstruction && !selectedInstruction.isDefault
-                  ? selectedInstruction.name
-                  : undefined
-              }
-              onInstructionChange={handleInstructionChange}
               state={{
-                instructionsReady,
                 canUploadFiles,
                 isAnalysisWorkspaceEnabled,
                 isImageGenerationEnabled,

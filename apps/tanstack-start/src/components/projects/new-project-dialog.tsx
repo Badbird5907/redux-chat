@@ -17,7 +17,6 @@ import {
 } from "@redux/ui/components/dialog";
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
-import { Textarea } from "@redux/ui/components/textarea";
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -33,7 +32,6 @@ export function NewProjectDialog({
   const createProject = useMutation(api.functions.projects.createProject);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [instructions, setInstructions] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleClose = (next: boolean) => {
@@ -41,7 +39,6 @@ export function NewProjectDialog({
     if (!next) {
       setName("");
       setDescription("");
-      setInstructions("");
     }
     onOpenChange(next);
   };
@@ -58,12 +55,10 @@ export function NewProjectDialog({
       const { projectId } = await createProject({
         name: trimmedName,
         description: description.trim() || undefined,
-        instructions: instructions.trim() || undefined,
       });
 
       posthog.capture("project_created", {
         has_description: !!description.trim(),
-        has_instructions: !!instructions.trim(),
       });
 
       handleClose(false);
@@ -83,7 +78,7 @@ export function NewProjectDialog({
         <DialogHeader>
           <DialogTitle>New project</DialogTitle>
           <DialogDescription>
-            Group related chats together with shared instructions and files.
+            Group related chats together with shared files and context.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
@@ -115,19 +110,6 @@ export function NewProjectDialog({
               maxLength={300}
               placeholder="What's this project about?"
               onChange={(event) => setDescription(event.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="new-project-instructions">
-              Instructions{" "}
-              <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Textarea
-              id="new-project-instructions"
-              value={instructions}
-              rows={4}
-              placeholder="Tailor responses for this project."
-              onChange={(event) => setInstructions(event.target.value)}
             />
           </div>
         </div>

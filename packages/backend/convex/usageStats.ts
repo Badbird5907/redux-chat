@@ -9,6 +9,9 @@ type UsageStatsPatch = {
   threadsDelta?: number;
   attachmentsDelta?: number;
   storageBytesDelta?: number;
+  skillsDelta?: number;
+  skillFilesDelta?: number;
+  skillStorageBytesDelta?: number;
   lastActiveAt?: number;
 };
 
@@ -53,6 +56,15 @@ function applyUsagePatch(
     ),
     storageBytes: clampCount(
       (existing?.storageBytes ?? 0) + (patch.storageBytesDelta ?? 0),
+    ),
+    skillCount: clampCount(
+      (existing?.skillCount ?? 0) + (patch.skillsDelta ?? 0),
+    ),
+    skillFileCount: clampCount(
+      (existing?.skillFileCount ?? 0) + (patch.skillFilesDelta ?? 0),
+    ),
+    skillStorageBytes: clampCount(
+      (existing?.skillStorageBytes ?? 0) + (patch.skillStorageBytesDelta ?? 0),
     ),
     lastActiveAt,
     updatedAt: now,
@@ -129,6 +141,9 @@ export async function getDenormalizedUsageStats(
     threadsCreated: totals?.threadCount ?? 0,
     attachmentsUploaded: totals?.attachmentCount ?? 0,
     storageBytes: totals?.storageBytes ?? 0,
+    skillsCreated: totals?.skillCount ?? 0,
+    skillFilesStored: totals?.skillFileCount ?? 0,
+    skillStorageBytes: totals?.skillStorageBytes ?? 0,
     chatApiCalls30d: dailyRows.reduce(
       (total, row) => total + row.assistantApiCalls,
       0,

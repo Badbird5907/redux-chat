@@ -7,6 +7,7 @@ export interface QueuedMessage {
   id: string;
   text: string;
   attachments: DraftAttachment[];
+  selectedSkillIds: string[];
 }
 
 interface QueueState {
@@ -80,7 +81,9 @@ export function useMessageQueue({ threadId }: { threadId?: string }) {
   const updateQueued = useCallback(
     (
       id: string,
-      patch: Partial<Pick<QueuedMessage, "text" | "attachments">>,
+      patch: Partial<
+        Pick<QueuedMessage, "text" | "attachments" | "selectedSkillIds">
+      >,
     ) => {
       replaceQueue(
         queueRef.current.map((message) =>

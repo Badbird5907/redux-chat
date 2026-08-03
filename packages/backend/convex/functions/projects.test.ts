@@ -23,7 +23,7 @@ describe("functions/projects", () => {
     vi.useRealTimers();
   });
 
-  it("creates projects with normalized optional text", async () => {
+  it("creates projects with a normalized optional description", async () => {
     const t = authedTest();
 
     const { projectId } = await t.mutation(
@@ -31,7 +31,6 @@ describe("functions/projects", () => {
       {
         name: "  Research Workspace  ",
         description: "   ",
-        instructions: "  Prefer short answers.  ",
       },
     );
 
@@ -41,7 +40,6 @@ describe("functions/projects", () => {
       projectId,
       name: "Research Workspace",
       description: undefined,
-      instructions: "Prefer short answers.",
       createdAt: NOW,
       updatedAt: NOW,
     });

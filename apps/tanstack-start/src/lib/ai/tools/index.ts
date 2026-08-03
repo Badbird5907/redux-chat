@@ -3,6 +3,7 @@ import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 import type { ChatToolAttachment } from "@/lib/ai/tools/sandbox";
+import type { SkillRuntimeContext } from "@/lib/ai/tools/skills";
 import type { OAuthClientProvider, OAuthTokens } from "@ai-sdk/mcp";
 import type { ToolApprovalStatus, ToolSet } from "ai";
 import type { Value } from "convex/values";
@@ -24,6 +25,7 @@ import {
   SANDBOX_UPLOADS_DIR,
 } from "@/lib/ai/tools/sandbox";
 import { searchProjectKnowledgeTool } from "@/lib/ai/tools/search-project";
+import { createSkillTools } from "@/lib/ai/tools/skills";
 import { storeGeneratedImage } from "@/server/ai/generated-images";
 import { resolveAiSdkImageModel } from "@/server/ai/model-runtime";
 
@@ -71,7 +73,9 @@ interface ToolRuntimeOptions {
     userId: string;
     threadId: string;
     messageId: string;
+    userMessageId: string;
   };
+  skills?: SkillRuntimeContext;
   previousBashFiles?: Record<string, string | Uint8Array>;
 }
 
@@ -385,6 +389,7 @@ export async function createToolRuntime(
     onOAuthTokensRefreshed,
     projectContext,
     generationContext,
+    skills,
     previousBashFiles,
   }: ToolRuntimeOptions = {},
 ): Promise<ToolRuntime> {
@@ -397,6 +402,30 @@ export async function createToolRuntime(
     | Awaited<ReturnType<typeof createBashWorkspaceRuntime>>
     | undefined;
   const mcpClients: Awaited<ReturnType<typeof createMCPClient>>[] = [];
+
+  if (generationContext) {
+    const runtime = skills ?? { explicit: [], autoCatalog: [] };
+    const skillTools = createSkillTools({
+      runtime,
+      generation: {
+        userId: generationContext.userId,
+        threadId: generationContext.threadId,
+        userMessageId: generationContext.userMessageId,
+        assistantMessageId: generationContext.messageId,
+      },
+    });
+    const hasAvailableSkills =
+      runtime.explicit.length > 0 || runtime.autoCatalog.length > 0;
+    for (const [name, skillTool] of Object.entries(skillTools)) {
+      if (
+        !hasAvailableSkills &&
+        (name === "load_skill" || name === "read_skill_file")
+      ) {
+        continue;
+      }
+      tools[name] = instrumentTool(skillTool, "skills", toolUsageCounts);
+    }
+  }
 
   if (enabledTools.includes("search")) {
     tools.search = instrumentTool(webSearch(), "search", toolUsageCounts);

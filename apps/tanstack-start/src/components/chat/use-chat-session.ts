@@ -968,6 +968,7 @@ export function useChatSession({
         url?: string;
       }[];
       text: string;
+      selectedSkillIds?: string[];
     }) => {
       if (!currentThreadId || !editMessage || status !== "ready") {
         return;
@@ -990,6 +991,7 @@ export function useChatSession({
         settings,
         retainedAttachmentIds: payload.retainedAttachmentIds,
         draftAttachmentIds: payload.draftAttachmentIds,
+        selectedSkillIds: payload.selectedSkillIds,
       });
 
       const editIndex = visibleBranchMessages.findIndex(
