@@ -7,7 +7,6 @@ import {
 } from "@redux/types";
 
 import { mutation } from "./index";
-import { normalizeInstructionIdForUser } from "./instructions";
 
 const thinkingLevelValidator = v.union(
   v.literal("instant"),
@@ -64,11 +63,6 @@ export const getOrCreate = mutation({
       const normalizedSettings = normalizePersistedMessageSettings(
         existing.settings,
       );
-      normalizedSettings.instructionId = await normalizeInstructionIdForUser(
-        ctx,
-        ctx.userId,
-        normalizedSettings.instructionId,
-      );
       if (
         JSON.stringify(normalizedSettings) !== JSON.stringify(existing.settings)
       ) {
@@ -81,11 +75,6 @@ export const getOrCreate = mutation({
     }
 
     const settings = normalizeMessageSettings(undefined);
-    settings.instructionId = await normalizeInstructionIdForUser(
-      ctx,
-      ctx.userId,
-      settings.instructionId,
-    );
     await ctx.db.insert("defaultMessageSettings", {
       userId: ctx.userId,
       settings,
@@ -98,8 +87,6 @@ export const getOrCreate = mutation({
 export const update = mutation({
   args: {
     patch: v.object({
-      instructionId: v.optional(v.string()),
-      clearInstructionId: v.optional(v.boolean()),
       model: v.optional(v.string()),
       thinkingLevel: v.optional(thinkingLevelValidator),
       tools: v.optional(v.union(toolPatchValidator, v.null())),
@@ -111,15 +98,9 @@ export const update = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
       .first();
 
-    const { clearInstructionId, ...settingsPatch } = args.patch;
     const mergedSettings = mergePersistedMessageSettings(
       existing?.settings,
-      settingsPatch,
-    );
-    mergedSettings.instructionId = await normalizeInstructionIdForUser(
-      ctx,
-      ctx.userId,
-      clearInstructionId ? undefined : mergedSettings.instructionId,
+      args.patch,
     );
 
     if (existing) {

@@ -143,24 +143,14 @@ export function useChatSettings(
       }
 
       try {
-        const shouldClearInstruction =
-          Object.prototype.hasOwnProperty.call(patch, "instructionId") &&
-          patch.instructionId === undefined;
-        const backendPatch = shouldClearInstruction
-          ? {
-              ...patch,
-              clearInstructionId: true,
-            }
-          : patch;
-
         if (threadId) {
           await updateThreadSettings({
             threadId,
-            patch: backendPatch,
+            patch,
           });
         } else {
           await updateDefaultSettings({
-            patch: backendPatch,
+            patch,
           });
         }
 

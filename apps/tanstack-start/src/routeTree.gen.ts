@@ -21,10 +21,10 @@ import { Route as LogosIndexRouteImport } from './routes/logos/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as SettingsSupportRouteImport } from './routes/settings/support'
+import { Route as SettingsSkillsRouteImport } from './routes/settings/skills'
 import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
 import { Route as SettingsModelsRouteImport } from './routes/settings/models'
 import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
-import { Route as SettingsInstructionsRouteImport } from './routes/settings/instructions'
 import { Route as SettingsHotkeysRouteImport } from './routes/settings/hotkeys'
 import { Route as SettingsChatRouteImport } from './routes/settings/chat'
 import { Route as SettingsAttachmentsRouteImport } from './routes/settings/attachments'
@@ -57,6 +57,7 @@ import { Route as AdminPromotionsPromotionIdRouteImport } from './routes/admin/p
 import { Route as AppShareShareIdRouteImport } from './routes/_app/share.$shareId'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 import { Route as AppChatIdRouteImport } from './routes/_app/chat.$id'
+import { Route as ApiSkillsFilesSkillFileIdRouteImport } from './routes/api/skills/files/$skillFileId'
 import { Route as ApiMcpOauthCallbackRouteImport } from './routes/api/mcp/oauth/callback'
 import { Route as ApiMcpOauthAuthorizeRouteImport } from './routes/api/mcp/oauth/authorize'
 import { Route as ApiByokCredentialsProviderRouteImport } from './routes/api/byok/credentials.$provider'
@@ -121,6 +122,11 @@ const SettingsSupportRoute = SettingsSupportRouteImport.update({
   path: '/support',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsSkillsRoute = SettingsSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -134,11 +140,6 @@ const SettingsModelsRoute = SettingsModelsRouteImport.update({
 const SettingsMcpRoute = SettingsMcpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
-  getParentRoute: () => SettingsRoute,
-} as any)
-const SettingsInstructionsRoute = SettingsInstructionsRouteImport.update({
-  id: '/instructions',
-  path: '/instructions',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsHotkeysRoute = SettingsHotkeysRouteImport.update({
@@ -302,6 +303,12 @@ const AppChatIdRoute = AppChatIdRouteImport.update({
   path: '/chat/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiSkillsFilesSkillFileIdRoute =
+  ApiSkillsFilesSkillFileIdRouteImport.update({
+    id: '/api/skills/files/$skillFileId',
+    path: '/api/skills/files/$skillFileId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiMcpOauthCallbackRoute = ApiMcpOauthCallbackRouteImport.update({
   id: '/api/mcp/oauth/callback',
   path: '/api/mcp/oauth/callback',
@@ -345,10 +352,10 @@ export interface FileRoutesByFullPath {
   '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
-  '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/security': typeof SettingsSecurityRoute
+  '/settings/skills': typeof SettingsSkillsRoute
   '/settings/support': typeof SettingsSupportRoute
   '/admin/': typeof AdminIndexRoute
   '/logos/': typeof LogosIndexRoute
@@ -375,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
+  '/api/skills/files/$skillFileId': typeof ApiSkillsFilesSkillFileIdRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRoutesByTo {
@@ -393,10 +401,10 @@ export interface FileRoutesByTo {
   '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
-  '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/security': typeof SettingsSecurityRoute
+  '/settings/skills': typeof SettingsSkillsRoute
   '/settings/support': typeof SettingsSupportRoute
   '/': typeof AppIndexRoute
   '/admin': typeof AdminIndexRoute
@@ -424,6 +432,7 @@ export interface FileRoutesByTo {
   '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
+  '/api/skills/files/$skillFileId': typeof ApiSkillsFilesSkillFileIdRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRoutesById {
@@ -448,10 +457,10 @@ export interface FileRoutesById {
   '/settings/attachments': typeof SettingsAttachmentsRoute
   '/settings/chat': typeof SettingsChatRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
-  '/settings/instructions': typeof SettingsInstructionsRoute
   '/settings/mcp': typeof SettingsMcpRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/security': typeof SettingsSecurityRoute
+  '/settings/skills': typeof SettingsSkillsRoute
   '/settings/support': typeof SettingsSupportRoute
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -479,6 +488,7 @@ export interface FileRoutesById {
   '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
+  '/api/skills/files/$skillFileId': typeof ApiSkillsFilesSkillFileIdRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
 export interface FileRouteTypes {
@@ -504,10 +514,10 @@ export interface FileRouteTypes {
     | '/settings/attachments'
     | '/settings/chat'
     | '/settings/hotkeys'
-    | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/models'
     | '/settings/security'
+    | '/settings/skills'
     | '/settings/support'
     | '/admin/'
     | '/logos/'
@@ -534,6 +544,7 @@ export interface FileRouteTypes {
     | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
+    | '/api/skills/files/$skillFileId'
     | '/api/chat/$id/stream/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -552,10 +563,10 @@ export interface FileRouteTypes {
     | '/settings/attachments'
     | '/settings/chat'
     | '/settings/hotkeys'
-    | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/models'
     | '/settings/security'
+    | '/settings/skills'
     | '/settings/support'
     | '/'
     | '/admin'
@@ -583,6 +594,7 @@ export interface FileRouteTypes {
     | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
+    | '/api/skills/files/$skillFileId'
     | '/api/chat/$id/stream'
   id:
     | '__root__'
@@ -606,10 +618,10 @@ export interface FileRouteTypes {
     | '/settings/attachments'
     | '/settings/chat'
     | '/settings/hotkeys'
-    | '/settings/instructions'
     | '/settings/mcp'
     | '/settings/models'
     | '/settings/security'
+    | '/settings/skills'
     | '/settings/support'
     | '/_app/'
     | '/admin/'
@@ -637,6 +649,7 @@ export interface FileRouteTypes {
     | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
+    | '/api/skills/files/$skillFileId'
     | '/api/chat/$id/stream/'
   fileRoutesById: FileRoutesById
 }
@@ -666,6 +679,7 @@ export interface RootRouteChildren {
   ApiByokCredentialsProviderRoute: typeof ApiByokCredentialsProviderRoute
   ApiMcpOauthAuthorizeRoute: typeof ApiMcpOauthAuthorizeRoute
   ApiMcpOauthCallbackRoute: typeof ApiMcpOauthCallbackRoute
+  ApiSkillsFilesSkillFileIdRoute: typeof ApiSkillsFilesSkillFileIdRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
 
@@ -755,6 +769,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsSupportRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/skills': {
+      id: '/settings/skills'
+      path: '/skills'
+      fullPath: '/settings/skills'
+      preLoaderRoute: typeof SettingsSkillsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/security': {
       id: '/settings/security'
       path: '/security'
@@ -774,13 +795,6 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/settings/mcp'
       preLoaderRoute: typeof SettingsMcpRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/instructions': {
-      id: '/settings/instructions'
-      path: '/instructions'
-      fullPath: '/settings/instructions'
-      preLoaderRoute: typeof SettingsInstructionsRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/hotkeys': {
@@ -1007,6 +1021,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/skills/files/$skillFileId': {
+      id: '/api/skills/files/$skillFileId'
+      path: '/api/skills/files/$skillFileId'
+      fullPath: '/api/skills/files/$skillFileId'
+      preLoaderRoute: typeof ApiSkillsFilesSkillFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mcp/oauth/callback': {
       id: '/api/mcp/oauth/callback'
       path: '/api/mcp/oauth/callback'
@@ -1119,10 +1140,10 @@ interface SettingsRouteChildren {
   SettingsAttachmentsRoute: typeof SettingsAttachmentsRoute
   SettingsChatRoute: typeof SettingsChatRoute
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
-  SettingsInstructionsRoute: typeof SettingsInstructionsRoute
   SettingsMcpRoute: typeof SettingsMcpRoute
   SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsSecurityRoute: typeof SettingsSecurityRoute
+  SettingsSkillsRoute: typeof SettingsSkillsRoute
   SettingsSupportRoute: typeof SettingsSupportRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -1132,10 +1153,10 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAttachmentsRoute: SettingsAttachmentsRoute,
   SettingsChatRoute: SettingsChatRoute,
   SettingsHotkeysRoute: SettingsHotkeysRoute,
-  SettingsInstructionsRoute: SettingsInstructionsRoute,
   SettingsMcpRoute: SettingsMcpRoute,
   SettingsModelsRoute: SettingsModelsRoute,
   SettingsSecurityRoute: SettingsSecurityRoute,
+  SettingsSkillsRoute: SettingsSkillsRoute,
   SettingsSupportRoute: SettingsSupportRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
@@ -1170,6 +1191,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiByokCredentialsProviderRoute: ApiByokCredentialsProviderRoute,
   ApiMcpOauthAuthorizeRoute: ApiMcpOauthAuthorizeRoute,
   ApiMcpOauthCallbackRoute: ApiMcpOauthCallbackRoute,
+  ApiSkillsFilesSkillFileIdRoute: ApiSkillsFilesSkillFileIdRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }
 export const routeTree = rootRouteImport

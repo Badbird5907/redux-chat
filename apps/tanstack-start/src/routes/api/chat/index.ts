@@ -1,3 +1,4 @@
+import type { SkillRuntimeContext } from "@/lib/ai/tools/skills";
 import type { ByokRuntimeContext } from "@/server/byok/runtime";
 import type { RetrievedChunk } from "@/server/rag/vector-store";
 import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
@@ -41,6 +42,10 @@ import {
 import { formatProjectKnowledgeChunk } from "@/lib/ai/tools/project-knowledge-format";
 import { selectProjectMediaAttachmentIds } from "@/lib/ai/tools/project-knowledge-media";
 import {
+  formatSkillSystemPrompt,
+  loadSkillRuntimeContext,
+} from "@/lib/ai/tools/skills";
+import {
   fetchAuthAction,
   fetchAuthMutation,
   fetchAuthQuery,
@@ -82,7 +87,6 @@ const requestBody = z.object({
   settings: z.object({
     model: z.string(),
     thinkingLevel: z.enum(["instant", "low", "medium", "high"]).optional(),
-    instructionId: z.string().optional(),
     tools: z
       .object({
         search: emptyToolSchema.optional(),
@@ -179,7 +183,29 @@ function resolveReasoningParam(
 
 const ENABLE_PROJECT_RAG_PREFETCH = true;
 
-const BASE_SYSTEM_PROMPT = `You are Redux.chat.
+const DEFAULT_SYSTEM_PROMPT = `You are Redux.chat, a thoughtful, capable assistant for everyday work, research, writing, planning, and technical problem solving.
+
+## Core behavior
+
+- Be helpful, direct, and honest. Give the user the most useful answer you can, while clearly stating uncertainty when you do not know something.
+- Adapt to the user's needs. Keep simple answers concise, and add structure or depth when the task is complex.
+- Prefer practical next steps over abstract advice. When useful, provide examples, drafts, checklists, commands, or code the user can apply immediately.
+- Ask a clarifying question when the request is ambiguous and the answer would meaningfully change based on the missing detail. Otherwise, make a reasonable assumption and continue.
+- Do not invent facts, sources, files, tool results, or capabilities. If something depends on unavailable context, say so plainly.
+
+## Working with context
+
+- Use the conversation history, uploaded files, and available tools when they are relevant to the user's request.
+- When using tools or retrieved context, synthesize the result instead of dumping raw output unless the user asks for it.
+- If relevant context appears incomplete or contradictory, explain the limitation and give the best supported answer.
+
+## Communication style
+
+- Write in a clear, friendly, professional tone.
+- Use Markdown when it improves readability, but avoid unnecessary formatting.
+- Put the answer first, then supporting details.
+- Avoid filler, excessive caveats, and performative enthusiasm.
+- Respect the user's requested format, tone, and level of detail.
 
 You can use Markdown for clear formatting, including fenced code blocks for code.
 For math, use LaTeX with $...$ for inline math and $$...$$ for display math.
@@ -876,48 +902,78 @@ export const Route = createFileRoute("/api/chat/")({
             await getAttachmentsByMessageId(threadId);
           const lastUserMessageId = getLastUserMessageId(messages);
 
-          // If this thread belongs to a Project, fetch its shared instructions
-          // and prepend them as a system message to the model. Also retrieve
-          // RAG context from the project's indexed file library.
-          let projectInstructions: string | undefined;
-          let selectedInstructionPrompt: string | undefined;
+          // Load project metadata needed for project tools and RAG context.
           let projectContextBlock: string | undefined;
           let projectToolInstruction: string | undefined;
+          let skillRuntimeContext: SkillRuntimeContext = {
+            explicit: [],
+            autoCatalog: [],
+          };
+          let skillSystemPrompt: string | undefined;
           let chatProjectId: string | undefined;
           let threadUserId: string | undefined;
           let bashFsState: { accessKey: string; fileKeyId: string } | undefined;
-          try {
-            const thread = await fetchAuthQuery(
-              api.functions.threads.getThread,
-              { threadId },
-            );
-            bashFsState = thread?.bashFsState ?? undefined;
-            if (thread?.chatProjectId) {
-              threadUserId = thread.userId;
-              chatProjectId = thread.chatProjectId;
-              const project = await fetchAuthQuery(
-                api.functions.projects.getProject,
-                { projectId: thread.chatProjectId },
+          const loadChatContext = async () => {
+            try {
+              const thread = await fetchAuthQuery(
+                api.functions.threads.getThread,
+                { threadId },
               );
-              const instructions = project?.instructions?.trim();
-              if (instructions) {
-                projectInstructions = instructions;
+              bashFsState = thread?.bashFsState ?? undefined;
+              if (thread?.chatProjectId) {
+                threadUserId = thread.userId;
+                chatProjectId = thread.chatProjectId;
               }
+            } catch (error) {
+              console.error("Failed to load chat context", error);
             }
-            const selectedInstruction = await fetchAuthQuery(
-              api.functions.instructions.getEffectiveInstruction,
-              { instructionId: thread?.settings.instructionId },
-            );
-            const prompt =
-              selectedInstruction === null
-                ? undefined
-                : selectedInstruction.prompt.trim();
-            if (prompt) {
-              selectedInstructionPrompt = prompt;
+          };
+
+          const loadChatSkills = async () => {
+            if (!lastUserMessageId) return;
+            try {
+              skillRuntimeContext = await loadSkillRuntimeContext({
+                userId: requestUserId,
+                threadId,
+                assistantMessageId,
+              });
+              if (
+                skillRuntimeContext.explicit.length > 0 ||
+                skillRuntimeContext.autoCatalog.length > 0
+              ) {
+                skillSystemPrompt =
+                  formatSkillSystemPrompt(skillRuntimeContext);
+              }
+              if (skillRuntimeContext.droppedExplicit?.length) {
+                console.warn("Some active skills were omitted from context", {
+                  threadId,
+                  skills: skillRuntimeContext.droppedExplicit,
+                });
+              }
+              const usageResults = await Promise.allSettled(
+                skillRuntimeContext.explicit.map((skill) =>
+                  fetchAuthMutation(api.functions.skills.backend_recordUsage, {
+                    secret: env.INTERNAL_CONVEX_SECRET,
+                    userId: requestUserId,
+                    threadId,
+                    userMessageId: lastUserMessageId,
+                    assistantMessageId,
+                    skillId: skill.skillId,
+                    trigger: skill.trigger,
+                  }),
+                ),
+              );
+              for (const result of usageResults) {
+                if (result.status === "rejected") {
+                  console.error("Failed to record skill usage", result.reason);
+                }
+              }
+            } catch (error) {
+              console.error("Failed to load chat skills", error);
             }
-          } catch (error) {
-            console.error("Failed to load chat instructions", error);
-          }
+          };
+
+          await Promise.all([loadChatContext(), loadChatSkills()]);
 
           if (chatProjectId) {
             projectToolInstruction = [
@@ -1031,7 +1087,9 @@ export const Route = createFileRoute("/api/chat/")({
               userId: requestUserId,
               threadId,
               messageId: assistantMessageId,
+              userMessageId: lastUserMessageId ?? "",
             },
+            skills: skillRuntimeContext,
             previousBashFiles,
             resolveImageModel: (modelId) =>
               routedImageToolModel?.modelConfig.id === modelId
@@ -1306,9 +1364,8 @@ export const Route = createFileRoute("/api/chat/")({
           );
 
           const systemPrompt = [
-            BASE_SYSTEM_PROMPT,
-            selectedInstructionPrompt,
-            projectInstructions,
+            DEFAULT_SYSTEM_PROMPT,
+            skillSystemPrompt,
             projectToolInstruction,
             projectContextBlock,
           ]

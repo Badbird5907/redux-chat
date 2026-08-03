@@ -411,7 +411,6 @@ describe("functions/mcpServers", () => {
     await t.run(async (ctx) => {
       const settings = {
         model: "openai/gpt-5",
-        instructionId: "instruction-1",
         tools: {
           mcpServers: {
             serverIds: [mcpServerId, retainedServerId],
