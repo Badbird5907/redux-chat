@@ -239,6 +239,22 @@ export function isByokRouteAvailable(
   return providerAvailability.modelIds.has(route.vendorId);
 }
 
+export function generationRequiresPlatformCredits(args: {
+  mainFundingSource?: RouteFundingSource;
+  canInvokeTools: boolean;
+  searchEnabled: boolean;
+  analysisWorkspaceEnabled: boolean;
+  imageToolFundingSource?: RouteFundingSource;
+}): boolean {
+  return (
+    args.mainFundingSource === "platform" ||
+    (args.canInvokeTools &&
+      (args.searchEnabled ||
+        args.analysisWorkspaceEnabled ||
+        args.imageToolFundingSource === "platform"))
+  );
+}
+
 function uniqueProviders(values: readonly string[]): ByokProviderId[] {
   return Array.from(
     new Set(

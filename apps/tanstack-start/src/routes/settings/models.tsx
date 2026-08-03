@@ -24,15 +24,19 @@ import { useQuery } from "@/lib/hooks/convex";
 
 const reconcileByokSettings = createServerFn({ method: "POST" }).handler(
   async () => {
-    const { userId } = await fetchAuthQuery(
-      api.functions.user.getCurrentUserId,
-      {},
-    );
-    if (!userId) return;
-    await fetchAuthMutation(api.functions.byok.internal_reconcileUser, {
-      secret: env.INTERNAL_CONVEX_SECRET,
-      userId,
-    });
+    try {
+      const { userId } = await fetchAuthQuery(
+        api.functions.user.getCurrentUserId,
+        {},
+      );
+      if (!userId) return;
+      await fetchAuthMutation(api.functions.byok.internal_reconcileUser, {
+        secret: env.INTERNAL_CONVEX_SECRET,
+        userId,
+      });
+    } catch (error) {
+      console.error("BYOK settings reconciliation failed", error);
+    }
   },
 );
 
@@ -58,6 +62,7 @@ function ModelsRouteComponent() {
   );
 
   const saveRouting = async (next: UserModelRoutingConfig) => {
+    if (!entitled) return;
     setRoutingOverride(next);
     setRoutingSaving(true);
     try {
@@ -104,7 +109,8 @@ function ModelsRouteComponent() {
               </div>
               <p className="text-muted-foreground mt-1 text-sm">
                 Base includes Free limits plus provider keys for $2/month.
-                Retained keys remain encrypted and inactive while you are Free.
+                Everything below stays visible so you can see what unlocks;
+                retained keys remain encrypted and inactive while you are Free.
               </p>
             </div>
             <Button render={<Link to="/settings" />}>View plans</Button>
@@ -117,18 +123,21 @@ function ModelsRouteComponent() {
         credentials={summary?.credentials ?? []}
       />
 
-      {entitled && routing ? (
+      {routing ? (
         <>
           <RoutingPrioritySection
             routing={routing}
             configuredProviders={configuredProviders}
             routingSaving={routingSaving}
+            disabled={!entitled}
             onSaveRouting={saveRouting}
           />
           <ModelOverridesSection
             routing={routing}
             availability={availability}
             routingSaving={routingSaving}
+            byokEnabled={entitled}
+            disabled={!entitled}
             onSaveRouting={saveRouting}
           />
         </>

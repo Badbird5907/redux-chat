@@ -76,6 +76,13 @@ function resolveSelection(args: {
         : undefined
       : getPlatformProviderCredentials(runtimeProviderKey);
   if (!credentials) {
+    if (selection.fundingSource === "user") {
+      const error = new Error(
+        "A configured BYOK credential could not be used. Re-save it in Settings > Models.",
+      );
+      error.name = "ByokCredentialUnavailableError";
+      throw error;
+    }
     throw new Error(`Missing credentials for ${runtimeProviderKey}.`);
   }
   return { modelConfig, selection, credentials };

@@ -1,3 +1,4 @@
+import type { ByokRuntimeContext } from "@/server/byok/runtime";
 import type { RetrievedChunk } from "@/server/rag/vector-store";
 import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
@@ -21,6 +22,7 @@ import type { ThinkingLevel } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   DEFAULT_MODEL_ROUTING_CONFIG,
+  generationRequiresPlatformCredits,
   getChatModelConfig,
 } from "@redux/shared/models";
 import {
@@ -721,7 +723,7 @@ export const Route = createFileRoute("/api/chat/")({
           name: userBillingInfo.name,
         });
         const byokEnabled = billingSnapshot.entitlements.byok;
-        const byokContext = byokEnabled
+        const byokContext: ByokRuntimeContext = byokEnabled
           ? await loadByokRuntimeContext(requestUserId)
           : {
               credentials: new Map(),
@@ -785,6 +787,15 @@ export const Route = createFileRoute("/api/chat/")({
               { status: 422 },
             );
           }
+          if (
+            error instanceof Error &&
+            error.name === "ByokCredentialUnavailableError"
+          ) {
+            return Response.json(
+              { error: "byok_credential_unavailable", message },
+              { status: 422 },
+            );
+          }
           console.error("Model route resolution failed", error);
           return Response.json(
             { error: "model_route_unavailable" },
@@ -793,14 +804,19 @@ export const Route = createFileRoute("/api/chat/")({
         }
         const mainFundingSource =
           routedTextModel?.fundingSource ?? routedImageModel?.fundingSource;
-        const hasPotentiallyPaidTool =
-          canInvokeTools &&
-          (isSearchEnabled ||
-            isToolEnabled(settings.tools, "analysisWorkspace") ||
-            routedImageToolModel?.fundingSource === "platform");
+        const requiresPlatformCredits = generationRequiresPlatformCredits({
+          mainFundingSource,
+          canInvokeTools,
+          searchEnabled: isSearchEnabled,
+          analysisWorkspaceEnabled: isToolEnabled(
+            settings.tools,
+            "analysisWorkspace",
+          ),
+          imageToolFundingSource: routedImageToolModel?.fundingSource,
+        });
         const spendableCredits = billingState.spendableCredits;
         if (
-          (mainFundingSource === "platform" || hasPotentiallyPaidTool) &&
+          requiresPlatformCredits &&
           spendableCredits < MIN_GENERATION_CREDIT_FLOOR &&
           !billingState.overageAllowed
         ) {
