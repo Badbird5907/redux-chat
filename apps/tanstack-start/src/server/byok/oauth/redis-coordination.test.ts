@@ -1,27 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  set: vi.fn<() => Promise<"OK" | null>>(),
-  eval: vi.fn<() => Promise<number>>(),
-  incr: vi.fn<() => Promise<number>>(),
-  expire: vi.fn<() => Promise<number>>(),
-}));
-
-vi.mock("@redux/redis", () => ({
-  redis: () => mocks,
-}));
-
 import {
   acquireRedisLease,
   checkStartRateLimit,
   releaseRedisLease,
 } from "./redis-coordination";
 
+const mocks = vi.hoisted(() => ({
+  set: vi.fn<() => Promise<"OK" | null>>(),
+  eval: vi.fn<() => Promise<number>>(),
+}));
+
+vi.mock("@redux/redis", () => ({
+  redis: () => mocks,
+}));
+
 describe("Redis OAuth coordination", () => {
   beforeEach(() => {
     mocks.set.mockResolvedValue("OK");
     mocks.eval.mockResolvedValue(1);
-    mocks.expire.mockResolvedValue(1);
   });
 
   it("uses unique lease tokens and compare-and-delete release", async () => {
@@ -41,7 +38,7 @@ describe("Redis OAuth coordination", () => {
   });
 
   it("limits authorization starts per user and connector window", async () => {
-    mocks.incr
+    mocks.eval
       .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(2)
       .mockResolvedValueOnce(3);
@@ -55,6 +52,11 @@ describe("Redis OAuth coordination", () => {
     await expect(checkStartRateLimit(args)).resolves.toBe(true);
     await expect(checkStartRateLimit(args)).resolves.toBe(true);
     await expect(checkStartRateLimit(args)).resolves.toBe(false);
-    expect(mocks.expire).toHaveBeenCalledTimes(1);
+    expect(mocks.eval).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('redis.call("expire", KEYS[1], ARGV[1])'),
+      ["redux-chat:byok:oauth-start:user-a:chatgpt"],
+      ["600"],
+    );
   });
 });

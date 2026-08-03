@@ -187,4 +187,17 @@ describe("ChatGPT credential refresh", () => {
     });
     expect(stored.payload.modelIds).toEqual(["gpt-5.5"]);
   });
+
+  it("reports forced discovery failure when the conditional write loses a revision race", async () => {
+    mocks.listModels.mockRejectedValue(new Error("models unavailable"));
+    mocks.replaceProviderCredentialIfRevision.mockResolvedValue({
+      updated: false,
+      revision: 2,
+    });
+
+    await expect(
+      loadFreshChatGptCredential({ userId: "user-a", forceDiscovery: true }),
+    ).rejects.toThrow("models unavailable");
+    expect(stored).toEqual({ payload: expiredPayload, revision: 1 });
+  });
 });

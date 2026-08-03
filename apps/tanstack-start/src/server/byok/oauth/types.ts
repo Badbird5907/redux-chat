@@ -1,4 +1,7 @@
-import type { DeviceCode } from "@opencoredev/loginwithchatgpt-core";
+import type {
+  ChatGPTTokens,
+  DeviceCode,
+} from "@opencoredev/loginwithchatgpt-core";
 
 import type { ByokProviderId } from "@redux/shared/models";
 
@@ -10,7 +13,16 @@ export type StoredOAuthFlow =
   | {
       connector: "chatgpt";
       provider: "openai";
+      stage: "device";
       device: DeviceCode;
+      expiresAt: number;
+    }
+  | {
+      connector: "chatgpt";
+      provider: "openai";
+      stage: "authorized";
+      tokens: ChatGPTTokens;
+      interval: number;
       expiresAt: number;
     }
   | {

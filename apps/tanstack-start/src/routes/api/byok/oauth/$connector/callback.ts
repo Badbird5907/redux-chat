@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import {
   logOAuthEvent,
+  oauthAuthFailureResponse,
   oauthResultHtml,
   requireByokUser,
 } from "@/server/byok/oauth/http";
@@ -22,7 +23,19 @@ export const Route = createFileRoute("/api/byok/oauth/$connector/callback")({
           });
         }
         const auth = await requireByokUser(request);
-        if ("response" in auth) return auth.response;
+        if ("response" in auth) {
+          logOAuthEvent({
+            connector: params.connector,
+            connectorVersion: connector.version,
+            stage: "callback_auth_failed",
+            status: "failure",
+          });
+          return oauthAuthFailureResponse({
+            request,
+            connector: params.connector,
+            authResponse: auth.response,
+          });
+        }
         const url = new URL(request.url);
         const flowId = url.searchParams.get("flow");
         const code = url.searchParams.get("code");

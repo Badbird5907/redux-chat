@@ -69,6 +69,25 @@ function parseStoredOAuthFlow(
 ): StoredOAuthFlow | undefined {
   if (!isRecord(value) || value.connector !== connector) return undefined;
   if (connector === "chatgpt") {
+    if (value.stage === "authorized") {
+      const tokens = parseChatGptTokens(value.tokens);
+      if (
+        value.provider !== "openai" ||
+        !tokens?.accountId ||
+        typeof value.interval !== "number" ||
+        typeof value.expiresAt !== "number"
+      ) {
+        return undefined;
+      }
+      return {
+        connector,
+        provider: "openai",
+        stage: "authorized",
+        tokens,
+        interval: value.interval,
+        expiresAt: value.expiresAt,
+      };
+    }
     const device = value.device;
     if (
       value.provider !== "openai" ||
@@ -85,6 +104,7 @@ function parseStoredOAuthFlow(
     return {
       connector,
       provider: "openai",
+      stage: "device",
       device: {
         deviceAuthId: device.deviceAuthId,
         userCode: device.userCode,
@@ -109,6 +129,27 @@ function parseStoredOAuthFlow(
     codeVerifier: value.codeVerifier,
     callbackUrl: value.callbackUrl,
     expiresAt: value.expiresAt,
+  };
+}
+
+function parseChatGptTokens(
+  value: unknown,
+): Extract<StoredOAuthFlow, { stage: "authorized" }>["tokens"] | undefined {
+  if (!isRecord(value) || typeof value.accessToken !== "string") {
+    return undefined;
+  }
+  return {
+    accessToken: value.accessToken,
+    ...(typeof value.refreshToken === "string"
+      ? { refreshToken: value.refreshToken }
+      : {}),
+    ...(typeof value.idToken === "string" ? { idToken: value.idToken } : {}),
+    ...(typeof value.accountId === "string"
+      ? { accountId: value.accountId }
+      : {}),
+    ...(typeof value.expiresAt === "number"
+      ? { expiresAt: value.expiresAt }
+      : {}),
   };
 }
 

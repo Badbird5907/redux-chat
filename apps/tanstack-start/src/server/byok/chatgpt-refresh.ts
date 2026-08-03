@@ -108,15 +108,15 @@ export async function loadFreshChatGptCredential(args: {
       },
       expectedRevision: current.revision,
     });
-    if (!result.updated) {
-      return await loadCredential(args.userId);
-    }
     if (args.forceDiscovery && discoveryError) {
       throw discoveryError instanceof Error
         ? discoveryError
         : new Error("ChatGPT model discovery failed.", {
             cause: discoveryError,
           });
+    }
+    if (!result.updated) {
+      return await loadCredential(args.userId);
     }
     return { payload, revision: result.revision };
   } finally {

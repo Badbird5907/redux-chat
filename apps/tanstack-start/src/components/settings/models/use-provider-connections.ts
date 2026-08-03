@@ -220,6 +220,16 @@ export function useProviderConnections(
     ) {
       return;
     }
+    const popup = window.open(
+      "about:blank",
+      "byok-chatgpt-oauth",
+      "width=600,height=720,popup=yes",
+    );
+    if (!popup) {
+      toast.error("Please allow popups to connect ChatGPT.");
+      return;
+    }
+    popup.opener = null;
     setChatGptConsentOpen(false);
     setConnectingConnector("chatgpt");
     setDeviceError(null);
@@ -257,8 +267,9 @@ export function useProviderConnections(
       };
       setNow(Date.now());
       setDeviceFlow(flow);
-      window.open(flow.verificationUrl, "_blank", "noopener,noreferrer");
+      popup.location.href = flow.verificationUrl;
     } catch (error) {
+      popup.close();
       setConnectingConnector(null);
       toast.error(error instanceof Error ? error.message : "Connection failed");
     }

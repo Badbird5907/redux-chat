@@ -81,4 +81,40 @@ describe("encrypted OAuth flow storage", () => {
     ).resolves.toBe(true);
     expect(redisState.values.size).toBe(0);
   });
+
+  it("round-trips exchanged ChatGPT tokens for retryable completion", async () => {
+    await saveOAuthFlow({
+      flowId: "flow-2",
+      userId: "user-a",
+      connector: "chatgpt",
+      flow: {
+        connector: "chatgpt",
+        provider: "openai",
+        stage: "authorized",
+        tokens: {
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          accountId: "account-a",
+        },
+        interval: 5,
+        expiresAt: Date.now() + 60_000,
+      },
+    });
+
+    await expect(
+      loadOAuthFlow({
+        flowId: "flow-2",
+        userId: "user-a",
+        connector: "chatgpt",
+      }),
+    ).resolves.toMatchObject({
+      stage: "authorized",
+      tokens: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        accountId: "account-a",
+      },
+      interval: 5,
+    });
+  });
 });

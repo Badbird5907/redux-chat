@@ -53,8 +53,16 @@ const device = {
 const flow = {
   connector: "chatgpt" as const,
   provider: "openai" as const,
+  stage: "device" as const,
   device,
   expiresAt: device.expiresAt,
+};
+
+const tokens = {
+  accessToken: "access-token",
+  refreshToken: "refresh-token",
+  idToken: "id-token",
+  accountId: "account-1234",
 };
 
 describe("ChatGPT device OAuth", () => {
@@ -64,12 +72,7 @@ describe("ChatGPT device OAuth", () => {
     mocks.deleteOAuthFlowIfOwned.mockResolvedValue(true);
     mocks.acquireRedisLease.mockResolvedValue("lease-token");
     mocks.pollDeviceCode.mockResolvedValue({ status: "pending" });
-    mocks.exchangeDeviceAuthorization.mockResolvedValue({
-      accessToken: "access-token",
-      refreshToken: "refresh-token",
-      idToken: "id-token",
-      accountId: "account-1234",
-    });
+    mocks.exchangeDeviceAuthorization.mockResolvedValue(tokens);
     mocks.parseUser.mockReturnValue({
       accountId: "account-1234",
       email: "person@example.com",
@@ -124,16 +127,33 @@ describe("ChatGPT device OAuth", () => {
       pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
     ).resolves.toEqual({ status: "connected", provider: "openai" });
 
+    expect(
+      mocks.exchangeDeviceAuthorization.mock.invocationCallOrder[0],
+    ).toBeLessThan(mocks.saveOAuthFlow.mock.invocationCallOrder[0] ?? 0);
+    const persistedFlow = mocks.saveOAuthFlow.mock.calls[0]?.[0] as
+      | {
+          userId: string;
+          flowId: string;
+          connector: string;
+          flow: { stage: string; tokens: typeof tokens };
+        }
+      | undefined;
+    expect(persistedFlow).toMatchObject({
+      userId: "user-a",
+      flowId: "flow-1",
+      connector: "chatgpt",
+      flow: { stage: "authorized", tokens },
+    });
+    expect(
+      mocks.upsertProviderCredential.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      mocks.deleteOAuthFlowIfOwned.mock.invocationCallOrder[0] ?? 0,
+    );
     expect(mocks.deleteOAuthFlowIfOwned).toHaveBeenCalledWith({
       userId: "user-a",
       flowId: "flow-1",
       connector: "chatgpt",
     });
-    expect(
-      mocks.deleteOAuthFlowIfOwned.mock.invocationCallOrder[0],
-    ).toBeLessThan(
-      mocks.exchangeDeviceAuthorization.mock.invocationCallOrder[0] ?? 0,
-    );
     expect(mocks.upsertProviderCredential).toHaveBeenCalledTimes(1);
     const saved = mocks.upsertProviderCredential.mock.calls[0]?.[0] as
       | {
@@ -183,8 +203,34 @@ describe("ChatGPT device OAuth", () => {
     await expect(
       pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
     ).rejects.toThrow("models unavailable");
-    expect(mocks.deleteOAuthFlowIfOwned).toHaveBeenCalled();
+    const persistedFlow = mocks.saveOAuthFlow.mock.calls[0]?.[0] as
+      | { flow: { stage: string; tokens: typeof tokens } }
+      | undefined;
+    expect(persistedFlow).toMatchObject({
+      flow: { stage: "authorized", tokens },
+    });
+    expect(mocks.deleteOAuthFlowIfOwned).not.toHaveBeenCalled();
     expect(mocks.upsertProviderCredential).not.toHaveBeenCalled();
+  });
+
+  it("retries discovery from encrypted exchanged tokens without redeeming the code again", async () => {
+    mocks.loadOAuthFlow.mockResolvedValue({
+      connector: "chatgpt",
+      provider: "openai",
+      stage: "authorized",
+      tokens,
+      interval: 5,
+      expiresAt: Date.now() + 60_000,
+    });
+
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).resolves.toEqual({ status: "connected", provider: "openai" });
+
+    expect(mocks.pollDeviceCode).not.toHaveBeenCalled();
+    expect(mocks.exchangeDeviceAuthorization).not.toHaveBeenCalled();
+    expect(mocks.upsertProviderCredential).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteOAuthFlowIfOwned).toHaveBeenCalledTimes(1);
   });
 
   it("cannot delete a flow that fails user-bound decryption", async () => {

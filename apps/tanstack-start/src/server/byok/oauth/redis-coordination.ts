@@ -9,6 +9,14 @@ end
 return 0
 `;
 
+const INCREMENT_RATE_LIMIT_SCRIPT = `
+local count = redis.call("incr", KEYS[1])
+if count == 1 then
+  redis.call("expire", KEYS[1], ARGV[1])
+end
+return count
+`;
+
 export async function acquireRedisLease(
   key: string,
   ttlMs: number,
@@ -34,9 +42,10 @@ export async function checkStartRateLimit(args: {
   const limit = args.limit ?? 5;
   const windowSeconds = args.windowSeconds ?? 600;
   const key = `redux-chat:byok:oauth-start:${args.userId}:${args.connector}`;
-  const count = await getRedis().incr(key);
-  if (count === 1) {
-    await getRedis().expire(key, windowSeconds);
-  }
+  const count = await getRedis().eval<[string], number>(
+    INCREMENT_RATE_LIMIT_SCRIPT,
+    [key],
+    [String(windowSeconds)],
+  );
   return count <= limit;
 }

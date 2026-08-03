@@ -71,6 +71,31 @@ export function oauthResultHtml(args: {
 </body></html>`;
 }
 
+export function oauthAuthFailureResponse(args: {
+  request: Request;
+  connector: string;
+  authResponse: Response;
+}): Response {
+  const message =
+    args.authResponse.status === 401
+      ? "Sign in to Redux Chat and try connecting again."
+      : args.authResponse.status === 403
+        ? "Your current plan does not include BYOK connections."
+        : "The provider connection could not be authorized.";
+  return new Response(
+    oauthResultHtml({
+      request: args.request,
+      connector: args.connector,
+      success: false,
+      message,
+    }),
+    {
+      status: args.authResponse.status,
+      headers: { "Content-Type": "text/html" },
+    },
+  );
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")

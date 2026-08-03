@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  isSameOrigin,
+  isSameOriginOrMissing,
+  oauthAuthFailureResponse,
+  requireByokUser,
+} from "./http";
+
 const mocks = vi.hoisted(() => ({
   getRequestUserIdFromHeaders: vi.fn<() => Promise<string | undefined>>(),
-  fetchAuthQuery: vi.fn<
-    () => Promise<{ entitlements: { byok: boolean } }>
-  >(),
+  fetchAuthQuery: vi.fn<() => Promise<{ entitlements: { byok: boolean } }>>(),
 }));
 
 vi.mock("@redux/backend/convex/_generated/api", () => ({
@@ -14,12 +19,6 @@ vi.mock("@/lib/auth/server", () => ({
   getRequestUserIdFromHeaders: mocks.getRequestUserIdFromHeaders,
   fetchAuthQuery: mocks.fetchAuthQuery,
 }));
-
-import {
-  isSameOrigin,
-  isSameOriginOrMissing,
-  requireByokUser,
-} from "./http";
 
 describe("OAuth HTTP guards", () => {
   beforeEach(() => {
@@ -98,5 +97,23 @@ describe("OAuth HTTP guards", () => {
     );
 
     expect("response" in result && result.response.status).toBe(403);
+  });
+
+  it("notifies the exact-origin opener when callback authentication fails", async () => {
+    const response = oauthAuthFailureResponse({
+      request: new Request(
+        "https://redux.example/api/byok/oauth/openrouter/callback",
+      ),
+      connector: "openrouter",
+      authResponse: new Response("Unauthorized", { status: 401 }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("content-type")).toBe("text/html");
+    const html = await response.text();
+    expect(html).toContain('"byok-oauth-complete"');
+    expect(html).toContain('"openrouter"');
+    expect(html).toContain('"https://redux.example"');
+    expect(html).toContain("Sign in to Redux Chat");
   });
 });
