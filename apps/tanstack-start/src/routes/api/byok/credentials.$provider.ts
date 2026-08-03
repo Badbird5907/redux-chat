@@ -11,10 +11,7 @@ import {
   getRequestUserIdFromHeaders,
 } from "@/lib/auth/server";
 import { upsertProviderCredential } from "@/server/byok/credential-store";
-import {
-  isSameOriginOrMissing,
-  logOAuthEvent,
-} from "@/server/byok/oauth/http";
+import { isSameOriginOrMissing, logOAuthEvent } from "@/server/byok/oauth/http";
 
 const credentialInput = z.object({
   apiKey: z.string().trim().min(1).max(20_000),

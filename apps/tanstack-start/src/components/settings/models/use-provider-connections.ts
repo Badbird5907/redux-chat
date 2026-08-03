@@ -10,7 +10,10 @@ import {
   getByokOAuthPendingStorageKey,
   getByokOAuthResultStorageKey,
 } from "@/lib/byok-oauth-channel";
-import { isPendingOpenRouterFlowSuperseded } from "./openrouter-pending-flow";
+import {
+  getOpenRouterCredentialCompletion,
+  isPendingOpenRouterFlowSuperseded,
+} from "./openrouter-pending-flow";
 import { PROVIDERS } from "./provider-config";
 
 export type ConnectionType = "api_key" | "chatgpt_oauth" | "openrouter_oauth";
@@ -274,23 +277,19 @@ export function useProviderConnections(
   useEffect(() => {
     if (!openRouterFlow) return;
     const credential = credentialByProvider.get("openrouter");
-    if (!isPendingOpenRouterFlowSuperseded(openRouterFlow, credential)) return;
+    const completion = getOpenRouterCredentialCompletion(
+      openRouterFlow,
+      credential,
+    );
+    if (!completion) return;
 
     const { flowId } = openRouterFlow;
     const reconcileTimer = window.setTimeout(() => {
       if (activeOpenRouterFlow.current?.flowId !== flowId) return;
-      clearStoredOpenRouterResult(flowId);
-      clearOpenRouterTracking();
-      updateOpenRouterFlow(null);
-      setConnectingConnector(null);
+      handleOpenRouterCompletion(completion, flowId);
     }, 0);
     return () => window.clearTimeout(reconcileTimer);
-  }, [
-    clearOpenRouterTracking,
-    credentialByProvider,
-    openRouterFlow,
-    updateOpenRouterFlow,
-  ]);
+  }, [credentialByProvider, handleOpenRouterCompletion, openRouterFlow]);
 
   useEffect(() => {
     if (!openRouterFlow) return;

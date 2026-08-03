@@ -5,6 +5,13 @@ export interface PendingOpenRouterFlow {
   previousCredentialUpdatedAt?: number | null;
 }
 
+export interface OpenRouterCredentialCompletion {
+  type: "byok-oauth-complete";
+  connector: "openrouter";
+  flowId: string;
+  success: true;
+}
+
 export function isPendingOpenRouterFlowSuperseded(
   flow: PendingOpenRouterFlow,
   credential: { updatedAt: number } | null | undefined,
@@ -17,4 +24,18 @@ export function isPendingOpenRouterFlowSuperseded(
     previousUpdatedAt === null ||
     credential.updatedAt > previousUpdatedAt
   );
+}
+
+export function getOpenRouterCredentialCompletion(
+  flow: PendingOpenRouterFlow,
+  credential: { updatedAt: number } | null | undefined,
+): OpenRouterCredentialCompletion | undefined {
+  if (!isPendingOpenRouterFlowSuperseded(flow, credential)) return undefined;
+
+  return {
+    type: "byok-oauth-complete",
+    connector: "openrouter",
+    flowId: flow.flowId,
+    success: true,
+  };
 }

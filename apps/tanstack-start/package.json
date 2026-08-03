@@ -15,7 +15,6 @@
     "skills:purge-storage": "pnpm with-env node scripts/purge-skill-storage.mjs",
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
-    "test": "vitest run",
     "test:server": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "with-env": "dotenv -e ../../.env --"
