@@ -54,7 +54,7 @@ export async function loadFreshChatGptCredential(args: {
       tokens = await ensureFreshTokens(chatGptConfig(), current.payload.tokens);
     } catch (error) {
       if (isRefreshTokenInvalid(error)) {
-        await fetchAuthMutation(
+        const result = await fetchAuthMutation(
           api.functions.byok.internal_deleteCredentialIfRevision,
           {
             secret: env.INTERNAL_CONVEX_SECRET,
@@ -63,7 +63,7 @@ export async function loadFreshChatGptCredential(args: {
             expectedRevision: current.revision,
           },
         );
-        return undefined;
+        return result.deleted ? undefined : await loadCredential(args.userId);
       }
       throw error;
     }

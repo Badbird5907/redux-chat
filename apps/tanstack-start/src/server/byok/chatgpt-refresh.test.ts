@@ -78,6 +78,7 @@ describe("ChatGPT credential refresh", () => {
     );
     mocks.isRefreshTokenInvalid.mockReturnValue(false);
     mocks.acquireRedisLease.mockResolvedValue("lease-token");
+    mocks.fetchAuthMutation.mockResolvedValue({ deleted: true });
     mocks.ensureFreshTokens.mockResolvedValue({
       accessToken: "fresh-access",
       refreshToken: "rotated-refresh",
@@ -161,6 +162,30 @@ describe("ChatGPT credential refresh", () => {
       }),
     );
     expect(mocks.replaceProviderCredentialIfRevision).not.toHaveBeenCalled();
+  });
+
+  it("reloads a newer ChatGPT connection when revoked-token deletion loses a revision race", async () => {
+    const revoked = new Error("revoked");
+    mocks.ensureFreshTokens.mockRejectedValue(revoked);
+    mocks.isRefreshTokenInvalid.mockImplementation(
+      (error: unknown) => error === revoked,
+    );
+    const newerPayload: ChatGptProviderCredentialPayload = {
+      ...expiredPayload,
+      tokens: {
+        accessToken: "newer-access",
+        refreshToken: "newer-refresh",
+        accountId: "account-1",
+      },
+    };
+    mocks.fetchAuthMutation.mockImplementation(() => {
+      stored = { payload: newerPayload, revision: 2 };
+      return Promise.resolve({ deleted: false });
+    });
+
+    await expect(
+      loadFreshChatGptCredential({ userId: "user-a" }),
+    ).resolves.toEqual({ payload: newerPayload, revision: 2 });
   });
 
   it("preserves the stored connection on a transient refresh failure", async () => {
