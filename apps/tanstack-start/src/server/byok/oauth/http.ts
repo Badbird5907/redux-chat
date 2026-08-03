@@ -7,6 +7,11 @@ export function isSameOrigin(request: Request): boolean {
   return origin === new URL(request.url).origin;
 }
 
+export function isSameOriginOrMissing(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  return origin === null || origin === new URL(request.url).origin;
+}
+
 export async function requireByokUser(
   request: Request,
 ): Promise<{ userId: string } | { response: Response }> {

@@ -15,7 +15,11 @@ vi.mock("@/lib/auth/server", () => ({
   fetchAuthQuery: mocks.fetchAuthQuery,
 }));
 
-import { isSameOrigin, requireByokUser } from "./http";
+import {
+  isSameOrigin,
+  isSameOriginOrMissing,
+  requireByokUser,
+} from "./http";
 
 describe("OAuth HTTP guards", () => {
   beforeEach(() => {
@@ -44,6 +48,32 @@ describe("OAuth HTTP guards", () => {
       isSameOrigin(
         new Request("https://redux.example/api/byok/oauth/chatgpt/start", {
           method: "POST",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("allows a missing Origin only for legacy credential requests", () => {
+    expect(
+      isSameOriginOrMissing(
+        new Request("https://redux.example/api/byok/credentials/openai", {
+          method: "PUT",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isSameOriginOrMissing(
+        new Request("https://redux.example/api/byok/credentials/openai", {
+          method: "PUT",
+          headers: { Origin: "https://redux.example" },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isSameOriginOrMissing(
+        new Request("https://redux.example/api/byok/credentials/openai", {
+          method: "PUT",
+          headers: { Origin: "https://attacker.example" },
         }),
       ),
     ).toBe(false);

@@ -33,34 +33,13 @@ export async function loadByokRuntimeContext(
   const availability = new Map<ByokProviderId, ByokProviderAvailability>();
   const prepared = await Promise.all(
     bundle.credentials.map(async (encrypted) => {
+      let payload: ProviderCredentialPayload;
       try {
-        let payload = decryptProviderCredential({
+        payload = decryptProviderCredential({
           userId,
           provider: encrypted.provider,
           encrypted,
         });
-        if (
-          encrypted.provider === "openai" &&
-          payload.kind === "chatgpt_oauth"
-        ) {
-          const fresh = await loadFreshChatGptCredential({ userId });
-          if (!fresh) return undefined;
-          payload = fresh.payload;
-        }
-        const providerAvailability: ByokProviderAvailability =
-          payload.kind === "chatgpt_oauth"
-            ? {
-                kind: "models",
-                modelIds: new Set(payload.modelIds),
-                supportsImageGeneration:
-                  encrypted.supportsImageGeneration === true,
-              }
-            : { kind: "all" };
-        return {
-          provider: encrypted.provider,
-          payload,
-          availability: providerAvailability,
-        };
       } catch (error) {
         console.error("Failed to decrypt BYOK credential", {
           userId,
@@ -69,6 +48,29 @@ export async function loadByokRuntimeContext(
         });
         return undefined;
       }
+
+      if (
+        encrypted.provider === "openai" &&
+        payload.kind === "chatgpt_oauth"
+      ) {
+        const fresh = await loadFreshChatGptCredential({ userId });
+        if (!fresh) return undefined;
+        payload = fresh.payload;
+      }
+      const providerAvailability: ByokProviderAvailability =
+        payload.kind === "chatgpt_oauth"
+          ? {
+              kind: "models",
+              modelIds: new Set(payload.modelIds),
+              supportsImageGeneration:
+                encrypted.supportsImageGeneration === true,
+            }
+          : { kind: "all" };
+      return {
+        provider: encrypted.provider,
+        payload,
+        availability: providerAvailability,
+      };
     }),
   );
   for (const item of prepared) {

@@ -9,7 +9,7 @@ import {
 import { BYOK_OAUTH_CONNECTORS } from "@/server/byok/oauth/registry";
 import { isByokOAuthConnectorId } from "@/server/byok/oauth/types";
 
-const input = z.object({ flowId: z.string().uuid() });
+const input = z.object({ flowId: z.uuid() });
 
 export const Route = createFileRoute("/api/byok/oauth/$connector/poll")({
   server: {

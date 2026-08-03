@@ -106,16 +106,16 @@ export function useProviderConnections(
           toast.error("The ChatGPT authorization code expired.");
           return;
         }
+        setDeviceError(null);
         timer = window.setTimeout(
           () => void poll(),
           result.retryAfterMs ?? deviceFlow.intervalMs,
         );
       } catch (error) {
-        setConnectingConnector(null);
         const message =
           error instanceof Error ? error.message : "ChatGPT connection failed";
         setDeviceError(message);
-        toast.error(message);
+        timer = window.setTimeout(() => void poll(), deviceFlow.intervalMs);
       }
     };
     timer = window.setTimeout(() => void poll(), deviceFlow.intervalMs);

@@ -11,7 +11,10 @@ import {
   getRequestUserIdFromHeaders,
 } from "@/lib/auth/server";
 import { upsertProviderCredential } from "@/server/byok/credential-store";
-import { isSameOrigin, logOAuthEvent } from "@/server/byok/oauth/http";
+import {
+  isSameOriginOrMissing,
+  logOAuthEvent,
+} from "@/server/byok/oauth/http";
 
 const credentialInput = z.object({
   apiKey: z.string().trim().min(1).max(20_000),
@@ -22,7 +25,7 @@ export const Route = createFileRoute("/api/byok/credentials/$provider")({
   server: {
     handlers: {
       PUT: async ({ request, params }) => {
-        if (!isSameOrigin(request)) {
+        if (!isSameOriginOrMissing(request)) {
           return new Response("Forbidden", { status: 403 });
         }
         const userId = await getRequestUserIdFromHeaders(request.headers);
@@ -75,7 +78,7 @@ export const Route = createFileRoute("/api/byok/credentials/$provider")({
         return Response.json({ ok: true });
       },
       DELETE: async ({ request, params }) => {
-        if (!isSameOrigin(request)) {
+        if (!isSameOriginOrMissing(request)) {
           return new Response("Forbidden", { status: 403 });
         }
         const userId = await getRequestUserIdFromHeaders(request.headers);

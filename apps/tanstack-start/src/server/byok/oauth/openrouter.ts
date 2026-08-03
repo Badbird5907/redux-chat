@@ -88,8 +88,11 @@ export async function completeOpenRouterOAuth(args: {
         code_challenge_method: "S256",
       }),
     });
+    if (!response.ok) {
+      throw new Error("OpenRouter token exchange failed.");
+    }
     const value = (await response.json().catch(() => undefined)) as unknown;
-    if (!response.ok || !isRecord(value) || !nonEmptyString(value.key)) {
+    if (!isRecord(value) || !nonEmptyString(value.key)) {
       throw new Error("OpenRouter token exchange failed.");
     }
     const apiKey = nonEmptyString(value.key);
