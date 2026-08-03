@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { ByokProviderId } from "@redux/shared/models";
@@ -45,6 +45,7 @@ export function useProviderConnections(
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [pollRetry, setPollRetry] = useState(0);
   const [now, setNow] = useState(0);
+  const openRouterPopupWatcher = useRef<number | null>(null);
   const credentialByProvider = useMemo(
     () =>
       new Map(
@@ -137,12 +138,22 @@ export function useProviderConnections(
       ) {
         return;
       }
+      if (openRouterPopupWatcher.current !== null) {
+        window.clearInterval(openRouterPopupWatcher.current);
+        openRouterPopupWatcher.current = null;
+      }
       setConnectingConnector(null);
       if (data.success) toast.success("OpenRouter connected");
       else toast.error("OpenRouter connection failed");
     };
     window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
+    return () => {
+      window.removeEventListener("message", handler);
+      if (openRouterPopupWatcher.current !== null) {
+        window.clearInterval(openRouterPopupWatcher.current);
+        openRouterPopupWatcher.current = null;
+      }
+    };
   }, []);
 
   const saveCredential = async (provider: ByokProviderId, event: FormEvent) => {
@@ -316,12 +327,19 @@ export function useProviderConnections(
         );
       }
       popup.location.href = result.authorizationUrl;
+      if (openRouterPopupWatcher.current !== null) {
+        window.clearInterval(openRouterPopupWatcher.current);
+      }
       const interval = window.setInterval(() => {
         if (popup.closed) {
           window.clearInterval(interval);
+          if (openRouterPopupWatcher.current === interval) {
+            openRouterPopupWatcher.current = null;
+          }
           setConnectingConnector(null);
         }
       }, 500);
+      openRouterPopupWatcher.current = interval;
     } catch (error) {
       popup.close();
       setConnectingConnector(null);
