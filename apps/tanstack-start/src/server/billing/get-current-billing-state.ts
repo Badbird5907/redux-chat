@@ -29,6 +29,7 @@ export const getCurrentBillingState = createServerFn({ method: "GET" }).handler(
         bucketBalances: refreshed.bucketBalances,
         expiringSoon: refreshed.expiringSoon,
         overageAllowed: refreshed.overageAllowed,
+        entitlements: refreshed.entitlements,
         syncedAt: Date.now(),
       };
     } catch (error) {

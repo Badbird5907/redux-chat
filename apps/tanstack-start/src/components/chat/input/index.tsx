@@ -385,16 +385,26 @@ export function ChatInput({
       selectedImageGenerationModelId,
     ],
   );
+  const canInvokeTools = currentModelConfig?.supports.toolCalling === true;
   const requiresPlatformCredits = generationRequiresPlatformCredits({
     mainFundingSource: effectiveMainRoute?.fundingSource,
-    canInvokeTools: currentModelConfig
-      ? !currentModelConfig.supports.imageOutput
-      : false,
+    canInvokeTools,
     searchEnabled: isSearchEnabled,
     analysisWorkspaceEnabled: isAnalysisWorkspaceEnabled,
     imageToolFundingSource: effectiveImageToolRoute?.fundingSource,
   });
   const isCreditBlocked = isOutOfCredits && requiresPlatformCredits;
+  // Mirrors the server route resolution: with hosted fallback off and no usable
+  // BYOK key the request would fail with `byok_route_unavailable`, so stop it
+  // in the composer instead.
+  const isRouteBlocked =
+    !!currentModelConfig &&
+    byokSummary !== undefined &&
+    (!effectiveMainRoute ||
+      (canInvokeTools && isImageGenerationEnabled && !effectiveImageToolRoute));
+  const routeBlockedMessage = !effectiveMainRoute
+    ? `${currentModelConfig?.name ?? "This model"} has no available route. Add a key for one of its providers or re-enable hosted fallback.`
+    : "The selected image generation model has no available route. Add a key for one of its providers or re-enable hosted fallback.";
   const availableThinkingLevels = currentModelConfig?.thinkingLevels ?? [];
   const effectiveThinkingLevel: ThinkingLevel =
     settings.thinkingLevel &&
@@ -685,6 +695,11 @@ export function ChatInput({
         return false;
       }
 
+      if (isRouteBlocked) {
+        toast.error(routeBlockedMessage);
+        return false;
+      }
+
       if (status !== "ready") {
         return false;
       }
@@ -770,6 +785,8 @@ export function ChatInput({
       status,
       threadId,
       isCreditBlocked,
+      isRouteBlocked,
+      routeBlockedMessage,
       posthog,
     ],
   );
@@ -933,6 +950,11 @@ export function ChatInput({
       return;
     }
 
+    if (isRouteBlocked) {
+      toast.error(routeBlockedMessage);
+      return;
+    }
+
     if (!settingsReady || !draftReady) {
       return;
     }
@@ -1046,6 +1068,8 @@ export function ChatInput({
     submitNewUserPayload,
     threadId,
     isCreditBlocked,
+    isRouteBlocked,
+    routeBlockedMessage,
   ]);
 
   const handleKeyDown = useCallback(
@@ -1178,6 +1202,30 @@ export function ChatInput({
               </div>
             </div>
           ) : null}
+          {!isCreditBlocked && isRouteBlocked ? (
+            <div
+              className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
+              role="alert"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">No available model route.</p>
+                  <p className="mt-1 text-xs opacity-90">
+                    {routeBlockedMessage}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="bg-background text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors"
+                  onClick={() => {
+                    void navigate({ to: "/settings/models" });
+                  }}
+                >
+                  Model routing
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div
             className={cn(
               "bg-card border-border relative z-10 flex flex-col overflow-hidden border shadow-lg transition-all duration-300",
@@ -1265,6 +1313,7 @@ export function ChatInput({
                 hasUploadingFiles,
                 draftReady,
                 isOutOfCredits: isCreditBlocked,
+                isRouteUnavailable: isRouteBlocked,
               }}
               imageGenerationModels={imageGenerationModels}
               selectedImageGenerationModelId={selectedImageGenerationModelId}

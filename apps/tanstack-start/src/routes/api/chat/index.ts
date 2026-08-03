@@ -704,25 +704,23 @@ export const Route = createFileRoute("/api/chat/")({
           enabledMcpServerIds,
         });
 
-        // Preflight gate: read the Convex credit ledger directly (cheap query)
-        // and refresh subscription state to know if overage is allowed. The
-        // refresh action also idempotently grants the free monthly allowance
-        // on the first read each month.
-        const [billingSnapshot, billingState, userBillingInfo] =
-          await Promise.all([
-            fetchAuthQuery(api.functions.billing.getCurrentBillingState, {}),
-            fetchAuthAction(
-              api.functions.billing.refreshCurrentUserBillingState,
-              {},
-            ),
-            fetchAuthQuery(api.functions.user.getCurrentUserBillingInfo, {}),
-          ]);
+        // Preflight gate: refresh subscription state so credits, entitlements
+        // and overage all come from the same post-sync snapshot. The refresh
+        // action also idempotently grants the free monthly allowance on the
+        // first read each month.
+        const [billingState, userBillingInfo] = await Promise.all([
+          fetchAuthAction(
+            api.functions.billing.refreshCurrentUserBillingState,
+            {},
+          ),
+          fetchAuthQuery(api.functions.user.getCurrentUserBillingInfo, {}),
+        ]);
 
         identifyPostHogUser(requestUserId, {
           email: userBillingInfo.email,
           name: userBillingInfo.name,
         });
-        const byokEnabled = billingSnapshot.entitlements.byok;
+        const byokEnabled = billingState.entitlements.byok;
         const byokContext: ByokRuntimeContext = byokEnabled
           ? await loadByokRuntimeContext(requestUserId)
           : {
@@ -734,7 +732,7 @@ export const Route = createFileRoute("/api/chat/")({
         if (!selectedModelConfig) {
           return new Response("Unknown model", { status: 400 });
         }
-        const canInvokeTools = !selectedModelConfig.supports.imageOutput;
+        const canInvokeTools = selectedModelConfig.supports.toolCalling;
         let routedTextModel:
           | ReturnType<typeof resolveRoutedAiSdkModel>
           | undefined;
@@ -832,7 +830,7 @@ export const Route = createFileRoute("/api/chat/")({
             distinctId: requestUserId,
             event: "out_of_credits",
             properties: {
-              tier: billingSnapshot.tier,
+              tier: billingState.tier,
               spendable_credits: spendableCredits,
               model: settings.model,
             },
@@ -841,7 +839,7 @@ export const Route = createFileRoute("/api/chat/")({
           return new Response(
             JSON.stringify({
               error: "out_of_credits",
-              tier: billingSnapshot.tier,
+              tier: billingState.tier,
               spendableCredits,
               availableCredits: billingState.availableCredits,
               minimumRequiredCredits: MIN_GENERATION_CREDIT_FLOOR,

@@ -2,7 +2,7 @@ import type { GenericActionCtx, GenericQueryCtx } from "convex/server";
 import type Stripe from "stripe";
 import { ConvexError, v } from "convex/values";
 
-import type { PlanTier } from "@redux/shared";
+import type { PlanEntitlements, PlanTier } from "@redux/shared";
 import {
   calculatePurchasedCreditsFromCents,
   calculateUsageCharge,
@@ -94,6 +94,7 @@ type BillingRefreshResult = {
     expiresAt: number;
   }[];
   overageAllowed: boolean;
+  entitlements: PlanEntitlements;
   grantApplied: boolean;
   periodKey: string;
   subscriptionSchedule: BillingSubscriptionSchedule;
@@ -1362,6 +1363,7 @@ async function refreshBillingStateForUser(
     bucketBalances: balance.bucketBalances,
     expiringSoon: balance.expiringSoon,
     overageAllowed: plan.overageAllowed,
+    entitlements: plan.entitlements,
     grantApplied,
     periodKey,
     subscriptionSchedule,
