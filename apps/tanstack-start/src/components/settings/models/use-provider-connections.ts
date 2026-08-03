@@ -227,7 +227,6 @@ export function useProviderConnections(
       }
       activeOpenRouterFlow.current = pending;
       setOpenRouterFlow(pending);
-      setConnectingConnector("openrouter");
     }, 0);
     return () => window.clearTimeout(restoreTimer);
   }, []);
