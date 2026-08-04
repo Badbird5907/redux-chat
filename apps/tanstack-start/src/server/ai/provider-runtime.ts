@@ -11,6 +11,7 @@ import type { ModelRouteInfo } from "@redux/shared/models";
 
 import { env } from "@/env";
 import { withoutRefreshToken } from "@/server/byok/chatgpt-refresh";
+import { chatGptConfig } from "@/server/byok/oauth/chatgpt";
 import { createChatGptImageModel } from "./chatgpt-image-model";
 import { createChatGptImagesClient } from "./chatgpt-images-client";
 
@@ -50,6 +51,7 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
         const provider = createChatGPT({
           credentials: withoutRefreshToken(credentials.tokens),
           defaultModel: credentials.defaultModel,
+          clientVersion: chatGptConfig().clientVersion,
         });
         return provider.responses(route.vendorId);
       }

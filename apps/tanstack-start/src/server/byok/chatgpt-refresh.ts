@@ -50,9 +50,10 @@ export async function loadFreshChatGptCredential(args: {
       return current;
     }
 
+    const config = chatGptConfig();
     let tokens;
     try {
-      tokens = await ensureFreshTokens(chatGptConfig(), current.payload.tokens);
+      tokens = await ensureFreshTokens(config, current.payload.tokens);
     } catch (error) {
       if (isRefreshTokenInvalid(error)) {
         const result = await fetchAuthMutation(
@@ -74,6 +75,7 @@ export async function loadFreshChatGptCredential(args: {
     try {
       const provider = createChatGPT({
         credentials: withoutRefreshToken(tokens),
+        clientVersion: config.clientVersion,
       });
       const discovered = Array.from(
         new Set(

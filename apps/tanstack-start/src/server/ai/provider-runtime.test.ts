@@ -38,6 +38,9 @@ vi.mock("@/server/byok/chatgpt-refresh", () => ({
     return requestTokens;
   },
 }));
+vi.mock("@/server/byok/oauth/chatgpt", () => ({
+  chatGptConfig: () => ({ clientVersion: "test-version" }),
+}));
 
 describe("OpenAI BYOK runtime selection", () => {
   beforeEach(() => {
@@ -87,6 +90,7 @@ describe("OpenAI BYOK runtime selection", () => {
     expect(mocks.createChatGPT).toHaveBeenCalledWith({
       credentials: { accessToken: "access", accountId: "account-1" },
       defaultModel: "gpt-5.6-sol",
+      clientVersion: "test-version",
     });
     expect(mocks.chatGptResponses).toHaveBeenCalledWith("gpt-5.6-sol");
     expect(mocks.createOpenAI).not.toHaveBeenCalled();

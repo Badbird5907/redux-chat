@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { pollChatGptOAuth, startChatGptOAuth } from "./chatgpt";
+import { chatGptConfig, pollChatGptOAuth, startChatGptOAuth } from "./chatgpt";
 
 const mocks = vi.hoisted(() => ({
   requestDeviceCode: vi.fn(),
@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   exchangeDeviceAuthorization: vi.fn(),
   parseUser: vi.fn(),
   resolveConfig: vi.fn(() => ({ clientVersion: "test-version" })),
+  createChatGPT: vi.fn(),
   listModels: vi.fn(),
   upsertProviderCredential: vi.fn(),
   saveOAuthFlow: vi.fn(),
@@ -26,7 +27,7 @@ vi.mock("@opencoredev/loginwithchatgpt-core", () => ({
   resolveConfig: mocks.resolveConfig,
 }));
 vi.mock("@opencoredev/loginwithchatgpt-ai", () => ({
-  createChatGPT: () => ({ listModels: mocks.listModels }),
+  createChatGPT: mocks.createChatGPT,
 }));
 vi.mock("../credential-store", () => ({
   upsertProviderCredential: mocks.upsertProviderCredential,
@@ -78,8 +79,17 @@ describe("ChatGPT device OAuth", () => {
       email: "person@example.com",
       plan: "plus",
     });
+    mocks.createChatGPT.mockReturnValue({ listModels: mocks.listModels });
     mocks.listModels.mockResolvedValue(["gpt-5.5", "gpt-5.5"]);
     mocks.upsertProviderCredential.mockResolvedValue(undefined);
+  });
+
+  it("uses the current Codex client version for model gating", () => {
+    chatGptConfig();
+
+    expect(mocks.resolveConfig).toHaveBeenCalledWith({
+      clientVersion: "0.146.0",
+    });
   });
 
   it("starts a 15-minute device flow without exposing device material beyond the code", async () => {
@@ -131,6 +141,13 @@ describe("ChatGPT device OAuth", () => {
       codeChallenge: "challenge",
       codeVerifier: "verifier",
     });
+    mocks.listModels.mockResolvedValue([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+      "gpt-5.6-sol",
+    ]);
 
     await expect(
       pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
@@ -164,6 +181,10 @@ describe("ChatGPT device OAuth", () => {
       connector: "chatgpt",
     });
     expect(mocks.upsertProviderCredential).toHaveBeenCalledTimes(1);
+    expect(mocks.createChatGPT).toHaveBeenCalledWith({
+      credentials: tokens,
+      clientVersion: "test-version",
+    });
     const saved = mocks.upsertProviderCredential.mock.calls[0]?.[0] as
       | {
           userId: string;
@@ -188,13 +209,18 @@ describe("ChatGPT device OAuth", () => {
       payload: {
         version: 2,
         kind: "chatgpt_oauth",
-        modelIds: ["gpt-5.5"],
-        defaultModel: "gpt-5.5",
+        modelIds: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5"],
+        defaultModel: "gpt-5.6-sol",
       },
       metadata: {
         displaySuffix: "1234",
         displayLabel: "person@example.com",
-        availableModelIds: ["gpt-5.5"],
+        availableModelIds: [
+          "gpt-5.6-sol",
+          "gpt-5.6-terra",
+          "gpt-5.6-luna",
+          "gpt-5.5",
+        ],
         supportsImageGeneration: true,
       },
     });

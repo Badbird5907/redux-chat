@@ -28,6 +28,7 @@ import { acquireRedisLease, releaseRedisLease } from "./redis-coordination";
 
 const POLL_LEASE_PREFIX = "redux-chat:byok:chatgpt-poll:";
 const AUTHORIZED_FLOW_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_CHATGPT_CLIENT_VERSION = "0.146.0";
 type AuthorizedChatGptFlow = Extract<
   StoredOAuthFlow,
   { connector: "chatgpt"; stage: "authorized" }
@@ -124,7 +125,10 @@ export async function pollChatGptOAuth(args: {
       if (!accountId) {
         throw new Error("ChatGPT authorization did not include an account id.");
       }
-      const chatgpt = createChatGPT({ credentials: tokens });
+      const chatgpt = createChatGPT({
+        credentials: tokens,
+        clientVersion: config.clientVersion,
+      });
       modelIds = Array.from(
         new Set(
           (await chatgpt.listModels()).filter((model) => model.length > 0),
@@ -194,8 +198,6 @@ export function selectDefaultChatGptModel(modelIds: readonly string[]): string {
 
 export function chatGptConfig() {
   return resolveConfig({
-    ...(env.CHATGPT_CLIENT_VERSION
-      ? { clientVersion: env.CHATGPT_CLIENT_VERSION }
-      : {}),
+    clientVersion: env.CHATGPT_CLIENT_VERSION ?? DEFAULT_CHATGPT_CLIENT_VERSION,
   });
 }

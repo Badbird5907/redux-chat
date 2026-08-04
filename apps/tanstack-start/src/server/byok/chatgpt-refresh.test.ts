@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   ensureFreshTokens: vi.fn(),
   isAccessTokenExpired: vi.fn(),
   isRefreshTokenInvalid: vi.fn(),
+  createChatGPT: vi.fn(),
   listModels: vi.fn(),
   fetchAuthQuery: vi.fn(),
   fetchAuthMutation: vi.fn(),
@@ -22,7 +23,7 @@ vi.mock("@opencoredev/loginwithchatgpt-core", () => ({
   isRefreshTokenInvalid: mocks.isRefreshTokenInvalid,
 }));
 vi.mock("@opencoredev/loginwithchatgpt-ai", () => ({
-  createChatGPT: () => ({ listModels: mocks.listModels }),
+  createChatGPT: mocks.createChatGPT,
 }));
 vi.mock("@/lib/auth/server", () => ({
   fetchAuthQuery: mocks.fetchAuthQuery,
@@ -85,7 +86,13 @@ describe("ChatGPT credential refresh", () => {
       refreshToken: "rotated-refresh",
       accountId: "account-1",
     });
-    mocks.listModels.mockResolvedValue(["gpt-5.6-sol", "gpt-5.5"]);
+    mocks.createChatGPT.mockReturnValue({ listModels: mocks.listModels });
+    mocks.listModels.mockResolvedValue([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+    ]);
     mocks.replaceProviderCredentialIfRevision.mockImplementation(
       (args: { payload: ChatGptProviderCredentialPayload }) => {
         stored = { payload: args.payload, revision: stored.revision + 1 };
@@ -127,8 +134,20 @@ describe("ChatGPT credential refresh", () => {
   it("updates discovered model availability after refresh", async () => {
     const result = await loadFreshChatGptCredential({ userId: "user-a" });
 
-    expect(result?.payload.modelIds).toEqual(["gpt-5.6-sol", "gpt-5.5"]);
+    expect(result?.payload.modelIds).toEqual([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+    ]);
     expect(result?.payload.defaultModel).toBe("gpt-5.6-sol");
+    expect(mocks.createChatGPT).toHaveBeenCalledWith({
+      credentials: {
+        accessToken: "fresh-access",
+        accountId: "account-1",
+      },
+      clientVersion: "test-version",
+    });
     const replacement = mocks.replaceProviderCredentialIfRevision.mock
       .calls[0]?.[0] as
       | {
@@ -139,7 +158,12 @@ describe("ChatGPT credential refresh", () => {
     expect(replacement).toMatchObject({
       expectedRevision: 1,
       metadata: {
-        availableModelIds: ["gpt-5.6-sol", "gpt-5.5"],
+        availableModelIds: [
+          "gpt-5.6-sol",
+          "gpt-5.6-terra",
+          "gpt-5.6-luna",
+          "gpt-5.5",
+        ],
       },
     });
   });
