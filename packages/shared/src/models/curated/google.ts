@@ -73,6 +73,7 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
         "vertex:gemini-3.7-flash",
       ],
       defaultProviderId: "vertex:gemini-3.7-flash",
+      thinkingLevels: ["low", "medium", "high"],
     },
     {
       id: "nano-banana-2",
