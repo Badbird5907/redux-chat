@@ -67,6 +67,15 @@ export const GOOGLE_PROVIDER: CuratedProviderDefinition = {
       defaultProviderId: "vertex:gemini-3.6-flash",
     },
     {
+      id: "gemini-3.7-flash",
+      providerIds: [
+        "openrouter:google/gemini-3.7-flash",
+        "vertex:gemini-3.7-flash",
+      ],
+      defaultProviderId: "vertex:gemini-3.7-flash",
+      thinkingLevels: ["low", "medium", "high"],
+    },
+    {
       id: "nano-banana-2",
       name: "Nano Banana 2",
       providerIds: [
