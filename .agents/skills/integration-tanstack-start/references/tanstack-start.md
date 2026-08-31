@@ -54,7 +54,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <PostHogProvider
           apiKey="<ph_project_token>"
           options={{
-            api_host: 'https://us.i.posthog.com',
+            api_host: 'https://us.i.posthog.com', // pragma: allowlist secret
             defaults: '2026-01-30',
             capture_exceptions: true
           }}
@@ -133,7 +133,7 @@ export function getPostHogClient() {
     posthogClient = new PostHog(
       '<ph_project_token>',
       {
-        host: 'https://us.i.posthog.com',
+        host: 'https://us.i.posthog.com', // pragma: allowlist secret
         flushAt: 1,
         flushInterval: 0,
       },

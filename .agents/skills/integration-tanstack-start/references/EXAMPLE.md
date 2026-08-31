@@ -34,7 +34,7 @@ Create a `.env` file in the root directory:
 
 ```bash
 VITE_PUBLIC_POSTHOG_PROJECT_TOKEN=your_posthog_project_token
-VITE_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+VITE_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com # pragma: allowlist secret
 ```
 
 Get your PostHog project token from your [PostHog project settings](https://app.posthog.com/project/settings).
@@ -162,7 +162,7 @@ The Vite dev server is configured to proxy PostHog requests to avoid CORS issues
 server: {
   proxy: {
     '/ingest': {
-      target: 'https://us.i.posthog.com',
+      target: 'https://us.i.posthog.com', // pragma: allowlist secret
       changeOrigin: true,
       rewrite: (path) => path.replace(/^\/ingest/, ''),
       secure: false,
@@ -1164,19 +1164,19 @@ const config = defineConfig({
   server: {
     proxy: {
       '/ingest/static': {
-        target: 'https://us-assets.i.posthog.com',
+        target: 'https://us-assets.i.posthog.com', // pragma: allowlist secret
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ingest/, ''),
         secure: false,
       },
       '/ingest/array': {
-        target: 'https://us-assets.i.posthog.com',
+        target: 'https://us-assets.i.posthog.com', // pragma: allowlist secret
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ingest/, ''),
         secure: false,
       },
       '/ingest': {
-        target: 'https://us.i.posthog.com',
+        target: 'https://us.i.posthog.com', // pragma: allowlist secret
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ingest/, ''),
         secure: false,
