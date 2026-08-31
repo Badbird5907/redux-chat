@@ -1,7 +1,9 @@
 import { useAction } from "convex/react";
 import { TriangleAlert } from "lucide-react";
 
+import type { PaidPlanTier } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
+import { PAID_PLAN_TIERS, planTierLabel } from "@redux/shared";
 import { Button } from "@redux/ui/components/button";
 import { Card } from "@redux/ui/components/card";
 
@@ -13,8 +15,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
   timeZone: "UTC",
 });
-
-type SimulationTier = "plus" | "pro";
 
 export function BillingSimulationPanel({
   hasRealPaidSubscription,
@@ -31,7 +31,7 @@ export function BillingSimulationPanel({
   const clearSimulation = useAction(
     api.functions.billingSimulation.clearCurrentUserBillingSimulation,
   );
-  const [pendingTier, setPendingTier] = useReducerState<SimulationTier | null>(
+  const [pendingTier, setPendingTier] = useReducerState<PaidPlanTier | null>(
     null,
   );
   const [resetting, setResetting] = useReducerState(false);
@@ -39,7 +39,7 @@ export function BillingSimulationPanel({
 
   if (!simulation?.available) return null;
 
-  const setTier = async (tier: SimulationTier) => {
+  const setTier = async (tier: PaidPlanTier) => {
     setPendingTier(tier);
     setError(null);
     try {
@@ -72,7 +72,9 @@ export function BillingSimulationPanel({
   };
 
   const busy = pendingTier !== null || resetting;
-  const activeTierLabel = simulation.tier === "pro" ? "Pro" : "Plus";
+  const activeTierLabel = simulation.tier
+    ? planTierLabel(simulation.tier)
+    : "paid";
 
   return (
     <Card
@@ -115,8 +117,8 @@ export function BillingSimulationPanel({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["plus", "pro"] as const).map((tier) => {
-          const label = tier === "plus" ? "Plus" : "Pro";
+        {PAID_PLAN_TIERS.map((tier) => {
+          const label = planTierLabel(tier);
           const current = simulation.active && simulation.tier === tier;
           return (
             <Button

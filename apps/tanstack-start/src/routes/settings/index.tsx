@@ -7,7 +7,12 @@ import { ChevronRight, CreditCard, TriangleAlert } from "lucide-react";
 
 import type { PlanTier } from "@redux/shared";
 import { api } from "@redux/backend/convex/_generated/api";
-import { DEFAULT_BILLING_CONFIG, getPlanConfig } from "@redux/shared";
+import {
+  DEFAULT_BILLING_CONFIG,
+  getPlanConfig,
+  getPlanTierRank,
+  planTierLabel,
+} from "@redux/shared";
 import { Button } from "@redux/ui/components/button";
 import { Card } from "@redux/ui/components/card";
 import {
@@ -135,6 +140,7 @@ function getCurrencyFormatter(currency: string) {
 const billingConfig = DEFAULT_BILLING_CONFIG;
 
 type StripePriceConfig = {
+  base: NonNullable<StripePlanPrice>;
   plus: NonNullable<StripePlanPrice>;
   pro: NonNullable<StripePlanPrice>;
 };
@@ -168,30 +174,11 @@ type PaidPlanSwitchPreview = {
   }[];
 };
 
-function tierRank(tier: PlanTier): number {
-  if (tier === "free") {
-    return 0;
-  }
-  if (tier === "plus") {
-    return 1;
-  }
-  return 2;
-}
-
-function planTierLabel(tier: PlanTier): string {
-  if (tier === "free") {
-    return "Free";
-  }
-  if (tier === "plus") {
-    return "Plus";
-  }
-  return "Pro";
-}
-
 function tierForConfiguredPriceId(
   priceId: string | undefined,
   products:
     | {
+        base?: { id: string } | null;
         plus?: { id: string } | null;
         pro?: { id: string } | null;
       }
@@ -200,6 +187,9 @@ function tierForConfiguredPriceId(
 ): PlanTier | null {
   if (!priceId || !products) {
     return null;
+  }
+  if (products.base?.id === priceId) {
+    return "base";
   }
   if (products.plus?.id === priceId) {
     return "plus";
@@ -538,6 +528,7 @@ function RouteComponent() {
     stripeCustomerBalance.balanceCount > 0;
 
   const currentTier = billingState?.tier ?? "free";
+  const basePrice = configuredStripePrices?.base ?? null;
   const plusPrice = configuredStripePrices?.plus ?? null;
   const proPrice = configuredStripePrices?.pro ?? null;
   const subscriptionId = billingState?.subscription?.subscriptionId;
@@ -556,8 +547,9 @@ function RouteComponent() {
     subscriptionId != null && subscriptionId !== ""
       ? liveSubscriptionSchedule
       : undefined;
-  const showPaidManage = tierRank(currentTier) >= 1 && !isSimulationActive;
-  const isOnPaidPlan = tierRank(currentTier) >= 1;
+  const showPaidManage =
+    getPlanTierRank(currentTier) >= 1 && !isSimulationActive;
+  const isOnPaidPlan = getPlanTierRank(currentTier) >= 1;
   const hasRealPaidSubscription =
     billingState?.billingMode === "actual" && isOnPaidPlan;
   const showMissingPaymentMethodNag =
@@ -565,7 +557,7 @@ function RouteComponent() {
 
   const renewSummary = renewalSummary(billingState?.currentPeriodEnd);
 
-  const rank = tierRank(currentTier);
+  const rank = getPlanTierRank(currentTier);
 
   const cancelAtPeriodEndMerged =
     effectiveLiveSubscriptionSchedule !== undefined
@@ -1248,7 +1240,7 @@ function RouteComponent() {
             </div>
           </Card>
         ) : null}
-        <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-4">
           <TierColumn
             name="Free"
             plan={getPlanConfig("free", billingConfig)}
@@ -1257,15 +1249,42 @@ function RouteComponent() {
             renewalSummary={renewSummary}
           />
           <TierColumn
+            name="Base"
+            plan={getPlanConfig("base", billingConfig)}
+            priceLabel={formatStripeRecurringPrice(basePrice ?? undefined)}
+            state={rank === 1 ? "current" : "available"}
+            priceId={isSimulationActive ? undefined : basePrice?.id}
+            buttonLabel="Base"
+            emphasize={rank === 0}
+            renewalSummary={renewSummary}
+            checkoutLoading={checkoutLoadingPriceId === basePrice?.id}
+            onSubscribe={
+              !isSimulationActive && basePrice?.id
+                ? () => void subscribeToPrice(basePrice.id)
+                : undefined
+            }
+            paidSwitch={
+              !isSimulationActive && isOnPaidPlan && rank > 1 && basePrice?.id
+                ? {
+                    isUpgrade: false,
+                    onRequest: () =>
+                      setPlanSwitchConfirm({
+                        priceId: basePrice.id,
+                        planName: "Base",
+                        isUpgrade: false,
+                      }),
+                  }
+                : undefined
+            }
+          />
+          <TierColumn
             name="Plus"
             plan={getPlanConfig("plus", billingConfig)}
             priceLabel={formatStripeRecurringPrice(plusPrice ?? undefined)}
-            state={
-              rank === 1 ? "current" : rank === 0 ? "available" : "available"
-            }
+            state={rank === 2 ? "current" : "available"}
             priceId={isSimulationActive ? undefined : plusPrice?.id}
             buttonLabel="Plus"
-            emphasize={rank === 0}
+            emphasize={rank === 1}
             renewalSummary={renewSummary}
             checkoutLoading={checkoutLoadingPriceId === plusPrice?.id}
             onSubscribe={
@@ -1274,14 +1293,14 @@ function RouteComponent() {
                 : undefined
             }
             paidSwitch={
-              !isSimulationActive && isOnPaidPlan && rank === 2 && plusPrice?.id
+              !isSimulationActive && isOnPaidPlan && rank !== 2 && plusPrice?.id
                 ? {
-                    isUpgrade: false,
+                    isUpgrade: rank < 2,
                     onRequest: () =>
                       setPlanSwitchConfirm({
                         priceId: plusPrice.id,
                         planName: "Plus",
-                        isUpgrade: false,
+                        isUpgrade: rank < 2,
                       }),
                   }
                 : undefined
@@ -1291,10 +1310,10 @@ function RouteComponent() {
             name="Pro"
             plan={getPlanConfig("pro", billingConfig)}
             priceLabel={formatStripeRecurringPrice(proPrice ?? undefined)}
-            state={rank === 2 ? "current" : rank < 2 ? "available" : "inactive"}
+            state={rank === 3 ? "current" : "available"}
             priceId={isSimulationActive ? undefined : proPrice?.id}
             buttonLabel="Pro"
-            emphasize={rank === 1}
+            emphasize={rank === 2}
             renewalSummary={renewSummary}
             checkoutLoading={checkoutLoadingPriceId === proPrice?.id}
             onSubscribe={
@@ -1303,7 +1322,7 @@ function RouteComponent() {
                 : undefined
             }
             paidSwitch={
-              !isSimulationActive && isOnPaidPlan && rank === 1 && proPrice?.id
+              !isSimulationActive && isOnPaidPlan && rank < 3 && proPrice?.id
                 ? {
                     isUpgrade: true,
                     onRequest: () =>

@@ -11,14 +11,16 @@ import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
-import type { ThinkingLevel } from "@redux/shared/models";
+import type { ByokProviderId, ThinkingLevel } from "@redux/shared/models";
 import type { SkillSummary } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   classifyChatAttachment,
   DEFAULT_IMAGE_GENERATION_MODEL_ID,
+  generationRequiresPlatformCredits,
   getChatModelConfig,
   getImageGenerationToolModels,
+  resolveEffectiveModelRoute,
   resolveModelAttachmentDelivery,
   resolveModelRoute,
 } from "@redux/shared/models";
@@ -116,6 +118,16 @@ export function ChatInput({
   const mcpServers =
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
+  const byokSummary = useQuery(api.functions.byok.getSettingsSummary, {});
+  const configuredProviders = useMemo(
+    () =>
+      new Set<ByokProviderId>(
+        (byokSummary?.credentials ?? []).map(
+          (credential) => credential.provider,
+        ),
+      ),
+    [byokSummary?.credentials],
+  );
   const queriedSkills = useQuery(
     api.functions.skills.list,
     {},
@@ -155,10 +167,9 @@ export function ChatInput({
     const next = selectedSkillIds.filter((skillId) => enabledIds.has(skillId));
     if (next.length !== selectedSkillIds.length) setSelectedSkillIds(next);
   }, [selectedSkillIds, setSelectedSkillIds, skills]);
-  const isPaidPlan =
-    billingState?.tier === "plus" || billingState?.tier === "pro";
+  const isPaidPlan = billingState?.entitlements.creditTopUps === true;
   const attachmentLimits =
-    billingState?.tier === "free"
+    billingState?.entitlements.featureLevel === "free"
       ? {
           maxPerMessage: FREE_PLAN_MAX_ATTACHMENTS,
           maxFileSizeBytes: FREE_PLAN_MAX_FILE_SIZE_BYTES,
@@ -400,6 +411,55 @@ export function ChatInput({
   const showErrorBorder = status === "error";
   const currentModelConfig = getChatModelConfig(selectedModel);
   const currentModelRoute = resolveModelRoute(selectedModel);
+  const byokEnabled = billingState?.entitlements.byok === true;
+  const effectiveMainRoute = useMemo(
+    () =>
+      resolveEffectiveModelRoute({
+        modelId: selectedModel,
+        config: byokSummary?.routing,
+        availableProviders: configuredProviders,
+        byokEnabled,
+      }),
+    [byokEnabled, byokSummary?.routing, configuredProviders, selectedModel],
+  );
+  const effectiveImageToolRoute = useMemo(
+    () =>
+      isImageGenerationEnabled
+        ? resolveEffectiveModelRoute({
+            modelId: selectedImageGenerationModelId,
+            config: byokSummary?.routing,
+            availableProviders: configuredProviders,
+            byokEnabled,
+          })
+        : undefined,
+    [
+      byokEnabled,
+      byokSummary?.routing,
+      configuredProviders,
+      isImageGenerationEnabled,
+      selectedImageGenerationModelId,
+    ],
+  );
+  const canInvokeTools = currentModelConfig?.supports.toolCalling === true;
+  const requiresPlatformCredits = generationRequiresPlatformCredits({
+    mainFundingSource: effectiveMainRoute?.fundingSource,
+    canInvokeTools,
+    searchEnabled: isSearchEnabled,
+    analysisWorkspaceEnabled: isAnalysisWorkspaceEnabled,
+    imageToolFundingSource: effectiveImageToolRoute?.fundingSource,
+  });
+  const isCreditBlocked = isOutOfCredits && requiresPlatformCredits;
+  // Mirrors the server route resolution: with hosted fallback off and no usable
+  // BYOK key the request would fail with `byok_route_unavailable`, so stop it
+  // in the composer instead.
+  const isRouteBlocked =
+    !!currentModelConfig &&
+    byokSummary !== undefined &&
+    (!effectiveMainRoute ||
+      (canInvokeTools && isImageGenerationEnabled && !effectiveImageToolRoute));
+  const routeBlockedMessage = !effectiveMainRoute
+    ? `${currentModelConfig?.name ?? "This model"} has no available route. Add a key for one of its providers or re-enable hosted fallback.`
+    : "The selected image generation model has no available route. Add a key for one of its providers or re-enable hosted fallback.";
   const availableThinkingLevels = currentModelConfig?.thinkingLevels ?? [];
   const effectiveThinkingLevel: ThinkingLevel =
     settings.thinkingLevel &&
@@ -690,8 +750,13 @@ export function ChatInput({
         return false;
       }
 
-      if (isOutOfCredits) {
+      if (isCreditBlocked) {
         toast.error("You are out of credits.");
+        return false;
+      }
+
+      if (isRouteBlocked) {
+        toast.error(routeBlockedMessage);
         return false;
       }
 
@@ -788,7 +853,9 @@ export function ChatInput({
       skillActivationScope,
       status,
       threadId,
-      isOutOfCredits,
+      isCreditBlocked,
+      isRouteBlocked,
+      routeBlockedMessage,
       posthog,
       skills,
     ],
@@ -963,8 +1030,13 @@ export function ChatInput({
       return;
     }
 
-    if (isOutOfCredits) {
+    if (isCreditBlocked) {
       toast.error("You are out of credits.");
+      return;
+    }
+
+    if (isRouteBlocked) {
+      toast.error(routeBlockedMessage);
       return;
     }
 
@@ -1085,7 +1157,9 @@ export function ChatInput({
     status,
     submitNewUserPayload,
     threadId,
-    isOutOfCredits,
+    isCreditBlocked,
+    isRouteBlocked,
+    routeBlockedMessage,
   ]);
 
   const handleKeyDown = useCallback(
@@ -1205,7 +1279,7 @@ export function ChatInput({
               onSaveEdit={handleSaveQueuedEdit}
             />
           ) : null}
-          {isOutOfCredits ? (
+          {isCreditBlocked ? (
             <div
               className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
               role="alert"
@@ -1231,6 +1305,30 @@ export function ChatInput({
                   }}
                 >
                   {isPaidPlan ? "Add credits" : "View plans"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {!isCreditBlocked && isRouteBlocked ? (
+            <div
+              className="border-destructive/40 bg-destructive/10 text-destructive mb-2 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur"
+              role="alert"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">No available model route.</p>
+                  <p className="mt-1 text-xs opacity-90">
+                    {routeBlockedMessage}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="bg-background text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors"
+                  onClick={() => {
+                    void navigate({ to: "/settings/models" });
+                  }}
+                >
+                  Model routing
                 </button>
               </div>
             </div>
@@ -1322,7 +1420,8 @@ export function ChatInput({
                 isSubmitting,
                 hasUploadingFiles,
                 draftReady,
-                isOutOfCredits,
+                isOutOfCredits: isCreditBlocked,
+                isRouteUnavailable: isRouteBlocked,
               }}
               imageGenerationModels={imageGenerationModels}
               selectedImageGenerationModelId={selectedImageGenerationModelId}

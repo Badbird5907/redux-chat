@@ -65,6 +65,7 @@ interface ChatInputToolbarProps {
     hasUploadingFiles: boolean;
     draftReady: boolean;
     isOutOfCredits: boolean;
+    isRouteUnavailable: boolean;
   };
   imageGenerationModels: {
     id: string;
@@ -145,6 +146,7 @@ export function ChatInputToolbar({
     hasUploadingFiles,
     draftReady,
     isOutOfCredits,
+    isRouteUnavailable,
   } = state;
   const [hasBeenReady, setHasBeenReady] = useState(settingsReady);
   if (settingsReady && !hasBeenReady) {
@@ -402,10 +404,17 @@ export function ChatInputToolbar({
                 : "bg-muted text-muted-foreground",
             )}
             onClick={onSubmit}
-            title={isOutOfCredits ? "You are out of credits" : "Send message"}
+            title={
+              isOutOfCredits
+                ? "You are out of credits"
+                : isRouteUnavailable
+                  ? "No available route for the selected model"
+                  : "Send message"
+            }
             disabled={
               isSubmitting ||
               isOutOfCredits ||
+              isRouteUnavailable ||
               hasUploadingFiles ||
               (!input.trim() && !hasUsableAttachments) ||
               !settingsReady ||

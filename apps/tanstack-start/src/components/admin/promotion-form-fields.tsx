@@ -113,7 +113,7 @@ export function AppCreditsConfigFields({
             <span className="min-w-0 flex-1 leading-snug">
               <span className="block text-sm font-medium">Any plan</span>
               <span className="text-muted-foreground block text-xs font-normal">
-                Free, Plus, and Pro users can redeem
+                Free, Base, Plus, and Pro users can redeem
               </span>
             </span>
           </Label>
@@ -129,21 +129,25 @@ export function AppCreditsConfigFields({
         </RadioGroup>
         {planEligibilityMode === "selected" ? (
           <div className="bg-card/50 grid gap-2 rounded-lg border p-3">
-            {(["free", "plus", "pro"] satisfies PlanTier[]).map((tier) => (
-              <Label key={tier} className="flex items-center gap-3 text-sm">
-                <Checkbox
-                  checked={selectedPlanTiers.includes(tier)}
-                  onCheckedChange={(checked) => {
-                    setSelectedPlanTiers((current) =>
-                      checked === true
-                        ? [...new Set([...current, tier])]
-                        : current.filter((currentTier) => currentTier !== tier),
-                    );
-                  }}
-                />
-                <span className="capitalize">{tier}</span>
-              </Label>
-            ))}
+            {(["free", "base", "plus", "pro"] satisfies PlanTier[]).map(
+              (tier) => (
+                <Label key={tier} className="flex items-center gap-3 text-sm">
+                  <Checkbox
+                    checked={selectedPlanTiers.includes(tier)}
+                    onCheckedChange={(checked) => {
+                      setSelectedPlanTiers((current) =>
+                        checked === true
+                          ? [...new Set([...current, tier])]
+                          : current.filter(
+                              (currentTier) => currentTier !== tier,
+                            ),
+                      );
+                    }}
+                  />
+                  <span className="capitalize">{tier}</span>
+                </Label>
+              ),
+            )}
           </div>
         ) : null}
       </div>
@@ -282,7 +286,12 @@ export function SubscriptionConfigFields({
         <Select
           value={targetTierMode}
           onValueChange={(value) => {
-            if (value === "all" || value === "plus" || value === "pro") {
+            if (
+              value === "all" ||
+              value === "base" ||
+              value === "plus" ||
+              value === "pro"
+            ) {
               setTargetTierMode(value);
             }
           }}
@@ -292,6 +301,7 @@ export function SubscriptionConfigFields({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All paid subscription tiers</SelectItem>
+            <SelectItem value="base">Base only</SelectItem>
             <SelectItem value="plus">Plus only</SelectItem>
             <SelectItem value="pro">Pro only</SelectItem>
           </SelectContent>

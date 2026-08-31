@@ -29,14 +29,22 @@ export function planTierMarketingFeatures(tier: PlanTier): string[] {
   if (tier === "free") {
     return ["1 attachment per message (up to 10 MB)"];
   }
+  if (tier === "base") {
+    return [
+      "Bring your own provider API keys",
+      "1 attachment per message (up to 10 MB)",
+      "Credit top-ups for hosted fallback and tools",
+    ];
+  }
   if (tier === "plus") {
     return [
+      "Bring your own provider API keys",
       "Multiple attachments per message",
       "Project workspaces & knowledge search",
       "Web search and analysis tools (credits apply)",
     ];
   }
-  return ["All features from Plus"];
+  return ["All features from Plus", "Bring your own provider API keys"];
 }
 
 export function getStripeRecurringPrice(product: StripePlanPrice | undefined):

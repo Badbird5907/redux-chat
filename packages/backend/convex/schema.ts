@@ -1,6 +1,11 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+import {
+  byokProviderValidator,
+  modelRoutingOverrideValidator,
+} from "./byokValidators";
+
 const messageStatus = v.union(
   v.literal("generating"),
   v.literal("completed"),
@@ -115,7 +120,11 @@ const promotionRedemptionStatus = v.union(
   v.literal("revoked"),
 );
 
-const paidPlanTier = v.union(v.literal("plus"), v.literal("pro"));
+const paidPlanTier = v.union(
+  v.literal("base"),
+  v.literal("plus"),
+  v.literal("pro"),
+);
 
 const threadShareSettings = v.object({
   onlyCurrentBranch: v.boolean(),
@@ -256,6 +265,35 @@ export default defineSchema({
     mcpServersEnabled: v.optional(v.boolean()),
     chatScroll: v.optional(chatScrollPreferences),
     skillActivationScope: v.optional(skillActivationScope),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  providerCredentials: defineTable({
+    userId: v.string(),
+    provider: byokProviderValidator,
+    ciphertext: v.string(),
+    iv: v.string(),
+    authTag: v.string(),
+    keyVersion: v.number(),
+    displaySuffix: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_userId_provider", ["userId", "provider"])
+    .index("by_provider_and_updatedAt", ["provider", "updatedAt"]),
+
+  userModelRouting: defineTable({
+    userId: v.string(),
+    preset: v.union(
+      v.literal("native_first"),
+      v.literal("openrouter_first"),
+      v.literal("custom"),
+    ),
+    providerPriority: v.array(byokProviderValidator),
+    hostedFallback: v.boolean(),
+    overrides: v.array(modelRoutingOverrideValidator),
+    catalogVersion: v.string(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
@@ -564,6 +602,10 @@ export default defineSchema({
     siblingIndex: v.number(),
     mutation: mutationInfo,
     model: v.optional(v.string()),
+    providerRouteId: v.optional(v.string()),
+    fundingSource: v.optional(
+      v.union(v.literal("user"), v.literal("platform")),
+    ),
     canceledAt: v.optional(v.number()),
     usage: v.optional(
       v.object({
@@ -809,7 +851,7 @@ export default defineSchema({
 
   billingSimulationOverrides: defineTable({
     userId: v.string(),
-    tier: v.union(v.literal("plus"), v.literal("pro")),
+    tier: v.union(v.literal("base"), v.literal("plus"), v.literal("pro")),
     periodStart: v.number(),
     periodEnd: v.number(),
     createdAt: v.number(),

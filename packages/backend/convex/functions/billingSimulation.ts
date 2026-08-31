@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 import { getPlanConfig } from "@redux/shared";
 
 import type { DataModel } from "../_generated/dataModel";
+import type { BillingSimulationTier } from "../billingSimulation";
 import { components, internal } from "../_generated/api";
 import { getBillingConfig, getUtcMonthBounds } from "../billing";
 import {
@@ -32,7 +33,7 @@ const STRIPE_NETWORK_TIMEOUT_MS = 10_000;
 type SimulationState = {
   available: true;
   active: true;
-  tier: "plus" | "pro";
+  tier: BillingSimulationTier;
   periodStart: number;
   periodEnd: number;
 };

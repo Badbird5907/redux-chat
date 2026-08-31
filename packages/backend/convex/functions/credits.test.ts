@@ -311,6 +311,51 @@ describe("credit ledger helpers", () => {
     expect(balance.spendableCredits).toBe(70);
   });
 
+  it("persists zero-cost usage metadata idempotently", async () => {
+    const t = convexTest(schema, modules);
+    const args = {
+      userId: USER_ID,
+      requestKey: "msg-byok",
+      amount: 0,
+      overageAllowed: false,
+      routeId: "openai:gpt-5.6-sol",
+      threadId: "thread-1",
+      messageId: "msg-byok",
+      rawUsdCost: 0,
+      effectiveUsdCost: 0,
+      markupMultiplier: 2,
+      tier: "base",
+      metadata: { modelFundingSource: "user" },
+    };
+
+    const first = await t.run(async (ctx) => debitCreditsTx(ctx, args));
+    const second = await t.run(async (ctx) => debitCreditsTx(ctx, args));
+    const debit = await t.run(async (ctx) =>
+      ctx.db
+        .query("creditDebits")
+        .withIndex("by_user_requestKey", (q) =>
+          q.eq("userId", USER_ID).eq("requestKey", args.requestKey),
+        )
+        .unique(),
+    );
+
+    expect(first).toMatchObject({
+      alreadyApplied: false,
+      amount: 0,
+      allocatedAmount: 0,
+      overdraftAmount: 0,
+    });
+    expect(second).toMatchObject({
+      alreadyApplied: true,
+      debitId: first.debitId,
+    });
+    expect(debit).toMatchObject({
+      amount: 0,
+      routeId: args.routeId,
+      metadata: { modelFundingSource: "user" },
+    });
+  });
+
   it("debit drains balance when overage disallowed and balance is too low", async () => {
     const t = convexTest(schema, modules);
 

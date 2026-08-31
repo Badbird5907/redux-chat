@@ -14,7 +14,7 @@ export type PromotionFormType =
   | "stripe_invoice_credit";
 export type SubscriptionDuration = "once" | "repeating" | "forever";
 export type DiscountType = "percent" | "amount";
-export type TargetTierMode = "all" | "plus" | "pro";
+export type TargetTierMode = "all" | "base" | "plus" | "pro";
 export type AppCreditPlanEligibilityMode = "all" | "selected";
 export type AppCreditExpiryMode =
   | "never"
@@ -151,7 +151,9 @@ export function targetTierModeFromStored(
 ): TargetTierMode {
   if (targetTiers === "all") return "all";
   const targetTier = Array.isArray(targetTiers) ? targetTiers[0] : undefined;
-  return targetTier === "plus" || targetTier === "pro" ? targetTier : "all";
+  return targetTier === "base" || targetTier === "plus" || targetTier === "pro"
+    ? targetTier
+    : "all";
 }
 
 export function appCreditPlanEligibilityModeFromStored(
@@ -163,10 +165,12 @@ export function appCreditPlanEligibilityModeFromStored(
 export function appCreditSelectedPlanTiersFromStored(
   eligiblePlanTiers: unknown,
 ): PlanTier[] {
-  if (!Array.isArray(eligiblePlanTiers)) return ["free", "plus", "pro"];
+  if (!Array.isArray(eligiblePlanTiers)) {
+    return ["free", "base", "plus", "pro"];
+  }
   const tiers = eligiblePlanTiers.filter(
     (tier): tier is PlanTier =>
-      tier === "free" || tier === "plus" || tier === "pro",
+      tier === "free" || tier === "base" || tier === "plus" || tier === "pro",
   );
   return tiers.length > 0 ? tiers : ["free"];
 }

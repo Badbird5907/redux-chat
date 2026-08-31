@@ -8,6 +8,12 @@
  * @module
  */
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
 import type * as billingSimulation from "../billingSimulation.js";
@@ -18,6 +24,7 @@ import type * as functions_attachments from "../functions/attachments.js";
 import type * as functions_auditLog from "../functions/auditLog.js";
 import type * as functions_billing from "../functions/billing.js";
 import type * as functions_billingSimulation from "../functions/billingSimulation.js";
+import type * as functions_byok from "../functions/byok.js";
 import type * as functions_chatScrollPreferences from "../functions/chatScrollPreferences.js";
 import type * as functions_credits from "../functions/credits.js";
 import type * as functions_defaultMessageSettings from "../functions/defaultMessageSettings.js";
@@ -33,8 +40,8 @@ import type * as functions_modelGeneratedFiles from "../functions/modelGenerated
 import type * as functions_projects from "../functions/projects.js";
 import type * as functions_promotions from "../functions/promotions.js";
 import type * as functions_skills from "../functions/skills.js";
-import type * as functions_threadShares from "../functions/threadShares.js";
 import type * as functions_threads from "../functions/threads.js";
+import type * as functions_threadShares from "../functions/threadShares.js";
 import type * as functions_user from "../functions/user.js";
 import type * as http from "../http.js";
 import type * as init from "../init.js";
@@ -45,12 +52,6 @@ import type * as stripeSubscriptionReconciliation from "../stripeSubscriptionRec
 import type * as stripeSubscriptionSync from "../stripeSubscriptionSync.js";
 import type * as usageStats from "../usageStats.js";
 import type * as zod from "../zod.js";
-
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   "functions/auditLog": typeof functions_auditLog;
   "functions/billing": typeof functions_billing;
   "functions/billingSimulation": typeof functions_billingSimulation;
+  "functions/byok": typeof functions_byok;
   "functions/chatScrollPreferences": typeof functions_chatScrollPreferences;
   "functions/credits": typeof functions_credits;
   "functions/defaultMessageSettings": typeof functions_defaultMessageSettings;

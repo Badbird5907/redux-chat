@@ -1,6 +1,7 @@
 import type { GenericActionCtx } from "convex/server";
 import type Stripe from "stripe";
 
+import type { PaidPlanTier } from "@redux/shared";
 import { getPlanConfig } from "@redux/shared";
 
 import type { DataModel } from "./_generated/dataModel";
@@ -65,7 +66,7 @@ export async function syncStripeSubscriptionAllowance(
   subscription: Stripe.Subscription,
 ): Promise<{
   userId: string;
-  tier: "plus" | "pro";
+  tier: PaidPlanTier;
   amount: number;
   periodStart: number;
   periodEnd: number;

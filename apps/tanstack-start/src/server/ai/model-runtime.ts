@@ -1,9 +1,13 @@
+import type { ProviderCredentialPayload } from "@/server/byok/crypto";
 import type { ImageModel, LanguageModel } from "ai";
 
 import type { ChatModelConfig, ModelRouteInfo } from "@redux/shared/models";
 import { getChatModelConfig, resolveModelRoute } from "@redux/shared/models";
 
-import { RUNTIME_PROVIDERS } from "./provider-runtime";
+import {
+  getPlatformProviderCredentials,
+  RUNTIME_PROVIDERS,
+} from "./provider-runtime";
 
 export interface ResolvedAiSdkModel {
   model: LanguageModel;
@@ -38,8 +42,26 @@ export function resolveAiSdkModel(modelId: string): ResolvedAiSdkModel {
     throw new Error(`Unsupported runtime provider: ${runtimeProviderKey}`);
   }
 
+  return resolveAiSdkModelForRoute(
+    modelConfig,
+    route,
+    getPlatformProviderCredentials(runtimeProviderKey),
+  );
+}
+
+export function resolveAiSdkModelForRoute(
+  modelConfig: ChatModelConfig,
+  route: ModelRouteInfo,
+  credentials: ProviderCredentialPayload,
+): ResolvedAiSdkModel {
+  const runtimeProviderKey =
+    route.behavior.runtimeProviderKey ?? route.provider;
+  const runtimeProvider = RUNTIME_PROVIDERS[runtimeProviderKey];
+  if (!runtimeProvider) {
+    throw new Error(`Unsupported runtime provider: ${runtimeProviderKey}`);
+  }
   return {
-    model: runtimeProvider.createModel(route),
+    model: runtimeProvider.createModel(route, credentials),
     modelConfig,
     route,
   };
@@ -67,8 +89,28 @@ export function resolveAiSdkImageModel(
     );
   }
 
+  return resolveAiSdkImageModelForRoute(
+    modelConfig,
+    route,
+    getPlatformProviderCredentials(runtimeProviderKey),
+  );
+}
+
+export function resolveAiSdkImageModelForRoute(
+  modelConfig: ChatModelConfig,
+  route: ModelRouteInfo,
+  credentials: ProviderCredentialPayload,
+): ResolvedAiSdkImageModel {
+  const runtimeProviderKey =
+    route.behavior.runtimeProviderKey ?? route.provider;
+  const runtimeProvider = RUNTIME_PROVIDERS[runtimeProviderKey];
+  if (!runtimeProvider?.createImageModel) {
+    throw new Error(
+      `Unsupported image runtime provider: ${runtimeProviderKey}`,
+    );
+  }
   return {
-    model: runtimeProvider.createImageModel(route),
+    model: runtimeProvider.createImageModel(route, credentials),
     modelConfig,
     route,
   };

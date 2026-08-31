@@ -271,6 +271,17 @@ export function getModelRoute(routeId: string): ModelRouteInfo | undefined {
   return MODEL_ROUTE_BY_ID.get(routeId as ModelProviderRouteId);
 }
 
+export function getModelRoutes(modelId: string): ModelRouteInfo[] {
+  const config = getChatModelConfig(modelId);
+  if (!config) {
+    return [];
+  }
+  return config.providerIds.flatMap((routeId) => {
+    const route = getModelRoute(routeId);
+    return route ? [route] : [];
+  });
+}
+
 export function resolveModelRoute(modelId: string): ModelRouteInfo | undefined {
   const directRoute = getModelRoute(modelId);
   if (directRoute) {

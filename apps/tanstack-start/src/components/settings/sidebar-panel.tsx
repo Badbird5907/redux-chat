@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Cpu,
   FileText,
   Keyboard,
   MessageSquareHeart,
@@ -33,6 +34,7 @@ export function SettingsSidebarPanel() {
   const isHotkeysActive = pathname.startsWith("/settings/hotkeys");
   const isAttachmentsActive = pathname.startsWith("/settings/attachments");
   const isMcpActive = pathname.startsWith("/settings/mcp");
+  const isModelsActive = pathname.startsWith("/settings/models");
   const isSupportActive = pathname.startsWith("/settings/support");
 
   return (
@@ -56,6 +58,16 @@ export function SettingsSidebarPanel() {
             >
               <SlidersHorizontal />
               <span>General</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isModelsActive}
+              className="data-active:bg-muted data-active:text-foreground hover:data-active:bg-muted w-full"
+              render={<Link to="/settings/models" />}
+            >
+              <Cpu />
+              <span>Models</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

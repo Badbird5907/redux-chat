@@ -10,6 +10,14 @@ export const SETTINGS_NAV_ITEMS = [
     searchBlob: "general settings preferences",
   },
   {
+    value: "settings-models",
+    to: "/settings/models" as const,
+    title: "Models",
+    subtitle: "Provider keys and routing",
+    searchBlob:
+      "models byok api keys providers routing openrouter openai anthropic",
+  },
+  {
     value: "settings-security",
     to: "/settings/security" as const,
     title: "Security",

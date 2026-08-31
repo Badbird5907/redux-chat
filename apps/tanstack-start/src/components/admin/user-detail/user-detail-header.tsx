@@ -82,7 +82,7 @@ export function AdminUserDetailHeader({
               color={
                 billingState.tier === "free"
                   ? undefined
-                  : billingState.tier === "plus"
+                  : billingState.tier === "base" || billingState.tier === "plus"
                     ? "orange"
                     : "critical"
               }

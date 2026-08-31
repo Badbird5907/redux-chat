@@ -27,6 +27,20 @@ export const env = createEnv({
     SILO_TOKEN: z.string().min(1),
     EXA_API_KEY: z.string().min(1),
     E2B_API_KEY: z.string().min(1),
+    BYOK_ENCRYPTION_KEY: z.string().refine(
+      (value) => {
+        try {
+          const decoded = atob(value);
+          return decoded.length === 32 && btoa(decoded) === value;
+        } catch {
+          return false;
+        }
+      },
+      {
+        message:
+          "BYOK_ENCRYPTION_KEY must be valid base64 that decodes to exactly 32 bytes.",
+      },
+    ),
     ANTHROPIC_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1),

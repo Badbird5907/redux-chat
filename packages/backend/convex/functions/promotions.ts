@@ -63,9 +63,14 @@ const promotionRedemptionStatusValidator = v.union(
   v.literal("revoked"),
 );
 
-const paidPlanTierValidator = v.union(v.literal("plus"), v.literal("pro"));
+const paidPlanTierValidator = v.union(
+  v.literal("base"),
+  v.literal("plus"),
+  v.literal("pro"),
+);
 const planTierValidator = v.union(
   v.literal("free"),
+  v.literal("base"),
   v.literal("plus"),
   v.literal("pro"),
 );
@@ -1968,8 +1973,9 @@ async function getRedemptionByRedemptionId(
 
 function subscriptionTierRank(tier: string): number {
   if (tier === "free") return 0;
-  if (tier === "plus") return 1;
-  if (tier === "pro") return 2;
+  if (tier === "base") return 1;
+  if (tier === "plus") return 2;
+  if (tier === "pro") return 3;
   return -1;
 }
 

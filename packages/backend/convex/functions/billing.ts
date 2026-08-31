@@ -2,11 +2,12 @@ import type { GenericActionCtx, GenericQueryCtx } from "convex/server";
 import type Stripe from "stripe";
 import { ConvexError, v } from "convex/values";
 
-import type { PlanTier } from "@redux/shared";
+import type { PlanEntitlements, PlanTier } from "@redux/shared";
 import {
   calculatePurchasedCreditsFromCents,
   calculateUsageCharge,
   getPlanConfig,
+  getPlanTierRank,
   getUsageTokenEquivalent,
   MAX_CREDIT_TOP_UP_USD_CENTS,
   MIN_CREDIT_TOP_UP_USD_CENTS,
@@ -14,6 +15,7 @@ import {
 
 import type { DataModel } from "../_generated/dataModel";
 import type { BillingSubscriptionSchedule } from "../billing";
+import type { BillingSimulationTier } from "../billingSimulation";
 import { api, components, internal } from "../_generated/api";
 import {
   billingDebugWarn,
@@ -48,12 +50,6 @@ import {
 import { action, query } from "./index";
 import { internalMutation, internalQuery } from "./internal";
 
-function planTierRank(tier: PlanTier): number {
-  if (tier === "free") return 0;
-  if (tier === "plus") return 1;
-  return 2;
-}
-
 type BillingActionCtx = GenericActionCtx<DataModel> & {
   userId: string;
 };
@@ -63,7 +59,7 @@ export type BillingSubscriptionState = {
   subscription: ReturnType<typeof toSubscriptionSnapshot>;
   billingMode: "actual" | "simulation";
   simulation?: {
-    tier: "plus" | "pro";
+    tier: BillingSimulationTier;
     periodStart: number;
     periodEnd: number;
   };
@@ -74,7 +70,7 @@ type BillingSimulationState = {
   available: boolean;
   active: boolean;
   override: {
-    tier: "plus" | "pro";
+    tier: BillingSimulationTier;
     periodStart: number;
     periodEnd: number;
   } | null;
@@ -98,6 +94,7 @@ type BillingRefreshResult = {
     expiresAt: number;
   }[];
   overageAllowed: boolean;
+  entitlements: PlanEntitlements;
   grantApplied: boolean;
   periodKey: string;
   subscriptionSchedule: BillingSubscriptionSchedule;
@@ -157,6 +154,7 @@ const usageValidator = v.object({
 const toolCallValidator = v.object({
   billingKey: v.string(),
   invocationCount: v.number(),
+  fundingSource: v.optional(v.union(v.literal("user"), v.literal("platform"))),
 });
 
 const STRIPE_NETWORK_TIMEOUT_MS = 10_000;
@@ -167,6 +165,7 @@ export const getConfiguredStripePrices = query({
   handler: () => {
     const prices = getStripePlanPrices();
     return {
+      base: { id: prices.base, amount: undefined, currency: "USD" },
       plus: { id: prices.plus, amount: undefined, currency: "USD" },
       pro: { id: prices.pro, amount: undefined, currency: "USD" },
     };
@@ -176,12 +175,18 @@ export const getConfiguredStripePrices = query({
 export const getConfiguredStripePriceDetails = action({
   args: {},
   handler: async (): Promise<{
+    base: { id: string; amount: number | null; currency: string | null };
     plus: { id: string; amount: number | null; currency: string | null };
     pro: { id: string; amount: number | null; currency: string | null };
   }> => {
     const prices = getStripePlanPrices();
     const stripe = getStripeSdkClient();
-    const [plus, pro] = await Promise.all([
+    const [base, plus, pro] = await Promise.all([
+      withTimeout(
+        stripe.prices.retrieve(prices.base),
+        STRIPE_NETWORK_TIMEOUT_MS,
+        "stripe.prices.retrieve(base)",
+      ),
       withTimeout(
         stripe.prices.retrieve(prices.plus),
         STRIPE_NETWORK_TIMEOUT_MS,
@@ -195,6 +200,11 @@ export const getConfiguredStripePriceDetails = action({
     ]);
 
     return {
+      base: {
+        id: prices.base,
+        amount: base.unit_amount,
+        currency: base.currency.toUpperCase(),
+      },
       plus: {
         id: prices.plus,
         amount: plus.unit_amount,
@@ -344,6 +354,7 @@ export const getCurrentBillingState = query({
       markupMultiplier: plan.markupMultiplier,
       includedMonthlyCredits: plan.includedMonthlyCredits,
       overageAllowed: plan.overageAllowed,
+      entitlements: plan.entitlements,
       currentPeriodStart:
         subscriptionState.simulation?.periodStart ??
         subscriptionState.subscription?.currentPeriodStart ??
@@ -696,6 +707,9 @@ export const createCurrentUserCreditTopUpCheckout = action({
 export const previewGenerationCharge = query({
   args: {
     routeId: v.string(),
+    modelFundingSource: v.optional(
+      v.union(v.literal("user"), v.literal("platform")),
+    ),
     usage: usageValidator,
     toolCalls: v.optional(v.array(toolCallValidator)),
   },
@@ -711,6 +725,7 @@ export const previewGenerationCharge = query({
         usage: args.usage,
         toolCalls: args.toolCalls,
         tier: subscriptionState.tier,
+        modelFundingSource: args.modelFundingSource,
       },
       getBillingConfig(),
     );
@@ -743,7 +758,9 @@ export const previewCurrentUserPaidPlanSwitch = action({
       throw new Error("That price is not a configured plan.");
     }
 
-    if (planTierRank(targetTier) <= planTierRank(subscriptionState.tier)) {
+    if (
+      getPlanTierRank(targetTier) <= getPlanTierRank(subscriptionState.tier)
+    ) {
       throw new Error("Immediate invoice previews are only used for upgrades.");
     }
 
@@ -858,8 +875,8 @@ export const switchCurrentUserPaidPlan = action({
       throw new Error("You are already on this plan.");
     }
 
-    const fromRank = planTierRank(subscriptionState.tier);
-    const toRank = planTierRank(targetTier);
+    const fromRank = getPlanTierRank(subscriptionState.tier);
+    const toRank = getPlanTierRank(targetTier);
     const stripe = getStripeSdkClient();
     const liveSub = await withTimeout(
       stripe.subscriptions.retrieve(subscription.subscriptionId),
@@ -1013,6 +1030,9 @@ export const recordUsageEvent = action({
     messageId: v.string(),
     threadId: v.string(),
     routeId: v.string(),
+    modelFundingSource: v.optional(
+      v.union(v.literal("user"), v.literal("platform")),
+    ),
     usage: usageValidator,
     toolCalls: v.optional(v.array(toolCallValidator)),
   },
@@ -1040,6 +1060,7 @@ export const recordUsageEvent = action({
         usage: args.usage,
         toolCalls: args.toolCalls,
         tier: subscriptionState.tier,
+        modelFundingSource: args.modelFundingSource,
       },
       getBillingConfig(),
     );
@@ -1057,9 +1078,11 @@ export const recordUsageEvent = action({
     // always produces >0 output tokens, so all-zero means "not reported".
     // Enforce a minimum of 1 credit so no generation is completely free.
     const creditsToDebit =
-      charge.credits > 0 || getUsageTokenEquivalent(args.usage) > 0
+      args.modelFundingSource === "user"
         ? charge.credits
-        : 1;
+        : charge.credits > 0 || getUsageTokenEquivalent(args.usage) > 0
+          ? charge.credits
+          : 1;
 
     if (creditsToDebit !== charge.credits) {
       billingDebugWarn("billing_zero_usage_minimum_applied", {
@@ -1092,6 +1115,7 @@ export const recordUsageEvent = action({
           usedPricingFallback: charge.usedPricingFallback,
           toolUsdCost: charge.toolUsdCost,
           modelUsdCost: charge.modelUsdCost,
+          modelFundingSource: args.modelFundingSource ?? "platform",
         },
       },
     );
@@ -1339,6 +1363,7 @@ async function refreshBillingStateForUser(
     bucketBalances: balance.bucketBalances,
     expiringSoon: balance.expiringSoon,
     overageAllowed: plan.overageAllowed,
+    entitlements: plan.entitlements,
     grantApplied,
     periodKey,
     subscriptionSchedule,
@@ -1471,7 +1496,7 @@ function selectBestSubscriptionState(
         return best;
       }
       const tier = resolveTierFromSubscription(subscription);
-      return planTierRank(tier) > planTierRank(best.tier)
+      return getPlanTierRank(tier) > getPlanTierRank(best.tier)
         ? { tier, subscription, billingMode: "actual" }
         : best;
     },

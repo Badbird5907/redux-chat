@@ -50,6 +50,7 @@ describe("real subscription detection for simulation", () => {
   beforeEach(() => {
     vi.stubEnv("SITE_URL", "");
     vi.stubEnv("AUTH_SECRET", "");
+    vi.stubEnv("STRIPE_BASE_PRICE_ID", "price_base");
     vi.stubEnv("STRIPE_PLUS_PRICE_ID", "price_plus");
     vi.stubEnv("STRIPE_PRO_PRICE_ID", "price_pro");
   });
@@ -59,6 +60,15 @@ describe("real subscription detection for simulation", () => {
   });
 
   it("blocks active and trialing configured subscriptions", () => {
+    expect(
+      hasActiveRealStripeSubscription([
+        {
+          status: "active",
+          priceId: "price_base",
+          stripeSubscriptionId: "sub_base",
+        },
+      ]),
+    ).toBe(true);
     expect(
       hasActiveRealStripeSubscription([
         {

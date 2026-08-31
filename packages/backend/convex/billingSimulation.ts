@@ -9,9 +9,10 @@ import {
 } from "./billing";
 import { backendEnv } from "./env";
 
-export type BillingSimulationTier = "plus" | "pro";
+export type BillingSimulationTier = "base" | "plus" | "pro";
 
 export const billingSimulationTierValidator = v.union(
+  v.literal("base"),
   v.literal("plus"),
   v.literal("pro"),
 );

@@ -14,10 +14,10 @@ and webhooks. Credit balances are authoritative in Convex.
    live Stripe schedule details such as cancel-at-period-end and pending price
    changes. When preview billing simulation is active it uses the simulated tier
    and does not fetch Stripe customer, schedule, or payment-method state.
-4. If `spendableCredits <= 0` and overage is disabled, chat returns `402` with
-   `{ error: "out_of_credits" }`.
-5. On generation finish, `api.functions.billing.recordUsageEvent` debits the
-   Convex ledger.
+4. Hosted model routes and app-funded paid tools require spendable credits.
+   Pure BYOK model requests can run at zero Redux Chat credits.
+5. On generation finish, `api.functions.billing.recordUsageEvent` debits only
+   platform-funded model and tool costs from the Convex ledger.
 
 ## Source Of Truth
 
@@ -67,12 +67,12 @@ localhost origin (`localhost`, `127.0.0.1`, or `::1`) or an HTTPS
 `*.vercel.app` origin. Custom domains, including production, remain ineligible
 even if the flag is set accidentally.
 
-An authenticated user can simulate Plus or Pro for only their own account. The
-override and its distinct `billing_simulation` monthly credit grant expire at
-the end of the current UTC month. A real active/trialing Stripe subscription
-blocks activation. While simulation is active, Stripe billing controls and
-Stripe-backed promotions are unavailable until the user resets simulation;
-ordinary app-credit promotions continue to work.
+An authenticated user can simulate Base, Plus, or Pro for only their own
+account. The override and its distinct `billing_simulation` monthly credit grant
+expire at the end of the current UTC month. A real active/trialing Stripe
+subscription blocks activation. While simulation is active, Stripe billing
+controls and Stripe-backed promotions are unavailable until the user resets
+simulation; ordinary app-credit promotions continue to work.
 
 Configure `BILLING_SIMULATION_ENABLED=true` in Vercel's Preview environment.
 The deploy script copies the value to the branch's Convex preview and removes a
@@ -97,7 +97,8 @@ tracking.
 
 ## Stripe Dashboard Requirements
 
-- Recurring prices exist for Plus and Pro and match:
+- Recurring prices exist for Base, Plus, and Pro and match:
+  - `STRIPE_BASE_PRICE_ID` ($2/month)
   - `STRIPE_PLUS_PRICE_ID`
   - `STRIPE_PRO_PRICE_ID`
 - Stripe webhook route points at `<convex-site-url>/stripe/webhook`.
@@ -123,9 +124,11 @@ tracking.
 ```bash
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+STRIPE_BASE_PRICE_ID=
 STRIPE_PLUS_PRICE_ID=
 STRIPE_PRO_PRICE_ID=
 STRIPE_CREDIT_TOP_UP_PRODUCT_ID=
+BYOK_ENCRYPTION_KEY= # base64-encoded 32-byte key; app server only
 BILLING_SIMULATION_ENABLED=false
 ```
 

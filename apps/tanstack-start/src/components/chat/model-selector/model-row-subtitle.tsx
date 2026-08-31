@@ -1,11 +1,26 @@
+import { Info } from "lucide-react";
+
 import type { PlanTier } from "@redux/shared";
-import type { ChatModelConfig } from "@redux/shared/models";
+import type {
+  ByokProviderId,
+  ChatModelConfig,
+  UserModelRoutingConfig,
+} from "@redux/shared/models";
 import {
   calculateDisplayMultiplier,
   getRoundedMultiplierLabel,
 } from "@redux/shared";
+import {
+  getModelDisplayName,
+  resolveEffectiveModelRoute,
+} from "@redux/shared/models";
 import { Badge } from "@redux/ui/components/badge";
 import { useTheme } from "@redux/ui/components/theme";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@redux/ui/components/tooltip";
 import { cn } from "@redux/ui/lib/utils";
 
 import {
@@ -40,9 +55,15 @@ function providerLogoEntry(maker: string) {
 export function ModelRowSubtitle({
   model,
   tier,
+  routing,
+  configuredProviders,
+  byokEnabled,
 }: {
   model: ChatModelConfig;
   tier: PlanTier;
+  routing?: UserModelRoutingConfig;
+  configuredProviders: ReadonlySet<ByokProviderId>;
+  byokEnabled: boolean;
 }) {
   const { resolvedTheme } = useTheme();
   const entry = providerLogoEntry(model.maker);
@@ -52,6 +73,13 @@ export function ModelRowSubtitle({
     tier,
   );
   const multiplierLabel = getRoundedMultiplierLabel(displayMultiplier);
+  const effectiveRoute = resolveEffectiveModelRoute({
+    modelId: model.id,
+    config: routing,
+    availableProviders: configuredProviders,
+    byokEnabled,
+  });
+  const isByok = effectiveRoute?.fundingSource === "user";
   return (
     <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px] leading-none">
       {Cmp ? <Cmp className="size-3 shrink-0 opacity-90" aria-hidden /> : null}
@@ -60,11 +88,45 @@ export function ModelRowSubtitle({
         variant="outline"
         className={cn(
           "text-[10px] leading-none tracking-wide uppercase",
-          displayMultiplierBadgeClassName(displayMultiplier),
+          isByok
+            ? "border-violet-500/35 bg-violet-500/10 text-violet-800 dark:text-violet-300"
+            : displayMultiplierBadgeClassName(displayMultiplier),
         )}
       >
-        {multiplierLabel}
+        {isByok ? "BYOK" : multiplierLabel}
       </Badge>
+      {effectiveRoute ? (
+        <Tooltip delay={250}>
+          <TooltipTrigger
+            render={(props) => (
+              <button
+                type="button"
+                {...props}
+                className={cn(
+                  "text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2",
+                  props.className,
+                )}
+                aria-label={`Routing information for ${getModelDisplayName(model.id)}`}
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <Info className="size-3" aria-hidden />
+              </button>
+            )}
+          />
+          <TooltipContent className="space-y-1.5 py-2" side="top">
+            <p className="font-semibold">{effectiveRoute.route.providerName}</p>
+            <p>
+              {isByok ? "Your API key (BYOK)" : "Redux Chat hosted (credits)"}
+            </p>
+            <p className="text-muted-foreground capitalize">
+              {effectiveRoute.reason === "priority"
+                ? "Automatic priority"
+                : effectiveRoute.reason}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
     </div>
   );
 }

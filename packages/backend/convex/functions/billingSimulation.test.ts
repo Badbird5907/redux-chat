@@ -23,7 +23,7 @@ describe("billing simulation mutations", () => {
     vi.useRealTimers();
   });
 
-  it("activates Plus by revoking free credits and creating a distinct grant", async () => {
+  it("activates Base by revoking free credits and creating a distinct grant", async () => {
     const t = convexTest(schema, modules);
     await t.mutation(
       internal.functions.credits.internal_ensureMonthlyFreeCredits,
@@ -34,10 +34,10 @@ describe("billing simulation mutations", () => {
       internal.functions.billingSimulation.internal_setBillingSimulation,
       {
         userId: USER_ID,
-        tier: "plus",
+        tier: "base",
         periodStart: PERIOD_START,
         periodEnd: PERIOD_END,
-        amount: 1_000_000,
+        amount: 250_000,
       },
     );
 
@@ -47,7 +47,7 @@ describe("billing simulation mutations", () => {
     );
     expect(state.override).toMatchObject({
       userId: USER_ID,
-      tier: "plus",
+      tier: "base",
       periodStart: PERIOD_START,
       periodEnd: PERIOD_END,
     });
@@ -68,8 +68,8 @@ describe("billing simulation mutations", () => {
         expect.objectContaining({
           source: "billing_simulation",
           sourceId: "billing-simulation:user-1:2024-01",
-          amount: 1_000_000,
-          remaining: 1_000_000,
+          amount: 250_000,
+          remaining: 250_000,
           status: "active",
         }),
       ]),

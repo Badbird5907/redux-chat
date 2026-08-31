@@ -85,7 +85,11 @@ describe("promotion helpers", () => {
     } as const;
 
     expect(() => assertSubscriptionPromotionConfig(config)).not.toThrow();
-    expect(getPromotionRedeemableTiers(config)).toEqual(["plus", "pro"]);
+    expect(getPromotionRedeemableTiers(config)).toEqual([
+      "base",
+      "plus",
+      "pro",
+    ]);
     expect(isGiftedSubscriptionConfig(config)).toBe(false);
     expect(isFullDiscount(config)).toBe(false);
     expect(
@@ -93,7 +97,7 @@ describe("promotion helpers", () => {
         kind: "subscription_discount",
         config,
       }),
-    ).toBe("25% off Plus or Pro for 3 months");
+    ).toBe("25% off Base or Plus or Pro for 3 months");
     expect(
       discountedPriceCentsFromList(10000, { type: "percent", percentOff: 25 }),
     ).toBe(7500);
