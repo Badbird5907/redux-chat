@@ -1,6 +1,6 @@
 ---
 name: add-model
-description: Use when asked to add, register, expose, or support a new AI model, including requests like "Add Gemini 3.7 Flash". Refreshes the generated models.dev catalog, adds the curated model and provider routes, verifies capabilities and reasoning controls, and tests the registry and live model when available.
+description: Use when asked to add, register, expose, or support a new AI model, including requests like "Add Gemini 3.7 Flash". Refreshes the generated models.dev catalog, adds the curated model and provider routes, verifies capabilities and reasoning controls, and validates the live model when available.
 ---
 
 # Add a model in one pass
@@ -23,7 +23,6 @@ route must agree.
   generated snapshot. A route ID that does not resolve is silently omitted.
 - `packages/shared/src/models/route-behavior.ts` lists route providers the
   runtime knows how to use.
-- `packages/shared/src/models/registry.test.ts` is the focused regression test.
 
 Use current generated metadata and official provider documentation as evidence.
 Do not invent model IDs, availability, pricing, context limits, modalities, or
@@ -122,28 +121,11 @@ If this is a new maker, create its curated file and import it into
 `packages/shared/src/models/curated/index.ts`. Use the model's maker for the
 curated provider, not necessarily the company hosting the route.
 
-### 4. Add a focused registry test
+### 4. Validate the complete change
 
-Update `packages/shared/src/models/registry.test.ts`. Resolve the canonical ID
-with `getChatModelConfig` and assert at least:
-
-- the model exists;
-- the exact ordered `providerIds`;
-- the intended `defaultProviderId`;
-- important generated capabilities such as attachments, reasoning, or image
-  output;
-- the exact `thinkingLevels`.
-
-Add provider-specific behavior assertions when the new route needs custom
-behavior. The existence assertion is mandatory because unresolved curated
-routes otherwise disappear without a compile error.
-
-### 5. Validate the complete change
-
-Run the narrow checks first, then affected-package checks:
+Run the affected-package checks:
 
 ```bash
-pnpm -F @redux/shared test -- src/models/registry.test.ts
 pnpm -F @redux/models typecheck
 pnpm -F @redux/shared typecheck
 pnpm -F @redux/models lint
@@ -170,6 +152,6 @@ entry as metadata evidence, not proof that the runtime route works.
 ## Completion standard
 
 Finish with generated catalog updates, curated registration, a focused
-regression test, all relevant checks passing, and a live smoke test when the
+diff review, all relevant checks passing, and a live smoke test when the
 environment supports it. Report any unverified provider behavior explicitly;
 never claim one-shot support based only on successful typechecking.
