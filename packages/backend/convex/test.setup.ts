@@ -13,6 +13,7 @@ export const modules: Record<string, () => Promise<unknown>> = {
   "./functions/billing.ts": () => import("./functions/billing"),
   "./functions/billingSimulation.ts": () =>
     import("./functions/billingSimulation"),
+  "./functions/byok.ts": () => import("./functions/byok"),
   "./functions/credits.ts": () => import("./functions/credits"),
   "./functions/promotions.ts": () => import("./functions/promotions"),
   "./functions/threadShares.ts": () => import("./functions/threadShares"),

@@ -11,7 +11,7 @@ import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 import { estimateTokenCount, splitByTokens } from "tokenx";
 
-import type { ByokProviderId, ThinkingLevel } from "@redux/shared/models";
+import type { ThinkingLevel } from "@redux/shared/models";
 import type { SkillSummary } from "@redux/types";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
@@ -40,6 +40,7 @@ import {
   useMessageQueue,
 } from "@/components/chat/use-message-queue";
 import { submitMessage } from "@/components/chat/use-submit-message";
+import { buildByokRouteAvailability } from "@/components/settings/models/byok-availability";
 import { useQuery } from "@/lib/hooks/convex";
 import { useReducerState } from "@/lib/hooks/use-reducer-state";
 import { useAppHotkey } from "@/lib/hotkeys";
@@ -119,13 +120,8 @@ export function ChatInput({
     useQuery(api.functions.mcpServers.list, {}, { default: [] }) ?? [];
   const { billingState, isOutOfCredits } = useBillingState();
   const byokSummary = useQuery(api.functions.byok.getSettingsSummary, {});
-  const configuredProviders = useMemo(
-    () =>
-      new Set<ByokProviderId>(
-        (byokSummary?.credentials ?? []).map(
-          (credential) => credential.provider,
-        ),
-      ),
+  const byokAvailability = useMemo(
+    () => buildByokRouteAvailability(byokSummary?.credentials ?? []),
     [byokSummary?.credentials],
   );
   const queriedSkills = useQuery(
@@ -417,10 +413,10 @@ export function ChatInput({
       resolveEffectiveModelRoute({
         modelId: selectedModel,
         config: byokSummary?.routing,
-        availableProviders: configuredProviders,
+        availability: byokAvailability,
         byokEnabled,
       }),
-    [byokEnabled, byokSummary?.routing, configuredProviders, selectedModel],
+    [byokAvailability, byokEnabled, byokSummary?.routing, selectedModel],
   );
   const effectiveImageToolRoute = useMemo(
     () =>
@@ -428,14 +424,14 @@ export function ChatInput({
         ? resolveEffectiveModelRoute({
             modelId: selectedImageGenerationModelId,
             config: byokSummary?.routing,
-            availableProviders: configuredProviders,
+            availability: byokAvailability,
             byokEnabled,
           })
         : undefined,
     [
       byokEnabled,
       byokSummary?.routing,
-      configuredProviders,
+      byokAvailability,
       isImageGenerationEnabled,
       selectedImageGenerationModelId,
     ],

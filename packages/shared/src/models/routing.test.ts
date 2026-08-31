@@ -9,13 +9,15 @@ import {
 } from "./routing";
 
 const MODEL_ID = "openai/gpt-5.6-sol";
+const all = (...providers: ("openai" | "openrouter")[]) =>
+  new Map(providers.map((provider) => [provider, { kind: "all" as const }]));
 
 describe("model routing", () => {
   it("prefers a native user key over OpenRouter by default", () => {
     const resolved = resolveEffectiveModelRoute({
       modelId: MODEL_ID,
       config: DEFAULT_MODEL_ROUTING_CONFIG,
-      availableProviders: new Set(["openai", "openrouter"]),
+      availability: all("openai", "openrouter"),
       byokEnabled: true,
     });
 
@@ -32,7 +34,7 @@ describe("model routing", () => {
         preset: "openrouter_first",
         providerPriority: providerPriorityForPreset("openrouter_first"),
       },
-      availableProviders: new Set(["openai", "openrouter"]),
+      availability: all("openai", "openrouter"),
       byokEnabled: true,
     });
 
@@ -46,7 +48,7 @@ describe("model routing", () => {
         ...DEFAULT_MODEL_ROUTING_CONFIG,
         overrides: [{ modelId: MODEL_ID, kind: "hosted" }],
       },
-      availableProviders: new Set(["openai"]),
+      availability: all("openai"),
       byokEnabled: true,
     });
 
@@ -62,7 +64,7 @@ describe("model routing", () => {
         hostedFallback: false,
         overrides: [{ modelId: MODEL_ID, kind: "hosted" }],
       },
-      availableProviders: new Set(["openai"]),
+      availability: all("openai"),
       byokEnabled: true,
     });
 
@@ -74,11 +76,132 @@ describe("model routing", () => {
     const resolved = resolveEffectiveModelRoute({
       modelId: MODEL_ID,
       config: { ...DEFAULT_MODEL_ROUTING_CONFIG, hostedFallback: false },
-      availableProviders: new Set(),
+      availability: new Map(),
       byokEnabled: true,
     });
 
     expect(resolved).toBeUndefined();
+  });
+
+  it("uses only ChatGPT-discovered OpenAI models", () => {
+    const resolved = resolveEffectiveModelRoute({
+      modelId: MODEL_ID,
+      config: DEFAULT_MODEL_ROUTING_CONFIG,
+      availability: new Map([
+        [
+          "openai",
+          {
+            kind: "models" as const,
+            modelIds: new Set(["gpt-5.5"]),
+            supportsImageGeneration: true,
+          },
+        ],
+        ["openrouter", { kind: "all" as const }],
+      ]),
+      byokEnabled: true,
+    });
+
+    expect(resolved?.route.id).toBe("openrouter:openai/gpt-5.6-sol");
+  });
+
+  it("makes OpenAI image routes available through ChatGPT", () => {
+    const resolved = resolveEffectiveModelRoute({
+      modelId: "openai/gpt-image-2",
+      config: DEFAULT_MODEL_ROUTING_CONFIG,
+      availability: new Map([
+        [
+          "openai",
+          {
+            kind: "models" as const,
+            modelIds: new Set(["gpt-5.5"]),
+            supportsImageGeneration: true,
+          },
+        ],
+      ]),
+      byokEnabled: true,
+    });
+
+    expect(resolved?.route.id).toBe("openai:gpt-image-2");
+    expect(resolved?.fundingSource).toBe("user");
+  });
+
+  it("falls back when ChatGPT image generation is unavailable", () => {
+    const resolved = resolveEffectiveModelRoute({
+      modelId: "openai/gpt-image-2",
+      config: DEFAULT_MODEL_ROUTING_CONFIG,
+      availability: new Map([
+        [
+          "openai",
+          {
+            kind: "models" as const,
+            modelIds: new Set(["gpt-5.5"]),
+            supportsImageGeneration: false,
+          },
+        ],
+      ]),
+      byokEnabled: true,
+    });
+
+    expect(resolved?.fundingSource).toBe("platform");
+  });
+
+  it("ignores an explicit override that the current connection cannot serve", () => {
+    const resolved = resolveEffectiveModelRoute({
+      modelId: MODEL_ID,
+      config: {
+        ...DEFAULT_MODEL_ROUTING_CONFIG,
+        overrides: [
+          {
+            modelId: MODEL_ID,
+            kind: "byok",
+            routeId: "openai:gpt-5.6-sol",
+          },
+        ],
+      },
+      availability: new Map([
+        [
+          "openai",
+          {
+            kind: "models" as const,
+            modelIds: new Set(["gpt-5.5"]),
+            supportsImageGeneration: true,
+          },
+        ],
+        ["openrouter", { kind: "all" as const }],
+      ]),
+      byokEnabled: true,
+    });
+
+    expect(resolved?.route.id).toBe("openrouter:openai/gpt-5.6-sol");
+    expect(resolved?.reason).toBe("priority");
+  });
+
+  it("changes effective routes immediately when a connection is replaced", () => {
+    const unrestricted = resolveEffectiveModelRoute({
+      modelId: MODEL_ID,
+      config: DEFAULT_MODEL_ROUTING_CONFIG,
+      availability: all("openai", "openrouter"),
+      byokEnabled: true,
+    });
+    const restricted = resolveEffectiveModelRoute({
+      modelId: MODEL_ID,
+      config: DEFAULT_MODEL_ROUTING_CONFIG,
+      availability: new Map([
+        [
+          "openai",
+          {
+            kind: "models" as const,
+            modelIds: new Set(["gpt-5.5"]),
+            supportsImageGeneration: true,
+          },
+        ],
+        ["openrouter", { kind: "all" as const }],
+      ]),
+      byokEnabled: true,
+    });
+
+    expect(unrestricted?.route.id).toBe("openai:gpt-5.6-sol");
+    expect(restricted?.route.id).toBe("openrouter:openai/gpt-5.6-sol");
   });
 
   it("physically removes stale model and route overrides during sanitization", () => {

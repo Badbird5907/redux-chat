@@ -4,7 +4,11 @@ import { Sparkles, Star } from "lucide-react";
 import { LayoutGroup, m } from "motion/react";
 
 import type { PlanTier } from "@redux/shared";
-import type { ByokProviderId, ChatModelConfig } from "@redux/shared/models";
+import type {
+  ByokProviderAvailability,
+  ByokProviderId,
+  ChatModelConfig,
+} from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
 import {
   getModelDisplayName,
@@ -16,6 +20,7 @@ import { cn } from "@redux/ui/lib/utils";
 
 import type { ModelSelectorState } from "./use-model-selector-state";
 import { useBillingState } from "@/components/chat/use-billing-state";
+import { buildByokRouteAvailability } from "@/components/settings/models/byok-availability";
 import { useQuery } from "@/lib/hooks/convex";
 import { Capabilities } from "./capabilities";
 import { panelSpring } from "./constants";
@@ -67,12 +72,17 @@ export function ModelSelectorModelList(props: ModelListProps) {
   const { billingState } = useBillingState();
   const byokSummary = useQuery(api.functions.byok.getSettingsSummary, {});
   const currentTier: PlanTier = billingState?.tier ?? "free";
-  const configuredProviders = useMemo(
+  const availability = useMemo(
+    () => buildByokRouteAvailability(byokSummary?.credentials ?? []),
+    [byokSummary?.credentials],
+  );
+  const connectionTypes = useMemo(
     () =>
-      new Set<ByokProviderId>(
-        (byokSummary?.credentials ?? []).map(
-          (credential) => credential.provider,
-        ),
+      new Map(
+        (byokSummary?.credentials ?? []).map((credential) => [
+          credential.provider,
+          credential.connectionType,
+        ]),
       ),
     [byokSummary?.credentials],
   );
@@ -118,7 +128,8 @@ export function ModelSelectorModelList(props: ModelListProps) {
                 rowIndex={rowIndex}
                 tier={currentTier}
                 routing={byokSummary?.routing}
-                configuredProviders={configuredProviders}
+                availability={availability}
+                connectionTypes={connectionTypes}
                 byokEnabled={billingState?.entitlements.byok === true}
                 listProps={props}
               />
@@ -135,7 +146,8 @@ function ModelRow({
   rowIndex,
   tier,
   routing,
-  configuredProviders,
+  availability,
+  connectionTypes,
   byokEnabled,
   listProps,
 }: {
@@ -143,7 +155,11 @@ function ModelRow({
   rowIndex: number;
   tier: PlanTier;
   routing: Parameters<typeof ModelRowSubtitle>[0]["routing"];
-  configuredProviders: ReadonlySet<ByokProviderId>;
+  availability: ReadonlyMap<ByokProviderId, ByokProviderAvailability>;
+  connectionTypes: ReadonlyMap<
+    ByokProviderId,
+    "api_key" | "chatgpt_oauth" | "openrouter_oauth"
+  >;
   byokEnabled: boolean;
   listProps: ModelListProps;
 }) {
@@ -256,7 +272,8 @@ function ModelRow({
           model={model}
           tier={tier}
           routing={routing}
-          configuredProviders={configuredProviders}
+          availability={availability}
+          connectionTypes={connectionTypes}
           byokEnabled={byokEnabled}
         />
       </div>

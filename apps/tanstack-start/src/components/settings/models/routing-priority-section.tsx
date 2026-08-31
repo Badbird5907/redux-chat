@@ -109,7 +109,7 @@ export function RoutingPrioritySection({
                   color={configured ? "green" : "muted"}
                   className="shrink-0"
                 >
-                  {configured ? "Configured" : "No key"}
+                  {configured ? "Configured" : "No connection"}
                 </Badge>
                 <Button
                   size="icon-sm"

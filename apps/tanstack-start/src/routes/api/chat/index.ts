@@ -751,7 +751,7 @@ export const Route = createFileRoute("/api/chat/")({
           ? await loadByokRuntimeContext(requestUserId)
           : {
               credentials: new Map(),
-              configuredProviders: new Set(),
+              availability: new Map(),
               routing: DEFAULT_MODEL_ROUTING_CONFIG,
             };
         const selectedModelConfig = getChatModelConfig(settings.model);

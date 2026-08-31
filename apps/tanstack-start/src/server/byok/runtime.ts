@@ -1,5 +1,7 @@
 import type {
+  ByokProviderAvailability,
   ByokProviderId,
+  ByokRouteAvailability,
   UserModelRoutingConfig,
 } from "@redux/shared/models";
 import { api } from "@redux/backend/convex/_generated/api";
@@ -7,11 +9,12 @@ import { api } from "@redux/backend/convex/_generated/api";
 import type { ProviderCredentialPayload } from "./crypto";
 import { env } from "@/env";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth/server";
+import { loadFreshChatGptCredential } from "./chatgpt-refresh";
 import { decryptProviderCredential } from "./crypto";
 
 export interface ByokRuntimeContext {
   credentials: Map<ByokProviderId, ProviderCredentialPayload>;
-  configuredProviders: ReadonlySet<ByokProviderId>;
+  availability: ByokRouteAvailability;
   routing: UserModelRoutingConfig;
 }
 
@@ -26,27 +29,52 @@ export async function loadByokRuntimeContext(
     api.functions.byok.internal_getEncryptedBundle,
     { secret: env.INTERNAL_CONVEX_SECRET, userId },
   );
-  const configuredProviders = new Set(
-    bundle.credentials.map((credential) => credential.provider),
-  );
   const credentials = new Map<ByokProviderId, ProviderCredentialPayload>();
-  for (const encrypted of bundle.credentials) {
-    try {
-      credentials.set(
-        encrypted.provider,
-        decryptProviderCredential({
+  const availability = new Map<ByokProviderId, ByokProviderAvailability>();
+  const prepared = await Promise.all(
+    bundle.credentials.map(async (encrypted) => {
+      let payload: ProviderCredentialPayload;
+      try {
+        payload = decryptProviderCredential({
           userId,
           provider: encrypted.provider,
           encrypted,
-        }),
-      );
-    } catch (error) {
-      console.error("Failed to decrypt BYOK credential", {
-        userId,
+        });
+      } catch (error) {
+        console.error("Failed to decrypt BYOK credential", {
+          userId,
+          provider: encrypted.provider,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        return undefined;
+      }
+
+      let supportsImageGeneration = encrypted.supportsImageGeneration === true;
+      if (encrypted.provider === "openai" && payload.kind === "chatgpt_oauth") {
+        const fresh = await loadFreshChatGptCredential({ userId });
+        if (!fresh) return undefined;
+        payload = fresh.payload;
+        supportsImageGeneration = fresh.supportsImageGeneration;
+      }
+      const providerAvailability: ByokProviderAvailability =
+        payload.kind === "chatgpt_oauth"
+          ? {
+              kind: "models",
+              modelIds: new Set(payload.modelIds),
+              supportsImageGeneration,
+            }
+          : { kind: "all" };
+      return {
         provider: encrypted.provider,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+        payload,
+        availability: providerAvailability,
+      };
+    }),
+  );
+  for (const item of prepared) {
+    if (!item) continue;
+    credentials.set(item.provider, item.payload);
+    availability.set(item.provider, item.availability);
   }
-  return { credentials, configuredProviders, routing: bundle.routing };
+  return { credentials, availability, routing: bundle.routing };
 }

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Boxes } from "lucide-react";
 
 import type {
-  ByokProviderId,
+  ByokRouteAvailability,
   ChatModelConfig,
   UserModelRoutingConfig,
 } from "@redux/shared/models";
@@ -11,6 +11,7 @@ import {
   CHAT_MODELS,
   getModelRoutes,
   isByokProviderId,
+  isByokRouteAvailable,
   resolveEffectiveModelRoute,
 } from "@redux/shared/models";
 import { Badge } from "@redux/ui/components/badge";
@@ -33,14 +34,14 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function ModelOverridesSection({
   routing,
-  configuredProviders,
+  availability,
   routingSaving,
   byokEnabled,
   disabled,
   onSaveRouting,
 }: {
   routing: UserModelRoutingConfig;
-  configuredProviders: ReadonlySet<ByokProviderId>;
+  availability: ByokRouteAvailability;
   routingSaving: boolean;
   byokEnabled: boolean;
   disabled: boolean;
@@ -135,7 +136,7 @@ export function ModelOverridesSection({
           const effective = resolveEffectiveModelRoute({
             modelId: row.original.id,
             config: routing,
-            availableProviders: configuredProviders,
+            availability,
             byokEnabled,
           });
           if (!effective) {
@@ -179,7 +180,7 @@ export function ModelOverridesSection({
           const routes = getModelRoutes(model.id).filter(
             (route) =>
               isByokProviderId(route.provider) &&
-              configuredProviders.has(route.provider),
+              isByokRouteAvailable(route, availability),
           );
           return (
             <Select
@@ -209,7 +210,7 @@ export function ModelOverridesSection({
     [
       routing,
       overrideByModelId,
-      configuredProviders,
+      availability,
       byokEnabled,
       disabled,
       routingSaving,

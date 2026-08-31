@@ -1,25 +1,28 @@
-import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
-import { Check, ExternalLink, ShieldCheck, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Check, Link2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 
-import type { ByokProviderId } from "@redux/shared/models";
 import { BYOK_PROVIDER_IDS } from "@redux/shared/models";
 import { Badge } from "@redux/ui/components/badge";
 import { Button } from "@redux/ui/components/button";
 import { Input } from "@redux/ui/components/input";
 import { Label } from "@redux/ui/components/label";
 
+import type {
+  ConnectionType,
+  ProviderCredentialSummary,
+} from "./use-provider-connections";
 import { ByokProviderIcon } from "./byok-provider-icon";
+import {
+  ChatGptConsentDialog,
+  ChatGptDevicePanel,
+} from "./chatgpt-connection-ui";
 import { PROVIDERS } from "./provider-config";
 import { UpgradeLockBadge } from "./upgrade-lock-badge";
+import { useProviderConnections } from "./use-provider-connections";
 
-type ProviderDraft = { apiKey: string; accountId: string };
-
-type ProviderCredentialSummary = {
-  provider: ByokProviderId;
-  displaySuffix: string;
-};
+const dateFormatter = new Intl.DateTimeFormat("en", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 export function ProviderKeysSection({
   entitled,
@@ -28,72 +31,28 @@ export function ProviderKeysSection({
   entitled: boolean;
   credentials: readonly ProviderCredentialSummary[];
 }) {
-  const [drafts, setDrafts] = useState<
-    Partial<Record<ByokProviderId, ProviderDraft>>
-  >({});
-  const [savingProvider, setSavingProvider] = useState<ByokProviderId | null>(
-    null,
-  );
-  const credentialByProvider = useMemo(
-    () =>
-      new Map(
-        credentials.map((credential) => [credential.provider, credential]),
-      ),
-    [credentials],
-  );
-
-  const saveCredential = async (provider: ByokProviderId, event: FormEvent) => {
-    event.preventDefault();
-    if (!entitled) return;
-    const draft = drafts[provider];
-    const apiKey = draft?.apiKey.trim();
-    const accountId = draft?.accountId.trim();
-    if (!apiKey) return;
-    if (PROVIDERS[provider].accountId && !accountId) return;
-    setSavingProvider(provider);
-    try {
-      const response = await fetch(`/api/byok/credentials/${provider}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey,
-          ...(PROVIDERS[provider].accountId ? { accountId } : {}),
-        }),
-      });
-      if (!response.ok) throw new Error("Could not save provider credentials.");
-      setDrafts((current) => ({
-        ...current,
-        [provider]: { apiKey: "", accountId: "" },
-      }));
-      toast.success(`${PROVIDERS[provider].label} credentials saved`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Save failed");
-    } finally {
-      setSavingProvider(null);
-    }
-  };
-
-  const deleteCredential = async (provider: ByokProviderId) => {
-    if (
-      !window.confirm(`Remove the ${PROVIDERS[provider].label} credentials?`)
-    ) {
-      return;
-    }
-    setSavingProvider(provider);
-    try {
-      const response = await fetch(`/api/byok/credentials/${provider}`, {
-        method: "DELETE",
-      });
-      if (!response.ok)
-        throw new Error("Could not remove provider credentials.");
-      toast.success(`${PROVIDERS[provider].label} credentials removed`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Remove failed");
-    } finally {
-      setSavingProvider(null);
-    }
-  };
-
+  const {
+    chatGptConsentOpen,
+    connectingConnector,
+    credentialByProvider,
+    deleteCredential,
+    deviceError,
+    deviceFlow,
+    drafts,
+    openRouterConnecting,
+    refreshChatGpt,
+    saveCredential,
+    savingProvider,
+    secondsRemaining,
+    setChatGptConsentOpen,
+    setConnectingConnector,
+    setDeviceError,
+    setDeviceFlow,
+    setDrafts,
+    setPollRetry,
+    startChatGpt,
+    startOpenRouter,
+  } = useProviderConnections(credentials);
   const connectedCount = credentialByProvider.size;
 
   return (
@@ -101,12 +60,13 @@ export function ProviderKeysSection({
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold">Provider keys</h2>
+            <h2 className="text-sm font-semibold">Provider connections</h2>
             {entitled ? null : <UpgradeLockBadge />}
           </div>
           <p className="text-muted-foreground mt-1 flex items-center gap-1.5 text-sm">
             <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
-            Keys are encrypted at rest and are never sent back to your browser.
+            Credentials are encrypted at rest and are never sent back to your
+            browser.
           </p>
         </div>
         <span className="text-muted-foreground text-xs tabular-nums">
@@ -120,18 +80,49 @@ export function ProviderKeysSection({
           const credential = credentialByProvider.get(provider);
           const draft = drafts[provider] ?? { apiKey: "", accountId: "" };
           const busy = savingProvider === provider;
+          const interactionLocked =
+            busy ||
+            connectingConnector !== null ||
+            (provider === "openrouter" && openRouterConnecting);
+          const canResumeOpenRouter =
+            !busy &&
+            provider === "openrouter" &&
+            openRouterConnecting &&
+            connectingConnector === null;
           const canSubmit =
             entitled &&
-            !busy &&
+            !interactionLocked &&
             draft.apiKey.trim().length > 0 &&
             (metadata.accountId !== true || draft.accountId.trim().length > 0);
+          const oauth = !entitled
+            ? null
+            : provider === "openai"
+              ? {
+                  label:
+                    credential?.connectionType === "chatgpt_oauth"
+                      ? "Reconnect ChatGPT"
+                      : "Connect ChatGPT",
+                  onClick: () => setChatGptConsentOpen(true),
+                }
+              : provider === "openrouter"
+                ? {
+                    label: canResumeOpenRouter
+                      ? "Resume OpenRouter"
+                      : openRouterConnecting
+                        ? "Connecting…"
+                        : credential?.connectionType === "openrouter_oauth"
+                          ? "Reconnect OpenRouter"
+                          : "Connect OpenRouter",
+                    onClick: () => void startOpenRouter(),
+                  }
+                : null;
 
           return (
             <div
               key={provider}
-              className="flex flex-col gap-3 px-4 py-3.5 lg:flex-row lg:items-center lg:gap-5"
+              className="flex flex-col gap-3 px-4 py-3.5 lg:flex-row lg:items-start lg:gap-5"
             >
-              <div className="flex min-w-0 items-start gap-3 lg:w-64 lg:shrink-0">
+              <div className="flex min-w-0 items-start gap-3 lg:w-72 lg:shrink-0">
                 <ByokProviderIcon provider={provider} />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -140,98 +131,166 @@ export function ProviderKeysSection({
                     </span>
                     {credential ? (
                       <Badge variant="outline" color="green">
-                        <Check aria-hidden /> ••••{credential.displaySuffix}
+                        <Check aria-hidden />
+                        {connectionTypeLabel(credential.connectionType)} · ••••
+                        {credential.displaySuffix}
                       </Badge>
                     ) : null}
                   </div>
                   <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
                     {metadata.description}
                   </p>
-                  <a
-                    href={metadata.keyUrl}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
-                  >
-                    Get a key <ExternalLink className="size-3" aria-hidden />
-                  </a>
+                  {credential ? (
+                    <div className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
+                      {credential.displayLabel ? (
+                        <p className="text-foreground truncate font-medium">
+                          {credential.displayLabel}
+                        </p>
+                      ) : null}
+                      <p>
+                        Updated {dateFormatter.format(credential.updatedAt)}
+                        {credential.connectionType === "chatgpt_oauth"
+                          ? ` · ${credential.availableModelIds?.length ?? 0} models`
+                          : ""}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
-              <form
-                className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center"
-                onSubmit={(event) => void saveCredential(provider, event)}
-              >
-                {metadata.accountId ? (
-                  <div className="min-w-0 sm:w-44 sm:shrink-0">
-                    <Label htmlFor={`${provider}-account`} className="sr-only">
-                      {metadata.label} account ID
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                {oauth ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-w-48 justify-center"
+                        disabled={interactionLocked && !canResumeOpenRouter}
+                        onClick={oauth.onClick}
+                      >
+                        <Link2 />
+                        {oauth.label}
+                      </Button>
+                      {credential?.connectionType === "chatgpt_oauth" ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Refresh ChatGPT models"
+                          tooltip="Refresh models"
+                          disabled={interactionLocked}
+                          onClick={() => void refreshChatGpt()}
+                        >
+                          <RefreshCw />
+                        </Button>
+                      ) : null}
+                    </div>
+                    {provider === "openai" && deviceFlow ? (
+                      <ChatGptDevicePanel
+                        error={deviceError}
+                        flow={deviceFlow}
+                        secondsRemaining={secondsRemaining}
+                        onCancel={() => {
+                          setDeviceFlow(null);
+                          setDeviceError(null);
+                          setConnectingConnector(null);
+                        }}
+                        onRetry={() => {
+                          setDeviceError(null);
+                          setConnectingConnector("chatgpt");
+                          setPollRetry((value) => value + 1);
+                        }}
+                      />
+                    ) : null}
+                    <div className="flex items-center gap-3">
+                      <span className="bg-border h-px flex-1" aria-hidden />
+                      <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                        or use an API key
+                      </span>
+                      <span className="bg-border h-px flex-1" aria-hidden />
+                    </div>
+                  </>
+                ) : null}
+
+                <form
+                  className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center"
+                  onSubmit={(event) => void saveCredential(provider, event)}
+                >
+                  {metadata.accountId ? (
+                    <div className="min-w-0 sm:w-44 sm:shrink-0">
+                      <Label
+                        htmlFor={`${provider}-account`}
+                        className="sr-only"
+                      >
+                        {metadata.label} account ID
+                      </Label>
+                      <Input
+                        id={`${provider}-account`}
+                        value={draft.accountId}
+                        autoComplete="off"
+                        disabled={!entitled || interactionLocked}
+                        placeholder="Account ID"
+                        onChange={(event) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [provider]: {
+                              ...draft,
+                              accountId: event.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor={`${provider}-key`} className="sr-only">
+                      {metadata.label} API key
                     </Label>
                     <Input
-                      id={`${provider}-account`}
-                      value={draft.accountId}
-                      autoComplete="off"
-                      disabled={!entitled || busy}
-                      placeholder="Account ID"
+                      id={`${provider}-key`}
+                      type="password"
+                      value={draft.apiKey}
+                      autoComplete="new-password"
+                      disabled={!entitled || interactionLocked}
+                      placeholder={
+                        entitled
+                          ? credential
+                            ? "Enter a replacement key"
+                            : "Enter API key"
+                          : "Upgrade to add a key"
+                      }
                       onChange={(event) =>
                         setDrafts((current) => ({
                           ...current,
                           [provider]: {
                             ...draft,
-                            accountId: event.target.value,
+                            apiKey: event.target.value,
                           },
                         }))
                       }
                     />
                   </div>
-                ) : null}
-                <div className="min-w-0 flex-1">
-                  <Label htmlFor={`${provider}-key`} className="sr-only">
-                    {metadata.label} API key
-                  </Label>
-                  <Input
-                    id={`${provider}-key`}
-                    type="password"
-                    value={draft.apiKey}
-                    autoComplete="new-password"
-                    disabled={!entitled || busy}
-                    placeholder={
-                      entitled
-                        ? credential
-                          ? "Enter a replacement key"
-                          : "Enter API key"
-                        : "Upgrade to add a key"
-                    }
-                    onChange={(event) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [provider]: {
-                          ...draft,
-                          apiKey: event.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <Button type="submit" disabled={!canSubmit}>
-                    {busy ? "Saving…" : credential ? "Replace" : "Save"}
-                  </Button>
-                  {credential ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Remove ${metadata.label} credentials`}
-                      title={`Remove ${metadata.label} credentials`}
-                      disabled={busy}
-                      onClick={() => void deleteCredential(provider)}
-                    >
-                      <Trash2 />
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button type="submit" disabled={!canSubmit}>
+                      {busy ? "Saving…" : credential ? "Replace" : "Save"}
                     </Button>
-                  ) : null}
-                </div>
-              </form>
+                    {credential ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove ${metadata.label} connection`}
+                        title={`Remove ${metadata.label} connection`}
+                        disabled={interactionLocked}
+                        onClick={() => void deleteCredential(provider)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    ) : null}
+                  </div>
+                </form>
+              </div>
             </div>
           );
         })}
@@ -239,10 +298,27 @@ export function ProviderKeysSection({
 
       {!entitled && connectedCount > 0 ? (
         <p className="text-muted-foreground text-xs">
-          Retained keys stay encrypted and inactive while you are on the Free
-          plan. You can still remove them at any time.
+          Retained connections stay encrypted and inactive while you are on the
+          Free plan. You can still remove them at any time.
         </p>
       ) : null}
+
+      <ChatGptConsentDialog
+        open={chatGptConsentOpen}
+        onOpenChange={setChatGptConsentOpen}
+        onConnect={() => void startChatGpt()}
+      />
     </section>
   );
+}
+
+function connectionTypeLabel(connectionType: ConnectionType): string {
+  switch (connectionType) {
+    case "chatgpt_oauth":
+      return "ChatGPT";
+    case "openrouter_oauth":
+      return "OpenRouter OAuth";
+    default:
+      return "API key";
+  }
 }

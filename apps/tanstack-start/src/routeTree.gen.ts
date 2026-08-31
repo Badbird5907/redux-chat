@@ -62,6 +62,10 @@ import { Route as ApiMcpOauthCallbackRouteImport } from './routes/api/mcp/oauth/
 import { Route as ApiMcpOauthAuthorizeRouteImport } from './routes/api/mcp/oauth/authorize'
 import { Route as ApiByokCredentialsProviderRouteImport } from './routes/api/byok/credentials.$provider'
 import { Route as ApiChatIdStreamIndexRouteImport } from './routes/api/chat/$id/stream/index'
+import { Route as ApiByokOauthConnectorStartRouteImport } from './routes/api/byok/oauth/$connector/start'
+import { Route as ApiByokOauthConnectorRefreshRouteImport } from './routes/api/byok/oauth/$connector/refresh'
+import { Route as ApiByokOauthConnectorPollRouteImport } from './routes/api/byok/oauth/$connector/poll'
+import { Route as ApiByokOauthConnectorCallbackRouteImport } from './routes/api/byok/oauth/$connector/callback'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -330,6 +334,30 @@ const ApiChatIdStreamIndexRoute = ApiChatIdStreamIndexRouteImport.update({
   path: '/api/chat/$id/stream/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiByokOauthConnectorStartRoute =
+  ApiByokOauthConnectorStartRouteImport.update({
+    id: '/api/byok/oauth/$connector/start',
+    path: '/api/byok/oauth/$connector/start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiByokOauthConnectorRefreshRoute =
+  ApiByokOauthConnectorRefreshRouteImport.update({
+    id: '/api/byok/oauth/$connector/refresh',
+    path: '/api/byok/oauth/$connector/refresh',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiByokOauthConnectorPollRoute =
+  ApiByokOauthConnectorPollRouteImport.update({
+    id: '/api/byok/oauth/$connector/poll',
+    path: '/api/byok/oauth/$connector/poll',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiByokOauthConnectorCallbackRoute =
+  ApiByokOauthConnectorCallbackRouteImport.update({
+    id: '/api/byok/oauth/$connector/callback',
+    path: '/api/byok/oauth/$connector/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -382,6 +410,10 @@ export interface FileRoutesByFullPath {
   '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
+  '/api/byok/oauth/$connector/callback': typeof ApiByokOauthConnectorCallbackRoute
+  '/api/byok/oauth/$connector/poll': typeof ApiByokOauthConnectorPollRoute
+  '/api/byok/oauth/$connector/refresh': typeof ApiByokOauthConnectorRefreshRoute
+  '/api/byok/oauth/$connector/start': typeof ApiByokOauthConnectorStartRoute
   '/api/skills/files/$skillFileId': typeof ApiSkillsFilesSkillFileIdRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
@@ -432,6 +464,10 @@ export interface FileRoutesByTo {
   '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
+  '/api/byok/oauth/$connector/callback': typeof ApiByokOauthConnectorCallbackRoute
+  '/api/byok/oauth/$connector/poll': typeof ApiByokOauthConnectorPollRoute
+  '/api/byok/oauth/$connector/refresh': typeof ApiByokOauthConnectorRefreshRoute
+  '/api/byok/oauth/$connector/start': typeof ApiByokOauthConnectorStartRoute
   '/api/skills/files/$skillFileId': typeof ApiSkillsFilesSkillFileIdRoute
   '/api/chat/$id/stream': typeof ApiChatIdStreamIndexRoute
 }
@@ -488,6 +524,10 @@ export interface FileRoutesById {
   '/api/byok/credentials/$provider': typeof ApiByokCredentialsProviderRoute
   '/api/mcp/oauth/authorize': typeof ApiMcpOauthAuthorizeRoute
   '/api/mcp/oauth/callback': typeof ApiMcpOauthCallbackRoute
+  '/api/byok/oauth/$connector/callback': typeof ApiByokOauthConnectorCallbackRoute
+  '/api/byok/oauth/$connector/poll': typeof ApiByokOauthConnectorPollRoute
+  '/api/byok/oauth/$connector/refresh': typeof ApiByokOauthConnectorRefreshRoute
+  '/api/byok/oauth/$connector/start': typeof ApiByokOauthConnectorStartRoute
   '/api/skills/files/$skillFileId': typeof ApiSkillsFilesSkillFileIdRoute
   '/api/chat/$id/stream/': typeof ApiChatIdStreamIndexRoute
 }
@@ -544,6 +584,10 @@ export interface FileRouteTypes {
     | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
+    | '/api/byok/oauth/$connector/callback'
+    | '/api/byok/oauth/$connector/poll'
+    | '/api/byok/oauth/$connector/refresh'
+    | '/api/byok/oauth/$connector/start'
     | '/api/skills/files/$skillFileId'
     | '/api/chat/$id/stream/'
   fileRoutesByTo: FileRoutesByTo
@@ -594,6 +638,10 @@ export interface FileRouteTypes {
     | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
+    | '/api/byok/oauth/$connector/callback'
+    | '/api/byok/oauth/$connector/poll'
+    | '/api/byok/oauth/$connector/refresh'
+    | '/api/byok/oauth/$connector/start'
     | '/api/skills/files/$skillFileId'
     | '/api/chat/$id/stream'
   id:
@@ -649,6 +697,10 @@ export interface FileRouteTypes {
     | '/api/byok/credentials/$provider'
     | '/api/mcp/oauth/authorize'
     | '/api/mcp/oauth/callback'
+    | '/api/byok/oauth/$connector/callback'
+    | '/api/byok/oauth/$connector/poll'
+    | '/api/byok/oauth/$connector/refresh'
+    | '/api/byok/oauth/$connector/start'
     | '/api/skills/files/$skillFileId'
     | '/api/chat/$id/stream/'
   fileRoutesById: FileRoutesById
@@ -679,6 +731,10 @@ export interface RootRouteChildren {
   ApiByokCredentialsProviderRoute: typeof ApiByokCredentialsProviderRoute
   ApiMcpOauthAuthorizeRoute: typeof ApiMcpOauthAuthorizeRoute
   ApiMcpOauthCallbackRoute: typeof ApiMcpOauthCallbackRoute
+  ApiByokOauthConnectorCallbackRoute: typeof ApiByokOauthConnectorCallbackRoute
+  ApiByokOauthConnectorPollRoute: typeof ApiByokOauthConnectorPollRoute
+  ApiByokOauthConnectorRefreshRoute: typeof ApiByokOauthConnectorRefreshRoute
+  ApiByokOauthConnectorStartRoute: typeof ApiByokOauthConnectorStartRoute
   ApiSkillsFilesSkillFileIdRoute: typeof ApiSkillsFilesSkillFileIdRoute
   ApiChatIdStreamIndexRoute: typeof ApiChatIdStreamIndexRoute
 }
@@ -1056,6 +1112,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatIdStreamIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/byok/oauth/$connector/start': {
+      id: '/api/byok/oauth/$connector/start'
+      path: '/api/byok/oauth/$connector/start'
+      fullPath: '/api/byok/oauth/$connector/start'
+      preLoaderRoute: typeof ApiByokOauthConnectorStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/byok/oauth/$connector/refresh': {
+      id: '/api/byok/oauth/$connector/refresh'
+      path: '/api/byok/oauth/$connector/refresh'
+      fullPath: '/api/byok/oauth/$connector/refresh'
+      preLoaderRoute: typeof ApiByokOauthConnectorRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/byok/oauth/$connector/poll': {
+      id: '/api/byok/oauth/$connector/poll'
+      path: '/api/byok/oauth/$connector/poll'
+      fullPath: '/api/byok/oauth/$connector/poll'
+      preLoaderRoute: typeof ApiByokOauthConnectorPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/byok/oauth/$connector/callback': {
+      id: '/api/byok/oauth/$connector/callback'
+      path: '/api/byok/oauth/$connector/callback'
+      fullPath: '/api/byok/oauth/$connector/callback'
+      preLoaderRoute: typeof ApiByokOauthConnectorCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1191,6 +1275,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiByokCredentialsProviderRoute: ApiByokCredentialsProviderRoute,
   ApiMcpOauthAuthorizeRoute: ApiMcpOauthAuthorizeRoute,
   ApiMcpOauthCallbackRoute: ApiMcpOauthCallbackRoute,
+  ApiByokOauthConnectorCallbackRoute: ApiByokOauthConnectorCallbackRoute,
+  ApiByokOauthConnectorPollRoute: ApiByokOauthConnectorPollRoute,
+  ApiByokOauthConnectorRefreshRoute: ApiByokOauthConnectorRefreshRoute,
+  ApiByokOauthConnectorStartRoute: ApiByokOauthConnectorStartRoute,
   ApiSkillsFilesSkillFileIdRoute: ApiSkillsFilesSkillFileIdRoute,
   ApiChatIdStreamIndexRoute: ApiChatIdStreamIndexRoute,
 }

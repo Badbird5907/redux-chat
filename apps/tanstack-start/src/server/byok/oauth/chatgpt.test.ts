@@ -1,0 +1,310 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { chatGptConfig, pollChatGptOAuth, startChatGptOAuth } from "./chatgpt";
+
+const mocks = vi.hoisted(() => ({
+  requestDeviceCode: vi.fn(),
+  pollDeviceCode: vi.fn(),
+  exchangeDeviceAuthorization: vi.fn(),
+  parseUser: vi.fn(),
+  resolveConfig: vi.fn(() => ({ clientVersion: "test-version" })),
+  createChatGPT: vi.fn(),
+  listModels: vi.fn(),
+  upsertProviderCredential: vi.fn(),
+  saveOAuthFlow: vi.fn(),
+  loadOAuthFlow: vi.fn(),
+  deleteOAuthFlowIfOwned: vi.fn(),
+  acquireRedisLease: vi.fn(),
+  releaseRedisLease: vi.fn(),
+  logOAuthEvent: vi.fn(),
+}));
+
+vi.mock("@opencoredev/loginwithchatgpt-core", () => ({
+  requestDeviceCode: mocks.requestDeviceCode,
+  pollDeviceCode: mocks.pollDeviceCode,
+  exchangeDeviceAuthorization: mocks.exchangeDeviceAuthorization,
+  parseUser: mocks.parseUser,
+  resolveConfig: mocks.resolveConfig,
+}));
+vi.mock("@opencoredev/loginwithchatgpt-ai", () => ({
+  createChatGPT: mocks.createChatGPT,
+}));
+vi.mock("../credential-store", () => ({
+  upsertProviderCredential: mocks.upsertProviderCredential,
+}));
+vi.mock("./flow-store", () => ({
+  saveOAuthFlow: mocks.saveOAuthFlow,
+  loadOAuthFlow: mocks.loadOAuthFlow,
+  deleteOAuthFlowIfOwned: mocks.deleteOAuthFlowIfOwned,
+}));
+vi.mock("./redis-coordination", () => ({
+  acquireRedisLease: mocks.acquireRedisLease,
+  releaseRedisLease: mocks.releaseRedisLease,
+}));
+vi.mock("./http", () => ({ logOAuthEvent: mocks.logOAuthEvent }));
+
+const device = {
+  deviceAuthId: "device-secret",
+  userCode: "ABCD-EFGH",
+  verificationUrl: "https://auth.openai.example/device",
+  interval: 5,
+  expiresAt: Date.now() + 15 * 60_000,
+};
+
+const flow = {
+  connector: "chatgpt" as const,
+  provider: "openai" as const,
+  stage: "device" as const,
+  device,
+  expiresAt: device.expiresAt,
+};
+
+const tokens = {
+  accessToken: "access-token",
+  refreshToken: "refresh-token",
+  idToken: "id-token",
+  accountId: "account-1234",
+};
+
+describe("ChatGPT device OAuth", () => {
+  beforeEach(() => {
+    mocks.requestDeviceCode.mockResolvedValue(device);
+    mocks.loadOAuthFlow.mockResolvedValue(flow);
+    mocks.deleteOAuthFlowIfOwned.mockResolvedValue(true);
+    mocks.acquireRedisLease.mockResolvedValue("lease-token");
+    mocks.pollDeviceCode.mockResolvedValue({ status: "pending" });
+    mocks.exchangeDeviceAuthorization.mockResolvedValue(tokens);
+    mocks.parseUser.mockReturnValue({
+      accountId: "account-1234",
+      email: "person@example.com",
+      plan: "plus",
+    });
+    mocks.createChatGPT.mockReturnValue({ listModels: mocks.listModels });
+    mocks.listModels.mockResolvedValue(["gpt-5.5", "gpt-5.5"]);
+    mocks.upsertProviderCredential.mockResolvedValue(undefined);
+  });
+
+  it("uses the current Codex client version for model gating", () => {
+    chatGptConfig();
+
+    expect(mocks.resolveConfig).toHaveBeenCalledWith({
+      clientVersion: "0.146.0",
+    });
+  });
+
+  it("starts a 15-minute device flow without exposing device material beyond the code", async () => {
+    const result = await startChatGptOAuth("user-a");
+
+    expect(result).toMatchObject({
+      mode: "device",
+      userCode: device.userCode,
+      verificationUrl: device.verificationUrl,
+      intervalMs: 5000,
+      expiresAt: device.expiresAt,
+    });
+    expect(mocks.saveOAuthFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-a",
+        connector: "chatgpt",
+        flow,
+      }),
+    );
+    expect(JSON.stringify(result)).not.toContain(device.deviceAuthId);
+  });
+
+  it("enforces one upstream poll per provider interval", async () => {
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).resolves.toEqual({
+      status: "pending",
+      retryAfterMs: 5000,
+      expiresAt: flow.expiresAt,
+    });
+    expect(mocks.pollDeviceCode).toHaveBeenCalledTimes(1);
+    expect(mocks.releaseRedisLease).not.toHaveBeenCalled();
+
+    mocks.acquireRedisLease.mockResolvedValue(undefined);
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).resolves.toEqual({
+      status: "pending",
+      retryAfterMs: 5000,
+      expiresAt: flow.expiresAt,
+    });
+    expect(mocks.pollDeviceCode).toHaveBeenCalledTimes(1);
+  });
+
+  it("consumes the flow, discovers models, and replaces the OpenAI connection", async () => {
+    mocks.pollDeviceCode.mockResolvedValue({
+      status: "authorized",
+      authorizationCode: "authorization-code",
+      codeChallenge: "challenge",
+      codeVerifier: "verifier",
+    });
+    mocks.listModels.mockResolvedValue([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+      "gpt-5.6-sol",
+    ]);
+
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).resolves.toEqual({ status: "connected", provider: "openai" });
+
+    expect(
+      mocks.exchangeDeviceAuthorization.mock.invocationCallOrder[0],
+    ).toBeLessThan(mocks.saveOAuthFlow.mock.invocationCallOrder[0] ?? 0);
+    const persistedFlow = mocks.saveOAuthFlow.mock.calls[0]?.[0] as
+      | {
+          userId: string;
+          flowId: string;
+          connector: string;
+          flow: { stage: string; tokens: typeof tokens };
+        }
+      | undefined;
+    expect(persistedFlow).toMatchObject({
+      userId: "user-a",
+      flowId: "flow-1",
+      connector: "chatgpt",
+      flow: { stage: "authorized", tokens },
+    });
+    expect(
+      mocks.upsertProviderCredential.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      mocks.deleteOAuthFlowIfOwned.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(mocks.deleteOAuthFlowIfOwned).toHaveBeenCalledWith({
+      userId: "user-a",
+      flowId: "flow-1",
+      connector: "chatgpt",
+    });
+    expect(mocks.upsertProviderCredential).toHaveBeenCalledTimes(1);
+    expect(mocks.createChatGPT).toHaveBeenCalledWith({
+      credentials: tokens,
+      clientVersion: "test-version",
+    });
+    const saved = mocks.upsertProviderCredential.mock.calls[0]?.[0] as
+      | {
+          userId: string;
+          provider: string;
+          payload: {
+            version: number;
+            kind: string;
+            modelIds: string[];
+            defaultModel: string;
+          };
+          metadata: {
+            displaySuffix: string;
+            displayLabel: string;
+            availableModelIds: string[];
+            supportsImageGeneration: boolean;
+          };
+        }
+      | undefined;
+    expect(saved).toMatchObject({
+      userId: "user-a",
+      provider: "openai",
+      payload: {
+        version: 2,
+        kind: "chatgpt_oauth",
+        modelIds: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5"],
+        defaultModel: "gpt-5.6-sol",
+      },
+      metadata: {
+        displaySuffix: "1234",
+        displayLabel: "person@example.com",
+        availableModelIds: [
+          "gpt-5.6-sol",
+          "gpt-5.6-terra",
+          "gpt-5.6-luna",
+          "gpt-5.5",
+        ],
+        supportsImageGeneration: true,
+      },
+    });
+  });
+
+  it("does not overwrite an existing credential when initial discovery fails", async () => {
+    mocks.pollDeviceCode.mockResolvedValue({
+      status: "authorized",
+      authorizationCode: "authorization-code",
+      codeChallenge: "challenge",
+      codeVerifier: "verifier",
+    });
+    mocks.listModels.mockRejectedValue(new Error("models unavailable"));
+
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).rejects.toThrow("models unavailable");
+    const persistedFlow = mocks.saveOAuthFlow.mock.calls[0]?.[0] as
+      | {
+          flow: { stage: string; tokens: typeof tokens; expiresAt: number };
+        }
+      | undefined;
+    expect(persistedFlow).toMatchObject({
+      flow: { stage: "authorized", tokens },
+    });
+    expect(mocks.deleteOAuthFlowIfOwned).not.toHaveBeenCalled();
+    expect(mocks.upsertProviderCredential).not.toHaveBeenCalled();
+    expect(mocks.logOAuthEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connector: "chatgpt",
+        stage: "model_discovery",
+        status: "failure",
+      }),
+    );
+  });
+
+  it("keeps the authorized flow retryable when credential persistence fails", async () => {
+    mocks.loadOAuthFlow.mockResolvedValue({
+      connector: "chatgpt",
+      provider: "openai",
+      stage: "authorized",
+      tokens,
+      interval: 5,
+      expiresAt: device.expiresAt,
+    });
+    mocks.upsertProviderCredential.mockRejectedValue(
+      new Error("credential store unavailable"),
+    );
+
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).rejects.toThrow("credential store unavailable");
+
+    expect(mocks.pollDeviceCode).not.toHaveBeenCalled();
+    expect(mocks.exchangeDeviceAuthorization).not.toHaveBeenCalled();
+    expect(mocks.deleteOAuthFlowIfOwned).not.toHaveBeenCalled();
+  });
+
+  it("retries discovery from encrypted exchanged tokens without redeeming the code again", async () => {
+    mocks.loadOAuthFlow.mockResolvedValue({
+      connector: "chatgpt",
+      provider: "openai",
+      stage: "authorized",
+      tokens,
+      interval: 5,
+      expiresAt: Date.now() + 60_000,
+    });
+
+    await expect(
+      pollChatGptOAuth({ userId: "user-a", flowId: "flow-1" }),
+    ).resolves.toEqual({ status: "connected", provider: "openai" });
+
+    expect(mocks.pollDeviceCode).not.toHaveBeenCalled();
+    expect(mocks.exchangeDeviceAuthorization).not.toHaveBeenCalled();
+    expect(mocks.upsertProviderCredential).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteOAuthFlowIfOwned).toHaveBeenCalledTimes(1);
+  });
+
+  it("cannot delete a flow that fails user-bound decryption", async () => {
+    mocks.loadOAuthFlow.mockResolvedValue(undefined);
+
+    await expect(
+      pollChatGptOAuth({ userId: "wrong-user", flowId: "flow-1" }),
+    ).resolves.toEqual({ status: "expired" });
+    expect(mocks.deleteOAuthFlowIfOwned).not.toHaveBeenCalled();
+  });
+});

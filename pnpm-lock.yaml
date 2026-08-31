@@ -143,6 +143,9 @@ importers:
       '@ai-sdk/openai-compatible':
         specifier: 3.0.0
         version: 3.0.0(zod@4.3.6)
+      '@ai-sdk/provider':
+        specifier: 4.0.0
+        version: 4.0.0
       '@ai-sdk/react':
         specifier: 4.0.2
         version: 4.0.2(react@19.2.5)(zod@4.3.6)
@@ -164,12 +167,18 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.73.1(react@19.2.5))
+      '@opencoredev/loginwithchatgpt-ai':
+        specifier: 0.2.0
+        version: 0.2.0(@ai-sdk/openai@4.0.0(zod@4.3.6))(ai@7.0.2(zod@4.3.6))
+      '@opencoredev/loginwithchatgpt-core':
+        specifier: 0.2.0
+        version: 0.2.0
       '@openrouter/ai-sdk-provider':
         specifier: 6.0.0-alpha.1
         version: 6.0.0-alpha.1(zod@4.3.6)
       '@posthog/ai':
         specifier: 8.2.1
-        version: 8.2.1(@ai-sdk/provider@3.0.10)(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.219.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(posthog-node@5.35.5)
+        version: 8.2.1(@ai-sdk/provider@4.0.0)(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.219.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(posthog-node@5.35.5)
       '@radix-ui/react-use-controllable-state':
         specifier: ^1.2.2
         version: 1.2.2(@types/react@19.2.14)(react@19.2.5)
@@ -2490,6 +2499,17 @@ packages:
   '@oozcitak/util@10.0.0':
     resolution: {integrity: sha512-hAX0pT/73190NLqBPPWSdBVGtbY6VOhWYK3qqHqtXQ1gK7kS2yz4+ivsN07hpJ6I3aeMtKP6J6npsEKOAzuTLA==}
     engines: {node: '>=20.0'}
+
+  '@opencoredev/loginwithchatgpt-ai@0.2.0':
+    resolution: {integrity: sha512-UlXeMUqQ0AngYOBunGAt+9oU/hrMCcIzV4Pq6V3eIaCV8TBYu9vgARyiipyrmG1d7YX60himqxI8k9LhacU7HA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@ai-sdk/openai': ^4.0.0
+      ai: ^7.0.0
+
+  '@opencoredev/loginwithchatgpt-core@0.2.0':
+    resolution: {integrity: sha512-PRzUWEYJepxkcYVvk/Uc7bc8YfUr50PWqNMjfNs/AZOF6/H73QykzFhjZJIG5cphIKrNdjOmvofuy25cH1F8ow==}
+    engines: {node: '>=18'}
 
   '@openrouter/ai-sdk-provider@6.0.0-alpha.1':
     resolution: {integrity: sha512-N91glWtq6XFl8Kvgft14BiDeCLABHatylAVKHOWMRJHnBl6iKblI4iZgcipnF9Pj8ZRUO752qpPoZVC+L2C6tA==}
@@ -10937,6 +10957,14 @@ snapshots:
 
   '@oozcitak/util@10.0.0': {}
 
+  '@opencoredev/loginwithchatgpt-ai@0.2.0(@ai-sdk/openai@4.0.0(zod@4.3.6))(ai@7.0.2(zod@4.3.6))':
+    dependencies:
+      '@ai-sdk/openai': 4.0.0(zod@4.3.6)
+      '@opencoredev/loginwithchatgpt-core': 0.2.0
+      ai: 7.0.2(zod@4.3.6)
+
+  '@opencoredev/loginwithchatgpt-core@0.2.0': {}
+
   '@openrouter/ai-sdk-provider@6.0.0-alpha.1(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
@@ -11588,14 +11616,14 @@ snapshots:
     dependencies:
       pako: 1.0.11
 
-  '@posthog/ai@8.2.1(@ai-sdk/provider@3.0.10)(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.219.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(posthog-node@5.35.5)':
+  '@posthog/ai@8.2.1(@ai-sdk/provider@4.0.0)(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.219.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(posthog-node@5.35.5)':
     dependencies:
       '@posthog/core': 1.37.1
       posthog-node: 5.35.5
       uuid: 11.1.1
       zod: 4.3.6
     optionalDependencies:
-      '@ai-sdk/provider': 3.0.10
+      '@ai-sdk/provider': 4.0.0
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/exporter-trace-otlp-http': 0.219.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.7.1(@opentelemetry/api@1.9.1)

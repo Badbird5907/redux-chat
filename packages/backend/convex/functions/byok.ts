@@ -1,7 +1,9 @@
+import type { GenericMutationCtx } from "convex/server";
 import { v } from "convex/values";
 
 import type {
   ByokProviderId,
+  ByokRouteAvailability,
   UserModelRoutingConfig,
 } from "@redux/shared/models";
 import {
@@ -9,12 +11,15 @@ import {
   DEFAULT_MODEL_ROUTING_CONFIG,
   getModelRoute,
   isByokProviderId,
+  isByokRouteAvailable,
   sanitizeModelRoutingConfig,
 } from "@redux/shared/models";
 
+import type { DataModel } from "../_generated/dataModel";
 import {
   byokProviderValidator,
   modelRoutingOverrideValidator,
+  providerConnectionTypeValidator,
 } from "../byokValidators";
 import { backendMutation, backendQuery, query } from "./index";
 
@@ -42,12 +47,10 @@ export const getSettingsSummary = query({
         .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
         .unique(),
     ]);
-    const availableProviders = new Set(
-      credentials.map((credential) => credential.provider),
-    );
-    const config = filterRoutingForProviders(
+    const availability = availabilityFromCredentials(credentials);
+    const config = filterRoutingForAvailability(
       sanitizeModelRoutingConfig(routing),
-      availableProviders,
+      availability,
     );
 
     return {
@@ -55,6 +58,11 @@ export const getSettingsSummary = query({
         .map((credential) => ({
           provider: credential.provider,
           displaySuffix: credential.displaySuffix,
+          connectionType: credential.connectionType ?? "api_key",
+          displayLabel: credential.displayLabel,
+          availableModelIds: credential.availableModelIds,
+          supportsImageGeneration: credential.supportsImageGeneration ?? false,
+          revision: credential.revision ?? 1,
           createdAt: credential.createdAt,
           updatedAt: credential.updatedAt,
         }))
@@ -86,25 +94,91 @@ export const internal_getEncryptedBundle = backendQuery({
         iv: credential.iv,
         authTag: credential.authTag,
         keyVersion: credential.keyVersion,
+        displaySuffix: credential.displaySuffix,
+        connectionType: credential.connectionType ?? "api_key",
+        displayLabel: credential.displayLabel,
+        availableModelIds: credential.availableModelIds,
+        supportsImageGeneration: credential.supportsImageGeneration ?? false,
+        revision: credential.revision ?? 1,
       })),
-      routing: filterRoutingForProviders(
+      routing: filterRoutingForAvailability(
         sanitizeModelRoutingConfig(routing),
-        new Set(credentials.map((credential) => credential.provider)),
+        availabilityFromCredentials(credentials),
       ),
     };
   },
 });
 
-export const internal_upsertCredential = backendMutation({
-  args: {
-    userId: v.string(),
-    provider: byokProviderValidator,
-    ciphertext: v.string(),
-    iv: v.string(),
-    authTag: v.string(),
-    keyVersion: v.number(),
-    displaySuffix: v.string(),
+export const internal_getEncryptedCredential = backendQuery({
+  args: { userId: v.string(), provider: byokProviderValidator },
+  handler: async (ctx, args) => {
+    const credential = await ctx.db
+      .query("providerCredentials")
+      .withIndex("by_userId_provider", (q) =>
+        q.eq("userId", args.userId).eq("provider", args.provider),
+      )
+      .unique();
+    if (!credential) return null;
+    return {
+      provider: credential.provider,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+      keyVersion: credential.keyVersion,
+      displaySuffix: credential.displaySuffix,
+      connectionType: credential.connectionType ?? "api_key",
+      displayLabel: credential.displayLabel,
+      availableModelIds: credential.availableModelIds,
+      supportsImageGeneration: credential.supportsImageGeneration ?? false,
+      revision: credential.revision ?? 1,
+    };
   },
+});
+
+const credentialWriteArgs = {
+  userId: v.string(),
+  provider: byokProviderValidator,
+  ciphertext: v.string(),
+  iv: v.string(),
+  authTag: v.string(),
+  keyVersion: v.number(),
+  displaySuffix: v.string(),
+  connectionType: providerConnectionTypeValidator,
+  displayLabel: v.optional(v.string()),
+  availableModelIds: v.optional(v.array(v.string())),
+  supportsImageGeneration: v.optional(v.boolean()),
+};
+
+function normalizedCredentialMetadata(args: {
+  connectionType: "api_key" | "chatgpt_oauth" | "openrouter_oauth";
+  displayLabel?: string;
+  availableModelIds?: string[];
+  supportsImageGeneration?: boolean;
+}) {
+  switch (args.connectionType) {
+    case "chatgpt_oauth":
+      return {
+        displayLabel: args.displayLabel,
+        availableModelIds: args.availableModelIds,
+        supportsImageGeneration: args.supportsImageGeneration,
+      };
+    case "openrouter_oauth":
+      return {
+        displayLabel: args.displayLabel,
+        availableModelIds: undefined,
+        supportsImageGeneration: undefined,
+      };
+    default:
+      return {
+        displayLabel: undefined,
+        availableModelIds: undefined,
+        supportsImageGeneration: undefined,
+      };
+  }
+}
+
+export const internal_upsertCredential = backendMutation({
+  args: credentialWriteArgs,
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("providerCredentials")
@@ -119,6 +193,9 @@ export const internal_upsertCredential = backendMutation({
       authTag: args.authTag,
       keyVersion: args.keyVersion,
       displaySuffix: args.displaySuffix,
+      connectionType: args.connectionType,
+      ...normalizedCredentialMetadata(args),
+      revision: existing ? (existing.revision ?? 1) + 1 : 1,
       updatedAt: now,
     };
     if (existing) {
@@ -131,7 +208,40 @@ export const internal_upsertCredential = backendMutation({
         createdAt: now,
       });
     }
+    await reconcileStoredRouting(ctx, args.userId);
     return { ok: true } as const;
+  },
+});
+
+export const internal_replaceCredentialIfRevision = backendMutation({
+  args: { ...credentialWriteArgs, expectedRevision: v.number() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("providerCredentials")
+      .withIndex("by_userId_provider", (q) =>
+        q.eq("userId", args.userId).eq("provider", args.provider),
+      )
+      .unique();
+    if (!existing || (existing.revision ?? 1) !== args.expectedRevision) {
+      return {
+        updated: false,
+        revision: existing?.revision ?? (existing ? 1 : undefined),
+      } as const;
+    }
+    const revision = args.expectedRevision + 1;
+    await ctx.db.patch(existing._id, {
+      ciphertext: args.ciphertext,
+      iv: args.iv,
+      authTag: args.authTag,
+      keyVersion: args.keyVersion,
+      displaySuffix: args.displaySuffix,
+      connectionType: args.connectionType,
+      ...normalizedCredentialMetadata(args),
+      revision,
+      updatedAt: Date.now(),
+    });
+    await reconcileStoredRouting(ctx, args.userId);
+    return { updated: true, revision } as const;
   },
 });
 
@@ -147,28 +257,30 @@ export const internal_deleteCredential = backendMutation({
     if (credential) {
       await ctx.db.delete(credential._id);
     }
-    const routing = await ctx.db
-      .query("userModelRouting")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .unique();
-    if (routing) {
-      const credentials = await ctx.db
-        .query("providerCredentials")
-        .withIndex("by_userId_and_updatedAt", (q) =>
-          q.eq("userId", args.userId),
-        )
-        .collect();
-      const config = filterRoutingForProviders(
-        sanitizeModelRoutingConfig(routing),
-        new Set(credentials.map((item) => item.provider)),
-      );
-      await ctx.db.patch(routing._id, {
-        overrides: config.overrides,
-        catalogVersion: config.catalogVersion,
-        updatedAt: Date.now(),
-      });
-    }
+    await reconcileStoredRouting(ctx, args.userId);
     return { ok: true } as const;
+  },
+});
+
+export const internal_deleteCredentialIfRevision = backendMutation({
+  args: {
+    userId: v.string(),
+    provider: byokProviderValidator,
+    expectedRevision: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const credential = await ctx.db
+      .query("providerCredentials")
+      .withIndex("by_userId_provider", (q) =>
+        q.eq("userId", args.userId).eq("provider", args.provider),
+      )
+      .unique();
+    if (!credential || (credential.revision ?? 1) !== args.expectedRevision) {
+      return { deleted: false } as const;
+    }
+    await ctx.db.delete(credential._id);
+    await reconcileStoredRouting(ctx, args.userId);
+    return { deleted: true } as const;
   },
 });
 
@@ -179,9 +291,9 @@ export const internal_updateRouting = backendMutation({
       .query("providerCredentials")
       .withIndex("by_userId_and_updatedAt", (q) => q.eq("userId", args.userId))
       .collect();
-    const config = filterRoutingForProviders(
+    const config = filterRoutingForAvailability(
       sanitizeModelRoutingConfig(args),
-      new Set(credentials.map((credential) => credential.provider)),
+      availabilityFromCredentials(credentials),
     );
     const existing = await ctx.db
       .query("userModelRouting")
@@ -222,14 +334,12 @@ export const internal_reconcileUser = backendMutation({
     await Promise.all(
       unsupported.map((credential) => ctx.db.delete(credential._id)),
     );
-    const availableProviders = new Set(
-      credentials
-        .filter((credential) => supportedProviders.has(credential.provider))
-        .map((credential) => credential.provider),
+    const supportedCredentials = credentials.filter((credential) =>
+      supportedProviders.has(credential.provider),
     );
-    const config = filterRoutingForProviders(
+    const config = filterRoutingForAvailability(
       sanitizeModelRoutingConfig(routing ?? DEFAULT_MODEL_ROUTING_CONFIG),
-      availableProviders,
+      availabilityFromCredentials(supportedCredentials),
     );
     if (routing && !routingConfigsEqual(routing, config)) {
       await ctx.db.patch(routing._id, { ...config, updatedAt: Date.now() });
@@ -238,9 +348,9 @@ export const internal_reconcileUser = backendMutation({
   },
 });
 
-function filterRoutingForProviders(
+function filterRoutingForAvailability(
   config: UserModelRoutingConfig,
-  availableProviders: ReadonlySet<ByokProviderId>,
+  availability: ByokRouteAvailability,
 ): UserModelRoutingConfig {
   const overrides = config.overrides.filter((override) => {
     if (override.kind === "hosted") {
@@ -250,10 +360,57 @@ function filterRoutingForProviders(
     return (
       route !== undefined &&
       isByokProviderId(route.provider) &&
-      availableProviders.has(route.provider)
+      isByokRouteAvailable(route, availability)
     );
   });
   return { ...config, overrides };
+}
+
+function availabilityFromCredentials(
+  credentials: readonly {
+    provider: ByokProviderId;
+    connectionType?: "api_key" | "chatgpt_oauth" | "openrouter_oauth";
+    availableModelIds?: string[];
+    supportsImageGeneration?: boolean;
+  }[],
+): ByokRouteAvailability {
+  return new Map(
+    credentials.map((credential) => [
+      credential.provider,
+      credential.connectionType === "chatgpt_oauth"
+        ? {
+            kind: "models" as const,
+            modelIds: new Set(credential.availableModelIds ?? []),
+            supportsImageGeneration:
+              credential.supportsImageGeneration === true,
+          }
+        : { kind: "all" as const },
+    ]),
+  );
+}
+
+async function reconcileStoredRouting(
+  ctx: GenericMutationCtx<DataModel>,
+  userId: string,
+): Promise<void> {
+  const [routing, credentials] = await Promise.all([
+    ctx.db
+      .query("userModelRouting")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique(),
+    ctx.db
+      .query("providerCredentials")
+      .withIndex("by_userId_and_updatedAt", (q) => q.eq("userId", userId))
+      .collect(),
+  ]);
+  if (!routing) return;
+  const config = filterRoutingForAvailability(
+    sanitizeModelRoutingConfig(routing),
+    availabilityFromCredentials(credentials),
+  );
+  if (!routingConfigsEqual(routing, config)) {
+    await ctx.db.patch(routing._id, { ...config, updatedAt: Date.now() });
+  }
 }
 
 function routingConfigsEqual(

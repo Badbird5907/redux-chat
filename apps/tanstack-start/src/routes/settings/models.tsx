@@ -14,6 +14,7 @@ import { Card } from "@redux/ui/components/card";
 
 import { useBillingState } from "@/components/chat/use-billing-state";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
+import { buildByokRouteAvailability } from "@/components/settings/models/byok-availability";
 import { ModelOverridesSection } from "@/components/settings/models/model-overrides-section";
 import { ProviderKeysSection } from "@/components/settings/models/provider-keys-section";
 import { RoutingPrioritySection } from "@/components/settings/models/routing-priority-section";
@@ -53,6 +54,10 @@ function ModelsRouteComponent() {
       new Set<ByokProviderId>(
         (summary?.credentials ?? []).map((credential) => credential.provider),
       ),
+    [summary?.credentials],
+  );
+  const availability = useMemo(
+    () => buildByokRouteAvailability(summary?.credentials ?? []),
     [summary?.credentials],
   );
 
@@ -129,7 +134,7 @@ function ModelsRouteComponent() {
           />
           <ModelOverridesSection
             routing={routing}
-            configuredProviders={configuredProviders}
+            availability={availability}
             routingSaving={routingSaving}
             byokEnabled={entitled}
             disabled={!entitled}

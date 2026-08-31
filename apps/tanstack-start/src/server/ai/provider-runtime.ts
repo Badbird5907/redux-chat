@@ -4,11 +4,16 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createVertex } from "@ai-sdk/google-vertex";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createChatGPT } from "@opencoredev/loginwithchatgpt-ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 import type { ModelRouteInfo } from "@redux/shared/models";
 
 import { env } from "@/env";
+import { withoutRefreshToken } from "@/server/byok/chatgpt-refresh";
+import { chatGptConfig } from "@/server/byok/oauth/chatgpt";
+import { createChatGptImageModel } from "./chatgpt-image-model";
+import { createChatGptImagesClient } from "./chatgpt-images-client";
 
 export interface RuntimeProviderDefinition {
   key: string;
@@ -30,8 +35,9 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
     key: "anthropic",
     requiredEnv: ["ANTHROPIC_API_KEY"],
     createModel: (route, credentials) => {
+      const apiKey = apiKeyFromCredential(credentials, "anthropic");
       const provider = createAnthropic({
-        apiKey: credentials.apiKey,
+        apiKey,
       });
 
       return provider(route.vendorId);
@@ -41,6 +47,14 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
     key: "openai",
     requiredEnv: ["OPENAI_API_KEY"],
     createModel: (route, credentials) => {
+      if (credentials.kind === "chatgpt_oauth") {
+        const provider = createChatGPT({
+          credentials: withoutRefreshToken(credentials.tokens),
+          defaultModel: credentials.defaultModel,
+          clientVersion: chatGptConfig().clientVersion,
+        });
+        return provider.responses(route.vendorId);
+      }
       const provider = createOpenAI({
         apiKey: credentials.apiKey,
       });
@@ -48,6 +62,16 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
       return provider(route.vendorId);
     },
     createImageModel: (route, credentials) => {
+      if (credentials.kind === "chatgpt_oauth") {
+        return createChatGptImageModel({
+          images: createChatGptImagesClient({
+            tokens: withoutRefreshToken(credentials.tokens),
+            defaultModel: credentials.defaultModel,
+          }),
+          modelId: route.vendorId,
+          defaultModel: credentials.defaultModel,
+        });
+      }
       const provider = createOpenAI({
         apiKey: credentials.apiKey,
       });
@@ -59,10 +83,11 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
     key: "openrouter",
     requiredEnv: ["OPENROUTER_API_KEY"],
     createModel: (route, credentials) => {
+      const apiKey = apiKeyFromCredential(credentials, "openrouter");
       if (route.behavior.useOpenAICompatible) {
         const provider = createOpenAICompatible({
           name: "openrouter",
-          apiKey: credentials.apiKey,
+          apiKey,
           baseURL: "https://openrouter.ai/api/v1",
           includeUsage: true,
           supportedUrls: () => ({
@@ -74,7 +99,7 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
       }
 
       const provider = createOpenRouter({
-        apiKey: credentials.apiKey,
+        apiKey,
       });
 
       return provider(route.vendorId);
@@ -84,16 +109,18 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
     key: "vertex",
     requiredEnv: ["GOOGLE_VERTEX_API_KEY"],
     createModel: (route, credentials) => {
+      const apiKey = apiKeyFromCredential(credentials, "vertex");
       const provider = createVertex({
-        apiKey: credentials.apiKey,
+        apiKey,
       });
       console.log("created vertex provider");
 
       return provider(route.vendorId);
     },
     createImageModel: (route, credentials) => {
+      const apiKey = apiKeyFromCredential(credentials, "vertex");
       const provider = createVertex({
-        apiKey: credentials.apiKey,
+        apiKey,
       });
 
       return provider.image(route.vendorId);
@@ -103,13 +130,17 @@ export const RUNTIME_PROVIDERS: Record<string, RuntimeProviderDefinition> = {
     key: "workersai",
     requiredEnv: ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_KEY"],
     createModel: (route, credentials) => {
+      const apiKey = apiKeyFromCredential(credentials, "workersai");
+      if (credentials.kind !== "api_key") {
+        throw new Error("Cloudflare Workers AI requires API-key credentials.");
+      }
       if (!credentials.accountId) {
         throw new Error("Cloudflare Workers AI account ID is required.");
       }
       console.log("creating workersai provider");
       const provider = createOpenAICompatible({
         name: "workersai",
-        apiKey: credentials.apiKey,
+        apiKey,
         baseURL: `https://api.cloudflare.com/client/v4/accounts/${credentials.accountId}/ai/v1`,
         includeUsage: true,
       });
@@ -124,22 +155,39 @@ export function getPlatformProviderCredentials(
 ): ProviderCredentialPayload {
   switch (providerKey) {
     case "anthropic":
-      return { apiKey: env.ANTHROPIC_API_KEY };
+      return apiKeyCredential(env.ANTHROPIC_API_KEY);
     case "openai":
-      return { apiKey: env.OPENAI_API_KEY };
+      return apiKeyCredential(env.OPENAI_API_KEY);
     case "openrouter":
-      return { apiKey: env.OPENROUTER_API_KEY };
+      return apiKeyCredential(env.OPENROUTER_API_KEY);
     case "vertex":
-      return { apiKey: env.GOOGLE_VERTEX_API_KEY };
+      return apiKeyCredential(env.GOOGLE_VERTEX_API_KEY);
     case "workersai":
       if (!env.CLOUDFLARE_ACCOUNT_ID) {
         throw new Error("CLOUDFLARE_ACCOUNT_ID is not configured.");
       }
       return {
+        version: 2,
+        kind: "api_key",
+        source: "manual",
         apiKey: env.CLOUDFLARE_API_KEY,
         accountId: env.CLOUDFLARE_ACCOUNT_ID,
       };
     default:
       throw new Error(`Unsupported runtime provider: ${providerKey}`);
   }
+}
+
+function apiKeyCredential(apiKey: string): ProviderCredentialPayload {
+  return { version: 2, kind: "api_key", source: "manual", apiKey };
+}
+
+function apiKeyFromCredential(
+  credential: ProviderCredentialPayload,
+  provider: string,
+): string {
+  if (credential.kind !== "api_key") {
+    throw new Error(`${provider} requires API-key credentials.`);
+  }
+  return credential.apiKey;
 }

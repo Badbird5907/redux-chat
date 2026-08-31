@@ -10,7 +10,8 @@ import {
   fetchAuthQuery,
   getRequestUserIdFromHeaders,
 } from "@/lib/auth/server";
-import { encryptProviderCredential } from "@/server/byok/crypto";
+import { upsertProviderCredential } from "@/server/byok/credential-store";
+import { isSameOriginOrMissing, logOAuthEvent } from "@/server/byok/oauth/http";
 
 const credentialInput = z.object({
   apiKey: z.string().trim().min(1).max(20_000),
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/api/byok/credentials/$provider")({
   server: {
     handlers: {
       PUT: async ({ request, params }) => {
-        if (!isSameOrigin(request)) {
+        if (!isSameOriginOrMissing(request)) {
           return new Response("Forbidden", { status: 403 });
         }
         const userId = await getRequestUserIdFromHeaders(request.headers);
@@ -55,27 +56,26 @@ export const Route = createFileRoute("/api/byok/credentials/$provider")({
           );
         }
         const payload = {
+          version: 2 as const,
+          kind: "api_key" as const,
+          source: "manual" as const,
           apiKey: parsed.data.apiKey,
           ...(params.provider === "workersai"
             ? { accountId: parsed.data.accountId }
             : {}),
         };
-        const encrypted = encryptProviderCredential({
+        await upsertProviderCredential({
           userId,
           provider: params.provider,
           payload,
-        });
-        await fetchAuthMutation(api.functions.byok.internal_upsertCredential, {
-          secret: env.INTERNAL_CONVEX_SECRET,
-          userId,
-          provider: params.provider,
-          ...encrypted,
-          displaySuffix: parsed.data.apiKey.slice(-4),
+          metadata: {
+            displaySuffix: parsed.data.apiKey.slice(-4),
+          },
         });
         return Response.json({ ok: true });
       },
       DELETE: async ({ request, params }) => {
-        if (!isSameOrigin(request)) {
+        if (!isSameOriginOrMissing(request)) {
           return new Response("Forbidden", { status: 403 });
         }
         const userId = await getRequestUserIdFromHeaders(request.headers);
@@ -83,18 +83,36 @@ export const Route = createFileRoute("/api/byok/credentials/$provider")({
         if (!isByokProviderId(params.provider)) {
           return new Response("Unsupported provider", { status: 404 });
         }
+        const credential = await fetchAuthQuery(
+          api.functions.byok.internal_getEncryptedCredential,
+          {
+            secret: env.INTERNAL_CONVEX_SECRET,
+            userId,
+            provider: params.provider,
+          },
+        );
         await fetchAuthMutation(api.functions.byok.internal_deleteCredential, {
           secret: env.INTERNAL_CONVEX_SECRET,
           userId,
           provider: params.provider,
         });
+        if (credential?.connectionType === "chatgpt_oauth") {
+          logOAuthEvent({
+            connector: "chatgpt",
+            connectorVersion: "0.2.0",
+            stage: "disconnected",
+            status: "success",
+          });
+        } else if (credential?.connectionType === "openrouter_oauth") {
+          logOAuthEvent({
+            connector: "openrouter",
+            connectorVersion: "pkce-s256-v1",
+            stage: "disconnected",
+            status: "success",
+          });
+        }
         return Response.json({ ok: true });
       },
     },
   },
 });
-
-function isSameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
-}
