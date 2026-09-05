@@ -2,27 +2,27 @@
 // Do not edit manually.
 export const generatedProviderManifest = {
   anthropic: {
-    modelCount: 24,
-    doc: "https://docs.anthropic.com/en/docs/about-claude/models",
+    modelCount: 14,
+    doc: "https://docs.anthropic.com/en/docs/about-claude/models"
   },
   google: {
-    modelCount: 24,
-    doc: "https://ai.google.dev/gemini-api/docs/models",
+    modelCount: 39,
+    doc: "https://ai.google.dev/gemini-api/docs/models"
   },
   openai: {
-    modelCount: 54,
-    doc: "https://platform.openai.com/docs/models",
+    modelCount: 48,
+    doc: "https://platform.openai.com/docs/models"
   },
   openrouter: {
-    modelCount: 343,
-    doc: "https://openrouter.ai/models",
+    modelCount: 361,
+    doc: "https://openrouter.ai/models"
   },
   vertex: {
-    modelCount: 40,
-    doc: "https://cloud.google.com/vertex-ai/generative-ai/docs/models",
+    modelCount: 47,
+    doc: "https://cloud.google.com/vertex-ai/generative-ai/docs/models"
   },
   workersai: {
-    modelCount: 22,
-    doc: "https://developers.cloudflare.com/workers-ai/models/",
-  },
+    modelCount: 27,
+    doc: "https://developers.cloudflare.com/workers-ai/models/"
+  }
 } as const;

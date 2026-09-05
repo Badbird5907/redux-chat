@@ -10,35 +10,75 @@ export const vertexModels = {
   env: [
     "GOOGLE_APPLICATION_CREDENTIALS",
     "GOOGLE_VERTEX_LOCATION",
-    "GOOGLE_VERTEX_PROJECT",
+    "GOOGLE_VERTEX_PROJECT"
   ],
   models: {
-    "claude-3-5-haiku@20241022": {
-      id: "claude-3-5-haiku@20241022",
-      name: "Claude Haiku 3.5",
-      family: "claude-haiku",
+    "claude-fable-5-1@default": {
+      id: "claude-fable-5-1@default",
+      name: "Claude Fable 5.1",
+      family: "claude-fable",
       attachment: true,
-      reasoning: false,
+      reasoning: true,
       tool_call: true,
-      temperature: true,
-      knowledge: "2024-07-31",
-      release_date: "2024-10-22",
-      last_updated: "2024-10-22",
+      structured_output: true,
+      temperature: false,
+      knowledge: "2026-06",
+      release_date: "2026-09-01",
+      last_updated: "2026-09-01",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.08,
-        cache_write: 1,
-        input: 0.8,
-        output: 4,
+        cache_read: 0.25,
+        cache_write: 12.5,
+        input: 10,
+        output: 50
       },
       limit: {
-        context: 200000,
-        output: 8192,
+        context: 1000000,
+        output: 128000
+      }
+    },
+    "claude-fable-5@default": {
+      id: "claude-fable-5@default",
+      name: "Claude Fable 5",
+      family: "claude-fable",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      temperature: false,
+      knowledge: "2026-01-31",
+      release_date: "2026-06-09",
+      last_updated: "2026-06-09",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        cache_read: 1,
+        cache_write: 12.5,
+        input: 10,
+        output: 50
+      },
+      limit: {
+        context: 1000000,
+        output: 128000
+      }
     },
     "claude-haiku-4-5@20251001": {
       id: "claude-haiku-4-5@20251001",
@@ -53,19 +93,25 @@ export const vertexModels = {
       last_updated: "2025-10-15",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         cache_write: 1.25,
         input: 1,
-        output: 5,
+        output: 5
       },
       limit: {
         context: 200000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "claude-opus-4-1@20250805": {
       id: "claude-opus-4-1@20250805",
@@ -80,19 +126,25 @@ export const vertexModels = {
       last_updated: "2025-08-05",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.5,
         cache_write: 18.75,
         input: 15,
-        output: 75,
+        output: 75
       },
       limit: {
         context: 200000,
-        output: 32000,
-      },
+        output: 32000
+      }
     },
     "claude-opus-4-5@20251101": {
       id: "claude-opus-4-5@20251101",
@@ -102,24 +154,30 @@ export const vertexModels = {
       reasoning: true,
       tool_call: true,
       temperature: true,
-      knowledge: "2025-03-31",
+      knowledge: "2025-05",
       release_date: "2025-11-01",
       last_updated: "2025-11-01",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
         cache_write: 6.25,
         input: 5,
-        output: 25,
+        output: 25
       },
       limit: {
         context: 200000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "claude-opus-4-6@default": {
       id: "claude-opus-4-6@default",
@@ -134,8 +192,14 @@ export const vertexModels = {
       last_updated: "2026-03-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
@@ -144,7 +208,7 @@ export const vertexModels = {
           cache_read: 1,
           cache_write: 12.5,
           input: 10,
-          output: 37.5,
+          output: 37.5
         },
         input: 5,
         output: 25,
@@ -156,15 +220,15 @@ export const vertexModels = {
             cache_write: 12.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "claude-opus-4-7@default": {
       id: "claude-opus-4-7@default",
@@ -179,8 +243,14 @@ export const vertexModels = {
       last_updated: "2026-04-16",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
@@ -189,7 +259,7 @@ export const vertexModels = {
           cache_read: 1,
           cache_write: 12.5,
           input: 10,
-          output: 37.5,
+          output: 37.5
         },
         input: 5,
         output: 25,
@@ -201,15 +271,15 @@ export const vertexModels = {
             cache_write: 12.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "claude-opus-4-8@default": {
       id: "claude-opus-4-8@default",
@@ -219,12 +289,19 @@ export const vertexModels = {
       reasoning: true,
       tool_call: true,
       temperature: false,
+      knowledge: "2026-01",
       release_date: "2026-05-28",
       last_updated: "2026-05-28",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.5,
@@ -233,7 +310,7 @@ export const vertexModels = {
           cache_read: 1,
           cache_write: 12.5,
           input: 10,
-          output: 37.5,
+          output: 37.5
         },
         input: 5,
         output: 25,
@@ -245,15 +322,15 @@ export const vertexModels = {
             cache_write: 12.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "claude-opus-4@20250514": {
       id: "claude-opus-4@20250514",
@@ -268,19 +345,58 @@ export const vertexModels = {
       last_updated: "2025-05-22",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 1.5,
         cache_write: 18.75,
         input: 15,
-        output: 75,
+        output: 75
       },
       limit: {
         context: 200000,
-        output: 32000,
+        output: 32000
+      }
+    },
+    "claude-opus-5@default": {
+      id: "claude-opus-5@default",
+      name: "Claude Opus 5",
+      family: "claude-opus",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      temperature: false,
+      knowledge: "2026-05",
+      release_date: "2026-07-24",
+      last_updated: "2026-07-24",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        cache_read: 0.5,
+        cache_write: 6.25,
+        input: 5,
+        output: 25
+      },
+      limit: {
+        context: 1000000,
+        output: 128000
+      }
     },
     "claude-sonnet-4-5@20250929": {
       id: "claude-sonnet-4-5@20250929",
@@ -295,19 +411,25 @@ export const vertexModels = {
       last_updated: "2025-09-29",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.3,
         cache_write: 3.75,
         input: 3,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 200000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "claude-sonnet-4-6@default": {
       id: "claude-sonnet-4-6@default",
@@ -322,8 +444,14 @@ export const vertexModels = {
       last_updated: "2026-03-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.3,
@@ -332,7 +460,7 @@ export const vertexModels = {
           cache_read: 0.6,
           cache_write: 7.5,
           input: 6,
-          output: 22.5,
+          output: 22.5
         },
         input: 3,
         output: 15,
@@ -344,15 +472,15 @@ export const vertexModels = {
             cache_write: 7.5,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "claude-sonnet-4@20250514": {
       id: "claude-sonnet-4@20250514",
@@ -367,19 +495,25 @@ export const vertexModels = {
       last_updated: "2025-05-22",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.3,
         cache_write: 3.75,
         input: 3,
-        output: 15,
+        output: 15
       },
       limit: {
         context: 200000,
-        output: 64000,
-      },
+        output: 64000
+      }
     },
     "claude-sonnet-5@default": {
       id: "claude-sonnet-5@default",
@@ -394,19 +528,25 @@ export const vertexModels = {
       last_updated: "2026-06-30",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         cache_write: 2.5,
         input: 2,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 1000000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "deepseek-ai/deepseek-v3.1-maas": {
       id: "deepseek-ai/deepseek-v3.1-maas",
@@ -421,17 +561,23 @@ export const vertexModels = {
       last_updated: "2025-08-28",
       open_weights: true,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
+        cache_read: 0.06,
         input: 0.6,
-        output: 1.7,
+        output: 1.7
       },
       limit: {
         context: 163840,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "deepseek-ai/deepseek-v3.2-maas": {
       id: "deepseek-ai/deepseek-v3.2-maas",
@@ -446,18 +592,23 @@ export const vertexModels = {
       last_updated: "2026-04-04",
       open_weights: true,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.056,
         input: 0.56,
-        output: 1.68,
+        output: 1.68
       },
       limit: {
         context: 163840,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-flash": {
       id: "gemini-2.5-flash",
@@ -472,19 +623,58 @@ export const vertexModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.075,
-        cache_write: 0.383,
+        cache_read: 0.03,
         input: 0.3,
-        output: 2.5,
+        input_audio: 1,
+        output: 2.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-2.5-flash-image": {
+      id: "gemini-2.5-flash-image",
+      name: "Nano Banana",
+      family: "gemini-flash",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      temperature: true,
+      knowledge: "2024-06",
+      release_date: "2025-08-26",
+      last_updated: "2025-08-26",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
+      cost: {
+        input: 0.3,
+        output: 30
+      },
+      limit: {
+        context: 32768,
+        output: 32768
+      }
     },
     "gemini-2.5-flash-lite": {
       id: "gemini-2.5-flash-lite",
@@ -499,19 +689,27 @@ export const vertexModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         input: 0.1,
         input_audio: 0.3,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-flash-tts": {
       id: "gemini-2.5-flash-tts",
@@ -526,17 +724,21 @@ export const vertexModels = {
       last_updated: "2025-12-10",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["audio"],
+        input: [
+          "text"
+        ],
+        output: [
+          "audio"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 32768,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gemini-2.5-pro": {
       id: "gemini-2.5-pro",
@@ -551,15 +753,23 @@ export const vertexModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         context_over_200k: {
           cache_read: 0.25,
           input: 2.5,
-          output: 15,
+          output: 15
         },
         input: 1.25,
         output: 10,
@@ -570,15 +780,15 @@ export const vertexModels = {
             cache_read: 0.25,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-pro-tts": {
       id: "gemini-2.5-pro-tts",
@@ -593,17 +803,21 @@ export const vertexModels = {
       last_updated: "2025-12-10",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["audio"],
+        input: [
+          "text"
+        ],
+        output: [
+          "audio"
+        ]
       },
       cost: {
         input: 1,
-        output: 20,
+        output: 20
       },
       limit: {
         context: 32768,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gemini-3-flash-preview": {
       id: "gemini-3-flash-preview",
@@ -619,19 +833,59 @@ export const vertexModels = {
       last_updated: "2025-12-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.5,
         input_audio: 1,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3-pro-image": {
+      id: "gemini-3-pro-image",
+      name: "Nano Banana Pro",
+      family: "gemini-pro",
+      attachment: true,
+      reasoning: true,
+      tool_call: false,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2026-05-28",
+      last_updated: "2026-05-28",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
+      cost: {
+        cache_read: 0.2,
+        input: 2,
+        output: 120
+      },
+      limit: {
+        context: 65536,
+        output: 32768
+      }
     },
     "gemini-3-pro-image-preview": {
       id: "gemini-3-pro-image-preview",
@@ -646,13 +900,53 @@ export const vertexModels = {
       last_updated: "2026-05-01",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         input: 2,
-        output: 12,
+        output: 12
+      }
+    },
+    "gemini-3.1-flash-image": {
+      id: "gemini-3.1-flash-image",
+      name: "Nano Banana 2",
+      family: "gemini-flash",
+      attachment: true,
+      reasoning: true,
+      tool_call: false,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2026-05-28",
+      last_updated: "2026-05-28",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
+      cost: {
+        cache_read: 0.05,
+        input: 0.5,
+        output: 60
+      },
+      limit: {
+        context: 131072,
+        output: 32768
+      }
     },
     "gemini-3.1-flash-image-preview": {
       id: "gemini-3.1-flash-image-preview",
@@ -667,13 +961,19 @@ export const vertexModels = {
       last_updated: "2026-05-01",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         input: 0.3,
-        output: 2.5,
-      },
+        output: 2.5
+      }
     },
     "gemini-3.1-flash-lite": {
       id: "gemini-3.1-flash-lite",
@@ -689,19 +989,27 @@ export const vertexModels = {
       last_updated: "2026-05-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
         input_audio: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-flash-lite-preview": {
       id: "gemini-3.1-flash-lite-preview",
@@ -717,19 +1025,27 @@ export const vertexModels = {
       last_updated: "2026-03-03",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
         input_audio: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-pro-preview": {
       id: "gemini-3.1-pro-preview",
@@ -745,15 +1061,23 @@ export const vertexModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -764,15 +1088,15 @@ export const vertexModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-pro-preview-customtools": {
       id: "gemini-3.1-pro-preview-customtools",
@@ -788,15 +1112,23 @@ export const vertexModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -807,15 +1139,15 @@ export const vertexModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.5-flash": {
       id: "gemini-3.5-flash",
@@ -831,19 +1163,62 @@ export const vertexModels = {
       last_updated: "2026-05-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.15,
         input: 1.5,
         input_audio: 1.5,
-        output: 9,
+        output: 9
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3.5-flash-lite": {
+      id: "gemini-3.5-flash-lite",
+      name: "Gemini 3.5 Flash Lite",
+      family: "gemini-flash-lite",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: true,
+      knowledge: "2026-03",
+      release_date: "2026-07-21",
+      last_updated: "2026-07-21",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        cache_read: 0.03,
+        input: 0.3,
+        output: 2.5
+      },
+      limit: {
+        context: 1048576,
+        output: 65536
+      }
     },
     "gemini-3.6-flash": {
       id: "gemini-3.6-flash",
@@ -859,19 +1234,27 @@ export const vertexModels = {
       last_updated: "2026-07-21",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.15,
-        input: 1.5,
-        input_audio: 1.5,
-        output: 7.5,
+        cache_read: 0.075,
+        input: 0.75,
+        input_audio: 0.75,
+        output: 3.75
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.7-flash": {
       id: "gemini-3.7-flash",
@@ -887,19 +1270,62 @@ export const vertexModels = {
       last_updated: "2026-08-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.75,
         input_audio: 0.75,
-        output: 3.75,
+        output: 3.75
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3.8-flash": {
+      id: "gemini-3.8-flash",
+      name: "Gemini 3.8 Flash",
+      family: "gemini-flash",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: true,
+      release_date: "2026-09-02",
+      last_updated: "2026-09-02",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        cache_read: 0.075,
+        input: 0.75,
+        input_audio: 0.75,
+        output: 3.75
+      },
+      limit: {
+        context: 1048576,
+        output: 65536
+      }
     },
     "gemini-embedding-001": {
       id: "gemini-embedding-001",
@@ -914,17 +1340,21 @@ export const vertexModels = {
       last_updated: "2025-05-20",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 2048,
-        output: 1,
-      },
+        output: 1
+      }
     },
     "gemini-flash-latest": {
       id: "gemini-flash-latest",
@@ -933,25 +1363,34 @@ export const vertexModels = {
       attachment: true,
       reasoning: true,
       tool_call: true,
+      structured_output: true,
       temperature: true,
-      knowledge: "2025-01",
-      release_date: "2025-09-25",
-      last_updated: "2025-09-25",
+      knowledge: "2026-03",
+      release_date: "2026-08-13",
+      last_updated: "2026-08-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.075,
-        cache_write: 0.383,
-        input: 0.3,
-        output: 2.5,
+        cache_read: 0.15,
+        input: 1.5,
+        input_audio: 1.5,
+        output: 9
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-flash-lite-latest": {
       id: "gemini-flash-lite-latest",
@@ -961,23 +1400,32 @@ export const vertexModels = {
       reasoning: true,
       tool_call: true,
       temperature: true,
-      knowledge: "2025-01",
-      release_date: "2025-09-25",
-      last_updated: "2025-09-25",
+      knowledge: "2026-03",
+      release_date: "2026-07-21",
+      last_updated: "2026-07-21",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
-        input: 0.1,
-        output: 0.4,
+        input: 0.25,
+        input_audio: 0.5,
+        output: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "meta/llama-3.3-70b-instruct-maas": {
       id: "meta/llama-3.3-70b-instruct-maas",
@@ -993,17 +1441,21 @@ export const vertexModels = {
       last_updated: "2025-04-29",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.72,
-        output: 0.72,
+        output: 0.72
       },
       limit: {
         context: 128000,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "meta/llama-4-maverick-17b-128e-instruct-maas": {
       id: "meta/llama-4-maverick-17b-128e-instruct-maas",
@@ -1019,17 +1471,22 @@ export const vertexModels = {
       last_updated: "2025-04-29",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.35,
-        output: 1.15,
+        output: 1.15
       },
       limit: {
         context: 524288,
-        output: 8192,
-      },
+        output: 8192
+      }
     },
     "moonshotai/kimi-k2-thinking-maas": {
       id: "moonshotai/kimi-k2-thinking-maas",
@@ -1045,17 +1502,22 @@ export const vertexModels = {
       last_updated: "2025-11-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
+        cache_read: 0.06,
         input: 0.6,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 262144,
-        output: 262144,
-      },
+        output: 262144
+      }
     },
     "openai/gpt-oss-120b-maas": {
       id: "openai/gpt-oss-120b-maas",
@@ -1069,17 +1531,21 @@ export const vertexModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.09,
-        output: 0.36,
+        output: 0.36
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "openai/gpt-oss-20b-maas": {
       id: "openai/gpt-oss-20b-maas",
@@ -1093,17 +1559,22 @@ export const vertexModels = {
       last_updated: "2025-08-05",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
+        cache_read: 0.007,
         input: 0.07,
-        output: 0.25,
+        output: 0.25
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "qwen/qwen3-235b-a22b-instruct-2507-maas": {
       id: "qwen/qwen3-235b-a22b-instruct-2507-maas",
@@ -1118,17 +1589,21 @@ export const vertexModels = {
       last_updated: "2025-08-13",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.22,
-        output: 0.88,
+        output: 0.88
       },
       limit: {
         context: 262144,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "zai-org/glm-4.7-maas": {
       id: "zai-org/glm-4.7-maas",
@@ -1144,17 +1619,23 @@ export const vertexModels = {
       last_updated: "2026-01-06",
       open_weights: true,
       modalities: {
-        input: ["text", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
+        cache_read: 0.06,
         input: 0.6,
-        output: 2.2,
+        output: 2.2
       },
       limit: {
         context: 200000,
-        output: 128000,
-      },
+        output: 128000
+      }
     },
     "zai-org/glm-5-maas": {
       id: "zai-org/glm-5-maas",
@@ -1168,19 +1649,23 @@ export const vertexModels = {
       last_updated: "2026-02-11",
       open_weights: true,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.1,
         input: 1,
-        output: 3.2,
+        output: 3.2
       },
       limit: {
         context: 202752,
-        output: 131072,
-      },
-    },
-  },
+        output: 131072
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const vertexCatalog = vertexModels;

@@ -7,60 +7,157 @@ export const googleModels = {
   name: "Google",
   npm: "@ai-sdk/google",
   doc: "https://ai.google.dev/gemini-api/docs/models",
-  env: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+  env: [
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "GOOGLE_GENERATIVE_AI_API_KEY"
+  ],
   models: {
-    "gemini-2.0-flash": {
-      id: "gemini-2.0-flash",
-      name: "Gemini 2.0 Flash",
-      family: "gemini-flash",
+    "deep-research-max-preview-04-2026": {
+      id: "deep-research-max-preview-04-2026",
+      name: "Deep Research Max Preview (Apr-21-2026)",
+      family: "gemini-pro",
       attachment: true,
-      reasoning: false,
+      reasoning: true,
       tool_call: true,
-      structured_output: true,
       temperature: true,
-      knowledge: "2024-06",
-      release_date: "2024-12-11",
-      last_updated: "2024-12-11",
+      knowledge: "2025-01",
+      release_date: "2026-04-21",
+      last_updated: "2026-04-21",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
-        cache_read: 0.025,
-        input: 0.1,
-        output: 0.4,
+        cache_read: 0.2,
+        context_over_200k: {
+          cache_read: 0.4,
+          input: 4,
+          output: 18
+        },
+        input: 2,
+        output: 12,
+        tiers: [
+          {
+            input: 4,
+            output: 18,
+            cache_read: 0.4,
+            tier: {
+              type: "context",
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
-        context: 1048576,
-        output: 8192,
-      },
+        context: 131072,
+        output: 65536
+      }
     },
-    "gemini-2.0-flash-lite": {
-      id: "gemini-2.0-flash-lite",
-      name: "Gemini 2.0 Flash-Lite",
-      family: "gemini-flash-lite",
+    "deep-research-preview-04-2026": {
+      id: "deep-research-preview-04-2026",
+      name: "Deep Research Preview (Apr-21-2026)",
+      family: "gemini-pro",
       attachment: true,
-      reasoning: false,
+      reasoning: true,
       tool_call: true,
-      structured_output: true,
       temperature: true,
-      knowledge: "2024-06",
-      release_date: "2024-12-11",
-      last_updated: "2024-12-11",
+      knowledge: "2025-01",
+      release_date: "2026-04-21",
+      last_updated: "2026-04-21",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
-        input: 0.075,
-        output: 0.3,
+        cache_read: 0.2,
+        context_over_200k: {
+          cache_read: 0.4,
+          input: 4,
+          output: 18
+        },
+        input: 2,
+        output: 12,
+        tiers: [
+          {
+            input: 4,
+            output: 18,
+            cache_read: 0.4,
+            tier: {
+              type: "context",
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
-        context: 1048576,
-        output: 8192,
+        context: 131072,
+        output: 65536
+      }
+    },
+    "gemini-2.5-computer-use-preview-10-2025": {
+      id: "gemini-2.5-computer-use-preview-10-2025",
+      name: "Gemini 2.5 Computer Use Preview 10-2025",
+      family: "gemini-pro",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2025-10-07",
+      last_updated: "2025-10-07",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        context_over_200k: {
+          input: 2.5,
+          output: 15
+        },
+        input: 1.25,
+        output: 10,
+        tiers: [
+          {
+            input: 2.5,
+            output: 15,
+            tier: {
+              type: "context",
+              size: 200000
+            }
+          }
+        ]
+      },
+      limit: {
+        context: 131072,
+        output: 65536
+      }
     },
     "gemini-2.5-flash": {
       id: "gemini-2.5-flash",
@@ -76,19 +173,27 @@ export const googleModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.03,
         input: 0.3,
         input_audio: 1,
-        output: 2.5,
+        output: 2.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-flash-image": {
       id: "gemini-2.5-flash-image",
@@ -98,23 +203,29 @@ export const googleModels = {
       reasoning: true,
       tool_call: false,
       temperature: true,
-      knowledge: "2025-06",
+      knowledge: "2024-06",
       release_date: "2025-08-26",
       last_updated: "2025-08-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.3,
-        output: 30,
+        output: 30
       },
       limit: {
         context: 32768,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gemini-2.5-flash-lite": {
       id: "gemini-2.5-flash-lite",
@@ -130,19 +241,27 @@ export const googleModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.01,
         input: 0.1,
         input_audio: 0.3,
-        output: 0.4,
+        output: 0.4
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-flash-preview-tts": {
       id: "gemini-2.5-flash-preview-tts",
@@ -157,17 +276,21 @@ export const googleModels = {
       last_updated: "2025-05-01",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["audio"],
+        input: [
+          "text"
+        ],
+        output: [
+          "audio"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 10,
+        output: 10
       },
       limit: {
         context: 8192,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gemini-2.5-pro": {
       id: "gemini-2.5-pro",
@@ -183,15 +306,23 @@ export const googleModels = {
       last_updated: "2025-06-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.125,
         context_over_200k: {
           cache_read: 0.25,
           input: 2.5,
-          output: 15,
+          output: 15
         },
         input: 1.25,
         output: 10,
@@ -202,15 +333,15 @@ export const googleModels = {
             cache_read: 0.25,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-2.5-pro-preview-tts": {
       id: "gemini-2.5-pro-preview-tts",
@@ -225,17 +356,21 @@ export const googleModels = {
       last_updated: "2025-05-01",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["audio"],
+        input: [
+          "text"
+        ],
+        output: [
+          "audio"
+        ]
       },
       cost: {
         input: 1,
-        output: 20,
+        output: 20
       },
       limit: {
         context: 8192,
-        output: 16384,
-      },
+        output: 16384
+      }
     },
     "gemini-3-flash-preview": {
       id: "gemini-3-flash-preview",
@@ -251,19 +386,58 @@ export const googleModels = {
       last_updated: "2025-12-17",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.05,
         input: 0.5,
         input_audio: 1,
-        output: 3,
+        output: 3
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3-pro-image": {
+      id: "gemini-3-pro-image",
+      name: "Nano Banana Pro",
+      family: "gemini-pro",
+      attachment: true,
+      reasoning: true,
+      tool_call: false,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2026-05-28",
+      last_updated: "2026-05-28",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
+      cost: {
+        input: 2,
+        output: 120
+      },
+      limit: {
+        context: 131072,
+        output: 32768
+      }
     },
     "gemini-3-pro-image-preview": {
       id: "gemini-3-pro-image-preview",
@@ -278,60 +452,56 @@ export const googleModels = {
       last_updated: "2025-11-20",
       open_weights: false,
       modalities: {
-        input: ["text", "image"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         input: 2,
-        output: 120,
+        output: 120
       },
       limit: {
         context: 131072,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
-    "gemini-3-pro-preview": {
-      id: "gemini-3-pro-preview",
-      name: "Gemini 3 Pro Preview",
-      family: "gemini-pro",
+    "gemini-3.1-flash-image": {
+      id: "gemini-3.1-flash-image",
+      name: "Nano Banana 2",
+      family: "gemini-flash",
       attachment: true,
       reasoning: true,
-      tool_call: true,
-      structured_output: true,
+      tool_call: false,
       temperature: true,
       knowledge: "2025-01",
-      release_date: "2025-11-18",
-      last_updated: "2025-11-18",
+      release_date: "2026-05-28",
+      last_updated: "2026-05-28",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
-        cache_read: 0.2,
-        context_over_200k: {
-          cache_read: 0.4,
-          input: 4,
-          output: 18,
-        },
-        input: 2,
-        output: 12,
-        tiers: [
-          {
-            input: 4,
-            output: 18,
-            cache_read: 0.4,
-            tier: {
-              type: "context",
-              size: 200000,
-            },
-          },
-        ],
+        input: 0.5,
+        output: 60
       },
       limit: {
-        context: 1048576,
-        output: 65536,
-      },
+        context: 65536,
+        output: 65536
+      }
     },
     "gemini-3.1-flash-image-preview": {
       id: "gemini-3.1-flash-image-preview",
@@ -346,17 +516,24 @@ export const googleModels = {
       last_updated: "2026-02-26",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "pdf"],
-        output: ["text", "image"],
+        input: [
+          "text",
+          "image",
+          "pdf"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
       cost: {
         input: 0.5,
-        output: 60,
+        output: 60
       },
       limit: {
         context: 65536,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-flash-lite": {
       id: "gemini-3.1-flash-lite",
@@ -372,19 +549,59 @@ export const googleModels = {
       last_updated: "2026-05-07",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
         input_audio: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3.1-flash-lite-image": {
+      id: "gemini-3.1-flash-lite-image",
+      name: "Nano Banana 2 Lite",
+      family: "gemini-flash-lite",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: false,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2026-06-30",
+      last_updated: "2026-06-30",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "image"
+        ]
       },
+      cost: {
+        input: 0.25,
+        output: 30
+      },
+      limit: {
+        context: 65536,
+        output: 65536
+      }
     },
     "gemini-3.1-flash-lite-preview": {
       id: "gemini-3.1-flash-lite-preview",
@@ -400,19 +617,92 @@ export const googleModels = {
       last_updated: "2026-03-03",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.025,
         input: 0.25,
         input_audio: 0.5,
-        output: 1.5,
+        output: 1.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3.1-flash-live-preview": {
+      id: "gemini-3.1-flash-live-preview",
+      name: "Gemini 3.1 Flash Live Preview",
+      family: "gemini-flash",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: false,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2026-03-26",
+      last_updated: "2026-03-26",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio"
+        ],
+        output: [
+          "text",
+          "audio"
+        ]
       },
+      cost: {
+        input: 0.75,
+        input_audio: 3,
+        output: 4.5,
+        output_audio: 12
+      },
+      limit: {
+        context: 131072,
+        output: 65536
+      }
+    },
+    "gemini-3.1-flash-tts-preview": {
+      id: "gemini-3.1-flash-tts-preview",
+      name: "Gemini 3.1 Flash TTS Preview",
+      family: "gemini-flash",
+      attachment: false,
+      reasoning: true,
+      tool_call: false,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2026-04-15",
+      last_updated: "2026-04-15",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text"
+        ],
+        output: [
+          "audio"
+        ]
+      },
+      cost: {
+        input: 1,
+        output: 20
+      },
+      limit: {
+        context: 8192,
+        output: 16384
+      }
     },
     "gemini-3.1-pro-preview": {
       id: "gemini-3.1-pro-preview",
@@ -428,15 +718,23 @@ export const googleModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -447,15 +745,15 @@ export const googleModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.1-pro-preview-customtools": {
       id: "gemini-3.1-pro-preview-customtools",
@@ -471,15 +769,23 @@ export const googleModels = {
       last_updated: "2026-02-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.2,
         context_over_200k: {
           cache_read: 0.4,
           input: 4,
-          output: 18,
+          output: 18
         },
         input: 2,
         output: 12,
@@ -490,15 +796,15 @@ export const googleModels = {
             cache_read: 0.4,
             tier: {
               type: "context",
-              size: 200000,
-            },
-          },
-        ],
+              size: 200000
+            }
+          }
+        ]
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.5-flash": {
       id: "gemini-3.5-flash",
@@ -514,19 +820,94 @@ export const googleModels = {
       last_updated: "2026-05-19",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.15,
         input: 1.5,
         input_audio: 1.5,
-        output: 9,
+        output: 9
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3.5-flash-lite": {
+      id: "gemini-3.5-flash-lite",
+      name: "Gemini 3.5 Flash Lite",
+      family: "gemini-flash-lite",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: true,
+      knowledge: "2026-03",
+      release_date: "2026-07-21",
+      last_updated: "2026-07-21",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        cache_read: 0.03,
+        input: 0.3,
+        output: 2.5
+      },
+      limit: {
+        context: 1048576,
+        output: 65536
+      }
+    },
+    "gemini-3.5-live-translate-preview": {
+      id: "gemini-3.5-live-translate-preview",
+      name: "Gemini 3.5 Live Translate Preview",
+      family: "gemini-pro",
+      attachment: false,
+      reasoning: false,
+      tool_call: false,
+      temperature: true,
+      knowledge: "2025-01",
+      release_date: "2026-06-09",
+      last_updated: "2026-06-09",
+      open_weights: false,
+      modalities: {
+        input: [
+          "audio"
+        ],
+        output: [
+          "audio",
+          "text"
+        ]
+      },
+      cost: {
+        input: 3.5,
+        input_audio: 3.5,
+        output: 21,
+        output_audio: 21
+      },
+      limit: {
+        context: 16384,
+        output: 32768
+      }
     },
     "gemini-3.6-flash": {
       id: "gemini-3.6-flash",
@@ -542,19 +923,27 @@ export const googleModels = {
       last_updated: "2026-07-21",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.15,
-        input: 1.5,
-        input_audio: 1.5,
-        output: 7.5,
+        cache_read: 0.075,
+        input: 0.75,
+        input_audio: 0.75,
+        output: 3.75
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-3.7-flash": {
       id: "gemini-3.7-flash",
@@ -570,19 +959,62 @@ export const googleModels = {
       last_updated: "2026-08-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "video", "audio", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
         input: 0.75,
         input_audio: 0.75,
-        output: 3.75,
+        output: 3.75
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-3.8-flash": {
+      id: "gemini-3.8-flash",
+      name: "Gemini 3.8 Flash",
+      family: "gemini-flash",
+      attachment: true,
+      reasoning: true,
+      tool_call: true,
+      structured_output: true,
+      temperature: true,
+      release_date: "2026-09-02",
+      last_updated: "2026-09-02",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        cache_read: 0.075,
+        input: 0.75,
+        input_audio: 0.75,
+        output: 3.75
+      },
+      limit: {
+        context: 1048576,
+        output: 65536
+      }
     },
     "gemini-embedding-001": {
       id: "gemini-embedding-001",
@@ -597,17 +1029,55 @@ export const googleModels = {
       last_updated: "2025-05-20",
       open_weights: false,
       modalities: {
-        input: ["text"],
-        output: ["text"],
+        input: [
+          "text"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         input: 0.15,
-        output: 0,
+        output: 0
       },
       limit: {
         context: 2048,
-        output: 1,
+        output: 1
+      }
+    },
+    "gemini-embedding-2": {
+      id: "gemini-embedding-2",
+      name: "Gemini Embedding 2",
+      family: "gemini",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      temperature: false,
+      knowledge: "2025-11",
+      release_date: "2026-04-22",
+      last_updated: "2026-04-22",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "audio",
+          "video",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
+      cost: {
+        input: 0.2,
+        input_audio: 6.5,
+        output: 0
+      },
+      limit: {
+        context: 8192,
+        output: 1
+      }
     },
     "gemini-flash-latest": {
       id: "gemini-flash-latest",
@@ -618,24 +1088,32 @@ export const googleModels = {
       tool_call: true,
       structured_output: true,
       temperature: true,
-      knowledge: "2025-01",
-      release_date: "2025-09-25",
-      last_updated: "2025-09-25",
+      knowledge: "2026-03",
+      release_date: "2026-08-13",
+      last_updated: "2026-08-13",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
         cache_read: 0.075,
-        input: 0.3,
-        input_audio: 1,
-        output: 2.5,
+        input: 0.75,
+        input_audio: 0.75,
+        output: 3.75
       },
       limit: {
         context: 1048576,
-        output: 65536,
-      },
+        output: 65536
+      }
     },
     "gemini-flash-lite-latest": {
       id: "gemini-flash-lite-latest",
@@ -646,23 +1124,61 @@ export const googleModels = {
       tool_call: true,
       structured_output: true,
       temperature: true,
-      knowledge: "2025-01",
-      release_date: "2025-09-25",
-      last_updated: "2025-09-25",
+      knowledge: "2026-03",
+      release_date: "2026-07-21",
+      last_updated: "2026-07-21",
       open_weights: false,
       modalities: {
-        input: ["text", "image", "audio", "video", "pdf"],
-        output: ["text"],
+        input: [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "pdf"
+        ],
+        output: [
+          "text"
+        ]
       },
       cost: {
-        cache_read: 0.025,
-        input: 0.1,
-        output: 0.4,
+        cache_read: 0.03,
+        input: 0.3,
+        output: 2.5
       },
       limit: {
         context: 1048576,
-        output: 65536,
+        output: 65536
+      }
+    },
+    "gemini-omni-flash-preview": {
+      id: "gemini-omni-flash-preview",
+      name: "Gemini Omni Flash Preview",
+      family: "gemini",
+      attachment: true,
+      reasoning: true,
+      tool_call: false,
+      temperature: true,
+      release_date: "2026-06-30",
+      last_updated: "2026-06-30",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "video"
+        ]
       },
+      cost: {
+        input: 1.5,
+        output: 17.5
+      },
+      limit: {
+        context: 131072,
+        output: 65536
+      }
     },
     "gemma-4-26b-a4b-it": {
       id: "gemma-4-26b-a4b-it",
@@ -677,13 +1193,18 @@ export const googleModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
     "gemma-4-31b-it": {
       id: "gemma-4-31b-it",
@@ -698,14 +1219,157 @@ export const googleModels = {
       last_updated: "2026-04-02",
       open_weights: true,
       modalities: {
-        input: ["text", "image"],
-        output: ["text"],
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text"
+        ]
       },
       limit: {
         context: 262144,
-        output: 32768,
-      },
+        output: 32768
+      }
     },
-  },
+    "lyria-3-clip-preview": {
+      id: "lyria-3-clip-preview",
+      name: "Lyria 3 Clip Preview",
+      family: "lyria",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: true,
+      release_date: "2026-03-25",
+      last_updated: "2026-03-25",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "audio"
+        ]
+      },
+      cost: {
+        input: 0,
+        output: 0
+      },
+      limit: {
+        context: 1048576,
+        output: 65536
+      }
+    },
+    "lyria-3-pro-preview": {
+      id: "lyria-3-pro-preview",
+      name: "Lyria 3 Pro Preview",
+      family: "lyria",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      structured_output: false,
+      temperature: true,
+      release_date: "2026-03-25",
+      last_updated: "2026-03-25",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "text",
+          "audio"
+        ]
+      },
+      cost: {
+        input: 0,
+        output: 0
+      },
+      limit: {
+        context: 1048576,
+        output: 65536
+      }
+    },
+    "veo-3.1-fast-generate-preview": {
+      id: "veo-3.1-fast-generate-preview",
+      name: "Veo 3.1 fast",
+      family: "veo",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      temperature: false,
+      release_date: "2025-10-15",
+      last_updated: "2026-01-01",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image",
+          "video"
+        ],
+        output: [
+          "video"
+        ]
+      },
+      limit: {
+        context: 480,
+        output: 8192
+      }
+    },
+    "veo-3.1-generate-preview": {
+      id: "veo-3.1-generate-preview",
+      name: "Veo 3.1",
+      family: "veo",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      temperature: false,
+      release_date: "2025-10-15",
+      last_updated: "2026-01",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "video"
+        ]
+      },
+      limit: {
+        context: 480,
+        output: 8192
+      }
+    },
+    "veo-3.1-lite-generate-preview": {
+      id: "veo-3.1-lite-generate-preview",
+      name: "Veo 3.1 lite",
+      family: "veo",
+      attachment: true,
+      reasoning: false,
+      tool_call: false,
+      temperature: false,
+      release_date: "2026-03-31",
+      last_updated: "2026-03-31",
+      open_weights: false,
+      modalities: {
+        input: [
+          "text",
+          "image"
+        ],
+        output: [
+          "video"
+        ]
+      },
+      limit: {
+        context: 480,
+        output: 8192
+      }
+    }
+  }
 } as const satisfies ModelsDevProviderCatalog;
 export const googleCatalog = googleModels;
